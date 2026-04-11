@@ -1,0 +1,9 @@
+mkdir backend
+cd backend
+npm init -y [npm init -y ka use Node.js project mein package.json file ko automatically create karne ke liye kiya jata hai.]
+npm install express mongoose cors dotenv
+npm install --save-dev nodemon [Automatic Restart: Jab bhi aap code mein koi change karke file save karte hain, nodemon server ko apne aap restart kar deta hai.]
+
+npm create vite@latest frontend -- --template react
+cd frontend
+npm install
