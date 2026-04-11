@@ -7,3 +7,25 @@ npm install --save-dev nodemon [Automatic Restart: Jab bhi aap code mein koi cha
 npm create vite@latest frontend -- --template react
 cd frontend
 npm install
+______________________________________________________________________
+
+sohail yahan sa parh uper wala mena smjhana kay lya rakha hai ka mena start kaisa kya ( github ka account pehla accept as collaborator) 
+ 
+clone the project
+cmd:	git clone https://github.com/butoameerali/GymSync.git
+ 	
+Dependencies ko Install karna
+  frontend -  cmd: npm install
+  backend  - cmd: npm install
+
+
+kaam shuru krna sa pehla 
+ cmd:     git pull origin main
+
+
+apna kaam krna kay badh save kro 
+cmd:
+    git add .
+    git commit -m "Jo kaam kiya uska message"
+    git push origin main
+
