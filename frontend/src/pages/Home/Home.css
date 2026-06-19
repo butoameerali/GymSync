@@ -1,0 +1,177 @@
+.home-page {
+  padding-top: 100px;
+  min-height: 100vh;
+  background: var(--bg-color);
+  padding-bottom: 60px;
+}
+
+.feed-container {
+  display: grid;
+  grid-template-columns: 250px 1fr 250px;
+  gap: 24px;
+  align-items: start;
+}
+
+.feed-sidebar {
+  position: sticky;
+  top: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sidebar-widget {
+  padding: 20px;
+}
+
+.sidebar-widget h3 {
+  font-size: 1.1rem;
+  margin-bottom: 15px;
+}
+
+.ad-widget h4 {
+  font-size: 0.8rem;
+  color: var(--primary-accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.ad-title {
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 5px;
+}
+
+.ad-desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.create-post-box {
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.create-post-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.post-input {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 12px 20px;
+  border-radius: 30px;
+  color: white;
+}
+
+.post-input:focus {
+  outline: none;
+  border-color: var(--primary-accent);
+}
+
+.create-post-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.post-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+
+.post-action-btn:hover {
+  background: rgba(255,255,255,0.05);
+  color: white;
+}
+
+.post-card {
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.post-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.post-meta h4 {
+  margin: 0 0 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--primary-accent);
+  border-radius: 10px;
+}
+
+.post-time {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.post-content {
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.post-actions {
+  display: flex;
+  gap: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.action-btn:hover {
+  color: white;
+}
+
+.action-btn.active {
+  color: var(--primary-accent);
+}
+
+@media (max-width: 900px) {
+  .feed-container {
+    grid-template-columns: 1fr;
+  }
+  .feed-sidebar {
+    display: none; /* Hide sidebars on mobile */
+  }
+}

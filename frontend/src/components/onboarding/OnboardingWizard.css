@@ -1,0 +1,508 @@
+.onboarding-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(10, 10, 15, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.onboarding-modal {
+  background: #1a1d24;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.skip-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: 0.2s;
+  z-index: 10;
+}
+
+.skip-btn:hover {
+  color: white;
+}
+
+.progress-bar-container {
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  width: 100%;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--primary-accent);
+  transition: width 0.4s ease;
+}
+
+.step-indicator {
+  text-align: center;
+  padding: 15px 0 5px 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.onboarding-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 40px;
+}
+
+.onboarding-content::-webkit-scrollbar {
+  width: 6px;
+}
+.onboarding-content::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+
+.wiz-step h2 {
+  font-size: 2rem;
+  margin-bottom: 5px;
+  color: white;
+}
+
+.wiz-subtitle {
+  color: var(--text-secondary);
+  margin-bottom: 25px;
+  font-size: 1rem;
+}
+
+.wiz-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.goal-summary-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  color: #93c5fd;
+  font-size: 0.9rem;
+}
+
+/* Step 1: Goals */
+.goals-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.goal-category {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: 0.3s;
+}
+
+.goal-category.active-area {
+  border-color: var(--primary-accent);
+  background: rgba(59, 130, 246, 0.05);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+.goal-category.expanded {
+  border-color: rgba(255,255,255,0.3);
+}
+
+.goal-category.active-area.expanded {
+  border-color: var(--primary-accent);
+}
+
+.goal-cat-header {
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.cat-title {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.cat-icon {
+  color: var(--primary-accent);
+}
+
+.expand-icon {
+  color: var(--text-secondary);
+  transition: transform 0.3s;
+}
+
+.goal-category.expanded .expand-icon {
+  transform: rotate(90deg);
+}
+
+.goal-subs {
+  padding: 0 20px 20px 55px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sub-pill {
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.sub-pill:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.sub-pill.selected {
+  background: var(--primary-accent);
+  border-color: var(--primary-accent);
+  color: white;
+  font-weight: bold;
+}
+
+/* Step 2: Gender & DOB */
+.gender-cards {
+  display: flex;
+  gap: 15px;
+}
+
+.gender-card {
+  flex: 1;
+  padding: 20px;
+  background: rgba(255,255,255,0.05);
+  border: 2px solid transparent;
+  border-radius: 16px;
+  text-align: center;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s;
+}
+
+.gender-card:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.gender-card.selected {
+  border-color: var(--primary-accent);
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary-accent);
+}
+
+.wiz-input, .wiz-select {
+  width: 100%;
+  padding: 15px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+}
+
+.wiz-input:focus, .wiz-select:focus {
+  outline: none;
+  border-color: var(--primary-accent);
+}
+
+/* Step 3: Metrics */
+.unit-switcher {
+  display: flex;
+  background: rgba(0,0,0,0.3);
+  border-radius: 30px;
+  padding: 5px;
+  margin-bottom: 30px;
+}
+
+.unit-switcher button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 25px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.unit-switcher button.active {
+  background: var(--primary-accent);
+  color: white;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.metric-box.full {
+  grid-column: 1 / -1;
+}
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(255,255,255,0.03);
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.slider-container input[type="range"] {
+  flex: 1;
+  accent-color: var(--primary-accent);
+}
+
+.slider-val {
+  font-size: 1.5rem;
+  font-weight: bold;
+  min-width: 50px;
+  text-align: right;
+}
+
+.slider-val.highlight {
+  color: #10b981;
+}
+
+.dynamic-goal-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 15px;
+  padding: 10px 15px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 8px;
+  color: #34d399;
+  font-size: 0.9rem;
+}
+
+/* Step 4: Body Shapes / SVG */
+.dynamic-body-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.body-svg {
+  height: 250px;
+  transition: d 0.2s ease, rx 0.2s ease, ry 0.2s ease;
+}
+
+/* Step 5: Muscle Map */
+.muscle-focus-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.05);
+  margin-bottom: 20px;
+}
+
+.muscle-map {
+  cursor: pointer;
+}
+
+.muscle-part {
+  fill: url(#muscleGrad);
+  stroke: rgba(255,255,255,0.1);
+  stroke-width: 0.5;
+  filter: url(#bevel3d);
+  transition: 0.3s;
+}
+
+.muscle-part:hover {
+  fill: rgba(59, 130, 246, 0.4);
+  filter: url(#bevel3d);
+}
+
+.muscle-part.selected {
+  fill: url(#muscleGradSelected);
+  stroke: white;
+  stroke-width: 1;
+  filter: url(#bevel3d);
+}
+
+.selected-muscles-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.muscle-tag {
+  background: var(--primary-accent);
+  color: white;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.shapes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.shape-card {
+  background: rgba(255,255,255,0.03);
+  border: 2px solid transparent;
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  text-align: center;
+  transition: 0.2s;
+}
+
+.shape-card:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.shape-card.selected {
+  border-color: var(--primary-accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.shape-placeholder {
+  width: 60px;
+  height: 100px;
+  background: rgba(255,255,255,0.1);
+  margin: 0 auto 15px auto;
+  border-radius: 30px;
+}
+
+.shape-card h4 {
+  margin-bottom: 5px;
+}
+
+.shape-card p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Step 5: Medical */
+.joints-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.joint-btn {
+  padding: 10px 20px;
+  border-radius: 30px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  cursor: pointer;
+}
+
+.joint-btn.pain {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #ef4444;
+  font-weight: bold;
+}
+
+.conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.condition-item {
+  padding: 15px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.condition-item.selected {
+  border-color: var(--primary-accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* Step 6: Location */
+.wiz-input-wrapper {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+
+.wiz-input.with-icon {
+  padding-left: 45px;
+}
+
+/* Footer */
+.onboarding-footer {
+  padding: 20px 40px;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+@media (max-width: 600px) {
+  .onboarding-content { padding: 20px; }
+  .onboarding-footer { padding: 20px; }
+  .gender-cards { flex-direction: column; }
+  .shapes-grid { grid-template-columns: 1fr; }
+  .metrics-grid { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,287 @@
+.ai-trainer-page {
+  padding-top: 100px;
+  min-height: 100vh;
+  padding-bottom: 60px;
+}
+
+.trainer-header {
+  padding: 30px;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.trainer-header h1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.trainer-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 15px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background: var(--primary-accent);
+  border-color: var(--primary-accent);
+}
+
+.library-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0,0,0,0.3);
+  padding: 12px 20px;
+  border-radius: 30px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.search-bar input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: white;
+  outline: none;
+}
+
+.category-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+.cat-pill {
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cat-pill.active {
+  background: white;
+  color: black;
+  font-weight: bold;
+}
+
+.exercise-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+.exercise-card {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.05);
+  padding: 20px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ex-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 5px;
+}
+
+.fav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.ex-category {
+  font-size: 0.8rem;
+  color: var(--primary-accent);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.ex-instructions {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  flex: 1;
+  margin-bottom: 15px;
+}
+
+.mt-10 { margin-top: 10px; }
+
+/* Active View */
+.active-exercise-view {
+  padding: 30px;
+}
+
+.view-header {
+  margin-bottom: 20px;
+}
+
+.category-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  margin-top: 5px;
+}
+
+.tracking-mode-toggle {
+  display: flex;
+  background: rgba(0,0,0,0.3);
+  padding: 5px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 10px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mode-btn.active {
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-weight: bold;
+}
+
+.camera-viewport {
+  height: 60vh;
+  min-height: 450px;
+  max-height: 700px;
+  width: 100%;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tracking-skeleton {
+  width: 100px;
+  height: 200px;
+  border: 2px dashed #3b82f6;
+  border-radius: 10px;
+}
+
+.pulse-blue {
+  animation: pulseBlue 2s infinite;
+}
+
+@keyframes pulseBlue {
+  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+  70% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+.live-stats {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  background: rgba(0,0,0,0.8);
+  padding: 15px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-around;
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+}
+
+.stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: white;
+}
+
+.text-success { color: #10b981; }
+
+@media (max-width: 768px) {
+  .trainer-header h1 {
+    font-size: 1.8rem;
+  }
+  
+  .trainer-tabs {
+    flex-direction: column;
+  }
+  
+  .live-stats {
+    flex-direction: column;
+    gap: 10px;
+    width: 90%;
+    border-radius: 12px;
+    padding: 15px;
+  }
+
+  .live-stats .stat-box {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+
+  .camera-viewport {
+    height: auto;
+    aspect-ratio: 3/4; /* Better for mobile portraits */
+    min-height: unset;
+  }
+}

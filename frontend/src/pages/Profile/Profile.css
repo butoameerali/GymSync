@@ -1,0 +1,261 @@
+.profile-page {
+  min-height: 100vh;
+  padding-bottom: 60px;
+}
+
+.profile-cover {
+  height: 250px;
+  background: linear-gradient(135deg, var(--primary-accent) 0%, rgba(59, 130, 246, 0.2) 100%);
+  margin-bottom: -60px;
+}
+
+.profile-header {
+  display: flex;
+  align-items: flex-end;
+  padding: 30px;
+  gap: 20px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.profile-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: #1e1e2f;
+  border: 4px solid #12121c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: bold;
+  color: white;
+  margin-top: -60px;
+}
+
+.avatar-clickable:hover .avatar-overlay {
+  opacity: 1 !important;
+}
+
+.profile-info {
+  flex: 1;
+}
+
+.profile-info h1 {
+  margin: 0 0 5px 0;
+  font-size: 2rem;
+}
+
+.bio-tagline {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.profile-stats {
+  display: flex;
+  gap: 15px;
+}
+
+.stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 30px;
+  background: rgba(255,255,255,0.05);
+  font-weight: bold;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+.history-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.section-panel {
+  padding: 24px;
+}
+
+.privacy-setting {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.privacy-setting:last-child {
+  border-bottom: none;
+}
+
+/* Comprehensive Bio Grid */
+.bio-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.bio-stat-card {
+  background: rgba(255,255,255,0.03);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.bio-stat-card.full {
+  grid-column: 1 / -1;
+}
+
+.bio-stat-card h4 {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.bio-stat-card p {
+  color: white;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+@media (max-width: 600px) {
+  .bio-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 10px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+.history-item h4 {
+  margin: 0 0 5px 0;
+}
+
+.history-item .time {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.upcoming { border-left: 3px solid var(--primary-accent); }
+.completed { border-left: 3px solid #10b981; }
+
+.empty-text {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* Bio Form */
+.bio-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.form-group input, .form-group select {
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+}
+
+.form-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.bio-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.bio-item {
+  background: rgba(0,0,0,0.2);
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.bio-item .label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.bio-item .value {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.bio-alert {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 15px;
+  border-radius: 8px;
+  color: #fcd34d;
+}
+
+.timeline-grid {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.post-card {
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+  .history-grid { grid-template-columns: 1fr; }
+  .profile-header { flex-direction: column; text-align: center; align-items: center; }
+  .profile-stats { margin-top: 15px; }
+  .form-row { grid-template-columns: 1fr; }
+}

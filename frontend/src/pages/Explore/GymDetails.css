@@ -1,0 +1,108 @@
+.gym-details-page {
+  padding-top: 76px;
+  min-height: 100vh;
+  background: var(--bg-color);
+  padding-bottom: 60px;
+}
+
+.gym-hero {
+  height: 400px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to top, rgba(11, 13, 20, 1), rgba(11, 13, 20, 0.4));
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 40px;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  margin-bottom: 20px;
+  background: rgba(255,255,255,0.1);
+  padding: 8px 16px;
+  border-radius: 30px;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s;
+}
+
+.back-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.gym-meta {
+  display: flex;
+  gap: 20px;
+  margin-top: 10px;
+  color: var(--text-secondary);
+}
+
+.gym-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.main-info, .booking-card {
+  padding: 30px;
+}
+
+.facilities-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.facility-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
+}
+
+.price-tag {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  margin: 20px 0;
+}
+
+.price-tag .amount {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.price-tag .currency, .price-tag .period {
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.mt-20 { margin-top: 20px; }
+.mt-10 { margin-top: 10px; }
+.w-100 { width: 100%; }
+
+@media (max-width: 768px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+}

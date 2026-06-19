@@ -1,0 +1,153 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px 40px;
+  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.1) 0%, transparent 40%),
+              radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.1) 0%, transparent 40%);
+}
+
+.auth-card {
+  max-width: 450px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px;
+  text-align: center;
+}
+
+.auth-card h2 {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.auth-subtitle {
+  color: var(--text-secondary);
+  margin-bottom: 30px;
+}
+
+.auth-form {
+  text-align: left;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+}
+
+.form-control {
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary-accent);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.auth-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.forgot-link {
+  color: var(--primary-accent);
+  font-weight: 500;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 24px 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.auth-divider span {
+  padding: 0 12px;
+}
+
+.google-btn {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  background: white;
+  color: #333;
+  font-weight: 600;
+}
+
+.google-btn:hover {
+  background: #f1f1f1;
+}
+
+.auth-footer {
+  margin-top: 24px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.auth-footer a {
+  color: var(--primary-accent);
+  font-weight: 600;
+}
+
+.role-selector {
+  display: flex;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 24px;
+}
+
+.role-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+}
+
+.role-btn.active {
+  background: var(--accent-gradient);
+  color: white;
+}
