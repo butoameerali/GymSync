@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, Lock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { toast } from 'react-toastify';
 import './GlobalChat.css';
 
 const CONTACTS = [
@@ -134,16 +135,33 @@ const GlobalChat = () => {
       };
 
       try {
+        const currentHistory = messages[activeContact.id] || [];
+        const historyToSend = currentHistory.slice(-8); // Send last 8 msgs for context
+
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: messageText, userContext })
+          body: JSON.stringify({ message: messageText, userContext, history: historyToSend })
         });
         const data = await response.json();
+        let replyText = data.content;
         
+        // Check for AI Workout Plan
+        const planMatch = replyText.match(/<PLAN>(.*?)<\/PLAN>/i);
+        if (planMatch) {
+          const exercisesString = planMatch[1];
+          const exercisesArray = exercisesString.split(',').map(e => e.trim());
+          localStorage.setItem('gymsync_ai_plan', JSON.stringify(exercisesArray));
+          
+          // Remove the <PLAN> string from the message and add a notification link
+          replyText = replyText.replace(planMatch[0], "\n\n🏋️‍♂️ **Workout Plan Generated!**\nYour new plan has been loaded into the AI Trainer. [Click here to open AI Trainer](/ai-trainer)");
+          
+          toast.success("New AI Workout Plan Generated!");
+        }
+
         const reply = {
           id: Date.now() + 1,
-          text: data.content,
+          text: replyText,
           sender: 'other',
           timestamp: new Date().toISOString()
         };

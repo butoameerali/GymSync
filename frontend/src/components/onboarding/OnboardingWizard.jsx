@@ -443,28 +443,29 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
         return (
           <div className="wiz-step">
             <h2>Lifestyle & Discovery</h2>
+            <p className="wiz-subtitle">Help us tailor your gym recommendations and community matches.</p>
             
             <label className="wiz-label">Daily Activity Level</label>
             <select className="wiz-select" value={data.activityLevel} onChange={e => updateData('activityLevel', e.target.value)}>
-              <option value="" style={{color: 'black'}}>Select Level...</option>
-              <option value="sedentary" style={{color: 'black'}}>Sedentary (Desk job, under 4000 steps)</option>
-              <option value="light" style={{color: 'black'}}>Lightly Active (Teacher, walking during day)</option>
-              <option value="moderate" style={{color: 'black'}}>Moderately Active (Constantly on feet)</option>
-              <option value="active" style={{color: 'black'}}>Very Active (Heavy labor, training 2x/day)</option>
+              <option value="" disabled>Select Level...</option>
+              <option value="sedentary">Sedentary (Desk job, under 4000 steps)</option>
+              <option value="light">Lightly Active (Teacher, walking during day)</option>
+              <option value="moderate">Moderately Active (Constantly on feet)</option>
+              <option value="active">Very Active (Heavy labor, training 2x/day)</option>
             </select>
 
             <label className="wiz-label" style={{ marginTop: '20px' }}>Fitness Experience</label>
             <select className="wiz-select" value={data.experience} onChange={e => updateData('experience', e.target.value)}>
-              <option value="" style={{color: 'black'}}>Select Experience...</option>
-              <option value="beginner" style={{color: 'black'}}>Beginner (Never trained consistently)</option>
-              <option value="intermediate" style={{color: 'black'}}>Intermediate (Know basics, trained months/years)</option>
-              <option value="advanced" style={{color: 'black'}}>Advanced (Train regularly, heavy weights, perfect form)</option>
+              <option value="" disabled>Select Experience...</option>
+              <option value="beginner">Beginner (Never trained consistently)</option>
+              <option value="intermediate">Intermediate (Know basics, trained months/years)</option>
+              <option value="advanced">Advanced (Train regularly, heavy weights, perfect form)</option>
             </select>
 
-            <label className="wiz-label" style={{ marginTop: '20px' }}>Your Location</label>
-            <div className="wiz-input-wrapper">
-              <MapPin className="input-icon" size={20} />
-              <input type="text" className="wiz-input with-icon" placeholder="e.g. New York, USA" value={data.location} onChange={e => updateData('location', e.target.value)} />
+            <label className="wiz-label" style={{ marginTop: '20px' }}>Training Location (Optional)</label>
+            <div className="wiz-input-wrapper" style={{ position: 'relative' }}>
+              <MapPin className="input-icon" size={20} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+              <input type="text" className="wiz-input with-icon" style={{ paddingLeft: '45px' }} placeholder="e.g. New York, USA or Zip Code" value={data.location} onChange={e => updateData('location', e.target.value)} />
             </div>
           </div>
         );
