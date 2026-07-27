@@ -522,6 +522,12 @@ export const approveRefundCashback = async (req, res) => {
       }
     } catch (e) {}
 
+    res.json({ message: 'Refund cashback approved! User notified: Your refund will be given shortly.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Send Broadcast Message to All Subscribers At Once
 // @route   POST /api/admin/broadcast
 // @access  Private / SuperAdmin, Admin
