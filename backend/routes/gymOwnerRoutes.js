@@ -6,8 +6,13 @@ import {
   checkOutMember, 
   createMemberPlan 
 } from '../controllers/gymOwnerController.js';
+import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// Apply protection to all gym owner endpoints
+router.use(protect);
+router.use(authorizeRoles('GymOwner', 'gym_owner', 'Admin'));
 
 router.get('/dashboard/:ownerName', getGymOwnerDashboard);
 router.put('/gym/:id', updateGymProfile);

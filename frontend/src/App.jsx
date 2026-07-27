@@ -74,13 +74,13 @@ function App() {
               <Route path="/explore" element={<ExploreGyms />} />
               <Route path="/gym/:id" element={<GymDetails />} />
               
-              {/* Protected Routes */}
+              {/* Protected Routes with RBAC Guards */}
               <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/your-gym" element={<ProtectedRoute><YourGym /></ProtectedRoute>} />
-              <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/gym-owner" element={<ProtectedRoute><GymOwnerDashboard /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'ComplaintModerator']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/gym-owner" element={<ProtectedRoute allowedRoles={['GymOwner', 'gym_owner']}><GymOwnerDashboard /></ProtectedRoute>} />
               
               <Route path="/profile/:userName" element={<PublicProfile />} />
               <Route path="/store" element={<Store />} />

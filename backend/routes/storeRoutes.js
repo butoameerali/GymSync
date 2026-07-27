@@ -7,21 +7,22 @@ import {
   getOrders, 
   updateOrderStatus 
 } from '../controllers/storeController.js';
+import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 router.route('/products')
   .get(getProducts)
-  .post(createProduct);
+  .post(protect, authorizeRoles('StoreManager', 'Admin'), createProduct);
 
 router.route('/products/:id/status')
-  .put(updateProductStatus);
+  .put(protect, authorizeRoles('StoreManager', 'Admin'), updateProductStatus);
 
 router.route('/orders')
-  .get(getOrders)
-  .post(createOrder);
+  .get(protect, authorizeRoles('StoreManager', 'Admin'), getOrders)
+  .post(protect, createOrder);
 
 router.route('/orders/:id/status')
-  .put(updateOrderStatus);
+  .put(protect, authorizeRoles('StoreManager', 'Admin'), updateOrderStatus);
 
 export default router;

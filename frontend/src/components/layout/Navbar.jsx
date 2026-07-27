@@ -15,9 +15,12 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const userRole = localStorage.getItem('gymsync_role');
-  const isGuest = userRole === 'guest';
-  const isLoggedIn = userRole && userRole !== 'guest';
+  const userRole = localStorage.getItem('gymsync_role') || '';
+  const normalizedRole = userRole.toLowerCase().replace('_', '');
+  const isGuest = userRole === 'guest' || !userRole;
+  const isLoggedIn = Boolean(userRole && userRole !== 'guest');
+  const isAdmin = normalizedRole === 'admin' || normalizedRole === 'complaintmoderator';
+  const isGymOwner = normalizedRole === 'gymowner';
   const userName = localStorage.getItem('gymsync_user_name') || 'User';
 
   const [notifications, setNotifications] = useState([]);
@@ -111,8 +114,8 @@ const Navbar = () => {
           <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>
           {isLoggedIn && <Link to="/your-gym" className="nav-link">YourGym</Link>}
           <Link to="/store" className="nav-link">Store</Link>
-          {isLoggedIn && <Link to="/admin" className="nav-link" style={{ color: 'var(--primary-accent)', fontWeight: 600 }}>Admin Panel</Link>}
-          {isLoggedIn && <Link to="/gym-owner" className="nav-link" style={{ color: '#8b5cf6', fontWeight: 600 }}>Gym Panel</Link>}
+          {isLoggedIn && isAdmin && <Link to="/admin" className="nav-link" style={{ color: 'var(--primary-accent)', fontWeight: 600 }}>Admin Panel</Link>}
+          {isLoggedIn && isGymOwner && <Link to="/gym-owner" className="nav-link" style={{ color: '#8b5cf6', fontWeight: 600 }}>Gym Panel</Link>}
           
           <div className="nav-auth-mobile">
             {!isLoggedIn ? (

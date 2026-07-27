@@ -39,7 +39,7 @@ async function runSystemVerification() {
     if (!data.content || !data.content.includes('GymSync AI')) throw new Error('Missing greeting content');
   });
 
-  // 3. Store Products Endpoint
+  // 3. Store Products API
   await testEndpoint('Store Products API (GET /api/store/products)', async () => {
     const res = await fetch(`${BASE_URL}/api/store/products`);
     if (!res.ok) throw new Error(`HTTP Status ${res.status}`);
@@ -47,13 +47,16 @@ async function runSystemVerification() {
     if (!Array.isArray(data)) throw new Error('Response is not an array');
   });
 
-  // 4. Complaint Submission API
-  await testEndpoint('Complaint Submission Engine (POST /api/complaints)', async () => {
+  // 4. Protected Complaint Submission Engine
+  await testEndpoint('Complaint Submission Engine with Auth (POST /api/complaints)', async () => {
     const res = await fetch(`${BASE_URL}/api/complaints`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-user-name': 'Automated Test User'
+      },
       body: JSON.stringify({
-        reporterName: 'Automated Test Suite',
+        reporterName: 'Automated Test User',
         reportedEntityType: 'Gym',
         reportedEntityId: 'test_gym_1',
         reportedEntityTitle: 'Test Gym Center',
@@ -76,9 +79,11 @@ async function runSystemVerification() {
     if (typeof data.totalUsers !== 'number') throw new Error('Invalid metrics response');
   });
 
-  // 6. Gym Owner Dashboard API
-  await testEndpoint('Gym Owner Control Panel (GET /api/gym-owner/dashboard/testowner)', async () => {
-    const res = await fetch(`${BASE_URL}/api/gym-owner/dashboard/testowner`);
+  // 6. Protected Gym Owner Dashboard API
+  await testEndpoint('Gym Owner Control Panel with RBAC (GET /api/gym-owner/dashboard/testowner)', async () => {
+    const res = await fetch(`${BASE_URL}/api/gym-owner/dashboard/testowner`, {
+      headers: { 'x-user-name': 'Elite Gym Owner' }
+    });
     if (!res.ok) throw new Error(`HTTP Status ${res.status}`);
     const data = await res.json();
     if (!data.gym) throw new Error('Missing gym data');
