@@ -37,16 +37,29 @@ const Profile = () => {
     const rawHistory = JSON.parse(localStorage.getItem(`gymsync_${userKey}_history`) || '[]');
     setHistory(rawHistory.reverse()); // Newest first
 
-    // Check if Bio is filled
-    const bioFilled = localStorage.getItem(`gymsync_${userKey}_bio_filled`) === 'true';
-    if (bioFilled) {
-      setBio(JSON.parse(localStorage.getItem(`gymsync_${userKey}_bio_data`)));
-      // Mock upcoming AI schedule
-      setUpcoming([
-        { id: 'u1', name: 'Barbell Squats', date: 'Tomorrow, 8:00 AM' },
-        { id: 'u2', name: 'Romanian Deadlifts', date: 'Tomorrow, 8:30 AM' }
-      ]);
-    }
+    // Function to load and sync bio data dynamically
+    const loadBioData = () => {
+      const bioFilled = localStorage.getItem(`gymsync_${userKey}_bio_filled`) === 'true' || localStorage.getItem('gymsync_bio_filled') === 'true';
+      if (bioFilled) {
+        const storedBio = localStorage.getItem(`gymsync_${userKey}_bio_data`) || localStorage.getItem(`gymsync_${userKey}_bio`);
+        if (storedBio) {
+          try {
+            setBio(JSON.parse(storedBio));
+            setUpcoming([
+              { id: 'u1', name: 'Barbell Squats', date: 'Tomorrow, 8:00 AM' },
+              { id: 'u2', name: 'Romanian Deadlifts', date: 'Tomorrow, 8:30 AM' }
+            ]);
+          } catch (e) {
+            console.error("Error parsing bio data", e);
+          }
+        }
+      }
+    };
+
+    loadBioData();
+
+    // Listen for bio update event from OnboardingWizard or manual edits
+    window.addEventListener('gymsync_bio_updated', loadBioData);
 
     // Fetch user profile from DB to sync profile picture across browsers
     if (userName !== 'Guest User') {
@@ -71,12 +84,35 @@ const Profile = () => {
         }
       })
       .catch(err => console.error(err));
+
+    return () => {
+      window.removeEventListener('gymsync_bio_updated', loadBioData);
+    };
   }, [userKey, userName]);
+
+  const [validationErrors, setValidationErrors] = useState([]);
 
   const handleSaveBio = async (e) => {
     e.preventDefault();
+    const errors = [];
+
+    if (bio.weight && (isNaN(bio.weight) || Number(bio.weight) <= 0 || Number(bio.weight) > 400)) {
+      errors.push("Please enter a valid weight between 1 and 400.");
+    }
+    if (bio.height && (isNaN(bio.height) || Number(bio.height) <= 0 || Number(bio.height) > 300)) {
+      errors.push("Please enter a valid height between 1 and 300.");
+    }
+
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
+    setValidationErrors([]);
     localStorage.setItem(`gymsync_${userKey}_bio_filled`, 'true');
+    localStorage.setItem('gymsync_bio_filled', 'true');
     localStorage.setItem(`gymsync_${userKey}_bio_data`, JSON.stringify(bio));
+    localStorage.setItem(`gymsync_${userKey}_bio`, JSON.stringify(bio));
     
     if (profilePic) {
       localStorage.setItem(`gymsync_${userKey}_pic`, profilePic);
@@ -93,7 +129,7 @@ const Profile = () => {
     }
     
     setIsEditingBio(false);
-    alert("Bio saved successfully! The AI can now schedule your workouts.");
+    window.dispatchEvent(new Event('gymsync_bio_updated'));
     
     // Auto generate mock upcoming schedule after bio fill
     setUpcoming([

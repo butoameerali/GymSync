@@ -8,3 +8,7 @@ dist/
 build/
 backend/uploads/
 .env
+*.log
+*.exe
+generate_*.py
+

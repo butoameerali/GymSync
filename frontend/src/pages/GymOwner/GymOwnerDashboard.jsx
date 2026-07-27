@@ -1,0 +1,475 @@
+import React, { useState, useEffect } from 'react';
+import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, FileText, Dumbbell, Activity, UserCheck } from 'lucide-react';
+import { toast } from 'react-toastify';
+import SkeletonLoader from '../../components/common/SkeletonLoader';
+import Modal from '../../components/common/Modal';
+import './GymOwnerDashboard.css';
+
+const GymOwnerDashboard = () => {
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'attendance', 'plans', 'settings'
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Form states
+  const [checkInName, setCheckInName] = useState('');
+  const [checkInNotes, setCheckInNotes] = useState('');
+
+  // Plan Creator Form State
+  const [planForm, setPlanForm] = useState({
+    memberName: '',
+    planType: 'Workout',
+    title: '',
+    description: '',
+    calories: 2200,
+    protein: 150
+  });
+
+  // Gym Profile Form State
+  const [gymProfile, setGymProfile] = useState({
+    name: '',
+    location: '',
+    monthlyFee: 50,
+    todayTip: 'Focus on progressive overload today!'
+  });
+
+  const ownerName = localStorage.getItem('gymsync_user_name') || 'Gym Owner';
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/gym-owner/dashboard/${ownerName}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDashboardData(data);
+        if (data.gym) {
+          setGymProfile({
+            name: data.gym.name || '',
+            location: data.gym.location || '',
+            monthlyFee: data.gym.monthlyFee || 50,
+            todayTip: data.gym.todayTrainingTip?.today || 'Focus on compound lifts.'
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching Gym Owner data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCheckInSubmit = async (e) => {
+    e.preventDefault();
+    if (!checkInName.trim()) {
+      toast.error('Please enter a member name');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/gym-owner/attendance/check-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gymId: dashboardData?.gym?._id || 'gym_demo_id',
+          memberName: checkInName.trim(),
+          notes: checkInNotes
+        })
+      });
+
+      if (res.ok) {
+        const newLog = await res.json();
+        toast.success(`Check-in recorded for ${checkInName}`);
+        setCheckInName('');
+        setCheckInNotes('');
+        setDashboardData(prev => ({
+          ...prev,
+          todayAttendanceCount: (prev?.todayAttendanceCount || 0) + 1,
+          todayAttendance: [newLog, ...(prev?.todayAttendance || [])]
+        }));
+      }
+    } catch (err) {
+      toast.error('Check-in error');
+    }
+  };
+
+  const handleCheckOut = async (attendanceId) => {
+    try {
+      const res = await fetch(`/api/gym-owner/attendance/check-out/${attendanceId}`, {
+        method: 'PUT'
+      });
+
+      if (res.ok) {
+        toast.info('Member checked out');
+        setDashboardData(prev => ({
+          ...prev,
+          todayAttendance: prev.todayAttendance.map(a => a._id === attendanceId ? { ...a, status: 'CheckedOut', checkOutTime: new Date() } : a)
+        }));
+      }
+    } catch (err) {
+      toast.error('Check-out failed');
+    }
+  };
+
+  const handleSaveGymProfile = async (e) => {
+    e.preventDefault();
+    try {
+      const gymId = dashboardData?.gym?._id || 'gym_demo_id';
+      const res = await fetch(`/api/gym-owner/gym/${gymId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: gymProfile.name,
+          location: gymProfile.location,
+          monthlyFee: Number(gymProfile.monthlyFee),
+          todayTrainingTip: { today: gymProfile.todayTip }
+        })
+      });
+
+      if (res.ok) {
+        toast.success('Gym information updated successfully');
+        fetchDashboardData();
+      }
+    } catch (err) {
+      toast.error('Error saving gym details');
+    }
+  };
+
+  const handleCreatePlan = async (e) => {
+    e.preventDefault();
+    if (!planForm.memberName || !planForm.title || !planForm.description) {
+      toast.error('Please fill in all plan fields');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/gym-owner/plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gymId: dashboardData?.gym?._id || 'gym_demo_id',
+          memberName: planForm.memberName,
+          assignedBy: ownerName,
+          planType: planForm.planType,
+          title: planForm.title,
+          description: planForm.description,
+          nutritionMacros: {
+            calories: planForm.calories,
+            proteinGrams: planForm.protein
+          }
+        })
+      });
+
+      if (res.ok) {
+        toast.success(`Assigned ${planForm.planType} plan to ${planForm.memberName}`);
+        setPlanForm({
+          memberName: '',
+          planType: 'Workout',
+          title: '',
+          description: '',
+          calories: 2200,
+          protein: 150
+        });
+      }
+    } catch (err) {
+      toast.error('Failed to create plan');
+    }
+  };
+
+  return (
+    <div className="gym-owner-page">
+      {/* Header */}
+      <div className="gym-owner-header glass-panel">
+        <div className="container header-flex">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div className="gym-owner-icon">
+              <Building size={32} color="#8b5cf6" />
+            </div>
+            <div>
+              <h2>Gym Owner Control Panel</h2>
+              <p>{dashboardData?.gym?.name || 'GymSync Partner Facility'}</p>
+            </div>
+          </div>
+
+          <div className="owner-nav-tabs">
+            <button 
+              className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+              onClick={() => setActiveTab('overview')}
+            >
+              Overview
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'attendance' ? 'active' : ''}`}
+              onClick={() => setActiveTab('attendance')}
+            >
+              <UserCheck size={16} /> Attendance
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'plans' ? 'active' : ''}`}
+              onClick={() => setActiveTab('plans')}
+            >
+              <FileText size={16} /> Member Plans
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+              onClick={() => setActiveTab('settings')}
+            >
+              <Edit size={16} /> Facility Info
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="container owner-content">
+        {loading ? (
+          <div style={{ padding: '40px 0' }}>
+            <SkeletonLoader height="120px" borderRadius="16px" />
+            <div style={{ marginTop: '20px' }}>
+              <SkeletonLoader height="300px" borderRadius="16px" />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* OVERVIEW TAB */}
+            {activeTab === 'overview' && (
+              <div className="overview-container">
+                <div className="stats-grid">
+                  <div className="stat-card glass-panel">
+                    <div className="stat-icon purple"><Users size={24} /></div>
+                    <div>
+                      <span className="stat-label">Enrolled Members</span>
+                      <h3 className="stat-value">{dashboardData?.activeMembersCount || 42}</h3>
+                    </div>
+                  </div>
+
+                  <div className="stat-card glass-panel">
+                    <div className="stat-icon green"><UserCheck size={24} /></div>
+                    <div>
+                      <span className="stat-label">Today's Check-Ins</span>
+                      <h3 className="stat-value">{dashboardData?.todayAttendanceCount || 0}</h3>
+                    </div>
+                  </div>
+
+                  <div className="stat-card glass-panel">
+                    <div className="stat-icon blue"><DollarSign size={24} /></div>
+                    <div>
+                      <span className="stat-label">Est. Monthly Revenue</span>
+                      <h3 className="stat-value">${dashboardData?.monthlyRevenue || 2100}</h3>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Attendance Action */}
+                <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
+                  <h3>Member Express Check-In</h3>
+                  <form onSubmit={handleCheckInSubmit} style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+                    <input 
+                      type="text"
+                      className="search-input"
+                      style={{ flex: 1, minWidth: '200px' }}
+                      placeholder="Enter Member Name..."
+                      value={checkInName}
+                      onChange={e => setCheckInName(e.target.value)}
+                    />
+                    <input 
+                      type="text"
+                      className="search-input"
+                      style={{ flex: 1, minWidth: '200px' }}
+                      placeholder="Notes (e.g. Leg Day)..."
+                      value={checkInNotes}
+                      onChange={e => setCheckInNotes(e.target.value)}
+                    />
+                    <button type="submit" className="btn btn-primary">
+                      Record Check-In
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* ATTENDANCE TAB */}
+            {activeTab === 'attendance' && (
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h3>Today's Member Attendance Log</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Track member visits in real-time</p>
+
+                {dashboardData?.todayAttendance?.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '30px' }}>
+                    <Clock size={40} color="var(--text-secondary)" style={{ marginBottom: '12px' }} />
+                    <p style={{ color: 'var(--text-secondary)' }}>No member check-ins recorded today yet.</p>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="owner-table">
+                      <thead>
+                        <tr>
+                          <th>Member Name</th>
+                          <th>Check-In Time</th>
+                          <th>Status</th>
+                          <th>Notes</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashboardData?.todayAttendance?.map(log => (
+                          <tr key={log._id}>
+                            <td><strong>{log.memberName}</strong></td>
+                            <td style={{ color: 'var(--text-secondary)' }}>
+                              {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td>
+                              <span className={`status-pill ${log.status === 'CheckedIn' ? 'active' : 'inactive'}`}>
+                                {log.status}
+                              </span>
+                            </td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{log.notes || '-'}</td>
+                            <td>
+                              {log.status === 'CheckedIn' ? (
+                                <button 
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => handleCheckOut(log._id)}
+                                >
+                                  Check Out
+                                </button>
+                              ) : (
+                                <span style={{ color: '#10b981', fontSize: '0.85rem' }}>Completed</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* WORKOUT & DIET PLANS TAB */}
+            {activeTab === 'plans' && (
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h3>Create Custom Plan for Member</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Assign personalized workout routines or diet schedules</p>
+
+                <form onSubmit={handleCreatePlan} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Member Name</label>
+                    <input 
+                      type="text" 
+                      required 
+                      className="search-input" 
+                      placeholder="Member Name (e.g. Sarah Connor)"
+                      value={planForm.memberName}
+                      onChange={e => setPlanForm({ ...planForm, memberName: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Plan Type</label>
+                    <select 
+                      className="search-input"
+                      value={planForm.planType}
+                      onChange={e => setPlanForm({ ...planForm, planType: e.target.value })}
+                    >
+                      <option value="Workout">Workout Routine</option>
+                      <option value="Diet">Diet & Meal Plan</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Plan Title</label>
+                    <input 
+                      type="text" 
+                      required 
+                      className="search-input" 
+                      placeholder="e.g. 4-Week Hypertrophy Routine"
+                      value={planForm.title}
+                      onChange={e => setPlanForm({ ...planForm, title: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Plan Details & Instructions</label>
+                    <textarea 
+                      rows={4} 
+                      required 
+                      className="search-input"
+                      style={{ resize: 'vertical' }} 
+                      placeholder="Detail exercises, sets, reps, or meal choices..."
+                      value={planForm.description}
+                      onChange={e => setPlanForm({ ...planForm, description: e.target.value })}
+                    />
+                  </div>
+
+                  <button type="submit" className="btn btn-primary" style={{ marginTop: '10px' }}>
+                    Assign Plan to Member
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* FACILITY SETTINGS TAB */}
+            {activeTab === 'settings' && (
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h3>Edit Facility Information</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Update public gym info displayed on Explore Gyms page</p>
+
+                <form onSubmit={handleSaveGymProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Gym Name</label>
+                    <input 
+                      type="text" 
+                      required 
+                      className="search-input" 
+                      value={gymProfile.name}
+                      onChange={e => setGymProfile({ ...gymProfile, name: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Location & City</label>
+                    <input 
+                      type="text" 
+                      required 
+                      className="search-input" 
+                      value={gymProfile.location}
+                      onChange={e => setGymProfile({ ...gymProfile, location: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Monthly Subscription Fee ($)</label>
+                    <input 
+                      type="number" 
+                      required 
+                      className="search-input" 
+                      value={gymProfile.monthlyFee}
+                      onChange={e => setGymProfile({ ...gymProfile, monthlyFee: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Today's Training Tip for Members</label>
+                    <textarea 
+                      rows={3} 
+                      className="search-input" 
+                      value={gymProfile.todayTip}
+                      onChange={e => setGymProfile({ ...gymProfile, todayTip: e.target.value })}
+                    />
+                  </div>
+
+                  <button type="submit" className="btn btn-primary" style={{ marginTop: '10px' }}>
+                    Save Facility Details
+                  </button>
+                </form>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default GymOwnerDashboard;

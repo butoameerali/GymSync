@@ -5,15 +5,21 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['User', 'GymOwner', 'Admin'], default: 'User' },
+  role: { 
+    type: String, 
+    enum: ['User', 'GymOwner', 'Admin', 'StoreManager', 'ComplaintModerator'], 
+    default: 'User' 
+  },
+  isBanned: { type: Boolean, default: false },
+  banReason: { type: String, default: '' },
   profilePic: { type: String, default: '' },
   
   // Friend & Follow System
-  friends: [{ type: String }], // Legacy two-way relationships
+  friends: [{ type: String }],
   sentRequests: [{ type: String }],
   receivedRequests: [{ type: String }],
-  followers: [{ type: String }], // Array of user names following this user
-  following: [{ type: String }]  // Array of user names this user is following
+  followers: [{ type: String }],
+  following: [{ type: String }]
 }, {
   timestamps: true
 });

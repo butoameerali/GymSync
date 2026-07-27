@@ -25,12 +25,22 @@ const AITrainer = () => {
   const navigate = useNavigate();
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
-  const isBioFilled = localStorage.getItem('gymsync_bio_filled') === 'true';
+  const [isBioFilled, setIsBioFilled] = useState(false);
 
   useEffect(() => {
     // Load favorites from local storage for demo
     const favs = JSON.parse(localStorage.getItem('gymsync_favorites') || '[]');
     setFavorites(favs);
+
+    const checkBioState = () => {
+      const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+      const filled = localStorage.getItem('gymsync_bio_filled') === 'true' || localStorage.getItem(`gymsync_${userKey}_bio_filled`) === 'true';
+      setIsBioFilled(!!filled);
+    };
+
+    checkBioState();
+    window.addEventListener('gymsync_bio_updated', checkBioState);
+    return () => window.removeEventListener('gymsync_bio_updated', checkBioState);
   }, []);
 
   const toggleFavorite = (id) => {

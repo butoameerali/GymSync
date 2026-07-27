@@ -17,11 +17,23 @@ const PublicProfile = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [targetUser, setTargetUser] = useState(null);
 
+  const [publicBio, setPublicBio] = useState({});
+
   useEffect(() => {
     // Pull stats from local storage for the specified user
     const mockPoints = localStorage.getItem(`gymsync_${userKey}_points`) || Math.floor(Math.random() * 50);
     const mockStreak = localStorage.getItem(`gymsync_${userKey}_streak`) || Math.floor(Math.random() * 5);
     setStats({ points: parseInt(mockPoints), streak: parseInt(mockStreak) });
+
+    const loadBio = () => {
+      const stored = localStorage.getItem(`gymsync_${userKey}_bio_data`) || localStorage.getItem(`gymsync_${userKey}_bio`);
+      if (stored) {
+        try { setPublicBio(JSON.parse(stored)); } catch (e) {}
+      }
+    };
+    loadBio();
+
+    window.addEventListener('gymsync_bio_updated', loadBio);
 
     // Fetch posts and filter for this user
     fetch('/api/posts')
@@ -48,6 +60,10 @@ const PublicProfile = () => {
         .then(them => setTargetUser(them))
         .catch(err => console.error(err));
     }
+
+    return () => {
+      window.removeEventListener('gymsync_bio_updated', loadBio);
+    };
   }, [userName, userKey, loggedInUserName]);
 
   const handleFollowToggle = async () => {
@@ -118,19 +134,19 @@ const PublicProfile = () => {
                 <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '12px' }}>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '5px' }}>Height</p>
                   <p style={{ fontWeight: 'bold' }}>
-                    {localStorage.getItem('gymsync_privacy_hideHealth') === 'true' ? '🔒 Private' : (JSON.parse(localStorage.getItem(`gymsync_${userKey}_bio`) || '{}').height || 'Not set')}
+                    {localStorage.getItem('gymsync_privacy_hideHealth') === 'true' ? '🔒 Private' : (publicBio.height ? `${publicBio.height} ${publicBio.units === 'metric' ? 'cm' : 'in'}` : 'Not set')}
                   </p>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '12px' }}>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '5px' }}>Weight</p>
                   <p style={{ fontWeight: 'bold' }}>
-                    {localStorage.getItem('gymsync_privacy_hideHealth') === 'true' ? '🔒 Private' : (JSON.parse(localStorage.getItem(`gymsync_${userKey}_bio`) || '{}').weight || 'Not set')}
+                    {localStorage.getItem('gymsync_privacy_hideHealth') === 'true' ? '🔒 Private' : (publicBio.weight ? `${publicBio.weight} ${publicBio.units === 'metric' ? 'kg' : 'lbs'}` : 'Not set')}
                   </p>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '12px' }}>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '5px' }}>Goals</p>
                   <p style={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
-                    {JSON.parse(localStorage.getItem(`gymsync_${userKey}_bio`) || '{}').fitnessGoals?.replace('_', ' ') || 'Not set'}
+                    {publicBio.mainGoalArea || publicBio.fitnessGoals?.replace('_', ' ') || 'Not set'}
                   </p>
                 </div>
               </div>

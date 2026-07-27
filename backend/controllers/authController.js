@@ -1,11 +1,18 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
 // Generate JWT
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '30d',
   });
+};
+
+const checkDBConnection = () => {
+  if (mongoose.connection.readyState !== 1) {
+    throw new Error('Database is not connected. Please ensure internet access and check MongoDB Atlas status.');
+  }
 };
 
 // @desc    Register new user
@@ -15,6 +22,7 @@ export const registerUser = async (req, res) => {
   const { name, email, password, role } = req.body;
 
   try {
+    checkDBConnection();
     const userExists = await User.findOne({ email });
 
     if (userExists) {
@@ -51,6 +59,7 @@ export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    checkDBConnection();
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {

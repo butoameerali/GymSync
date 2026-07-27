@@ -106,10 +106,13 @@ const Navbar = () => {
 
         <div className={`nav-links ${isMenuOpen ? 'active' : ''}`}>
           <Link to="/home" className="nav-link">Home</Link>
+          {isLoggedIn && <Link to="/dashboard" className="nav-link">Dashboard</Link>}
           <Link to="/explore" className="nav-link">Explore Gyms</Link>
           <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>
           {isLoggedIn && <Link to="/your-gym" className="nav-link">YourGym</Link>}
           <Link to="/store" className="nav-link">Store</Link>
+          {isLoggedIn && <Link to="/admin" className="nav-link" style={{ color: 'var(--primary-accent)', fontWeight: 600 }}>Admin Panel</Link>}
+          {isLoggedIn && <Link to="/gym-owner" className="nav-link" style={{ color: '#8b5cf6', fontWeight: 600 }}>Gym Panel</Link>}
           
           <div className="nav-auth-mobile">
             {!isLoggedIn ? (

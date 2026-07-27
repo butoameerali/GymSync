@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Dumbbell, CheckCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const YourGym = () => {
   const [gymData, setGymData] = useState(null);
+  const { user } = useAuth();
 
   const isSubscribed = localStorage.getItem('gymsync_is_subscribed') === 'true';
 
   useEffect(() => {
     if (isSubscribed) {
-      fetch('/api/gyms/my-gym/mockUserId')
+      const userId = user?._id || user?.id || 'mockUserId';
+      fetch(`/api/gyms/my-gym/${userId}`)
         .then(res => res.json())
         .then(data => setGymData(data))
         .catch(err => console.error("Error fetching Gym Details", err));
     }
-  }, [isSubscribed]);
+  }, [isSubscribed, user]);
 
   if (!isSubscribed) {
     return (

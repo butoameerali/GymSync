@@ -2,6 +2,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/db.js';
+import { securityHeaders, rateLimiter } from './middleware/securityMiddleware.js';
+
 import authRoutes from './routes/auth.js';
 import postRoutes from './routes/postRoutes.js';
 import gymRoutes from './routes/gymRoutes.js';
@@ -10,6 +12,10 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import complaintRoutes from './routes/complaintRoutes.js';
+import gymOwnerRoutes from './routes/gymOwnerRoutes.js';
+import storeRoutes from './routes/storeRoutes.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -25,10 +31,15 @@ connectDB();
 
 const app = express();
 
-// Middleware
+// Security Middleware
+app.use(securityHeaders);
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Apply rate limiter to auth & AI endpoints
+app.use('/api/auth', rateLimiter({ windowMs: 15 * 60 * 1000, max: 100 }));
+app.use('/api/ai', rateLimiter({ windowMs: 15 * 60 * 1000, max: 200 }));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -39,6 +50,10 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/complaints', complaintRoutes);
+app.use('/api/gym-owner', gymOwnerRoutes);
+app.use('/api/store', storeRoutes);
 
 app.get('/', (req, res) => {
   res.send('GymSync API is running...');

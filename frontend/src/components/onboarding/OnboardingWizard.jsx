@@ -162,8 +162,14 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
     // Save to localStorage
     const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
     localStorage.setItem(`gymsync_${userKey}_bio_data`, JSON.stringify(data));
+    localStorage.setItem(`gymsync_${userKey}_bio`, JSON.stringify(data));
     localStorage.setItem('gymsync_onboarding_completed', 'true');
     localStorage.setItem(`gymsync_${userKey}_bio_filled`, 'true'); // For Profile.jsx compat
+    localStorage.setItem('gymsync_bio_filled', 'true'); // For AITrainer.jsx compat
+
+    // Dispatch global event so open pages (Profile, AITrainer, etc.) update dynamically without needing a refresh
+    window.dispatchEvent(new Event('gymsync_bio_updated'));
+
     onComplete();
   };
 

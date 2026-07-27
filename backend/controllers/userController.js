@@ -198,3 +198,29 @@ export const unfollowUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get user dashboard summary metrics & assigned gym plans
+// @route   GET /api/users/dashboard/:name
+// @access  Public / User
+export const getUserDashboardData = async (req, res) => {
+  try {
+    const { name } = req.params;
+    const user = await User.findOne({ name }).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User profile not found' });
+    }
+
+    res.json({
+      user,
+      stats: {
+        totalWorkouts: 18,
+        runningDistanceKm: 24.5,
+        caloriesBurned: 3450,
+        currentStreakDays: 5
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
