@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Star, ArrowLeft, CheckCircle } from 'lucide-react';
+import { MapPin, Star, ArrowLeft, CheckCircle, CreditCard } from 'lucide-react';
+import PaymentModal from '../../components/common/PaymentModal';
 import './GymDetails.css';
 
 const GymDetails = () => {
@@ -9,9 +10,8 @@ const GymDetails = () => {
 
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-  // In a real app, you would fetch this by ID from the backend.
-  // Using generic mock data for FYP demonstration.
   const gym = {
     name: "Iron Core Fitness",
     location: "Downtown, Metro City",
@@ -69,15 +69,27 @@ const GymDetails = () => {
                 alert("Please log in or create an account to join this gym.");
                 navigate('/');
               } else {
-                alert("Membership Request Sent!");
+                setIsPaymentModalOpen(true);
               }
             }}
           >
-            {isGuest ? 'Log In to Join' : 'Join Now'}
+            {isGuest ? 'Log In to Join' : 'Join Now & Pay'}
           </button>
           <button className="btn btn-outline w-100 mt-10">Book a Tour</button>
         </div>
       </div>
+
+      {/* 3-Method Payment Modal */}
+      <PaymentModal 
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        amount={gym.monthlyFee}
+        gymName={gym.name}
+        title={`Join ${gym.name}`}
+        onPaymentSuccess={() => {
+          localStorage.setItem('gymsync_user_gym', gym.name);
+        }}
+      />
     </div>
   );
 };

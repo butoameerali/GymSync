@@ -235,12 +235,25 @@ const GymOwnerDashboard = () => {
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <div className="overview-container">
+                {/* 10-Day Payment Warning Banner for 50% Subscription Feature Discount */}
+                <div style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: '14px', padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h4 style={{ color: '#f59e0b', margin: '0 0 4px 0', fontSize: '1.05rem', fontWeight: '700' }}>
+                      ⚠️ Gym 50% Subscription Discount Status: Active (10-Day Warning Period)
+                    </h4>
+                    <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
+                      Your members enjoy 50% off AI Trainer, Diet Plans & Fitness Notifications. Please keep monthly feature payments up-to-date to prevent account suspension.
+                    </p>
+                  </div>
+                  <span className="status-pill pending" style={{ fontSize: '0.85rem' }}>10 Days Warning</span>
+                </div>
+
                 <div className="stats-grid">
                   <div className="stat-card glass-panel">
                     <div className="stat-icon purple"><Users size={24} /></div>
                     <div>
                       <span className="stat-label">Enrolled Members</span>
-                      <h3 className="stat-value">{dashboardData?.activeMembersCount || 42}</h3>
+                      <h3 className="stat-value">{dashboardData?.stats?.activeMembersCount ?? 0}</h3>
                     </div>
                   </div>
 
@@ -248,7 +261,7 @@ const GymOwnerDashboard = () => {
                     <div className="stat-icon green"><UserCheck size={24} /></div>
                     <div>
                       <span className="stat-label">Today's Check-Ins</span>
-                      <h3 className="stat-value">{dashboardData?.todayAttendanceCount || 0}</h3>
+                      <h3 className="stat-value">{dashboardData?.stats?.todayCheckIns ?? dashboardData?.todayAttendanceCount ?? 0}</h3>
                     </div>
                   </div>
 
@@ -256,7 +269,15 @@ const GymOwnerDashboard = () => {
                     <div className="stat-icon blue"><DollarSign size={24} /></div>
                     <div>
                       <span className="stat-label">Est. Monthly Revenue</span>
-                      <h3 className="stat-value">${dashboardData?.monthlyRevenue || 2100}</h3>
+                      <h3 className="stat-value">${dashboardData?.stats?.monthlyRevenue ?? 0}</h3>
+                    </div>
+                  </div>
+
+                  <div className="stat-card glass-panel">
+                    <div className="stat-icon amber"><DollarSign size={24} /></div>
+                    <div>
+                      <span className="stat-label">15% GymSync Commission Owed</span>
+                      <h3 className="stat-value" style={{ color: '#f59e0b' }}>${(dashboardData?.stats?.commission15PercentOwed || 0).toFixed(2)}</h3>
                     </div>
                   </div>
                 </div>

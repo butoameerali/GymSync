@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { EXERCISE_LIBRARY, EXERCISE_CATEGORIES } from '../../data/exercises';
 import { useNavigate } from 'react-router-dom';
 import './AITrainer.css';
@@ -370,6 +371,38 @@ const AITrainer = () => {
     if (activeCategory !== 'All' && ex.category !== activeCategory) return false;
     return ex.name.toLowerCase().includes(search.toLowerCase());
   });
+
+  const isSubscribed = localStorage.getItem('gymsync_subscribed') === 'true' || userRole === 'Admin' || userRole === 'SuperAdmin' || userRole === 'GymOwner' || userRole === 'StoreManager';
+  const proPrice = localStorage.getItem('gymsync_pro_plan_price') || '9.99';
+
+  if (!isSubscribed) {
+    return (
+      <div className="ai-trainer-page" style={{ paddingTop: '100px' }}>
+        <div className="container" style={{ maxWidth: '650px', textAlign: 'center' }}>
+          <div className="glass-panel" style={{ padding: '40px 30px', borderRadius: '24px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(15, 23, 42, 0.9)' }}>
+            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>
+              <Lock size={40} color="#ef4444" />
+            </div>
+            <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '12px' }}>AI Trainer Locked</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: 1.6, marginBottom: '28px' }}>
+              The AI Exercise Form Correction, Rep Counter, and AI Workout Scheduler are exclusively available for <strong>GymSync Pro Subscribers</strong>. Please subscribe to unlock full access.
+            </p>
+            <button 
+              className="btn btn-primary" 
+              style={{ padding: '14px 28px', fontSize: '1.1rem', fontWeight: 700, borderRadius: '12px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)', cursor: 'pointer' }}
+              onClick={() => {
+                localStorage.setItem('gymsync_subscribed', 'true');
+                toast.success(`Subscription activated for Pro Plan ($${proPrice}/mo)! AI Trainer is now unlocked.`);
+                window.location.reload();
+              }}
+            >
+              Subscribe Now to Pro Plan (${proPrice}/mo)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ai-trainer-page">

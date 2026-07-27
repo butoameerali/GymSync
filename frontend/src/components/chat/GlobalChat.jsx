@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Lock } from 'lucide-react';
+import { MessageCircle, X, Send, Lock, Award } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-toastify';
 import './GlobalChat.css';
 
 const CONTACTS = [
-  { id: 'ai', name: 'AI Trainer', role: 'Personal Coach', avatar: '🤖', isPremium: false },
+  { id: 'ai', name: 'AI Trainer', role: 'Personal Coach', avatar: '🤖', isPremium: true },
   { id: 'gym', name: 'Iron Core Support', role: 'Gym Owner', avatar: '🏢', isPremium: false }
 ];
 
@@ -20,7 +20,8 @@ const GlobalChat = () => {
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest';
-  const userKey = userName.replace(/\s+/g, '_');
+  const isSubscribed = localStorage.getItem('gymsync_subscribed') === 'true' || userRole === 'Admin' || userRole === 'SuperAdmin' || userRole === 'GymOwner' || userRole === 'StoreManager';
+  const proPrice = localStorage.getItem('gymsync_pro_plan_price') || '9.99';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -30,14 +31,12 @@ const GlobalChat = () => {
     scrollToBottom();
   }, [messages, activeContact]);
 
-  // Fetch real friends from MongoDB
   useEffect(() => {
     if (!isGuest) {
       fetch(`/api/users/${userName}`)
         .then(res => res.json())
         .then(async (user) => {
           if (user && user.friends) {
-            // Fetch profile pictures for friends
             const friendsWithPics = await Promise.all(user.friends.map(async (friendName) => {
               const friendRes = await fetch(`/api/users/${friendName}`);
               const friendData = await friendRes.json();
@@ -57,7 +56,7 @@ const GlobalChat = () => {
     }
   }, [isOpen, isGuest, userName]);
 
-  if (isGuest) return null; // Hide completely for guests
+  if (isGuest) return null;
 
   const fetchConversation = async (contactId) => {
     try {
@@ -83,15 +82,13 @@ const GlobalChat = () => {
     if (!messages[contact.id]) {
       setMessages(prev => ({ ...prev, [contact.id]: [] }));
     }
-    // Only fetch for real friends, not AI/Support
     if (contact.role === 'Friend') {
       fetchConversation(contact.id);
-    } else {
-      // Mock intro for AI/Support
+    } else if (contact.id === 'ai' && isSubscribed) {
       if(!messages[contact.id] || messages[contact.id].length === 0) {
         setMessages(prev => ({
           ...prev,
-          [contact.id]: [{ id: 1, text: `Hello! I'm ${contact.name}. How can I help you today?`, sender: 'other' }]
+          [contact.id]: [{ id: 1, text: `Hello! I'm your AI Fitness Coach. How can I help you today?`, sender: 'other' }]
         }));
       }
     }
@@ -100,6 +97,11 @@ const GlobalChat = () => {
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || !activeContact) return;
+
+    if (activeContact.id === 'ai' && !isSubscribed) {
+      toast.warn(`AI Chat is locked. Please subscribe to Pro Plan ($${proPrice}/mo) to access AI Fitness Coach.`);
+      return;
+    }
 
     const messageText = input;
     const newMsg = {
@@ -116,7 +118,6 @@ const GlobalChat = () => {
 
     setInput('');
 
-    // Send to MongoDB if it's a real friend
     if (activeContact.role === 'Friend') {
       try {
         await fetch('/api/chat', {
@@ -126,7 +127,6 @@ const GlobalChat = () => {
         });
       } catch (err) { console.error(err); }
     } 
-    // Send to Ollama Backend if it's the AI Trainer
     else if (activeContact.id === 'ai') {
       const userContext = {
         primaryGoal: localStorage.getItem('gymsync_onboarding_primaryGoal') || 'General Fitness',
@@ -136,7 +136,7 @@ const GlobalChat = () => {
 
       try {
         const currentHistory = messages[activeContact.id] || [];
-        const historyToSend = currentHistory.slice(-8); // Send last 8 msgs for context
+        const historyToSend = currentHistory.slice(-8);
 
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
@@ -146,43 +146,40 @@ const GlobalChat = () => {
         const data = await response.json();
         let replyText = data.content;
         
-        // Check for AI Workout Plan
         const planMatch = replyText.match(/<PLAN>(.*?)<\/PLAN>/i);
         if (planMatch) {
           const exercisesString = planMatch[1];
           const exercisesArray = exercisesString.split(',').map(e => e.trim());
           localStorage.setItem('gymsync_ai_plan', JSON.stringify(exercisesArray));
           
-          // Remove the <PLAN> string from the message and add a notification link
           replyText = replyText.replace(planMatch[0], "\n\n🏋️‍♂️ **Workout Plan Generated!**\nYour new plan has been loaded into the AI Trainer. [Click here to open AI Trainer](/ai-trainer)");
-          
           toast.success("New AI Workout Plan Generated!");
         }
 
-        const reply = {
+        const botMsg = {
           id: Date.now() + 1,
           text: replyText,
           sender: 'other',
           timestamp: new Date().toISOString()
         };
+
         setMessages(prev => ({
           ...prev,
-          [activeContact.id]: [...prev[activeContact.id], reply]
+          [activeContact.id]: [...(prev[activeContact.id] || []), botMsg]
         }));
       } catch (err) {
         const errReply = {
           id: Date.now() + 1,
-          text: "⚠️ Connection Error: Failed to connect to your local Ollama instance.",
+          text: "Sorry, I am having trouble connecting to AI services right now. Please try again shortly.",
           sender: 'other',
           timestamp: new Date().toISOString()
         };
         setMessages(prev => ({
           ...prev,
-          [activeContact.id]: [...prev[activeContact.id], errReply]
+          [activeContact.id]: [...(prev[activeContact.id] || []), errReply]
         }));
       }
     } 
-    // Mock reply for Gym Support
     else {
       setTimeout(() => {
         const reply = {
@@ -193,7 +190,7 @@ const GlobalChat = () => {
         };
         setMessages(prev => ({
           ...prev,
-          [activeContact.id]: [...prev[activeContact.id], reply]
+          [activeContact.id]: [...(prev[activeContact.id] || []), reply]
         }));
       }, 1000);
     }
@@ -233,8 +230,13 @@ const GlobalChat = () => {
                   {contact.isImage ? <img src={contact.avatar} alt={contact.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : contact.avatar}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <h4 style={{ margin: '0 0 4px 0' }}>{contact.name}</h4>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{contact.role}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <h4 style={{ margin: 0 }}>{contact.name}</h4>
+                    {contact.id === 'ai' && !isSubscribed && <Lock size={14} color="#ef4444" />}
+                  </div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {contact.id === 'ai' && !isSubscribed ? 'Locked (Pro Plan)' : contact.role}
+                  </span>
                 </div>
               </div>
             ))}
@@ -242,25 +244,52 @@ const GlobalChat = () => {
         ) : (
           <>
             <div className="chat-body" style={{ overflowY: 'auto', flex: 1 }}>
-              {(messages[activeContact.id] || []).map((msg, idx) => (
-                <div key={idx} className={`chat-bubble ${msg.sender === 'user' ? 'outgoing' : 'incoming'}`}>
-                  {activeContact.id === 'ai' && msg.sender === 'other' ? (
-                    <ReactMarkdown>{msg.text}</ReactMarkdown>
-                  ) : (
-                    msg.text
-                  )}
+              {activeContact.id === 'ai' && !isSubscribed ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+                  <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px auto' }}>
+                    <Lock size={30} color="#ef4444" />
+                  </div>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: '#fff' }}>AI Trainer Locked</h4>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '20px' }}>
+                    AI Fitness Coaching and instant rep counting are exclusively available for <strong>GymSync Pro Subscribers</strong>.
+                  </p>
+                  <button 
+                    className="btn btn-primary w-100"
+                    style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: 'bold' }}
+                    onClick={() => {
+                      localStorage.setItem('gymsync_subscribed', 'true');
+                      toast.success(`Subscription activated for Pro Plan ($${proPrice}/mo)! AI Chat is now unlocked.`);
+                      window.location.reload();
+                    }}
+                  >
+                    Subscribe to Pro Plan (${proPrice}/mo)
+                  </button>
                 </div>
-              ))}
-              {(!messages[activeContact.id] || messages[activeContact.id].length === 0) && (
-                <p style={{textAlign: 'center', color: 'var(--text-secondary)', marginTop: '20px'}}>Say hi to {activeContact.name}!</p>
+              ) : (
+                <>
+                  {(messages[activeContact.id] || []).map((msg, idx) => (
+                    <div key={idx} className={`chat-bubble ${msg.sender === 'user' ? 'outgoing' : 'incoming'}`}>
+                      {activeContact.id === 'ai' && msg.sender === 'other' ? (
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      ) : (
+                        msg.text
+                      )}
+                    </div>
+                  ))}
+                  {(!messages[activeContact.id] || messages[activeContact.id].length === 0) && (
+                    <p style={{textAlign: 'center', color: 'var(--text-secondary)', marginTop: '20px'}}>Say hi to {activeContact.name}!</p>
+                  )}
+                  <div ref={messagesEndRef} />
+                </>
               )}
-              <div ref={messagesEndRef} />
             </div>
 
-            <form className="chat-footer" onSubmit={handleSend}>
-              <input type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} />
-              <button type="submit" className="send-btn"><Send size={18} /></button>
-            </form>
+            {!(activeContact.id === 'ai' && !isSubscribed) && (
+              <form className="chat-footer" onSubmit={handleSend}>
+                <input type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} />
+                <button type="submit" className="send-btn"><Send size={18} /></button>
+              </form>
+            )}
           </>
         )}
       </div>

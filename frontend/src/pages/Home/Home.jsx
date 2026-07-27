@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ImageIcon, Video, Send, ThumbsUp, MessageCircle, X, Edit2 } from 'lucide-react';
+import { ImageIcon, Video, Send, ThumbsUp, MessageCircle, X, Edit2, AlertTriangle, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import Modal from '../../components/common/Modal';
 import './Home.css';
 
 const Home = () => {
@@ -17,10 +18,15 @@ const Home = () => {
   
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
+  const isAdmin = userRole === 'Admin' || userRole === 'SuperAdmin' || userRole === 'ComplaintModerator';
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest User';
 
   const [feedTab, setFeedTab] = useState('global');
   const [currentUser, setCurrentUser] = useState(null);
+
+  // Admin Post Removal Modal State
+  const [removalPostId, setRemovalPostId] = useState(null);
+  const [removalReason, setRemovalReason] = useState('Violation of community guidelines');
 
   // Fetch dynamic DB data on mount
   useEffect(() => {
@@ -289,51 +295,90 @@ const Home = () => {
                 </div>
                 
                 <div className="post-actions">
-                  <button 
-                    className={`action-btn ${post.likes.length > 0 ? 'active' : ''}`}
-                    onClick={() => toggleLike(post._id)}
-                  >
-                    <ThumbsUp size={18} /> {post.likes.length}
-                  </button>
-                  <button className="action-btn" onClick={() => setActiveCommentPostId(activeCommentPostId === post._id ? null : post._id)}>
-                    <MessageCircle size={18} /> {post.comments?.length || 0}
-                  </button>
+                  {!isAdmin ? (
+                    <>
+                      <button 
+                        className={`action-btn ${post.likes.length > 0 ? 'active' : ''}`}
+                        onClick={() => toggleLike(post._id)}
+                      >
+                        <ThumbsUp size={18} /> {post.likes.length}
+                      </button>
+                      <button className="action-btn" onClick={() => setActiveCommentPostId(activeCommentPostId === post._id ? null : post._id)}>
+                        <MessageCircle size={18} /> {post.comments?.length || 0}
+                      </button>
+                      <button 
+                        className="action-btn" 
+                        style={{ color: '#f59e0b' }}
+                        title="Report post to moderators"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/posts/${post._id}/report`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ reporterName: userName })
+                            });
+                            if (res.ok) {
+                              toast.info('Post reported to GymSync moderators for review.');
+                            }
+                          } catch (e) {
+                            toast.error('Failed to report post');
+                          }
+                        }}
+                      >
+                        <AlertTriangle size={18} /> Report
+                      </button>
+                    </>
+                  ) : (
+                    <button 
+                      className="action-btn" 
+                      style={{ color: '#ef4444', fontWeight: 600, border: '1px solid rgba(239, 68, 68, 0.3)', padding: '6px 14px', borderRadius: '8px' }}
+                      onClick={() => setRemovalPostId(post._id)}
+                    >
+                      <Trash2 size={16} /> Remove Post (Admin)
+                    </button>
+                  )}
                 </div>
                 
                 {/* Comment Section Dropdown */}
                 {activeCommentPostId === post._id && (
                   <div style={{ marginTop: '15px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                      <input 
-                        type="text" 
-                        placeholder="Write a comment..." 
-                        style={{ flex: 1, padding: '10px', borderRadius: '20px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
-                        id={`comment-input-${post._id}`}
-                        onKeyDown={async (e) => {
-                          if(e.key === 'Enter' && e.target.value.trim()) {
-                            const val = e.target.value;
-                            e.target.value = '';
-                            try {
-                              const res = await fetch(`/api/posts/${post._id}/comment`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ text: val, authorName: userName })
-                              });
-                              const updatedComments = await res.json();
-                              setPosts(posts.map(p => p._id === post._id ? { ...p, comments: updatedComments } : p));
-                              
-                              // Create Notification
-                              fetch('/api/notifications', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ userId: post.author?.name || 'Unknown User', type: 'comment', message: `${userName} commented on your post.`, link: '/home' })
-                              });
-                              toast.success("Comment added!");
-                            } catch (err) { toast.error("Failed to add comment."); }
-                          }
-                        }}
-                      />
-                    </div>
+                    {post.commentRestriction === 'SubscribersOnly' && !(localStorage.getItem('gymsync_subscribed') === 'true' || userRole === 'Admin' || userRole === 'SuperAdmin' || userRole === 'GymOwner') ? (
+                      <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '10px', color: '#fca5a5', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
+                        🔒 <strong>Subscriber Exclusive:</strong> Only GymSync Subscribers can comment on this Admin post.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                        <input 
+                          type="text" 
+                          placeholder="Write a comment..." 
+                          style={{ flex: 1, padding: '10px', borderRadius: '20px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                          id={`comment-input-${post._id}`}
+                          onKeyDown={async (e) => {
+                            if(e.key === 'Enter' && e.target.value.trim()) {
+                              const val = e.target.value;
+                              e.target.value = '';
+                              try {
+                                const res = await fetch(`/api/posts/${post._id}/comment`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ text: val, authorName: userName })
+                                });
+                                const updatedComments = await res.json();
+                                setPosts(posts.map(p => p._id === post._id ? { ...p, comments: updatedComments } : p));
+                                
+                                // Create Notification
+                                fetch('/api/notifications', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ userId: post.author?.name || 'Unknown User', type: 'comment', message: `${userName} commented on your post.`, link: '/home' })
+                                });
+                                toast.success("Comment added!");
+                              } catch (err) { toast.error("Failed to add comment."); }
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {post.comments && post.comments.map((c) => (
@@ -483,6 +528,50 @@ const Home = () => {
         </div>
       </div>
       
+      {/* Admin Post Removal Modal */}
+      <Modal isOpen={Boolean(removalPostId)} onClose={() => setRemovalPostId(null)} title="Remove Community Post (Admin)">
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          if (!removalPostId) return;
+          try {
+            const res = await fetch(`/api/admin/posts/${removalPostId}/remove-with-reason`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+              body: JSON.stringify({ reason: removalReason })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              toast.success(`Post removed. Notification sent to author: "${data.reason}"`);
+              setPosts(prev => prev.filter(p => p._id !== removalPostId));
+              setRemovalPostId(null);
+            }
+          } catch (err) {
+            toast.error('Failed to remove post');
+          }
+        }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+            Specify the reason for post removal. The author will automatically receive a notification explaining why their post was removed.
+          </p>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', fontWeight: 600 }}>Reason for Removal</label>
+            <select 
+              className="search-input"
+              value={removalReason}
+              onChange={e => setRemovalReason(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(30,41,59,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              <option value="Violation of community guidelines">Violation of community guidelines</option>
+              <option value="Inappropriate content or spam">Inappropriate content or spam</option>
+              <option value="Harassment or offensive language">Harassment or offensive language</option>
+              <option value="Misleading or unsafe fitness advice">Misleading or unsafe fitness advice</option>
+            </select>
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
+            <Trash2 size={16} /> Confirm Post Removal & Notify Author
+          </button>
+        </form>
+      </Modal>
+
       {/* Lightbox Modal */}
       {selectedImage && (
         <div 
