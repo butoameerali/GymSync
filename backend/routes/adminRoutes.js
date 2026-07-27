@@ -16,7 +16,8 @@ import {
   getAuditLogs,
   removePostWithReason,
   requestRefundCashback,
-  approveRefundCashback
+  approveRefundCashback,
+  sendSubscriberBroadcast
 } from '../controllers/adminController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -46,6 +47,9 @@ router.put('/posts/:id/review-cashback', authorizeRoles('SuperAdmin'), reviewCas
 
 router.post('/complaints/:id/request-refund', authorizeRoles('SuperAdmin', 'Admin'), requestRefundCashback);
 router.put('/complaints/:id/approve-refund', authorizeRoles('SuperAdmin'), approveRefundCashback);
+
+// Admin Event Broadcast to All Subscribers
+router.post('/broadcast', authorizeRoles('SuperAdmin', 'Admin'), sendSubscriberBroadcast);
 
 // Complaint Chat Thread & Senior Audit Inspection
 router.post('/complaints/:id/chat', addComplaintChatMessage);

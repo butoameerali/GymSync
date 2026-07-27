@@ -14,14 +14,16 @@ export const getGymOwnerDashboard = async (req, res) => {
     name: 'Elite GymSync Fitness Center',
     location: 'Downtown Athletic District',
     monthlyFee: 50,
-    ownerName: ownerName,
+    ownerName: ownerName || 'Elite Gym Owner',
     rating: 4.8,
-    equipmentImages: []
+    facilities: ['Sauna & Spa', 'Olympic Weightlifting', 'Cardio Deck', 'Locker Rooms'],
+    equipmentImages: ['https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop']
   };
 
   try {
     let gym = null;
     let todayAttendance = [];
+    let activeMembersCount = 0; // Default to 0 when no members are added
 
     try {
       gym = await Gym.findOne({ ownerName });
@@ -34,56 +36,66 @@ export const getGymOwnerDashboard = async (req, res) => {
           gymId: gym._id.toString(),
           createdAt: { $gte: startOfDay }
         }).sort({ checkInTime: -1 });
+
+        const distinctMembers = await GymPlan.distinct('memberName', { gymId: gym._id.toString() });
+        activeMembersCount = distinctMembers.length;
       }
     } catch (e) {}
 
     if (!gym) gym = fallbackGym;
 
-    const activeMembersCount = 42; 
     const monthlyRevenue = activeMembersCount * (gym.monthlyFee || 50);
 
     res.json({
       gym,
       stats: {
-        activeMembersCount,
-        todayCheckIns: todayAttendance.length || 8,
-        monthlyRevenue
+        activeMembersCount, // Fix: 0 by default when no members are added
+        todayCheckIns: todayAttendance.length,
+        monthlyRevenue,
+        commission15PercentOwed: monthlyRevenue * 0.15,
+        saasSubscriptionStatus: 'Active', // 50% discount feature status
+        warningDaysRemaining: 10
       },
-      todayAttendance: todayAttendance.length > 0 ? todayAttendance : [
-        { _id: 'att_1', memberName: 'Alex Johnson', checkInTime: new Date(Date.now() - 3600000), status: 'CheckedIn' },
-        { _id: 'att_2', memberName: 'Sarah Smith', checkInTime: new Date(Date.now() - 7200000), status: 'CheckedOut', checkOutTime: new Date(Date.now() - 1800000) }
-      ]
+      todayAttendance
     });
   } catch (error) {
     res.json({
       gym: fallbackGym,
-      stats: { activeMembersCount: 42, todayCheckIns: 8, monthlyRevenue: 2100 },
+      stats: { activeMembersCount: 0, todayCheckIns: 0, monthlyRevenue: 0, commission15PercentOwed: 0 },
       todayAttendance: []
     });
   }
 };
 
-// @desc    Update Gym Profile Settings
+// @desc    Update Gym Profile Facility Information
 // @route   PUT /api/gym-owner/gym/:id
 // @access  Private / GymOwner
 export const updateGymProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, location, monthlyFee, dailyTip } = req.body;
+    const { name, location, monthlyFee, description, facilities, equipmentImages, dailyTip } = req.body;
 
     try {
-      const gym = await Gym.findById(id);
+      let gym = await Gym.findById(id);
+      if (!gym) {
+        const ownerName = req.headers['x-user-name'] || 'Gym Owner';
+        gym = await Gym.findOne({ ownerName });
+      }
+
       if (gym) {
         if (name) gym.name = name;
         if (location) gym.location = location;
         if (monthlyFee) gym.monthlyFee = Number(monthlyFee);
-        if (dailyTip) gym.dailyTip = dailyTip;
+        if (description) gym.description = description;
+        if (Array.isArray(facilities)) gym.facilities = facilities;
+        if (Array.isArray(equipmentImages)) gym.equipmentImages = equipmentImages;
+        if (dailyTip) gym.todayTrainingTip = dailyTip;
         await gym.save();
         return res.json(gym);
       }
     } catch (e) {}
 
-    res.json({ _id: id, name, location, monthlyFee: Number(monthlyFee) });
+    res.json({ _id: id, name, location, monthlyFee: Number(monthlyFee), facilities, equipmentImages });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

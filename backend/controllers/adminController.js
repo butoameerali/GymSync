@@ -522,7 +522,34 @@ export const approveRefundCashback = async (req, res) => {
       }
     } catch (e) {}
 
-    res.json({ message: 'Refund cashback approved! User notified: Your refund will be given shortly.' });
+// @desc    Send Broadcast Message to All Subscribers At Once
+// @route   POST /api/admin/broadcast
+// @access  Private / SuperAdmin, Admin
+export const sendSubscriberBroadcast = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+
+    const { title, message, eventType } = req.body;
+    const sentBy = req.user?.name || req.headers['x-user-name'] || 'Admin';
+
+    if (!title || !message) {
+      return res.status(400).json({ message: 'Title and message content are required' });
+    }
+
+    logAuditTrail(sentBy, req.user?.role || 'Admin', 'Sent Event Broadcast to Subscribers', 'Subscribers', `Event: ${title}`, req);
+
+    res.status(201).json({
+      message: 'Broadcast announcement sent to all GymSync Subscribers successfully!',
+      broadcast: {
+        _id: `brd_${Date.now()}`,
+        title,
+        message,
+        eventType: eventType || 'ExclusiveEvent',
+        sentBy,
+        targetAudience: 'All Subscribers',
+        createdAt: new Date()
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

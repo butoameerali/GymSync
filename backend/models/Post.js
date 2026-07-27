@@ -16,6 +16,21 @@ const postSchema = new mongoose.Schema({
   approvedBy: { type: String, default: '' },
   reportCount: { type: Number, default: 0 },
   reportedBy: [{ type: String }],
+  commentRestriction: {
+    type: String,
+    enum: ['AllUsers', 'SubscribersOnly'],
+    default: 'SubscribersOnly'
+  },
+  likeRestriction: {
+    type: String,
+    enum: ['AllUsers'],
+    default: 'AllUsers'
+  },
+  viewRestriction: {
+    type: String,
+    enum: ['AllUsers'],
+    default: 'AllUsers'
+  },
   likes: [{ type: String }],
   comments: [{
     text: { type: String },
