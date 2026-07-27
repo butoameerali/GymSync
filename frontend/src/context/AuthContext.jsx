@@ -5,16 +5,39 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+export const getRoleRedirectPath = (role) => {
+  if (!role) return '/home';
+  const normalized = role.toLowerCase().replace('_', '');
+  if (normalized === 'admin' || normalized === 'complaintmoderator') {
+    return '/admin';
+  }
+  if (normalized === 'gymowner') {
+    return '/gym-owner';
+  }
+  return '/home'; // Standard user redirects to Homepage feed
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
-    const userInfo = localStorage.getItem('userInfo');
-    if (userInfo) {
-      setUser(JSON.parse(userInfo));
+    // Check if user is logged in via token or localStorage metadata
+    const token = localStorage.getItem('gymsync_token');
+    const role = localStorage.getItem('gymsync_role');
+    const name = localStorage.getItem('gymsync_user_name');
+    const userInfoStr = localStorage.getItem('userInfo');
+
+    if (userInfoStr) {
+      try {
+        setUser(JSON.parse(userInfoStr));
+      } catch (e) {
+        setUser(null);
+      }
+    } else if (token && role && role !== 'guest') {
+      setUser({ name, role, token });
     }
+
     setLoading(false);
   }, []);
 
@@ -22,9 +45,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const config = { headers: { 'Content-Type': 'application/json' } };
       const { data } = await axios.post('/api/auth/login', { email, password }, config);
+
       setUser(data);
       localStorage.setItem('userInfo', JSON.stringify(data));
-      return { success: true };
+      localStorage.setItem('gymsync_token', data.token || 'mocktoken');
+      localStorage.setItem('gymsync_role', data.role || 'User');
+      localStorage.setItem('gymsync_user_name', data.name || 'User');
+
+      return { success: true, user: data, redirectPath: getRoleRedirectPath(data.role) };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || 'Login failed' };
     }
@@ -34,9 +62,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const config = { headers: { 'Content-Type': 'application/json' } };
       const { data } = await axios.post('/api/auth/register', { name, email, password, role }, config);
+
       setUser(data);
       localStorage.setItem('userInfo', JSON.stringify(data));
-      return { success: true };
+      localStorage.setItem('gymsync_token', data.token || 'mocktoken');
+      localStorage.setItem('gymsync_role', data.role || 'User');
+      localStorage.setItem('gymsync_user_name', data.name || 'User');
+
+      return { success: true, user: data, redirectPath: getRoleRedirectPath(data.role) };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || 'Registration failed' };
     }
@@ -44,12 +77,15 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('userInfo');
+    localStorage.removeItem('gymsync_token');
+    localStorage.removeItem('gymsync_role');
+    localStorage.removeItem('gymsync_user_name');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
-      {!loading && children}
+    <AuthContext.Provider value={{ user, login, register, logout, loading, getRoleRedirectPath }}>
+      {children}
     </AuthContext.Provider>
   );
 };

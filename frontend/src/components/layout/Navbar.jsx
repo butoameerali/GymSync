@@ -109,7 +109,6 @@ const Navbar = () => {
 
         <div className={`nav-links ${isMenuOpen ? 'active' : ''}`}>
           <Link to="/home" className="nav-link">Home</Link>
-          {isLoggedIn && <Link to="/dashboard" className="nav-link">Dashboard</Link>}
           <Link to="/explore" className="nav-link">Explore Gyms</Link>
           <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>
           {isLoggedIn && <Link to="/your-gym" className="nav-link">YourGym</Link>}
