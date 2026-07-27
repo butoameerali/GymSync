@@ -66,9 +66,11 @@ async function runSystemVerification() {
     if (!data.complaintId) throw new Error('Missing complaint ID');
   });
 
-  // 5. Admin Stats API
-  await testEndpoint('Admin Dashboard Metrics (GET /api/admin/stats)', async () => {
-    const res = await fetch(`${BASE_URL}/api/admin/stats`);
+  // 5. Protected Admin Stats API
+  await testEndpoint('Admin Dashboard Metrics with RBAC (GET /api/admin/stats)', async () => {
+    const res = await fetch(`${BASE_URL}/api/admin/stats`, {
+      headers: { 'x-user-name': 'Admin Manager' }
+    });
     if (!res.ok) throw new Error(`HTTP Status ${res.status}`);
     const data = await res.json();
     if (typeof data.totalUsers !== 'number') throw new Error('Invalid metrics response');

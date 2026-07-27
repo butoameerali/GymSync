@@ -2,12 +2,30 @@ import User from '../models/User.js';
 import Gym from '../models/Gym.js';
 import Complaint from '../models/Complaint.js';
 import Post from '../models/Post.js';
+import { logAuditTrail } from '../middleware/securityMiddleware.js';
+
+// Helper to verify admin or moderator permission
+const verifyAdminOrModeratorRole = (req, res, allowedRoles = ['Admin', 'ComplaintModerator']) => {
+  const userRole = req.user?.role || req.headers['x-user-role'] || 'User';
+  const normalizedRole = userRole.toLowerCase();
+  const allowed = allowedRoles.map(r => r.toLowerCase());
+
+  if (!allowed.includes(normalizedRole)) {
+    res.status(403).json({ 
+      message: `Access denied: Role '${userRole}' does not possess required administrative permissions.` 
+    });
+    return false;
+  }
+  return true;
+};
 
 // @desc    Get dashboard metrics for Admin Panel
 // @route   GET /api/admin/stats
-// @access  Private / Admin
+// @access  Private / Admin, ComplaintModerator
 export const getAdminStats = async (req, res) => {
   try {
+    if (!verifyAdminOrModeratorRole(req, res, ['Admin', 'ComplaintModerator'])) return;
+
     let totalUsers = 120;
     let totalGymOwners = 15;
     let totalStoreManagers = 3;
@@ -53,6 +71,8 @@ export const getAdminStats = async (req, res) => {
 // @access  Private / Admin
 export const getAllUsers = async (req, res) => {
   try {
+    if (!verifyAdminOrModeratorRole(req, res, ['Admin'])) return;
+
     try {
       const users = await User.find().select('-password').sort({ createdAt: -1 });
       if (users.length > 0) return res.json(users);
@@ -75,8 +95,13 @@ export const getAllUsers = async (req, res) => {
 // @access  Private / Admin
 export const updateUserRole = async (req, res) => {
   try {
+    if (!verifyAdminOrModeratorRole(req, res, ['Admin'])) return;
+
     const { id } = req.params;
     const { role } = req.body;
+    const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
+
+    logAuditTrail(actorName, req.user?.role || 'Admin', 'Assigned User Role', id, `New Role: ${role}`, req);
 
     try {
       const user = await User.findById(id);
@@ -98,8 +123,13 @@ export const updateUserRole = async (req, res) => {
 // @access  Private / Admin, ComplaintModerator
 export const toggleUserBan = async (req, res) => {
   try {
+    if (!verifyAdminOrModeratorRole(req, res, ['Admin', 'ComplaintModerator'])) return;
+
     const { id } = req.params;
     const { isBanned, banReason } = req.body;
+    const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
+
+    logAuditTrail(actorName, req.user?.role || 'Admin', 'Updated User Ban Status', id, `Banned: ${isBanned}, Reason: ${banReason || 'N/A'}`, req);
 
     try {
       const user = await User.findById(id);
