@@ -13,7 +13,10 @@ import {
   reviewCashbackPost,
   addComplaintChatMessage,
   getComplaintChatsInspection,
-  getAuditLogs
+  getAuditLogs,
+  removePostWithReason,
+  requestRefundCashback,
+  approveRefundCashback
 } from '../controllers/adminController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -31,14 +34,18 @@ router.put('/users/:id/ban', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintMod
 router.get('/gyms/pending', authorizeRoles('SuperAdmin', 'Admin'), getPendingGymApprovals);
 router.put('/gyms/:id/approval', authorizeRoles('SuperAdmin', 'Admin'), updateGymApprovalStatus);
 
-// Reported Posts Moderation
+// Reported Posts & Admin Post Removal with Reason
 router.get('/posts/reported', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), getReportedPosts);
 router.put('/posts/:id/moderate', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), moderateReportedPost);
+router.delete('/posts/:id/remove-with-reason', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), removePostWithReason);
 
-// Cashback Post Approval Workflow
+// Cashback & Subscription Refund Approval Workflow
 router.post('/posts/cashback', authorizeRoles('SuperAdmin', 'Admin'), createCashbackPost);
 router.get('/posts/pending-cashback', authorizeRoles('SuperAdmin'), getPendingCashbackPosts);
 router.put('/posts/:id/review-cashback', authorizeRoles('SuperAdmin'), reviewCashbackPost);
+
+router.post('/complaints/:id/request-refund', authorizeRoles('SuperAdmin', 'Admin'), requestRefundCashback);
+router.put('/complaints/:id/approve-refund', authorizeRoles('SuperAdmin'), approveRefundCashback);
 
 // Complaint Chat Thread & Senior Audit Inspection
 router.post('/complaints/:id/chat', addComplaintChatMessage);

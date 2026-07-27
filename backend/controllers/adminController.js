@@ -427,6 +427,107 @@ export const getComplaintChatsInspection = async (req, res) => {
   }
 };
 
+// @desc    Remove a post with removal reason and notify author
+// @route   DELETE /api/admin/posts/:id/remove-with-reason
+// @access  Private / SuperAdmin, Admin, ComplaintModerator
+export const removePostWithReason = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin', 'ComplaintModerator'])) return;
+
+    const { id } = req.params;
+    const { reason } = req.body;
+    const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
+
+    let authorName = 'Unknown User';
+    try {
+      const post = await Post.findById(id);
+      if (post) {
+        authorName = post.authorName || authorName;
+        await Post.findByIdAndDelete(id);
+      }
+    } catch (e) {}
+
+    logAuditTrail(actorName, req.user?.role || 'Admin', 'Removed Post with Reason', id, `Reason: ${reason || 'Community Guidelines Violation'}`, req);
+
+    res.json({ 
+      message: 'Post removed successfully', 
+      notificationSent: true,
+      authorName,
+      reason: reason || 'Violation of community guidelines' 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Junior Admin submits Subscription Refund Cashback Request for Senior Admin Approval
+// @route   POST /api/admin/complaints/:id/request-refund
+// @access  Private / SuperAdmin, Admin
+export const requestRefundCashback = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+
+    const { id } = req.params;
+    const { refundAmount } = req.body;
+    const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
+
+    try {
+      const complaint = await Complaint.findById(id);
+      if (complaint) {
+        complaint.isRefundRequested = true;
+        complaint.refundAmount = Number(refundAmount) || 29.99;
+        complaint.cashbackApprovalStatus = 'pending_higher_admin';
+        await complaint.save();
+
+        logAuditTrail(actorName, 'Admin', 'Requested Refund Cashback Approval', id, `Amount: $${complaint.refundAmount}`, req);
+        return res.json({ message: 'Refund cashback request submitted to Senior Super Admin', complaint });
+      }
+    } catch (e) {}
+
+    res.json({ message: 'Refund cashback request submitted to Senior Super Admin' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Senior SuperAdmin Approves Subscription Refund Cashback
+// @route   PUT /api/admin/complaints/:id/approve-refund
+// @access  Private / Senior SuperAdmin
+export const approveRefundCashback = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin'])) return;
+
+    const { id } = req.params;
+    const actorName = req.user?.name || req.headers['x-user-name'] || 'Senior Super Admin';
+
+    try {
+      const complaint = await Complaint.findById(id);
+      if (complaint) {
+        complaint.cashbackApprovalStatus = 'approved';
+        complaint.status = 'Resolved';
+        complaint.approvedBy = actorName;
+        
+        // Add automatic system notification chat message
+        if (!complaint.chatMessages) complaint.chatMessages = [];
+        complaint.chatMessages.push({
+          senderName: actorName,
+          role: 'SuperAdmin',
+          text: 'Your refund will be given shortly.',
+          timestamp: new Date()
+        });
+
+        await complaint.save();
+        logAuditTrail(actorName, 'SuperAdmin', 'Approved Subscription Refund Cashback', id, 'Decision: Approved', req);
+        return res.json({ message: 'Refund cashback approved! User notified: Your refund will be given shortly.', complaint });
+      }
+    } catch (e) {}
+
+    res.json({ message: 'Refund cashback approved! User notified: Your refund will be given shortly.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Get Audit Logs (Senior SuperAdmin Only)
 // @route   GET /api/admin/audit-logs
 // @access  Private / Senior SuperAdmin

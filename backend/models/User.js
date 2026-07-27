@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema({
   adminTier: { type: String, enum: ['Senior', 'Junior', 'None'], default: 'None' },
   isBanned: { type: Boolean, default: false },
   banReason: { type: String, default: '' },
+  isSubscribed: { type: Boolean, default: false },
+  subscriptionPlan: { type: String, default: 'Free' },
   profilePic: { type: String, default: '' },
   
   // Friend & Follow System

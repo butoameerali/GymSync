@@ -5,7 +5,7 @@ const complaintSchema = new mongoose.Schema({
   reporterName: { type: String, required: true },
   reportedEntityType: { 
     type: String, 
-    enum: ['User', 'Post', 'Comment', 'Gym', 'Product'], 
+    enum: ['User', 'Post', 'Comment', 'Gym', 'Product', 'SubscriptionRefund'], 
     required: true 
   },
   reportedEntityId: { type: String, required: true },
@@ -13,6 +13,14 @@ const complaintSchema = new mongoose.Schema({
   reason: { type: String, required: true },
   description: { type: String, required: true },
   evidenceUrls: [{ type: String }],
+  isRefundRequested: { type: Boolean, default: false },
+  refundAmount: { type: Number, default: 0 },
+  cashbackApprovalStatus: { 
+    type: String, 
+    enum: ['none', 'pending_higher_admin', 'approved', 'rejected'], 
+    default: 'none' 
+  },
+  approvedBy: { type: String, default: '' },
   status: { 
     type: String, 
     enum: ['Pending', 'InReview', 'Resolved', 'Dismissed'], 
