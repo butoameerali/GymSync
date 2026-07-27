@@ -3,9 +3,19 @@ import mongoose from 'mongoose';
 const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   authorName: { type: String, default: 'Unknown User' },
-  authorRole: { type: String, default: 'user' },
+  authorRole: { type: String, default: 'User' },
   content: { type: String, required: true },
   mediaUrl: { type: String },
+  isCashback: { type: Boolean, default: false },
+  cashbackAmount: { type: Number, default: 0 },
+  approvalStatus: { 
+    type: String, 
+    enum: ['published', 'pending_approval', 'approved', 'rejected'], 
+    default: 'published' 
+  },
+  approvedBy: { type: String, default: '' },
+  reportCount: { type: Number, default: 0 },
+  reportedBy: [{ type: String }],
   likes: [{ type: String }],
   comments: [{
     text: { type: String },

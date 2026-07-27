@@ -7,9 +7,10 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ['User', 'GymOwner', 'Admin', 'StoreManager', 'ComplaintModerator'], 
+    enum: ['SuperAdmin', 'Admin', 'GymOwner', 'User', 'StoreManager', 'ComplaintModerator'], 
     default: 'User' 
   },
+  adminTier: { type: String, enum: ['Senior', 'Junior', 'None'], default: 'None' },
   isBanned: { type: Boolean, default: false },
   banReason: { type: String, default: '' },
   profilePic: { type: String, default: '' },

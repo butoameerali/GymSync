@@ -154,6 +154,28 @@ export const editReply = async (req, res) => {
   }
 };
 
+// @desc    Report a post (Community moderation)
+// @route   POST /api/posts/:id/report
+// @access  Public / User
+export const reportPost = async (req, res) => {
+  try {
+    const { reporterName } = req.body;
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    if (!post.reportedBy) post.reportedBy = [];
+    if (!post.reportedBy.includes(reporterName || 'Guest User')) {
+      post.reportedBy.push(reporterName || 'Guest User');
+      post.reportCount = (post.reportCount || 0) + 1;
+      await post.save();
+    }
+
+    res.json({ message: 'Post reported to moderators', reportCount: post.reportCount });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Delete a post
 // @route   DELETE /api/posts/:id
 // @access  Private

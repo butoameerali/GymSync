@@ -7,24 +7,41 @@ import Product from './models/Product.js';
 
 dotenv.config();
 
-const seedDatabase = async () => {
+const seedDatabase = async (attempt = 1) => {
   try {
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/gymsync';
-    console.log('Connecting to MongoDB database for seeding...');
+    console.log(`Connecting to MongoDB database for seeding (Attempt ${attempt})...`);
     await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
     console.log('MongoDB Connected for Seeding.');
 
-    // 1. Seed Accounts
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    // 1. Seed 3 Admin Accounts (1 SuperAdmin + 2 Junior Admins)
+    const adminPassword = await bcrypt.hash('admin123', 10);
     const ownerPassword = await bcrypt.hash('owner123', 10);
     const userPassword = await bcrypt.hash('user123', 10);
 
     const accounts = [
       {
-        name: 'Admin Manager',
+        name: 'Senior Super Admin',
         email: 'admin@gymsync.com',
-        password: hashedPassword,
+        password: adminPassword,
+        role: 'SuperAdmin',
+        adminTier: 'Senior',
+        isBanned: false
+      },
+      {
+        name: 'Junior Admin Alex',
+        email: 'admin2@gymsync.com',
+        password: adminPassword,
         role: 'Admin',
+        adminTier: 'Junior',
+        isBanned: false
+      },
+      {
+        name: 'Junior Admin Sarah',
+        email: 'admin3@gymsync.com',
+        password: adminPassword,
+        role: 'Admin',
+        adminTier: 'Junior',
         isBanned: false
       },
       {
@@ -40,20 +57,6 @@ const seedDatabase = async () => {
         password: userPassword,
         role: 'User',
         isBanned: false
-      },
-      {
-        name: 'Store Master',
-        email: 'store@gymsync.com',
-        password: hashedPassword,
-        role: 'StoreManager',
-        isBanned: false
-      },
-      {
-        name: 'Complaint Moderator',
-        email: 'mod@gymsync.com',
-        password: hashedPassword,
-        role: 'ComplaintModerator',
-        isBanned: false
       }
     ];
 
@@ -61,26 +64,32 @@ const seedDatabase = async () => {
       const existingUser = await User.findOne({ email: acc.email });
       if (!existingUser) {
         await User.create(acc);
-        console.log(`✅ Seeded account: ${acc.email} [Role: ${acc.role}]`);
+        console.log(`✅ Seeded account: ${acc.email} [Role: ${acc.role}, Tier: ${acc.adminTier || 'None'}]`);
       } else {
-        console.log(`ℹ️ Account ${acc.email} already exists.`);
+        if (acc.email === 'admin@gymsync.com' && existingUser.role !== 'SuperAdmin') {
+          existingUser.role = 'SuperAdmin';
+          existingUser.adminTier = 'Senior';
+          await existingUser.save();
+          console.log('✅ Updated admin@gymsync.com to Senior SuperAdmin role.');
+        } else {
+          console.log(`ℹ️ Account ${acc.email} already exists.`);
+        }
       }
     }
 
-    // 2. Seed Default Gym Facility
-    const existingGym = await Gym.findOne({ ownerName: 'Elite Gym Owner' });
+    // 2. Seed Default Pending Gym Owner Application for Admin Approval
+    const existingGym = await Gym.findOne({ name: 'Downtown Powerhouse Gym' });
     if (!existingGym) {
       await Gym.create({
-        name: 'Elite GymSync Fitness Center',
-        location: 'Downtown Athletic District',
-        monthlyFee: 50,
+        name: 'Downtown Powerhouse Gym',
+        location: 'Westside Athletic Complex',
+        monthlyFee: 65,
         ownerName: 'Elite Gym Owner',
-        rating: 4.9,
-        equipmentImages: [
-          'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'
-        ]
+        ownerEmail: 'owner@gymsync.com',
+        approvalStatus: 'Pending',
+        equipmentImages: ['https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop']
       });
-      console.log('✅ Seeded default Gym facility for Elite Gym Owner');
+      console.log('✅ Seeded pending Gym Owner facility registration for Admin approval.');
     }
 
     // 3. Seed Default Store Products
@@ -89,9 +98,7 @@ const seedDatabase = async () => {
       await Product.insertMany([
         { name: "Optimum Nutrition Gold Standard 100% Whey", category: "Proteins", price: 64.99, rating: 4.9, image: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?q=80&w=1470&auto=format&fit=crop", badge: "Best Seller", status: "Approved" },
         { name: "GymSync Premium Performance T-Shirt", category: "Gym Wear", price: 24.99, rating: 4.7, image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=1374&auto=format&fit=crop", badge: "New", status: "Approved" },
-        { name: "Pro-Grip Lifting Straps", category: "Accessories", price: 14.99, rating: 4.5, image: "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?q=80&w=1471&auto=format&fit=crop", status: "Approved" },
-        { name: "C4 Original Pre-Workout", category: "Supplements", price: 29.99, rating: 4.8, image: "https://images.unsplash.com/photo-1579722820308-d74e571900a9?q=80&w=1470&auto=format&fit=crop", badge: "Sale", status: "Approved" },
-        { name: "Adjustable Dumbbell Set (50lbs)", category: "Equipment", price: 199.99, rating: 4.9, image: "https://images.unsplash.com/photo-1638202993928-7267aad84c31?q=80&w=1374&auto=format&fit=crop", status: "Approved" }
+        { name: "Pro-Grip Lifting Straps", category: "Accessories", price: 14.99, rating: 4.5, image: "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?q=80&w=1471&auto=format&fit=crop", status: "Approved" }
       ]);
       console.log('✅ Seeded store inventory products');
     }
@@ -100,7 +107,12 @@ const seedDatabase = async () => {
     process.exit(0);
   } catch (err) {
     console.error('❌ Database Seeding Error:', err.message);
-    process.exit(1);
+    if (attempt < 3) {
+      console.log('Retrying seed connection in 2 seconds...');
+      setTimeout(() => seedDatabase(attempt + 1), 2000);
+    } else {
+      process.exit(1);
+    }
   }
 };
 

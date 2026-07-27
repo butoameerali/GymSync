@@ -18,8 +18,14 @@ const complaintSchema = new mongoose.Schema({
     enum: ['Pending', 'InReview', 'Resolved', 'Dismissed'], 
     default: 'Pending' 
   },
-  assignedModerator: { type: String, default: 'Unassigned' },
+  assignedAdminName: { type: String, default: 'Unassigned' },
   adminReply: { type: String, default: '' },
+  chatMessages: [{
+    senderName: { type: String, required: true },
+    role: { type: String, default: 'User' },
+    text: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now }
+  }],
   history: [{
     action: String,
     performedBy: String,
