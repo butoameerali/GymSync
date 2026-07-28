@@ -21,7 +21,11 @@ const MOCK_COMPLAINTS = [
 // @access  Private / User
 export const createComplaint = async (req, res) => {
   try {
-    const { reporterName, reportedEntityType, reportedEntityId, reportedEntityTitle, reason, description, evidenceUrls } = req.body;
+    const { reporterName, reportedEntityType, reportedEntityId, reportedEntityTitle, reason, description } = req.body;
+    let evidenceUrls = [];
+    if (req.file) {
+      evidenceUrls.push(`/uploads/${req.file.filename}`);
+    }
 
     if (!reporterName || !reportedEntityType || !reportedEntityId || !reason || !description) {
       return res.status(400).json({ message: 'All required complaint fields must be provided' });
@@ -80,6 +84,10 @@ export const getAllComplaints = async (req, res) => {
     if (status && status !== 'All') filter.status = status;
     if (type && type !== 'All') filter.reportedEntityType = type;
 
+    if (req.user && !['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase())) {
+       filter.reporterName = req.user.name;
+    }
+
     try {
       const complaints = await Complaint.find(filter).sort({ createdAt: -1 });
       return res.json(complaints);
@@ -126,3 +134,36 @@ export const updateComplaintStatus = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Add chat message to complaint
+// @route   POST /api/complaints/:id/chat
+// @access  Private / User, Admin
+export const addComplaintChat = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { senderName, text } = req.body;
+    
+    if (!text) return res.status(400).json({ message: 'Text is required' });
+
+    const complaint = await Complaint.findById(id);
+    if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
+
+    let role = 'User';
+    if (req.user && ['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase())) {
+      role = 'Admin';
+    }
+
+    complaint.chatMessages.push({
+      senderName: senderName || req.user?.name || 'User',
+      role,
+      text,
+      timestamp: new Date()
+    });
+
+    await complaint.save();
+    return res.json(complaint.chatMessages);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

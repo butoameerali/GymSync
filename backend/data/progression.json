@@ -1,0 +1,272 @@
+{
+  "1_Diet_Plans_Natural": [
+    {
+      "Goal": "Weight Loss / Fat Burn",
+      "Meal Time": "Breakfast",
+      "Food Selection (100% Natural)": "3 Boiled Egg Whites, 1 Whole Egg, 1 Slice Bran Bread, Black Coffee/Green Tea",
+      "Nutritional Objective": "High Protein, Low Calorie (Kickstart metabolism)"
+    },
+    {
+      "Goal": "Weight Loss / Fat Burn",
+      "Meal Time": "Snack 1",
+      "Food Selection (100% Natural)": "1 Apple or 10-12 Almonds",
+      "Nutritional Objective": "Fiber & Good Fats"
+    },
+    {
+      "Goal": "Weight Loss / Fat Burn",
+      "Meal Time": "Lunch",
+      "Food Selection (100% Natural)": "150g Grilled Chicken Breast, 1/2 cup Brown Rice, Large Cucumber/Tomato Salad",
+      "Nutritional Objective": "Lean Protein, Complex Carbs"
+    },
+    {
+      "Goal": "Weight Loss / Fat Burn",
+      "Meal Time": "Pre-Workout",
+      "Food Selection (100% Natural)": "1 Banana, Black Coffee (No Sugar)",
+      "Nutritional Objective": "Instant Energy"
+    },
+    {
+      "Goal": "Weight Loss / Fat Burn",
+      "Meal Time": "Post-Workout",
+      "Food Selection (100% Natural)": "4 Egg Whites OR Whey Protein (Optional, if allowed by user)",
+      "Nutritional Objective": "Fast Recovery"
+    },
+    {
+      "Goal": "Weight Loss / Fat Burn",
+      "Meal Time": "Dinner",
+      "Food Selection (100% Natural)": "150g Baked Fish/Chicken, Steamed Broccoli and Carrots (No Rice/Roti)",
+      "Nutritional Objective": "Zero Starch, Repair Focus"
+    },
+    {
+      "Goal": "Muscle Building (Bulking)",
+      "Meal Time": "Breakfast",
+      "Food Selection (100% Natural)": "1 Cup Oatmeal in Milk, 2 tbsp Peanut Butter, 1 Banana, Honey",
+      "Nutritional Objective": "High Calorie, High Carb"
+    },
+    {
+      "Goal": "Muscle Building (Bulking)",
+      "Meal Time": "Snack 1",
+      "Food Selection (100% Natural)": "2 Whole Boiled Eggs, 2 Slices Whole Wheat Bread",
+      "Nutritional Objective": "Protein & Sustained Energy"
+    },
+    {
+      "Goal": "Muscle Building (Bulking)",
+      "Meal Time": "Lunch",
+      "Food Selection (100% Natural)": "250g Chicken/Beef Karahi (Homemade), 2 Rotis, 1 Cup Rice",
+      "Nutritional Objective": "High Calorie, Mass Gaining"
+    },
+    {
+      "Goal": "Muscle Building (Bulking)",
+      "Meal Time": "Pre-Workout",
+      "Food Selection (100% Natural)": "2 Dates, 1 Boiled Potato, Black Coffee",
+      "Nutritional Objective": "Heavy Lifting Energy"
+    },
+    {
+      "Goal": "Muscle Building (Bulking)",
+      "Meal Time": "Post-Workout",
+      "Food Selection (100% Natural)": "Whey Protein (Optional) + 1 Banana OR 2 Chicken Sandwiches",
+      "Nutritional Objective": "Muscle Glycogen Replenishment"
+    },
+    {
+      "Goal": "Muscle Building (Bulking)",
+      "Meal Time": "Dinner",
+      "Food Selection (100% Natural)": "Beef Steak or Chicken Pulao (2 cups), Mixed Veggies",
+      "Nutritional Objective": "Night-time Recovery Calories"
+    }
+  ],
+  "2_Daily_Weekly_Sets_Reps": [
+    {
+      "Fitness Path": "Muscle Building (Full Body)",
+      "Day of Week": "Day 1 (Push Focus)",
+      "Target Focus": "Chest, Shoulders, Triceps",
+      "Week 1 (Base Load)": "3 sets x 10 reps",
+      "Week 2 (Add Reps/Rounds)": "3 sets x 12 reps",
+      "Week 3 (Peak Sets/Time)": "4 sets x 10 reps",
+      "Week 4 (Deload / Recovery)": "2 sets x 15 reps (Deload)"
+    },
+    {
+      "Fitness Path": "Muscle Building (Full Body)",
+      "Day of Week": "Day 2 (Rest)",
+      "Target Focus": "Active Recovery",
+      "Week 1 (Base Load)": "15 min walk",
+      "Week 2 (Add Reps/Rounds)": "20 min walk",
+      "Week 3 (Peak Sets/Time)": "25 min walk",
+      "Week 4 (Deload / Recovery)": "10 min stretch"
+    },
+    {
+      "Fitness Path": "Muscle Building (Full Body)",
+      "Day of Week": "Day 3 (Pull Focus)",
+      "Target Focus": "Back, Biceps, Rear Delts",
+      "Week 1 (Base Load)": "3 sets x 10 reps",
+      "Week 2 (Add Reps/Rounds)": "3 sets x 12 reps",
+      "Week 3 (Peak Sets/Time)": "4 sets x 10 reps",
+      "Week 4 (Deload / Recovery)": "2 sets x 15 reps (Deload)"
+    },
+    {
+      "Fitness Path": "Muscle Building (Full Body)",
+      "Day of Week": "Day 4 (Rest)",
+      "Target Focus": "Active Recovery",
+      "Week 1 (Base Load)": "15 min walk",
+      "Week 2 (Add Reps/Rounds)": "20 min walk",
+      "Week 3 (Peak Sets/Time)": "25 min walk",
+      "Week 4 (Deload / Recovery)": "10 min stretch"
+    },
+    {
+      "Fitness Path": "Muscle Building (Full Body)",
+      "Day of Week": "Day 5 (Legs Focus)",
+      "Target Focus": "Quads, Hamstrings, Calves",
+      "Week 1 (Base Load)": "3 sets x 12 reps",
+      "Week 2 (Add Reps/Rounds)": "4 sets x 10 reps",
+      "Week 3 (Peak Sets/Time)": "4 sets x 12 reps",
+      "Week 4 (Deload / Recovery)": "2 sets x 15 reps (Deload)"
+    },
+    {
+      "Fitness Path": "Muscle Building (Full Body)",
+      "Day of Week": "Day 6 (Core/Cardio)",
+      "Target Focus": "Abs, Stamina",
+      "Week 1 (Base Load)": "3 sets x 15 reps",
+      "Week 2 (Add Reps/Rounds)": "4 sets x 15 reps",
+      "Week 3 (Peak Sets/Time)": "4 sets x 20 reps",
+      "Week 4 (Deload / Recovery)": "3 sets x 15 reps"
+    },
+    {
+      "Fitness Path": "Muscle Building (Full Body)",
+      "Day of Week": "Day 7",
+      "Target Focus": "Complete Rest",
+      "Week 1 (Base Load)": "Rest",
+      "Week 2 (Add Reps/Rounds)": "Rest",
+      "Week 3 (Peak Sets/Time)": "Rest",
+      "Week 4 (Deload / Recovery)": "Rest"
+    },
+    {
+      "Fitness Path": "Weight Loss (HIIT/Circuit)",
+      "Day of Week": "Day 1 (Full Body Burn)",
+      "Target Focus": "All Muscles",
+      "Week 1 (Base Load)": "3 Rounds (30s work, 30s rest)",
+      "Week 2 (Add Reps/Rounds)": "4 Rounds (30s work, 30s rest)",
+      "Week 3 (Peak Sets/Time)": "4 Rounds (40s work, 20s rest)",
+      "Week 4 (Deload / Recovery)": "2 Rounds (30s work, 30s rest)"
+    },
+    {
+      "Fitness Path": "Weight Loss (HIIT/Circuit)",
+      "Day of Week": "Day 2 (LISS Cardio)",
+      "Target Focus": "Heart",
+      "Week 1 (Base Load)": "30 mins walk",
+      "Week 2 (Add Reps/Rounds)": "35 mins walk",
+      "Week 3 (Peak Sets/Time)": "40 mins walk",
+      "Week 4 (Deload / Recovery)": "20 mins walk"
+    },
+    {
+      "Fitness Path": "Weight Loss (HIIT/Circuit)",
+      "Day of Week": "Day 3 (Upper Body Tone)",
+      "Target Focus": "Chest, Back, Arms",
+      "Week 1 (Base Load)": "3 sets x 15 reps",
+      "Week 2 (Add Reps/Rounds)": "4 sets x 12 reps",
+      "Week 3 (Peak Sets/Time)": "4 sets x 15 reps",
+      "Week 4 (Deload / Recovery)": "2 sets x 15 reps"
+    },
+    {
+      "Fitness Path": "Weight Loss (HIIT/Circuit)",
+      "Day of Week": "Day 4 (LISS Cardio)",
+      "Target Focus": "Heart",
+      "Week 1 (Base Load)": "30 mins walk",
+      "Week 2 (Add Reps/Rounds)": "35 mins walk",
+      "Week 3 (Peak Sets/Time)": "40 mins walk",
+      "Week 4 (Deload / Recovery)": "20 mins walk"
+    },
+    {
+      "Fitness Path": "Weight Loss (HIIT/Circuit)",
+      "Day of Week": "Day 5 (Lower Body Burn)",
+      "Target Focus": "Legs, Glutes",
+      "Week 1 (Base Load)": "3 sets x 15 reps",
+      "Week 2 (Add Reps/Rounds)": "4 sets x 12 reps",
+      "Week 3 (Peak Sets/Time)": "4 sets x 15 reps",
+      "Week 4 (Deload / Recovery)": "2 sets x 15 reps"
+    },
+    {
+      "Fitness Path": "Weight Loss (HIIT/Circuit)",
+      "Day of Week": "Day 6 (Core/Abs)",
+      "Target Focus": "Abs, Obliques",
+      "Week 1 (Base Load)": "3 sets x 20 reps",
+      "Week 2 (Add Reps/Rounds)": "4 sets x 20 reps",
+      "Week 3 (Peak Sets/Time)": "5 sets x 20 reps",
+      "Week 4 (Deload / Recovery)": "3 sets x 20 reps"
+    },
+    {
+      "Fitness Path": "Weight Loss (HIIT/Circuit)",
+      "Day of Week": "Day 7",
+      "Target Focus": "Complete Rest",
+      "Week 1 (Base Load)": "Rest",
+      "Week 2 (Add Reps/Rounds)": "Rest",
+      "Week 3 (Peak Sets/Time)": "Rest",
+      "Week 4 (Deload / Recovery)": "Rest"
+    }
+  ],
+  "3_Monthly_Mesocycle": [
+    {
+      "Experience Level": "All Paths (Beginner)",
+      "Timeline": "Month 1",
+      "Phase Name": "Foundational Phase",
+      "Objective": "Learn form, build mind-muscle connection. Exercises must be perfectly tracked by AI.",
+      "Sets & Reps Logic": "Constant 3 sets. Reps between 10-15.",
+      "Rest Time Logic": "60-90 seconds",
+      "Weight / Load Logic": "Maintain baseline weight."
+    },
+    {
+      "Experience Level": "All Paths (Beginner)",
+      "Timeline": "Month 2",
+      "Phase Name": "Progressive Overload",
+      "Objective": "Introduce weight increments or resistance bands. Increase tension.",
+      "Sets & Reps Logic": "Switch to 4 sets. Reps between 8-12.",
+      "Rest Time Logic": "60 seconds",
+      "Weight / Load Logic": "Increase weight by 5%."
+    },
+    {
+      "Experience Level": "All Paths (Beginner)",
+      "Timeline": "Month 3",
+      "Phase Name": "Hypertrophy/Stamina Peak",
+      "Objective": "Maximum effort phase. Push close to failure on last sets.",
+      "Sets & Reps Logic": "4 to 5 sets. Reps between 6-10 (heavy) or 15-20 (cardio).",
+      "Rest Time Logic": "90-120 seconds",
+      "Weight / Load Logic": "Increase weight by another 5-10%."
+    },
+    {
+      "Experience Level": "All Paths (Beginner)",
+      "Timeline": "Month 4",
+      "Phase Name": "Active Recovery & Assessment",
+      "Objective": "Allow CNS (Central Nervous System) to recover. Avoid burnout.",
+      "Sets & Reps Logic": "2-3 sets. Reps 15+ with lighter weights.",
+      "Rest Time Logic": "45 seconds",
+      "Weight / Load Logic": "Drop weight by 20% to focus purely on stretch."
+    }
+  ],
+  "4_Yearly_Macrocycle": [
+    {
+      "Path": "General Fitness",
+      "Timeline": "Months 1-3 (Q1)",
+      "Macro Phase": "Anatomical Adaptation",
+      "Primary Goal": "Prepare tendons, joints, and ligaments for future stress. Perfect posture and fix muscle imbalances.",
+      "AI Coaching Focus": "Daily tracking of mobility and joint health."
+    },
+    {
+      "Path": "General Fitness",
+      "Timeline": "Months 4-6 (Q2)",
+      "Macro Phase": "Volume Phase",
+      "Primary Goal": "Build maximum muscle tissue and stamina. Highest amount of sets and reps across the year.",
+      "AI Coaching Focus": "Introduce dietary surplus or strict macros."
+    },
+    {
+      "Path": "General Fitness",
+      "Timeline": "Months 7-9 (Q3)",
+      "Macro Phase": "Strength & Power",
+      "Primary Goal": "Lower the reps, maximize the weights. Focus on explosive energy.",
+      "AI Coaching Focus": "Longer rest periods, intense AI tracking for form failure."
+    },
+    {
+      "Path": "General Fitness",
+      "Timeline": "Months 10-12 (Q4)",
+      "Macro Phase": "Shredding & Maintenance",
+      "Primary Goal": "Cut body fat to reveal progress. Transition to high-intensity, short-duration workouts.",
+      "AI Coaching Focus": "Diet shifts to caloric deficit. Maintain strength."
+    }
+  ]
+}

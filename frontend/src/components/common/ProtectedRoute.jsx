@@ -1,6 +1,8 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
+const normalizeRole = (role = '') => role.toLowerCase().replace(/[_\s]/g, '');
+
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const location = useLocation();
   const userName = localStorage.getItem('gymsync_user_name');
@@ -15,10 +17,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles && allowedRoles.length > 0) {
-    const normalizedUserRole = userRole.toLowerCase().replace('_', '');
-    const normalizedAllowed = allowedRoles.map(r => r.toLowerCase().replace('_', ''));
+    const normalizedUserRole = normalizeRole(userRole);
+    const normalizedAllowed = allowedRoles.map(normalizeRole);
+    const isAllowed = normalizedAllowed.includes(normalizedUserRole) || (normalizedUserRole === 'superadmin' && normalizedAllowed.includes('admin'));
 
-    if (!normalizedAllowed.includes(normalizedUserRole)) {
+    if (!isAllowed) {
       // Instantly redirect unauthorized roles away from restricted panels
       return <Navigate to="/dashboard" replace />;
     }

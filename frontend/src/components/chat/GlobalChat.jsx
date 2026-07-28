@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, Lock, Award } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-toastify';
+import PaymentModal from '../common/PaymentModal';
 import './GlobalChat.css';
 
 const CONTACTS = [
@@ -15,12 +16,18 @@ const GlobalChat = () => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState({});
   const [dynamicFriends, setDynamicFriends] = useState([]);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const messagesEndRef = useRef(null);
 
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest';
-  const isSubscribed = localStorage.getItem('gymsync_subscribed') === 'true' || userRole === 'Admin' || userRole === 'SuperAdmin' || userRole === 'GymOwner' || userRole === 'StoreManager';
+
+  useEffect(() => {
+    const startingSubscribed = localStorage.getItem('gymsync_subscribed') === 'true' || userRole === 'Admin' || userRole === 'SuperAdmin' || userRole === 'GymOwner' || userRole === 'StoreManager';
+    setIsSubscribed(startingSubscribed);
+  }, [userRole]);
   const proPrice = localStorage.getItem('gymsync_pro_plan_price') || '9.99';
 
   const scrollToBottom = () => {
@@ -256,11 +263,7 @@ const GlobalChat = () => {
                   <button 
                     className="btn btn-primary w-100"
                     style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: 'bold' }}
-                    onClick={() => {
-                      localStorage.setItem('gymsync_subscribed', 'true');
-                      toast.success(`Subscription activated for Pro Plan ($${proPrice}/mo)! AI Chat is now unlocked.`);
-                      window.location.reload();
-                    }}
+                    onClick={() => setIsPaymentModalOpen(true)}
                   >
                     Subscribe to Pro Plan (${proPrice}/mo)
                   </button>
@@ -290,6 +293,18 @@ const GlobalChat = () => {
                 <button type="submit" className="send-btn"><Send size={18} /></button>
               </form>
             )}
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        amount={proPrice}
+        title="Subscribe to GymSync Pro"
+        paymentType="PlatformSubscription"
+        onPaymentSuccess={() => {
+          localStorage.setItem('gymsync_subscribed', 'true');
+          toast.success(`Subscription activated for Pro Plan ($${proPrice}/mo)! AI Chat is now unlocked.`);
+          window.location.reload();
+        }}
+      />
           </>
         )}
       </div>

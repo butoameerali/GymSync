@@ -79,7 +79,7 @@ function App() {
               <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/your-gym" element={<ProtectedRoute><YourGym /></ProtectedRoute>} />
-              <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'ComplaintModerator']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin', 'ComplaintModerator']}><AdminDashboard /></ProtectedRoute>} />
               <Route path="/gym-owner" element={<ProtectedRoute allowedRoles={['GymOwner', 'gym_owner']}><GymOwnerDashboard /></ProtectedRoute>} />
               
               <Route path="/profile/:userName" element={<PublicProfile />} />

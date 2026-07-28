@@ -9,6 +9,7 @@ const ComplaintModal = ({ isOpen, onClose, defaultEntityType = 'User', defaultEn
   const [entityTitle, setEntityTitle] = useState(defaultEntityTitle);
   const [reason, setReason] = useState('Inappropriate Content');
   const [description, setDescription] = useState('');
+  const [attachment, setAttachment] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const reporterName = localStorage.getItem('gymsync_user_name') || 'Guest User';
@@ -21,18 +22,24 @@ const ComplaintModal = ({ isOpen, onClose, defaultEntityType = 'User', defaultEn
     }
 
     setIsSubmitting(true);
+    const formData = new FormData();
+    formData.append('reporterName', reporterName);
+    formData.append('reportedEntityType', entityType);
+    formData.append('reportedEntityId', entityId || 'N/A');
+    formData.append('reportedEntityTitle', entityTitle || entityId || 'N/A');
+    formData.append('reason', reason);
+    formData.append('description', description.trim());
+    if (attachment) {
+      formData.append('attachment', attachment);
+    }
+
     try {
       const res = await fetch('/api/complaints', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reporterName,
-          reportedEntityType: entityType,
-          reportedEntityId: entityId || 'N/A',
-          reportedEntityTitle: entityTitle || entityId || 'N/A',
-          reason,
-          description: description.trim()
-        })
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
+        body: formData
       });
 
       if (res.ok) {
@@ -115,6 +122,16 @@ const ComplaintModal = ({ isOpen, onClose, defaultEntityType = 'User', defaultEn
             placeholder="Describe what happened and provide context for moderators..."
             value={description}
             onChange={e => setDescription(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Attachment (Optional)</label>
+          <input 
+            type="file" 
+            className="search-input"
+            accept="image/*,video/*"
+            onChange={e => setAttachment(e.target.files?.[0] || null)}
           />
         </div>
 

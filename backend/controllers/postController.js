@@ -159,13 +159,20 @@ export const editReply = async (req, res) => {
 // @access  Public / User
 export const reportPost = async (req, res) => {
   try {
-    const { reporterName } = req.body;
+    const { reporterName, reason, explanation } = req.body;
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
     if (!post.reportedBy) post.reportedBy = [];
-    if (!post.reportedBy.includes(reporterName || 'Guest User')) {
-      post.reportedBy.push(reporterName || 'Guest User');
+    
+    // Check if already reported by this user
+    const alreadyReported = post.reportedBy.some(r => r.userName === (reporterName || 'Guest User'));
+    if (!alreadyReported) {
+      post.reportedBy.push({
+        userName: reporterName || 'Guest User',
+        reason: reason || 'Inappropriate',
+        explanation: explanation || ''
+      });
       post.reportCount = (post.reportCount || 0) + 1;
       await post.save();
     }

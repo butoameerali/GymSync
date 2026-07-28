@@ -1,20 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, CheckCircle } from 'lucide-react';
+import { Dumbbell, Calendar, FileText, Activity } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const YourGym = () => {
   const [gymData, setGymData] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  const isSubscribed = localStorage.getItem('gymsync_is_subscribed') === 'true';
+  const isSubscribed = !!localStorage.getItem('gymsync_user_gym');
 
   useEffect(() => {
     if (isSubscribed) {
-      const userId = user?._id || user?.id || 'mockUserId';
-      fetch(`/api/gyms/my-gym/${userId}`)
+      const userName = user?.name || localStorage.getItem('gymsync_user_name');
+      fetch(`/api/gyms/my-gym-data/${userName}`)
         .then(res => res.json())
-        .then(data => setGymData(data))
-        .catch(err => console.error("Error fetching Gym Details", err));
+        .then(data => {
+          if (!data.message) {
+            setGymData(data.gym);
+            setPlans(data.plans || []);
+            setAttendance(data.attendanceLogs || []);
+            setPosts(data.posts || []);
+          }
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error("Error fetching Gym Details", err);
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
     }
   }, [isSubscribed, user]);
 
@@ -31,7 +48,7 @@ const YourGym = () => {
     );
   }
 
-  if (!gymData) {
+  if (loading || !gymData) {
     return <div className="container" style={{paddingTop: '100px', textAlign: 'center'}}>Loading Dynamic Gym Data...</div>;
   }
 
@@ -51,33 +68,79 @@ const YourGym = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
         
-        {/* Today's Training Tip */}
+        {/* Posts from Gym */}
         <div className="glass-panel" style={{ padding: '30px' }}>
           <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <CheckCircle size={24} color="#10b981" /> Today's Training Tip
+            <Activity size={24} color="#8b5cf6" /> Gym Updates & Posts
           </h2>
-          <div style={{ marginBottom: '20px', padding: '20px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
-            <h4 style={{ color: 'var(--text-secondary)', marginBottom: '10px' }}>What to do Today:</h4>
-            <p style={{ fontSize: '1.1rem', lineHeight: '1.6' }}>{gymData.todayTrainingTip?.today || "Dynamic training plan loading..."}</p>
-          </div>
-          <div style={{ padding: '20px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
-            <h4 style={{ color: 'var(--text-secondary)', marginBottom: '10px' }}>Tomorrow's Preview:</h4>
-            <p style={{ fontSize: '1.1rem', lineHeight: '1.6' }}>{gymData.todayTrainingTip?.tomorrow || "Rest and recover."}</p>
-          </div>
+          {posts.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>No recent updates from your gym.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '15px' }}>
+              {posts.map((post, idx) => (
+                <div key={idx} style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+                  <p style={{ margin: 0, fontSize: '1rem', lineHeight: '1.5' }}>{post.content}</p>
+                  <small style={{ color: 'var(--text-secondary)', display: 'block', marginTop: '10px' }}>
+                    {new Date(post.createdAt).toLocaleDateString()}
+                  </small>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Equipment Pictures */}
+        {/* Workout and Diet Plans */}
         <div className="glass-panel" style={{ padding: '30px' }}>
-          <h2 style={{ marginBottom: '20px' }}>Required Equipment</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-            {gymData.equipmentImages && gymData.equipmentImages.map((img, idx) => (
-              <div key={idx} style={{ height: '150px', borderRadius: '12px', overflow: 'hidden', background: `url(${img}) center/cover` }}>
-              </div>
-            ))}
-            {(!gymData.equipmentImages || gymData.equipmentImages.length === 0) && (
-              <p style={{ color: 'var(--text-secondary)' }}>No equipment images uploaded by your gym owner yet.</p>
-            )}
-          </div>
+          <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <FileText size={24} color="#10b981" /> Assigned Plans
+          </h2>
+          {plans.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>You don't have any custom plans assigned yet.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '15px' }}>
+              {plans.map((plan, idx) => (
+                <div key={idx} style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+                  <h4 style={{ margin: '0 0 5px 0', color: plan.planType === 'Diet' ? '#3b82f6' : '#10b981' }}>
+                    {plan.planType}: {plan.title}
+                  </h4>
+                  <p style={{ fontSize: '0.95rem', lineHeight: '1.5', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+                    {plan.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Attendance Calendar Log */}
+        <div className="glass-panel" style={{ padding: '30px', gridColumn: '1 / -1' }}>
+          <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Calendar size={24} color="#f59e0b" /> Attendance Log
+          </h2>
+          {attendance.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>You have no recorded check-ins yet.</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
+              {attendance.map((log, idx) => (
+                <div key={idx} style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', borderLeft: `4px solid ${log.status === 'CheckedIn' ? '#10b981' : '#8b5cf6'}` }}>
+                  <h4 style={{ margin: '0 0 5px 0' }}>{new Date(log.checkInTime).toLocaleDateString()}</h4>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    Check-in: {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  {log.checkOutTime && (
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                      Check-out: {new Date(log.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  )}
+                  {log.notes && (
+                    <p style={{ margin: '8px 0 0 0', fontSize: '0.9rem', fontStyle: 'italic', color: '#cbd5e1' }}>
+                      "{log.notes}"
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
       </div>

@@ -11,13 +11,13 @@ export const getGymOwnerDashboard = async (req, res) => {
   
   const fallbackGym = {
     _id: 'gym_demo_id',
-    name: 'Elite GymSync Fitness Center',
-    location: 'Downtown Athletic District',
-    monthlyFee: 50,
-    ownerName: ownerName || 'Elite Gym Owner',
-    rating: 4.8,
-    facilities: ['Sauna & Spa', 'Olympic Weightlifting', 'Cardio Deck', 'Locker Rooms'],
-    equipmentImages: ['https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop']
+    name: '',
+    location: '',
+    monthlyFee: 0,
+    ownerName: ownerName || 'Gym Owner',
+    rating: 0,
+    facilities: [],
+    equipmentImages: []
   };
 
   try {
@@ -26,8 +26,15 @@ export const getGymOwnerDashboard = async (req, res) => {
     let activeMembersCount = 0; // Default to 0 when no members are added
 
     try {
-      gym = await Gym.findOne({ ownerName });
-      if (!gym) gym = await Gym.findOne();
+      console.log(`getGymOwnerDashboard called for user: ${req.user?._id}, role: ${req.user?.role}`);
+      if (req.user && (req.user.role === 'GymOwner' || req.user.role === 'gym_owner')) {
+        if (req.user._id) {
+          gym = await Gym.findOne({ owner: req.user._id });
+          console.log(`Gym found by owner ID:`, gym ? gym._id : 'null');
+        }
+      } else {
+        gym = await Gym.findOne({ ownerName });
+      }
       
       if (gym) {
         const startOfDay = new Date();
@@ -73,31 +80,108 @@ export const getGymOwnerDashboard = async (req, res) => {
 export const updateGymProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, location, monthlyFee, description, facilities, equipmentImages, dailyTip } = req.body;
+    const { name, location, monthlyFee, admissionFee, bankDetails, description, facilities, equipmentImages, todayTrainingTip, dailyTip } = req.body;
+    const tipPayload = todayTrainingTip || dailyTip;
 
     try {
-      let gym = await Gym.findById(id);
+      let gym = null;
+      if (id && id !== 'gym_demo_id') {
+        try {
+          gym = await Gym.findById(id);
+        } catch(err) { gym = null; }
+      }
+
       if (!gym) {
-        const ownerName = req.headers['x-user-name'] || 'Gym Owner';
-        gym = await Gym.findOne({ ownerName });
+        if (req.user && req.user._id) {
+          gym = await Gym.findOne({ owner: req.user._id });
+        }
+        if (!gym && req.user && req.user.role !== 'GymOwner' && req.user.role !== 'gym_owner') {
+          const ownerName = req.headers['x-user-name'] || req.user?.name || 'Gym Owner';
+          gym = await Gym.findOne({ ownerName });
+        }
       }
 
       if (gym) {
         if (name) gym.name = name;
         if (location) gym.location = location;
-        if (monthlyFee) gym.monthlyFee = Number(monthlyFee);
+        if (typeof monthlyFee !== 'undefined') gym.monthlyFee = Number(monthlyFee);
+        if (typeof admissionFee !== 'undefined') gym.admissionFee = Number(admissionFee);
+        if (typeof bankDetails !== 'undefined') gym.bankDetails = bankDetails;
         if (description) gym.description = description;
         if (Array.isArray(facilities)) gym.facilities = facilities;
         if (Array.isArray(equipmentImages)) gym.equipmentImages = equipmentImages;
-        if (dailyTip) gym.todayTrainingTip = dailyTip;
+        if (typeof tipPayload !== 'undefined') gym.todayTrainingTip = tipPayload;
         await gym.save();
         return res.json(gym);
       }
-    } catch (e) {}
+
+      // If still no gym found, create one for the owner
+      const ownerName = req.headers['x-user-name'] || req.user?.name || 'Gym Owner';
+      const ownerEmail = req.user?.email || req.headers['x-user-email'] || '';
+      const newGym = await Gym.create({
+        owner: req.user?._id || null,
+        ownerName,
+        ownerEmail,
+        name: name || `${ownerName}'s Gym`,
+        location: location || 'Unknown',
+        monthlyFee: Number(monthlyFee) || 0,
+        admissionFee: Number(admissionFee) || 0,
+        bankDetails: bankDetails || '',
+        description: description || '',
+        facilities: Array.isArray(facilities) ? facilities : [],
+        equipmentImages: Array.isArray(equipmentImages) ? equipmentImages : [],
+        approvalStatus: 'Pending',
+        todayTrainingTip: tipPayload || { today: '' }
+      });
+
+      return res.status(201).json(newGym);
+    } catch (e) {
+      console.error('updateGymProfile error:', e.message);
+    }
 
     res.json({ _id: id, name, location, monthlyFee: Number(monthlyFee), facilities, equipmentImages });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete Gym Profile Facility Information
+// @route   DELETE /api/gym-owner/gym/:id
+// @access  Private / GymOwner
+export const deleteGymProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    let gym = null;
+
+    if (id && id !== 'gym_demo_id') {
+      gym = await Gym.findById(id);
+    }
+
+    if (!gym) {
+      if (req.user && req.user._id) {
+        gym = await Gym.findOne({ owner: req.user._id });
+        console.log(`Delete: found by owner ID:`, gym ? gym._id : 'null');
+      }
+      if (!gym && req.user && req.user.role !== 'GymOwner' && req.user.role !== 'gym_owner') {
+        const ownerName = req.headers['x-user-name'] || req.user?.name || 'Gym Owner';
+        gym = await Gym.findOne({ ownerName });
+      }
+    }
+
+    if (!gym) {
+      console.log(`Delete: gym not found`);
+      return res.status(404).json({ message: 'Gym not found or already deleted' });
+    }
+
+    await Gym.findByIdAndDelete(gym._id);
+    console.log(`Delete: successfully deleted gym ${gym._id}`);
+    
+    // Optional: Could also delete related Attendance and GymPlans here if desired
+    
+    return res.json({ message: 'Gym successfully deleted' });
+  } catch (error) {
+    console.error('deleteGymProfile error:', error.message);
+    res.status(500).json({ message: 'Failed to delete gym profile' });
   }
 };
 
@@ -162,6 +246,48 @@ export const checkOutMember = async (req, res) => {
 // @desc    Create Custom Member Plan (Workout or Diet)
 // @route   POST /api/gym-owner/plans
 // @access  Private / GymOwner
+export const uploadGymPhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ message: 'No photo was uploaded' });
+    }
+
+    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    let gym = null;
+
+    if (id && id !== 'gym_demo_id') {
+      try {
+        gym = await Gym.findById(id);
+      } catch(err) { gym = null; }
+    }
+    if (!gym) {
+      if (req.user && req.user._id) {
+        gym = await Gym.findOne({ owner: req.user._id });
+      }
+      if (!gym && req.user && req.user.role !== 'GymOwner' && req.user.role !== 'gym_owner') {
+        const ownerName = req.headers['x-user-name'] || req.user?.name || 'Gym Owner';
+        gym = await Gym.findOne({ ownerName });
+      }
+    }
+
+    if (!gym) {
+      return res.status(404).json({ message: 'Gym not found for photo upload' });
+    }
+
+    if (!Array.isArray(gym.equipmentImages)) {
+      gym.equipmentImages = [];
+    }
+    gym.equipmentImages.unshift(imageUrl);
+    await gym.save();
+
+    return res.json({ message: 'Gym photo uploaded successfully', imageUrl, gym });
+  } catch (error) {
+    console.error('uploadGymPhoto error:', error.message);
+    res.status(500).json({ message: 'Failed to upload gym photo' });
+  }
+};
+
 export const createGymPlan = async (req, res) => {
   try {
     const { gymId, memberName, planType, title, description, schedule, nutritionMacros } = req.body;

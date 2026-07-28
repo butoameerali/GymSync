@@ -9,6 +9,7 @@ const GymOwnerDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'attendance', 'plans', 'settings'
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isEditingGym, setIsEditingGym] = useState(false);
 
   // Form states
   const [checkInName, setCheckInName] = useState('');
@@ -24,12 +25,17 @@ const GymOwnerDashboard = () => {
     protein: 150
   });
 
+  const [photoFile, setPhotoFile] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
   // Gym Profile Form State
   const [gymProfile, setGymProfile] = useState({
     name: '',
     location: '',
     monthlyFee: 50,
-    todayTip: 'Focus on progressive overload today!'
+    admissionFee: 0,
+    bankDetails: '',
+    description: 'A premium fitness facility.'
   });
 
   const ownerName = localStorage.getItem('gymsync_user_name') || 'Gym Owner';
@@ -41,7 +47,12 @@ const GymOwnerDashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/gym-owner/dashboard/${ownerName}`);
+      const res = await fetch(`/api/gym-owner/dashboard/${ownerName}`, {
+        headers: {
+          'x-user-name': ownerName,
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        }
+      });
       if (res.ok) {
         const data = await res.json();
         setDashboardData(data);
@@ -49,8 +60,10 @@ const GymOwnerDashboard = () => {
           setGymProfile({
             name: data.gym.name || '',
             location: data.gym.location || '',
-            monthlyFee: data.gym.monthlyFee || 50,
-            todayTip: data.gym.todayTrainingTip?.today || 'Focus on compound lifts.'
+            monthlyFee: data.gym.monthlyFee ?? 50,
+            admissionFee: data.gym.admissionFee ?? 0,
+            bankDetails: data.gym.bankDetails || '',
+            description: data.gym.description || ''
           });
         }
       }
@@ -71,7 +84,11 @@ const GymOwnerDashboard = () => {
     try {
       const res = await fetch('/api/gym-owner/attendance/check-in', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-name': ownerName,
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
         body: JSON.stringify({
           gymId: dashboardData?.gym?._id || 'gym_demo_id',
           memberName: checkInName.trim(),
@@ -98,7 +115,11 @@ const GymOwnerDashboard = () => {
   const handleCheckOut = async (attendanceId) => {
     try {
       const res = await fetch(`/api/gym-owner/attendance/check-out/${attendanceId}`, {
-        method: 'PUT'
+        method: 'PUT',
+        headers: {
+          'x-user-name': ownerName,
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        }
       });
 
       if (res.ok) {
@@ -116,24 +137,95 @@ const GymOwnerDashboard = () => {
   const handleSaveGymProfile = async (e) => {
     e.preventDefault();
     try {
+      setUploadingPhoto(true);
       const gymId = dashboardData?.gym?._id || 'gym_demo_id';
       const res = await fetch(`/api/gym-owner/gym/${gymId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-name': ownerName,
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
         body: JSON.stringify({
           name: gymProfile.name,
           location: gymProfile.location,
           monthlyFee: Number(gymProfile.monthlyFee),
-          todayTrainingTip: { today: gymProfile.todayTip }
+          admissionFee: Number(gymProfile.admissionFee),
+          bankDetails: gymProfile.bankDetails,
+          description: gymProfile.description
         })
       });
 
       if (res.ok) {
-        toast.success('Gym information updated successfully');
+        const savedGym = await res.json();
+        let uploadSuccess = true;
+
+        if (photoFile) {
+          const targetGymId = savedGym._id || gymId;
+          const formData = new FormData();
+          formData.append('photo', photoFile);
+          
+          const photoRes = await fetch(`/api/gym-owner/gym/${targetGymId}/upload-photo`, {
+            method: 'POST',
+            headers: {
+              'x-user-name': ownerName,
+              'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+            },
+            body: formData
+          });
+
+          if (photoRes.ok) {
+            setPhotoFile(null);
+          } else {
+            uploadSuccess = false;
+            toast.error('Failed to upload photo');
+          }
+        }
+
+        if (uploadSuccess) {
+          toast.success('Gym information updated successfully');
+        }
+        setIsEditingGym(false);
         fetchDashboardData();
       }
     } catch (err) {
       toast.error('Error saving gym details');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleDeleteGym = async () => {
+    if (!window.confirm('Are you sure you want to delete your Gym Gig? This cannot be undone.')) return;
+    try {
+      const gymId = dashboardData?.gym?._id;
+      if (!gymId || gymId === 'gym_demo_id') return;
+
+      const res = await fetch(`/api/gym-owner/gym/${gymId}`, {
+        method: 'DELETE',
+        headers: { 
+          'x-user-name': ownerName,
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        }
+      });
+
+      if (res.ok) {
+        toast.success('Gym successfully deleted');
+        setDashboardData(prev => ({ ...prev, gym: null }));
+        setIsEditingGym(false);
+        setGymProfile({
+          name: '',
+          location: '',
+          monthlyFee: 50,
+          admissionFee: 0,
+          bankDetails: '',
+          description: ''
+        });
+      } else {
+        toast.error('Failed to delete gym');
+      }
+    } catch (err) {
+      toast.error('Error deleting gym');
     }
   };
 
@@ -147,7 +239,11 @@ const GymOwnerDashboard = () => {
     try {
       const res = await fetch('/api/gym-owner/plans', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-name': ownerName,
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
         body: JSON.stringify({
           gymId: dashboardData?.gym?._id || 'gym_demo_id',
           memberName: planForm.memberName,
@@ -433,57 +529,131 @@ const GymOwnerDashboard = () => {
             {/* FACILITY SETTINGS TAB */}
             {activeTab === 'settings' && (
               <div className="glass-panel" style={{ padding: '24px' }}>
-                <h3>Edit Facility Information</h3>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Update public gym info displayed on Explore Gyms page</p>
-
-                <form onSubmit={handleSaveGymProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Gym Name</label>
-                    <input 
-                      type="text" 
-                      required 
-                      className="search-input" 
-                      value={gymProfile.name}
-                      onChange={e => setGymProfile({ ...gymProfile, name: e.target.value })}
-                    />
+                    <h3>Facility Information</h3>
+                    <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Update public gym info displayed on Explore Gyms page</p>
                   </div>
+                  {dashboardData?.gym?._id && dashboardData.gym._id !== 'gym_demo_id' && !isEditingGym && (
+                    <button className="btn btn-outline btn-sm" onClick={() => setIsEditingGym(true)}>
+                      <Edit size={16} /> Edit Gig
+                    </button>
+                  )}
+                </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Location & City</label>
-                    <input 
-                      type="text" 
-                      required 
-                      className="search-input" 
-                      value={gymProfile.location}
-                      onChange={e => setGymProfile({ ...gymProfile, location: e.target.value })}
-                    />
+                {dashboardData?.gym?._id && dashboardData.gym._id !== 'gym_demo_id' && !isEditingGym ? (
+                  <div className="gym-gig-display">
+                    {dashboardData.gym.equipmentImages?.[0] && (
+                      <div style={{ width: '100%', height: '200px', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
+                        <img src={dashboardData.gym.equipmentImages[0]} alt="Gym Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    )}
+                    <h2 style={{ marginBottom: '10px' }}>{dashboardData.gym.name}</h2>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>{dashboardData.gym.location}</p>
+                    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+                      <div><strong>Monthly Fee:</strong> ${dashboardData.gym.monthlyFee}</div>
+                      <div><strong>Admission Fee:</strong> ${dashboardData.gym.admissionFee || 0}</div>
+                    </div>
+                    {dashboardData.gym.description && (
+                      <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
+                        <h4 style={{ marginBottom: '10px', color: 'var(--primary-accent)' }}>Gym Description (Post Info)</h4>
+                        <p style={{ whiteSpace: 'pre-wrap', margin: 0, lineHeight: '1.6' }}>{dashboardData.gym.description}</p>
+                      </div>
+                    )}
+                    <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      <button className="btn" style={{ background: '#ef4444', color: 'white' }} onClick={handleDeleteGym}>
+                        Delete Gym Gig
+                      </button>
+                    </div>
                   </div>
+                ) : (
+                  <form onSubmit={handleSaveGymProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Gym Name</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="search-input" 
+                        value={gymProfile.name}
+                        onChange={e => setGymProfile({ ...gymProfile, name: e.target.value })}
+                      />
+                    </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Monthly Subscription Fee ($)</label>
-                    <input 
-                      type="number" 
-                      required 
-                      className="search-input" 
-                      value={gymProfile.monthlyFee}
-                      onChange={e => setGymProfile({ ...gymProfile, monthlyFee: e.target.value })}
-                    />
-                  </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Location & City</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="search-input" 
+                        value={gymProfile.location}
+                        onChange={e => setGymProfile({ ...gymProfile, location: e.target.value })}
+                      />
+                    </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Today's Training Tip for Members</label>
-                    <textarea 
-                      rows={3} 
-                      className="search-input" 
-                      value={gymProfile.todayTip}
-                      onChange={e => setGymProfile({ ...gymProfile, todayTip: e.target.value })}
-                    />
-                  </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Monthly Subscription Fee ($)</label>
+                      <input 
+                        type="number" 
+                        required 
+                        className="search-input" 
+                        value={gymProfile.monthlyFee}
+                        onChange={e => setGymProfile({ ...gymProfile, monthlyFee: e.target.value })}
+                      />
+                    </div>
 
-                  <button type="submit" className="btn btn-primary" style={{ marginTop: '10px' }}>
-                    Save Facility Details
-                  </button>
-                </form>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Gym Description (Post Info)</label>
+                      <textarea 
+                        rows={3} 
+                        className="search-input" 
+                        value={gymProfile.description}
+                        onChange={e => setGymProfile({ ...gymProfile, description: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Admission Fee</label>
+                      <input
+                        type="number"
+                        className="search-input"
+                        value={gymProfile.admissionFee}
+                        onChange={e => setGymProfile({ ...gymProfile, admissionFee: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Bank Details</label>
+                      <input
+                        type="text"
+                        className="search-input"
+                        placeholder="Enter UPI, IBAN, account info for subscriptions"
+                        value={gymProfile.bankDetails}
+                        onChange={e => setGymProfile({ ...gymProfile, bankDetails: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Upload Gym Photo</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="search-input"
+                        onChange={e => setPhotoFile(e.target.files?.[0] || null)}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                      <button type="submit" className="btn btn-primary" disabled={uploadingPhoto}>
+                        {uploadingPhoto ? 'Saving...' : 'Save Facility Details'}
+                      </button>
+                      {dashboardData?.gym?._id && dashboardData.gym._id !== 'gym_demo_id' && (
+                        <button type="button" className="btn btn-outline" onClick={() => setIsEditingGym(false)}>
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                )}
               </div>
             )}
           </>

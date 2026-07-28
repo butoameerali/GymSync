@@ -3,6 +3,7 @@ import Gym from '../models/Gym.js';
 import Complaint from '../models/Complaint.js';
 import Post from '../models/Post.js';
 import AuditLog from '../models/AuditLog.js';
+import Notification from '../models/Notification.js';
 import { logAuditTrail } from '../middleware/securityMiddleware.js';
 
 // Helper to verify admin role
@@ -148,23 +149,8 @@ export const getPendingGymApprovals = async (req, res) => {
   try {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
 
-    try {
-      const pendingGyms = await Gym.find({ approvalStatus: 'Pending' }).sort({ createdAt: -1 });
-      if (pendingGyms.length > 0) return res.json(pendingGyms);
-    } catch (e) {}
-
-    res.json([
-      {
-        _id: 'gym_pending_1',
-        name: 'Downtown Powerhouse Gym',
-        location: 'Westside Athletic Complex',
-        monthlyFee: 65,
-        ownerName: 'Elite Gym Owner',
-        ownerEmail: 'owner@gymsync.com',
-        approvalStatus: 'Pending',
-        createdAt: new Date()
-      }
-    ]);
+    const pendingGyms = await Gym.find({ approvalStatus: 'Pending' }).sort({ createdAt: -1 });
+    return res.json(pendingGyms);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -181,19 +167,30 @@ export const updateGymApprovalStatus = async (req, res) => {
     const { status } = req.body; // 'Approved' or 'Rejected'
     const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
 
+    if (!['Approved', 'Rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
     logAuditTrail(actorName, req.user?.role || 'Admin', 'Reviewed Gym Application', id, `Status: ${status}`, req);
 
-    try {
-      const gym = await Gym.findById(id);
-      if (gym) {
-        gym.approvalStatus = status;
-        gym.approvedBy = actorName;
-        await gym.save();
-        return res.json({ message: `Gym status updated to ${status}`, gym });
-      }
-    } catch (e) {}
+    const gym = await Gym.findById(id);
+    if (!gym) {
+      return res.status(404).json({ message: 'Gym not found' });
+    }
 
-    res.json({ message: `Gym status updated to ${status}`, gym: { _id: id, approvalStatus: status } });
+    gym.approvalStatus = status;
+    gym.approvedBy = actorName;
+    await gym.save();
+    
+    if (status === 'Approved') {
+      await Notification.create({
+        userName: gym.ownerName,
+        type: 'gym_approval',
+        message: 'Your gym facility has been approved by the Admin and is now public!'
+      });
+    }
+    
+    return res.json({ message: `Gym status updated to ${status}`, gym });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -240,12 +237,32 @@ export const moderateReportedPost = async (req, res) => {
     logAuditTrail(actorName, req.user?.role || 'Admin', 'Moderated Reported Post', id, `Action: ${action}`, req);
 
     try {
+      const post = await Post.findById(id);
       if (action === 'delete') {
+        if (post && post.reportedBy) {
+          for (const reporter of post.reportedBy) {
+            const userName = typeof reporter === 'string' ? reporter : reporter.userName;
+            await Notification.create({
+              userId: userName,
+              type: 'system',
+              message: 'A post you reported has been reviewed and removed by admins.'
+            });
+          }
+        }
         await Post.findByIdAndDelete(id);
         return res.json({ message: 'Reported post deleted successfully' });
       } else {
-        const post = await Post.findById(id);
         if (post) {
+          if (post.reportedBy) {
+            for (const reporter of post.reportedBy) {
+              const userName = typeof reporter === 'string' ? reporter : reporter.userName;
+              await Notification.create({
+                userId: userName,
+                type: 'system',
+                message: 'A post you reported was reviewed by admins and found to not violate guidelines.'
+              });
+            }
+          }
           post.reportCount = 0;
           post.reportedBy = [];
           await post.save();

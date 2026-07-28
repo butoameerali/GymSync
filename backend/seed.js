@@ -15,9 +15,10 @@ const seedDatabase = async (attempt = 1) => {
     console.log('MongoDB Connected for Seeding.');
 
     // 1. Seed 3 Admin Accounts (1 SuperAdmin + 2 Junior Admins)
-    const adminPassword = await bcrypt.hash('admin123', 10);
-    const ownerPassword = await bcrypt.hash('owner123', 10);
-    const userPassword = await bcrypt.hash('user123', 10);
+    // Use plain passwords here; the User model will hash them automatically.
+    const adminPassword = 'admin123';
+    const ownerPassword = 'owner123';
+    const userPassword = 'user123';
 
     const accounts = [
       {
@@ -66,11 +67,13 @@ const seedDatabase = async (attempt = 1) => {
         await User.create(acc);
         console.log(`✅ Seeded account: ${acc.email} [Role: ${acc.role}, Tier: ${acc.adminTier || 'None'}]`);
       } else {
-        if (acc.email === 'admin@gymsync.com' && existingUser.role !== 'SuperAdmin') {
-          existingUser.role = 'SuperAdmin';
-          existingUser.adminTier = 'Senior';
+        // For admin-type accounts, ensure role, tier and password are enforced
+        if (acc.role === 'SuperAdmin' || acc.role === 'Admin') {
+          existingUser.role = acc.role;
+          existingUser.adminTier = acc.adminTier || existingUser.adminTier;
+          existingUser.password = acc.password; // plain password, will be hashed by pre-save hook
           await existingUser.save();
-          console.log('✅ Updated admin@gymsync.com to Senior SuperAdmin role.');
+          console.log(`✅ Updated admin account ${acc.email} to role ${acc.role} and ensured password.`);
         } else {
           console.log(`ℹ️ Account ${acc.email} already exists.`);
         }

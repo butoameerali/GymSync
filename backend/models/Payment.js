@@ -11,7 +11,7 @@ const paymentSchema = new mongoose.Schema({
   },
   paymentMethod: { 
     type: String, 
-    enum: ['Stripe', 'Screenshot', 'Cash'], 
+    enum: ['Stripe', 'Easypaisa', 'JazzCash'], 
     required: true 
   },
   amount: { type: Number, required: true },
@@ -23,6 +23,7 @@ const paymentSchema = new mongoose.Schema({
   },
   screenshotUrl: { type: String, default: '' },
   transactionRef: { type: String, default: '' },
+  methodDetails: { type: String, default: '' },
   approvedBy: { type: String, default: '' }
 }, { timestamps: true });
 

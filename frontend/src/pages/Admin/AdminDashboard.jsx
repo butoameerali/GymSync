@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, Building, ShoppingBag, AlertTriangle, CheckCircle, XCircle, Search, Filter, MessageSquare, Award, DollarSign, Send, Eye, FileText, PlusCircle, Trash2, Edit3 } from 'lucide-react';
+import { Shield, Users, Building, ShoppingBag, AlertTriangle, CheckCircle, XCircle, Search, Filter, MessageSquare, Award, DollarSign, Send, Eye, FileText, PlusCircle, Trash2, Edit3, Dumbbell } from 'lucide-react';
 import { toast } from 'react-toastify';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
@@ -27,6 +27,9 @@ const AdminDashboard = () => {
   const [chatInput, setChatInput] = useState('');
   const [inspectionComplaint, setInspectionComplaint] = useState(null);
 
+  // View Post Modal State
+  const [viewPostModalData, setViewPostModalData] = useState(null);
+
   // Cashback Form State
   const [cashbackContent, setCashbackContent] = useState('');
   const [cashbackAmount, setCashbackAmount] = useState(15);
@@ -43,9 +46,41 @@ const AdminDashboard = () => {
   // Pro Plan Price State
   const [proPriceInput, setProPriceInput] = useState(localStorage.getItem('gymsync_pro_plan_price') || '9.99');
 
+  // Payment Config / Approval State
+  const [paymentConfigs, setPaymentConfigs] = useState([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Easypaisa');
+  const [configNumber, setConfigNumber] = useState('03272450136');
+  const [configDetails, setConfigDetails] = useState('Easypaisa Account - GymSync Payments');
+  const [configNotes, setConfigNotes] = useState('Send screenshot after payment transfer.');
+  const [pendingPayments, setPendingPayments] = useState([]);
+
+  // Exercise & Plan Management State
+  const [dbExercises, setDbExercises] = useState([]);
+  const [dbPlans, setDbPlans] = useState([]);
+  const [exerciseSearch, setExerciseSearch] = useState('');
+  const [editingExercise, setEditingExercise] = useState(null);
+  const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
+  const [exerciseForm, setExerciseForm] = useState({ name: '', targetMuscles: 'Chest, Shoulders', equipmentRequired: 'Dumbbells', difficulty: 'Beginner', mediaUrl: '', description: '' });
+  
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [planForm, setPlanForm] = useState({ title: '', type: 'Exercise', category: 'Full Body', description: '' });
+
   useEffect(() => {
     fetchAdminData();
+    fetchExerciseAndPlanData();
   }, []);
+
+  const fetchExerciseAndPlanData = async () => {
+    try {
+      const exRes = await fetch('/api/exercises');
+      if (exRes.ok) setDbExercises(await exRes.json());
+
+      const planRes = await fetch('/api/plans/premade');
+      if (planRes.ok) setDbPlans(await planRes.json());
+    } catch (err) {
+      console.error('Failed to fetch exercise and plan data:', err);
+    }
+  };
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -82,6 +117,25 @@ const AdminDashboard = () => {
       // 7. Store Products
       const productsRes = await fetch('/api/store/products');
       if (productsRes.ok) setProducts(await productsRes.json());
+
+      if (isSeniorAdmin) {
+        const configRes = await fetch('/api/payments/config', { headers: { 'x-user-name': userName } });
+        if (configRes.ok) {
+          const configs = await configRes.json();
+          setPaymentConfigs(configs);
+          const defaultConfig = configs.find(c => c.method === selectedPaymentMethod) || configs[0];
+          if (defaultConfig) {
+            setConfigNumber(defaultConfig.accountNumber || '03272450136');
+            setConfigDetails(defaultConfig.bankDetails || `${defaultConfig.method} Account`);
+            setConfigNotes(defaultConfig.notes || 'Send screenshot after payment transfer.');
+          }
+        }
+      }
+
+      if (userRole === 'Admin' || userRole === 'SuperAdmin') {
+        const pendingRes = await fetch('/api/payments/pending', { headers: { 'x-user-name': userName } });
+        if (pendingRes.ok) setPendingPayments(await pendingRes.json());
+      }
 
     } catch (err) {
       console.error('Error fetching admin data:', err);
@@ -147,6 +201,48 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleSavePaymentConfig = async () => {
+    try {
+      const res = await fetch(`/api/payments/config/${selectedPaymentMethod}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        body: JSON.stringify({ accountNumber: configNumber, bankDetails: configDetails, notes: configNotes })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPaymentConfigs(prev => prev.map(cfg => cfg.method === updated.method ? updated : cfg));
+        toast.success(`${updated.method} payment instructions updated successfully`);
+      }
+    } catch (err) {
+      toast.error('Failed to save payment configuration');
+    }
+  };
+
+  const handleApprovePayment = async (paymentId) => {
+    try {
+      const res = await fetch(`/api/payments/${paymentId}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-user-name': userName }
+      });
+      if (res.ok) {
+        toast.success('Payment approved successfully');
+        setPendingPayments(prev => prev.filter(payment => payment._id !== paymentId));
+      }
+    } catch (err) {
+      toast.error('Failed to approve payment');
+    }
+  };
+
+  const handleSelectPaymentMethod = (method) => {
+    setSelectedPaymentMethod(method);
+    const config = paymentConfigs.find(c => c.method === method);
+    if (config) {
+      setConfigNumber(config.accountNumber || '03272450136');
+      setConfigDetails(config.bankDetails || `${config.method} Account`);
+      setConfigNotes(config.notes || 'Send screenshot after payment transfer.');
+    }
+  };
+
   // Senior Admin Review Cashback Handler
   const handleReviewCashback = async (postId, status) => {
     try {
@@ -180,6 +276,27 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       toast.error('Failed to send message');
+    }
+  };
+
+  // Complaint Status Update Handler
+  const handleComplaintStatus = async (complaintId, status) => {
+    try {
+      const res = await fetch(`/api/complaints/${complaintId}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'x-user-name': userName,
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        toast.success(`Complaint status updated to ${status}`);
+        fetchAdminData();
+      }
+    } catch (err) {
+      toast.error('Failed to update complaint status');
     }
   };
 
@@ -254,6 +371,9 @@ const AdminDashboard = () => {
             <button className={`tab-btn ${activeTab === 'gym_approvals' ? 'active' : ''}`} onClick={() => setActiveTab('gym_approvals')}>
               <Building size={16} /> Gym Approvals ({pendingGyms.length})
             </button>
+            <button className={`tab-btn ${activeTab === 'exercises_plans' ? 'active' : ''}`} onClick={() => setActiveTab('exercises_plans')}>
+              <Dumbbell size={16} /> Exercise Library & Plans ({dbExercises.length})
+            </button>
             <button className={`tab-btn ${activeTab === 'reported_posts' ? 'active' : ''}`} onClick={() => setActiveTab('reported_posts')}>
               <AlertTriangle size={16} /> Reported Posts ({reportedPosts.length})
             </button>
@@ -285,6 +405,233 @@ const AdminDashboard = () => {
           </div>
         ) : (
           <>
+            {/* EXERCISE LIBRARY & PRE-MADE PLANS TAB */}
+            {activeTab === 'exercises_plans' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
+                  <div>
+                    <h2>Master Exercise Library & Pre-Made Plans</h2>
+                    <p style={{ color: 'var(--text-secondary)' }}>Manage 600+ exercises, edit GIF/Video demonstration URLs, and publish pre-made plans.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn btn-primary" onClick={() => { setEditingExercise(null); setExerciseForm({ name: '', targetMuscles: 'Chest, Shoulders', equipmentRequired: 'Dumbbells', difficulty: 'Beginner', mediaUrl: '', description: '' }); setIsExerciseModalOpen(true); }}>
+                      <PlusCircle size={16} /> Add Exercise
+                    </button>
+                    <button className="btn btn-success" onClick={() => { setPlanForm({ title: '', type: 'Exercise', category: 'Full Body', description: '' }); setIsPlanModalOpen(true); }}>
+                      <PlusCircle size={16} /> Create Pre-Made Plan
+                    </button>
+                  </div>
+                </div>
+
+                <div className="search-bar" style={{ marginBottom: '20px', maxWidth: '500px' }}>
+                  <Search size={20} color="var(--text-secondary)" />
+                  <input type="text" placeholder="Search exercises by name or muscle..." value={exerciseSearch} onChange={e => setExerciseSearch(e.target.value)} />
+                </div>
+
+                {/* PRE-MADE PLANS DISPLAY SECTION */}
+                <div style={{ marginBottom: '30px' }}>
+                  <h3 style={{ color: '#10b981', marginBottom: '15px' }}>Published Pre-Made Plans</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px' }}>
+                    {dbPlans.map(plan => (
+                      <div key={plan._id} className="glass-panel" style={{ padding: '16px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                          <h4 style={{ color: 'white', margin: 0 }}>{plan.title}</h4>
+                          <span className="category-badge" style={{ background: plan.type === 'Diet' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)', color: plan.type === 'Diet' ? '#f59e0b' : '#3b82f6' }}>
+                            {plan.type} • {plan.category}
+                          </span>
+                        </div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '8px' }}>{plan.description}</p>
+                        <button className="btn btn-outline btn-sm" style={{ marginTop: '10px', color: '#ef4444', borderColor: '#ef4444' }} onClick={async () => {
+                          if (confirm('Delete this pre-made plan?')) {
+                            await fetch(`/api/plans/premade/${plan._id}`, { method: 'DELETE' });
+                            toast.success('Plan deleted');
+                            fetchExerciseAndPlanData();
+                          }
+                        }}>
+                          <Trash2 size={14} /> Delete Plan
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* EXERCISES TABLE */}
+                <h3 style={{ color: '#3b82f6', marginBottom: '15px' }}>Exercise Database ({dbExercises.length})</h3>
+                <div className="glass-panel" style={{ padding: '0', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                        <th style={{ padding: '12px 16px' }}>ID / Name</th>
+                        <th style={{ padding: '12px 16px' }}>Target Muscles</th>
+                        <th style={{ padding: '12px 16px' }}>Equipment</th>
+                        <th style={{ padding: '12px 16px' }}>Difficulty</th>
+                        <th style={{ padding: '12px 16px' }}>GIF/Video URL</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dbExercises.filter(ex => {
+                        const searchLower = exerciseSearch.toLowerCase();
+                        const nameMatch = (ex.name || '').toLowerCase().includes(searchLower);
+                        const musclesStr = Array.isArray(ex.targetMuscles) ? ex.targetMuscles.join(' ') : String(ex.targetMuscles || '');
+                        const muscleMatch = musclesStr.toLowerCase().includes(searchLower);
+                        return nameMatch || muscleMatch;
+                      }).slice(0, 100).map(ex => (
+                        <tr key={ex._id || ex.exerciseId} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '12px 16px' }}>
+                            <strong style={{ color: 'white', display: 'block' }}>{ex.name}</strong>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{ex.exerciseId}</span>
+                          </td>
+                          <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>
+                            {Array.isArray(ex.targetMuscles) ? ex.targetMuscles.join(', ') : String(ex.targetMuscles || '')}
+                          </td>
+                          <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{ex.equipmentRequired || 'Bodyweight'}</td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <span className="category-badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>{ex.difficulty || 'Beginner'}</span>
+                          </td>
+                          <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: ex.mediaUrl ? '#10b981' : '#ef4444' }}>
+                            {ex.mediaUrl ? '✓ Has Video/GIF' : '✕ No Media URL'}
+                          </td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                            <button className="btn btn-outline btn-sm" style={{ marginRight: '6px' }} onClick={() => {
+                              setEditingExercise(ex);
+                              setExerciseForm({
+                                name: ex.name || '',
+                                targetMuscles: Array.isArray(ex.targetMuscles) ? ex.targetMuscles.join(', ') : String(ex.targetMuscles || ''),
+                                equipmentRequired: ex.equipmentRequired || 'Bodyweight',
+                                difficulty: ex.difficulty || 'Beginner',
+                                mediaUrl: ex.mediaUrl || '',
+                                description: ex.description || ''
+                              });
+                              setIsExerciseModalOpen(true);
+                            }}>
+                              <Edit3 size={14} /> Edit / Add Media
+                            </button>
+                            <button className="btn btn-outline btn-sm" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={async () => {
+                              if (confirm(`Delete exercise ${ex.name}?`)) {
+                                await fetch(`/api/exercises/${ex._id}`, { method: 'DELETE' });
+                                toast.success('Exercise deleted');
+                                fetchExerciseAndPlanData();
+                              }
+                            }}>
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* EDIT/CREATE EXERCISE MODAL */}
+                <Modal isOpen={isExerciseModalOpen} onClose={() => setIsExerciseModalOpen(false)} title={editingExercise ? `Edit Exercise: ${editingExercise.name}` : 'Create New Exercise'}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Exercise Name</label>
+                      <input className="search-input" value={exerciseForm.name} onChange={e => setExerciseForm({ ...exerciseForm, name: e.target.value })} placeholder="e.g. Incline Dumbbell Bench Press" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Target Muscles (comma separated)</label>
+                      <input className="search-input" value={exerciseForm.targetMuscles} onChange={e => setExerciseForm({ ...exerciseForm, targetMuscles: e.target.value })} placeholder="Chest, Shoulders, Triceps" />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Equipment Required</label>
+                        <input className="search-input" value={exerciseForm.equipmentRequired} onChange={e => setExerciseForm({ ...exerciseForm, equipmentRequired: e.target.value })} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Difficulty</label>
+                        <select className="search-input" value={exerciseForm.difficulty} onChange={e => setExerciseForm({ ...exerciseForm, difficulty: e.target.value })}>
+                          <option value="Beginner">Beginner</option>
+                          <option value="Intermediate">Intermediate</option>
+                          <option value="Advanced">Advanced</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>GIF or Video Demonstration URL (mediaUrl)</label>
+                      <input className="search-input" value={exerciseForm.mediaUrl} onChange={e => setExerciseForm({ ...exerciseForm, mediaUrl: e.target.value })} placeholder="https://example.com/demo.mp4 or .gif" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Description / Form Instructions</label>
+                      <textarea className="search-input" style={{ height: '80px' }} value={exerciseForm.description} onChange={e => setExerciseForm({ ...exerciseForm, description: e.target.value })} />
+                    </div>
+                    <button className="btn btn-primary w-100" style={{ marginTop: '10px' }} onClick={async () => {
+                      if (!exerciseForm.name) return toast.error('Exercise name is required');
+                      if (editingExercise) {
+                        await fetch(`/api/exercises/${editingExercise._id}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(exerciseForm)
+                        });
+                        toast.success('Exercise updated');
+                      } else {
+                        await fetch('/api/exercises', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(exerciseForm)
+                        });
+                        toast.success('Exercise created');
+                      }
+                      setIsExerciseModalOpen(false);
+                      fetchExerciseAndPlanData();
+                    }}>
+                      {editingExercise ? 'Save Changes' : 'Create Exercise'}
+                    </button>
+                  </div>
+                </Modal>
+
+                {/* CREATE PRE-MADE PLAN MODAL */}
+                <Modal isOpen={isPlanModalOpen} onClose={() => setIsPlanModalOpen(false)} title="Publish Standard Pre-Made Plan">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Plan Title</label>
+                      <input className="search-input" value={planForm.title} onChange={e => setPlanForm({ ...planForm, title: e.target.value })} placeholder="e.g. 30-Day Beginner Fat Loss Plan" />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Plan Type</label>
+                        <select className="search-input" value={planForm.type} onChange={e => setPlanForm({ ...planForm, type: e.target.value })}>
+                          <option value="Exercise">Exercise Workout Plan</option>
+                          <option value="Diet">Diet Nutrition Plan</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Category</label>
+                        <input className="search-input" value={planForm.category} onChange={e => setPlanForm({ ...planForm, category: e.target.value })} placeholder="Weight Loss / Bulking / General" />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Description</label>
+                      <textarea className="search-input" style={{ height: '80px' }} value={planForm.description} onChange={e => setPlanForm({ ...planForm, description: e.target.value })} />
+                    </div>
+                    <button className="btn btn-success w-100" style={{ marginTop: '10px' }} onClick={async () => {
+                      if (!planForm.title) return toast.error('Plan title is required');
+                      const sampleDetails = planForm.type === 'Diet' ? [
+                        { meal: 'Breakfast', food: 'Oatmeal + 3 Eggs + Green Tea' },
+                        { meal: 'Lunch', food: '150g Chicken + Brown Rice + Salad' },
+                        { meal: 'Dinner', food: '150g Grilled Fish + Sautéed Veggies' }
+                      ] : [
+                        { day: 'Day 1', focus: 'Push & Core', exercises: ['Push-ups', 'Squats', 'Plank'] },
+                        { day: 'Day 2', focus: 'Pull & Back', exercises: ['Rows', 'Bicep Curls', 'Superman'] }
+                      ];
+
+                      await fetch('/api/plans/premade', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...planForm, details: sampleDetails })
+                      });
+                      toast.success('Pre-Made Plan published!');
+                      setIsPlanModalOpen(false);
+                      fetchExerciseAndPlanData();
+                    }}>
+                      Publish Pre-Made Plan
+                    </button>
+                  </div>
+                </Modal>
+              </div>
+            )}
+
             {/* OVERVIEW & REVENUE TAB */}
             {activeTab === 'overview' && (
               <div>
@@ -319,34 +666,135 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                {/* Pro Plan Pricing Management Card */}
-                <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
-                  <h3>Pro Plan Subscription Pricing Settings</h3>
-                  <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                    Configure the monthly subscription price for the GymSync Pro Plan (Unlocks AI Trainer, AI Chat, and Diet Plans across the platform).
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '400px' }}>
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', color: 'var(--primary-accent)' }}>$</span>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        className="search-input"
-                        style={{ paddingLeft: '28px', fontWeight: 'bold' }}
-                        value={proPriceInput}
-                        onChange={e => setProPriceInput(e.target.value)}
-                      />
+                {isSeniorAdmin ? (
+                  <>
+                    <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
+                      <h3>Pro Plan Subscription Pricing Settings</h3>
+                      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                        Configure the monthly subscription price for the GymSync Pro Plan (Unlocks AI Trainer, AI Chat, and Diet Plans across the platform).
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '400px' }}>
+                        <div style={{ position: 'relative', flex: 1 }}>
+                          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', color: 'var(--primary-accent)' }}>$</span>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            className="search-input"
+                            style={{ paddingLeft: '28px', fontWeight: 'bold' }}
+                            value={proPriceInput}
+                            onChange={e => setProPriceInput(e.target.value)}
+                          />
+                        </div>
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => {
+                            localStorage.setItem('gymsync_pro_plan_price', proPriceInput);
+                            toast.success(`Pro Plan subscription price updated to $${proPriceInput}/month!`);
+                          }}
+                        >
+                          Save Pro Price
+                        </button>
+                      </div>
                     </div>
-                    <button 
-                      className="btn btn-primary"
-                      onClick={() => {
-                        localStorage.setItem('gymsync_pro_plan_price', proPriceInput);
-                        toast.success(`Pro Plan subscription price updated to $${proPriceInput}/month!`);
-                      }}
-                    >
-                      Save Pro Price
-                    </button>
+                    <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
+                      <h3>Pro Plan Payment Instructions</h3>
+                      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                        Edit the mobile wallet details shown to users for Easypaisa and JazzCash subscription payments.
+                      </p>
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '18px' }}>
+                        {['Easypaisa', 'JazzCash'].map(method => (
+                          <button
+                            key={method}
+                            type="button"
+                            className={`btn ${selectedPaymentMethod === method ? 'btn-primary' : 'btn-outline'}`}
+                            onClick={() => handleSelectPaymentMethod(method)}
+                          >
+                            {method}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ display: 'grid', gap: '14px', maxWidth: '600px' }}>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Account / Mobile Number</label>
+                          <input
+                            type="text"
+                            className="search-input"
+                            value={configNumber}
+                            onChange={e => setConfigNumber(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Bank / Wallet Details</label>
+                          <input
+                            type="text"
+                            className="search-input"
+                            value={configDetails}
+                            onChange={e => setConfigDetails(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Notes for Users</label>
+                          <textarea
+                            rows={3}
+                            className="search-input"
+                            value={configNotes}
+                            onChange={e => setConfigNotes(e.target.value)}
+                            placeholder="e.g. Send payment screenshot for approval after transfer"
+                          />
+                        </div>
+                        <button className="btn btn-primary" onClick={handleSavePaymentConfig}>
+                          Save {selectedPaymentMethod} Settings
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
+                    <h3>Subscription Settings Restricted</h3>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                      Only Senior Super Admins can manage Pro Plan pricing and mobile wallet payment instruction settings.
+                    </p>
                   </div>
+                )}
+                <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
+                  <h3>Pending Payment Approvals</h3>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                    Review screenshot-based subscription payments and approve them once verified.
+                  </p>
+                  {pendingPayments.length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)' }}>No pending payments at this time.</p>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>User</th>
+                            <th>Method</th>
+                            <th>Amount</th>
+                            <th>Reference</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingPayments.map(payment => (
+                            <tr key={payment._id}>
+                              <td>{payment.userName}</td>
+                              <td>{payment.paymentMethod}</td>
+                              <td>${payment.amount}</td>
+                              <td>{payment.screenshotUrl || payment.transactionRef || '—'}</td>
+                              <td><span className="status-pill pending">{payment.status}</span></td>
+                              <td>
+                                <button className="btn btn-sm btn-primary" onClick={() => handleApprovePayment(payment._id)}>
+                                  <CheckCircle size={14} /> Approve
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -421,9 +869,19 @@ const AdminDashboard = () => {
                             <td><strong>{post.authorName}</strong></td>
                             <td style={{ maxWidth: '300px' }}>{post.content}</td>
                             <td><span className="status-pill pending">{post.reportCount || 1} Reports</span></td>
-                            <td>{(post.reportedBy || []).join(', ') || 'Community Users'}</td>
+                            <td>
+                              {(post.reportedBy || []).map((r, idx) => (
+                                <div key={idx} style={{ marginBottom: '4px', fontSize: '0.85rem' }}>
+                                  <strong>{r.userName || r}:</strong> {r.reason ? `${r.reason} - ${r.explanation}` : ''}
+                                </div>
+                              ))}
+                              {(!post.reportedBy || post.reportedBy.length === 0) && 'Community Users'}
+                            </td>
                             <td>
                               <div style={{ display: 'flex', gap: '8px' }}>
+                                <button className="btn btn-sm btn-outline" onClick={() => setViewPostModalData(post)}>
+                                  <Eye size={14} /> View Post
+                                </button>
                                 <button className="btn btn-sm" style={{ background: '#ef4444', color: '#fff' }} onClick={() => handleModeratePost(post._id, 'delete')}>
                                   <Trash2 size={14} /> Delete Post
                                 </button>
@@ -604,6 +1062,15 @@ const AdminDashboard = () => {
                       <button className="btn btn-outline btn-sm" onClick={() => setSelectedComplaint(c)} style={{ marginTop: '8px', width: '100%' }}>
                         <MessageSquare size={14} /> Open Live Chat Thread
                       </button>
+
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                        <button className="btn btn-sm btn-outline" onClick={() => handleComplaintStatus(c._id, 'Pending')} style={{ flex: 1 }}>
+                          Mark Pending
+                        </button>
+                        <button className="btn btn-sm btn-primary" onClick={() => handleComplaintStatus(c._id, 'Approved')} style={{ flex: 1, background: '#10b981', borderColor: '#10b981' }}>
+                          Approve
+                        </button>
+                      </div>
 
                       {isSeniorAdmin && (
                         <button className="btn btn-outline btn-sm" onClick={() => setInspectionComplaint(c)} style={{ marginTop: '6px', width: '100%', color: '#8b5cf6', borderColor: '#8b5cf6' }}>
@@ -844,6 +1311,29 @@ const AdminDashboard = () => {
             Save Product to Store Inventory
           </button>
         </form>
+      </Modal>
+
+      {/* Reported Post Details Modal */}
+      <Modal isOpen={Boolean(viewPostModalData)} onClose={() => setViewPostModalData(null)} title="Reported Post Details">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <h4 style={{ margin: '0 0 5px 0' }}>Author</h4>
+            <p style={{ margin: 0 }}>{viewPostModalData?.authorName || 'Unknown'}</p>
+          </div>
+          <div>
+            <h4 style={{ margin: '0 0 5px 0' }}>Content</h4>
+            <p style={{ margin: 0, padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+              {viewPostModalData?.content}
+            </p>
+          </div>
+          {viewPostModalData?.mediaUrl && (
+            <div>
+              <h4 style={{ margin: '0 0 5px 0' }}>Media</h4>
+              <img src={viewPostModalData.mediaUrl} alt="Post media" style={{ maxWidth: '100%', borderRadius: '8px', maxHeight: '300px', objectFit: 'contain' }} />
+            </div>
+          )}
+          <button className="btn btn-outline" onClick={() => setViewPostModalData(null)}>Close Window</button>
+        </div>
       </Modal>
     </div>
   );

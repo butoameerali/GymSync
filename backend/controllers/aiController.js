@@ -14,7 +14,8 @@ const normalizeQuery = (query) => {
 // Common greetings list
 const GREETINGS = [
   'hi', 'hello', 'hey', 'hi there', 'hello there', 'hey coach', 'hi coach',
-  'good morning', 'good evening', 'good afternoon', 'greetings', 'sup', 'yo'
+  'good morning', 'good evening', 'good afternoon', 'greetings', 'sup', 'yo',
+  'how are you', 'how are you doing', 'how do you do', 'how is it going', 'whats up', 'what is up'
 ];
 
 // Check if message is a simple greeting
@@ -76,20 +77,9 @@ export const handleChat = async (req, res) => {
       });
     }
 
-    // 2. STRICT DOMAIN GUARDRAIL: Filter out non-fitness / general chat questions
-    if (!isFitnessRelated(rawMessage)) {
-      return res.status(200).json({
-        role: 'assistant',
-        content: "🏋️ **GymSync AI Coach Notice:**\n\nI am strictly trained as a fitness, gym workout, sports nutrition, and exercise medical specialist. I can only answer questions related to workouts, exercise routines, diet plans, muscle building, and sports safety.\n\nPlease ask a fitness or health-related question!"
-      });
-    }
-
-    // 3. SMART Q&A DATABASE CACHE: Check MongoDB if this question was previously answered
-    // (Clear old bad greetings cache if any existed)
+    // 2. CACHE LOOKUP
     try {
-      // Clean up legacy robotic cache for simple greetings if it exists
       await AICache.deleteMany({ normalizedQuery: { $in: GREETINGS } });
-
       const cachedQA = await AICache.findOne({ normalizedQuery: normalized });
       if (cachedQA && cachedQA.response && !cachedQA.response.includes('What target muscle group')) {
         cachedQA.hitCount += 1;
@@ -104,30 +94,30 @@ export const handleChat = async (req, res) => {
         });
       }
     } catch (cacheErr) {
-      console.warn('[AI Cache Warning] DB lookup failed, continuing with direct AI model call:', cacheErr.message);
+      console.warn('[AI Cache Warning] DB lookup failed:', cacheErr.message);
     }
 
-    // 4. MEDICAL & SPORTS SCIENCE SYSTEM PROMPT
+    // 3. SYSTEM PROMPT
     let systemPrompt = `You are the GymSync AI Lead Coach & Sports Medicine Specialist.
 You combine elite strength & conditioning coaching with evidence-based sports science and kinesiology.
 
 PERSONALITY & TONE:
 - Be warm, encouraging, energetic, and highly professional.
-- When greted, welcome the user warmly and naturally.
+- Give polite, concise, and standard responses.
+- If the user asks "how are you?" or routine conversational queries, reply politely and concisely, then transition to asking how you can help with their fitness goals.
+- DO NOT generate random, out-of-bounds, or context-unrelated questions. Stay strictly aligned with the fitness and health context.
 
 STRICT MEDICAL & SAFETY GUARDRAILS:
-1. Form & Spine Neutrality: Always emphasize proper joint alignment (e.g. keeping knees inline with toes during squats, neutral spine during deadlifts/lifts).
-2. Injury Prevention: Advise users to stop immediately if they feel sharp joint pain. Include medical disclaimers if users mention pre-existing conditions or severe pain.
-3. Workout Structure: Every workout recommendation must include:
-   - Dynamic Warm-up (3-5 mins)
-   - Core Resistance / Cardio Workouts (Sets, Reps, Rest intervals)
-   - Cool-down & Static Stretching (3-5 mins)
-4. Nutrition Safety: Recommend balanced macro distributions and adequate hydration. Discourage extreme crash dieting.
-5. Domain Restriction: Refuse any non-fitness, non-health questions politely.
+1. Form & Spine Neutrality: Emphasize proper joint alignment.
+2. Injury Prevention: Advise users to stop if they feel sharp joint pain.
+3. Workout Structure: Include Warm-up, Core Workout, Cool-down.
+4. Nutrition Safety: Recommend balanced macros.
+5. Domain Restriction: If the user asks about topics completely unrelated to fitness or health, politely decline to answer and redirect them to fitness topics.
 
 IMPORTANT WORKOUT PLAN RULE:
-- If the user asks for a workout plan but DOES NOT specify what body part or goal they are training for, ASK them first for clarification.
-- When generating a workout plan, output a comma-separated list of exercises wrapped EXACTLY in these tags: <PLAN>Exercise 1, Exercise 2, Exercise 3</PLAN>
+- NEVER ask the user what their goal, target muscle group, or medical history is. This data is already provided in their 7-Step User Bio.
+- When generating a workout plan, immediately cross-reference their medical data, apply safety hard filters, and output the customized plan.
+- Output a comma-separated list of exercises wrapped EXACTLY in these tags: <PLAN>Exercise 1, Exercise 2, Exercise 3</PLAN>
 
 Format all responses beautifully with Markdown. Keep responses clear, encouraging, and scientifically sound.`;
 
@@ -255,11 +245,9 @@ For optimal muscle recovery and energy:
 
   return `🏋️ **GymSync AI Medical Fitness Coach**
 
-Welcome! I am ready to build your custom training plan. 
+Welcome! I have successfully retrieved your 7-Step User Bio. 
 
-To provide the safest and most effective exercise prescription:
-1. What target muscle group or fitness goal are you focusing on (e.g., Chest, Legs, Cardio, Fat Loss)?
-2. Do you have any current joint pain or past injuries I should know about?
+I see your goals and medical profile. I am analyzing the GymSync datasets to construct your highly accurate, personalized, and 100% medically safe workout and diet plan.
 
-Tell me your goal and I will construct your science-backed workout plan!`;
+Please head over to the **Your Exercises** tab in the Workout Hub to instantly view and start your generated JSON plan!`;
 };

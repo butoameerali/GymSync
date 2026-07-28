@@ -11,6 +11,8 @@ const UserDashboard = () => {
   const [userComplaints, setUserComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [chatInput, setChatInput] = useState('');
 
   const navigate = useNavigate();
   const userName = localStorage.getItem('gymsync_user_name') || 'Fitness User';
@@ -39,6 +41,33 @@ const UserDashboard = () => {
       console.error('Error fetching user dashboard:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendChatMessage = async (complaintId) => {
+    if (!chatInput.trim()) return;
+    try {
+      const res = await fetch(`/api/complaints/${complaintId}/chat`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
+        body: JSON.stringify({ text: chatInput, senderName: userName })
+      });
+      if (res.ok) {
+        setChatInput('');
+        toast.success('Reply sent to complaint thread');
+        fetchUserData();
+        
+        // Update selected complaint in memory
+        const updatedChat = await res.json();
+        if (selectedComplaint && selectedComplaint._id === complaintId) {
+          setSelectedComplaint({ ...selectedComplaint, chatMessages: updatedChat });
+        }
+      }
+    } catch (err) {
+      toast.error('Failed to send message');
     }
   };
 
@@ -234,6 +263,7 @@ const UserDashboard = () => {
                           <th>Reason</th>
                           <th>Status</th>
                           <th>Moderator Reply</th>
+                          <th>Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -250,6 +280,11 @@ const UserDashboard = () => {
                             <td style={{ color: 'var(--text-secondary)' }}>
                               {complaint.adminReply || 'Pending moderator review'}
                             </td>
+                            <td>
+                              <button className="btn btn-outline btn-sm" onClick={() => setSelectedComplaint(complaint)}>
+                                View Chat
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -265,8 +300,43 @@ const UserDashboard = () => {
       {/* Complaint Submission Modal */}
       <ComplaintModal 
         isOpen={isComplaintModalOpen}
-        onClose={() => setIsComplaintModalOpen(false)}
+        onClose={() => {
+          setIsComplaintModalOpen(false);
+          fetchUserData();
+        }}
       />
+
+      {/* Complaint Chat Thread Modal */}
+      <Modal isOpen={Boolean(selectedComplaint)} onClose={() => setSelectedComplaint(null)} title={`Complaint Thread #${selectedComplaint?.complaintId}`}>
+        <div>
+          <div style={{ maxHeight: '250px', overflowY: 'auto', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
+            {(selectedComplaint?.chatMessages || []).length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No messages yet. Start conversation below.</p>
+            ) : (
+              selectedComplaint?.chatMessages?.map((msg, i) => (
+                <div key={i} style={{ marginBottom: '10px', textAlign: msg.senderName === userName ? 'right' : 'left' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{msg.senderName} ({msg.role})</span>
+                  <div style={{ background: msg.senderName === userName ? '#3b82f6' : 'rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '8px', display: 'inline-block', marginTop: '2px' }}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input 
+              type="text" 
+              className="search-input" 
+              placeholder="Type message to admin..."
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+            />
+            <button className="btn btn-primary" onClick={() => handleSendChatMessage(selectedComplaint?._id)}>
+              Send
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

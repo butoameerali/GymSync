@@ -15,7 +15,12 @@ const postSchema = new mongoose.Schema({
   },
   approvedBy: { type: String, default: '' },
   reportCount: { type: Number, default: 0 },
-  reportedBy: [{ type: String }],
+  reportedBy: [{ 
+    userName: { type: String },
+    reason: { type: String },
+    explanation: { type: String },
+    date: { type: Date, default: Date.now }
+  }],
   commentRestriction: {
     type: String,
     enum: ['AllUsers', 'SubscribersOnly'],

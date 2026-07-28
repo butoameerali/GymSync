@@ -28,6 +28,11 @@ const Home = () => {
   const [removalPostId, setRemovalPostId] = useState(null);
   const [removalReason, setRemovalReason] = useState('Violation of community guidelines');
 
+  // User Post Report Modal State
+  const [reportPostId, setReportPostId] = useState(null);
+  const [reportReason, setReportReason] = useState('Inappropriate Content');
+  const [reportExplanation, setReportExplanation] = useState('');
+
   // Fetch dynamic DB data on mount
   useEffect(() => {
     if (!isGuest) {
@@ -310,20 +315,7 @@ const Home = () => {
                         className="action-btn" 
                         style={{ color: '#f59e0b' }}
                         title="Report post to moderators"
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(`/api/posts/${post._id}/report`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ reporterName: userName })
-                            });
-                            if (res.ok) {
-                              toast.info('Post reported to GymSync moderators for review.');
-                            }
-                          } catch (e) {
-                            toast.error('Failed to report post');
-                          }
-                        }}
+                        onClick={() => setReportPostId(post._id)}
                       >
                         <AlertTriangle size={18} /> Report
                       </button>
@@ -568,6 +560,65 @@ const Home = () => {
           </div>
           <button type="submit" className="btn btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
             <Trash2 size={16} /> Confirm Post Removal & Notify Author
+          </button>
+        </form>
+      </Modal>
+
+      {/* User Post Report Modal */}
+      <Modal isOpen={Boolean(reportPostId)} onClose={() => setReportPostId(null)} title="Report Community Post">
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          if (!reportPostId) return;
+          try {
+            const res = await fetch(`/api/posts/${reportPostId}/report`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                reporterName: userName, 
+                reason: reportReason, 
+                explanation: reportExplanation 
+              })
+            });
+            if (res.ok) {
+              toast.info('Post reported to GymSync moderators for review.');
+              setReportPostId(null);
+              setReportReason('Inappropriate Content');
+              setReportExplanation('');
+            }
+          } catch (err) {
+            toast.error('Failed to report post');
+          }
+        }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+            Please let us know why you are reporting this post.
+          </p>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', fontWeight: 600 }}>Reason</label>
+            <select 
+              className="search-input"
+              value={reportReason}
+              onChange={e => setReportReason(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(30,41,59,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              <option value="Inappropriate Content">Inappropriate Content</option>
+              <option value="Spam">Spam</option>
+              <option value="Harassment">Harassment</option>
+              <option value="Misleading Information">Misleading Information</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', fontWeight: 600 }}>Explanation (Optional)</label>
+            <textarea
+              className="search-input"
+              rows={3}
+              value={reportExplanation}
+              onChange={e => setReportExplanation(e.target.value)}
+              placeholder="Provide more details about why you are reporting this post..."
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(30,41,59,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ background: '#f59e0b', borderColor: '#f59e0b', color: 'white' }}>
+            <AlertTriangle size={16} /> Submit Report
           </button>
         </form>
       </Modal>

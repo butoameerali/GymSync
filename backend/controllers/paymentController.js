@@ -1,0 +1,177 @@
+import Payment from '../models/Payment.js';
+import User from '../models/User.js';
+import PaymentConfig from '../models/PaymentConfig.js';
+import Gym from '../models/Gym.js';
+
+const getDefaultConfigs = () => ([
+  {
+    method: 'Easypaisa',
+    accountNumber: '03272450136',
+    bankDetails: 'Easypaisa Account - GymSync Payments',
+    notes: 'Send proof screenshot after transfer. Admin approval is required.'
+  },
+  {
+    method: 'JazzCash',
+    accountNumber: '03272450136',
+    bankDetails: 'JazzCash Account - GymSync Payments',
+    notes: 'Send proof screenshot after transfer. Admin approval is required.'
+  }
+]);
+
+export const createPayment = async (req, res) => {
+  try {
+    const {
+      paymentId,
+      userName,
+      gymName,
+      paymentType = 'GymMembership',
+      paymentMethod,
+      amount,
+      commission15Percent,
+      screenshotUrl = '',
+      transactionRef = '',
+      methodDetails = ''
+    } = req.body;
+
+    if (!paymentId || !userName || !paymentMethod || !amount) {
+      return res.status(400).json({ message: 'Missing required payment fields' });
+    }
+
+    const status = paymentMethod === 'Stripe' ? 'Completed' : 'PendingApproval';
+
+    const payment = await Payment.create({
+      paymentId,
+      userName,
+      gymName: gymName || 'GymSync Platform',
+      paymentType,
+      paymentMethod,
+      amount,
+      commission15Percent,
+      status,
+      screenshotUrl,
+      transactionRef,
+      methodDetails
+    });
+
+    // If this is a completed gym registration via Stripe, ensure the gym record is created/approved
+    if (status === 'Completed' && paymentType === 'GymRegistration') {
+      try {
+        let gym = await Gym.findOne({ name: gymName });
+        if (gym) {
+          gym.approvalStatus = 'Approved';
+          await gym.save();
+        } else {
+          await Gym.create({
+            name: gymName,
+            ownerName: userName,
+            ownerEmail: methodDetails || '',
+            approvalStatus: 'Approved',
+            monthlyFee: amount || 0
+          });
+        }
+      } catch (e) {
+        console.error('Error auto-approving/creating gym after payment:', e.message);
+      }
+    }
+
+    if (status === 'Completed' && paymentType === 'GymMembership') {
+      await User.findOneAndUpdate(
+        { name: userName },
+        { subscribedGymName: gymName },
+        { new: true }
+      );
+    }
+
+    if (paymentMethod === 'Stripe' && paymentType === 'PlatformSubscription') {
+      await User.findOneAndUpdate(
+        { name: userName },
+        { isSubscribed: true, subscriptionPlan: 'Pro' },
+        { new: true }
+      );
+    }
+
+    return res.status(201).json(payment);
+  } catch (error) {
+    console.error('createPayment error:', error.message);
+    return res.status(500).json({ message: 'Unable to create payment' });
+  }
+};
+
+export const getPaymentConfigs = async (req, res) => {
+  try {
+    let configs = await PaymentConfig.find({});
+    if (configs.length === 0) {
+      configs = await PaymentConfig.insertMany(getDefaultConfigs());
+    }
+    return res.json(configs);
+  } catch (error) {
+    console.error('getPaymentConfigs error:', error.message);
+    return res.status(500).json({ message: 'Unable to load payment configs' });
+  }
+};
+
+export const updatePaymentConfig = async (req, res) => {
+  try {
+    const { method } = req.params;
+    const { accountNumber, bankDetails, notes } = req.body;
+
+    if (!['Easypaisa', 'JazzCash'].includes(method)) {
+      return res.status(400).json({ message: 'Unsupported payment method' });
+    }
+
+    const config = await PaymentConfig.findOneAndUpdate(
+      { method },
+      { accountNumber, bankDetails, notes },
+      { new: true, upsert: true }
+    );
+
+    return res.json(config);
+  } catch (error) {
+    console.error('updatePaymentConfig error:', error.message);
+    return res.status(500).json({ message: 'Unable to update payment config' });
+  }
+};
+
+export const getPendingPayments = async (req, res) => {
+  try {
+    const pending = await Payment.find({ status: 'PendingApproval' }).sort({ createdAt: -1 });
+    return res.json(pending);
+  } catch (error) {
+    console.error('getPendingPayments error:', error.message);
+    return res.status(500).json({ message: 'Unable to load pending payments' });
+  }
+};
+
+export const approvePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const payment = await Payment.findById(id);
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment record not found' });
+    }
+
+    payment.status = 'Completed';
+    payment.approvedBy = req.user?.name || 'Admin';
+    await payment.save();
+
+    if (payment.paymentType === 'PlatformSubscription') {
+      await User.findOneAndUpdate(
+        { name: payment.userName },
+        { isSubscribed: true, subscriptionPlan: 'Pro' },
+        { new: true }
+      );
+    } else if (payment.paymentType === 'GymMembership') {
+      await User.findOneAndUpdate(
+        { name: payment.userName },
+        { subscribedGymName: payment.gymName },
+        { new: true }
+      );
+    }
+
+    return res.json({ message: 'Payment approved', payment });
+  } catch (error) {
+    console.error('approvePayment error:', error.message);
+    return res.status(500).json({ message: 'Unable to approve payment' });
+  }
+};

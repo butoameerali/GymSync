@@ -24,6 +24,9 @@ const gymSchema = new mongoose.Schema({
     tomorrow: { type: String }
   },
   monthlyFee: { type: Number, required: true }
+  ,
+  admissionFee: { type: Number, default: 0 },
+  bankDetails: { type: String, default: '' }
 }, { timestamps: true });
 
 export default mongoose.model('Gym', gymSchema);

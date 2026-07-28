@@ -15,6 +15,7 @@ const userSchema = new mongoose.Schema({
   banReason: { type: String, default: '' },
   isSubscribed: { type: Boolean, default: false },
   subscriptionPlan: { type: String, default: 'Free' },
+  subscribedGymName: { type: String, default: null },
   profilePic: { type: String, default: '' },
   
   // Friend & Follow System

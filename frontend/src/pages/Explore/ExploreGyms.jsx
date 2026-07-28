@@ -1,89 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, MapPin, Filter, Star, Clock, DollarSign, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import './ExploreGyms.css';
 
-// Mock Data for Gyms
-const MOCK_GYMS = [
-  {
-    id: 1,
-    name: "Iron Core Fitness",
-    location: "Downtown, Metro City",
-    distance: "1.2 km",
-    rating: 4.8,
-    reviews: 124,
-    monthlyFee: 45,
-    image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop",
-    features: ["24 Hours", "Trainers", "Pool"],
-    isPremium: true
-  },
-  {
-    id: 2,
-    name: "Velocity Gym & Spa",
-    location: "Westside Hub",
-    distance: "3.5 km",
-    rating: 4.5,
-    reviews: 89,
-    monthlyFee: 30,
-    image: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1470&auto=format&fit=crop",
-    features: ["Cardio Zone", "Sauna"],
-    isPremium: false
-  },
-  {
-    id: 3,
-    name: "Titan Powerhouse",
-    location: "Industrial District",
-    distance: "5.0 km",
-    rating: 4.9,
-    reviews: 312,
-    monthlyFee: 60,
-    image: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1470&auto=format&fit=crop",
-    features: ["Crossfit", "Powerlifting", "24 Hours"],
-    isPremium: true
-  },
-  {
-    id: 4,
-    name: "Zenith Wellness",
-    location: "Uptown",
-    distance: "2.1 km",
-    rating: 4.6,
-    reviews: 156,
-    monthlyFee: 38,
-    image: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=1375&auto=format&fit=crop",
-    features: ["Yoga", "Pilates", "Juice Bar"],
-    isPremium: false
-  },
-  {
-    id: 5,
-    name: "Pulse Performance Club",
-    location: "Northside Square",
-    distance: "4.2 km",
-    rating: 4.7,
-    reviews: 201,
-    monthlyFee: 35,
-    image: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1470&auto=format&fit=crop",
-    features: ["24 Hours", "Boxing Ring", "Cardio Zone"],
-    isPremium: false
-  },
-  {
-    id: 6,
-    name: "Apex Elite Athletic Center",
-    location: "South Bay Boulevard",
-    distance: "6.1 km",
-    rating: 4.9,
-    reviews: 410,
-    monthlyFee: 75,
-    image: "https://images.unsplash.com/photo-1593079831268-3381b0db4a77?q=80&w=1470&auto=format&fit=crop",
-    features: ["Pool", "Sauna", "Spa", "24 Hours"],
-    isPremium: true
-  }
-];
-
+// Live gyms loaded from backend
 const ITEMS_PER_PAGE = 3;
 
 const ExploreGyms = () => {
+  const [gyms, setGyms] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -92,21 +18,28 @@ const ExploreGyms = () => {
   const debouncedSearch = useDebounce(searchTerm, 300);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    setIsLoading(true);
+    fetch('/api/gyms')
+      .then(res => res.json())
+      .then(data => setGyms(data || []))
+      .catch(err => console.error('Error loading gyms', err))
+      .finally(() => setIsLoading(false));
+  }, []);
+
   // Filtered Gyms based on debounced search term and selected filter
   const filteredGyms = useMemo(() => {
-    return MOCK_GYMS.filter(gym => {
-      const matchesSearch = gym.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-                            gym.location.toLowerCase().includes(debouncedSearch.toLowerCase());
-      
+    return gyms.filter(gym => {
+      const name = (gym.name || '').toLowerCase();
+      const loc = (gym.location || '').toLowerCase();
+      const q = debouncedSearch.toLowerCase();
+      const matchesSearch = name.includes(q) || loc.includes(q);
+
       if (!matchesSearch) return false;
-
-      if (activeFilter === '24 Hours') return gym.features.includes('24 Hours');
-      if (activeFilter === 'Under $40') return gym.monthlyFee <= 40;
-      if (activeFilter === 'Top Rated') return gym.rating >= 4.7;
-
+      if (activeFilter === 'Under $40') return (gym.monthlyFee || 0) <= 40;
       return true;
     });
-  }, [debouncedSearch, activeFilter]);
+  }, [gyms, debouncedSearch, activeFilter]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredGyms.length / ITEMS_PER_PAGE) || 1;
@@ -209,7 +142,7 @@ const ExploreGyms = () => {
                 <div key={gym.id} className="gym-card glass-panel">
                   <div className="gym-image-container">
                     <img 
-                      src={gym.image} 
+                      src={gym.image || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'} 
                       alt={gym.name} 
                       loading="lazy" 
                       className="gym-card-img"
@@ -220,23 +153,19 @@ const ExploreGyms = () => {
                   <div className="gym-details">
                     <div className="gym-title-row">
                       <h3>{gym.name}</h3>
-                      <div className="gym-rating">
-                        <Star size={16} fill="#f59e0b" color="#f59e0b" />
-                        <span>{gym.rating} ({gym.reviews})</span>
+                    </div>
+
+                    <p className="gym-location"><MapPin size={14} /> {gym.location}</p>
+
+                    {gym.todayTrainingTip && gym.todayTrainingTip.length > 0 && (
+                      <div style={{ marginTop: '8px' }} className="training-tip">
+                        <strong>Tip:</strong> {gym.todayTrainingTip}
                       </div>
-                    </div>
-                    
-                    <p className="gym-location"><MapPin size={14} /> {gym.location} • {gym.distance}</p>
-                    
-                    <div className="gym-features">
-                      {gym.features.map((feature, idx) => (
-                        <span key={idx} className="feature-tag">{feature}</span>
-                      ))}
-                    </div>
+                    )}
                     
                     <div className="gym-card-footer">
                       <div className="gym-price">
-                        <span className="amount">${gym.monthlyFee}</span>
+                        <span className="amount">${gym.monthlyFee || 'N/A'}</span>
                         <span className="period">/month</span>
                       </div>
                       <button 

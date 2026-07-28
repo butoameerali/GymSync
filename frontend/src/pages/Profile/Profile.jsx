@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, Flame, Target, MapPin, Calendar, CheckCircle, Clock, DownloadCloud, Trash2, Shield, Lock, Camera } from 'lucide-react';
+import { Activity, Flame, Target, MapPin, Calendar, CheckCircle, Clock, DownloadCloud, Trash2, Shield, Lock, Camera, Building } from 'lucide-react';
 import ImageCropper from '../../components/layout/ImageCropper';
 import './Profile.css';
 
@@ -12,6 +12,7 @@ const Profile = () => {
   const [history, setHistory] = useState([]);
   const [upcoming, setUpcoming] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
+  const [myGymGig, setMyGymGig] = useState(null);
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest User';
   const userKey = userName.replace(/\s+/g, '_'); // normalize for local storage key
   const [profilePic, setProfilePic] = useState(localStorage.getItem(`gymsync_${userKey}_pic`) || '');
@@ -85,12 +86,38 @@ const Profile = () => {
       })
       .catch(err => console.error(err));
 
+    const userRole = localStorage.getItem('gymsync_role');
+    if (userRole === 'GymOwner') {
+      setActiveTab('gig');
+      fetch(`/api/gym-owner/dashboard/${userName}`, {
+        headers: {
+          'x-user-name': userName,
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.gym && data.gym._id !== 'gym_demo_id') {
+          setMyGymGig(data.gym);
+        }
+      })
+      .catch(err => console.error('Error fetching gym gig', err));
+    }
+
     return () => {
       window.removeEventListener('gymsync_bio_updated', loadBioData);
     };
   }, [userKey, userName]);
 
   const [validationErrors, setValidationErrors] = useState([]);
+  const userRole = localStorage.getItem('gymsync_role') || 'User';
+  const isAdminUser = ['SuperAdmin', 'Admin', 'ComplaintModerator'].includes(userRole);
+  const authToken = localStorage.getItem('gymsync_token');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const handleSaveBio = async (e) => {
     e.preventDefault();
@@ -156,10 +183,149 @@ const Profile = () => {
     setRawImageSrc(null);
   };
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordMessage('');
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('Please fill in all password fields.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Password update failed');
+      }
+
+      setPasswordMessage('Password updated successfully.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordError(err.message || 'Unable to update password.');
+    }
+  };
+
   // Date formatting helpers
   const todayDate = new Date().toDateString();
   const todayHistory = history.filter(h => new Date(h.date).toDateString() === todayDate);
   const pastHistory = history.filter(h => new Date(h.date).toDateString() !== todayDate);
+
+  if (isAdminUser) {
+    return (
+      <div className="profile-page">
+        <div className="profile-cover"></div>
+        <div className="container">
+          <div className="profile-header glass-panel" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '20px', alignItems: 'center' }}>
+            <div className="profile-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }}>
+              {profilePic ? (
+                <img src={profilePic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: '3rem', color: 'white' }}>{userName.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+            <div className="profile-info">
+              <h1>{userName}</h1>
+              <p className="bio-tagline" style={{ color: 'var(--text-secondary)' }}>{userRole}</p>
+              <p style={{ marginTop: '12px', maxWidth: '600px', color: 'var(--text-secondary)' }}>
+                Admin profile settings are simplified to security actions only. Update your password or delete your account from here.
+              </p>
+            </div>
+          </div>
+
+          <div className="glass-panel section-panel" style={{ marginTop: '24px', maxWidth: '700px', width: '100%' }}>
+            <h3 className="section-title"><Lock size={20} /> Password Settings</h3>
+            <form onSubmit={handleChangePassword} style={{ display: 'grid', gap: '16px', marginTop: '20px' }}>
+              <label>
+                Current Password
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                  className="input-field"
+                />
+              </label>
+              <label>
+                New Password
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  className="input-field"
+                />
+              </label>
+              <label>
+                Confirm New Password
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="input-field"
+                />
+              </label>
+              {passwordError && <p style={{ color: '#ef4444', margin: 0 }}>{passwordError}</p>}
+              {passwordMessage && <p style={{ color: '#10b981', margin: 0 }}>{passwordMessage}</p>}
+              <button type="submit" className="btn btn-primary" style={{ width: 'fit-content' }}>
+                Save New Password
+              </button>
+            </form>
+          </div>
+
+          <div className="glass-panel section-panel" style={{ marginTop: '24px', maxWidth: '700px', width: '100%', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              <div>
+                <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b91c1c' }}><Trash2 size={20} /> Delete Account</h3>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
+                  Permanently remove your admin account and all local session data. This action cannot be undone.
+                </p>
+              </div>
+              <button
+                className="btn"
+                style={{ background: '#ef4444', color: 'white', minWidth: '180px' }}
+                onClick={async () => {
+                  if (window.confirm('Are you ABSOLUTELY sure you want to permanently delete your account? This cannot be undone!')) {
+                    try {
+                      await fetch(`/api/users/${userName}/delete`, {
+                        method: 'DELETE',
+                        headers: {
+                          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+                        }
+                      });
+                    } catch (err) {
+                      console.warn('Account deletion endpoint unavailable or failed. Clearing local session.');
+                    }
+                    localStorage.clear();
+                    window.location.href = '/login';
+                  }
+                }}
+              >
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="profile-page">
@@ -201,9 +367,10 @@ const Profile = () => {
 
         {/* Navigation Tabs */}
         <div className="profile-tabs glass-panel">
-          <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Workout History</button>
+          {userRole !== 'GymOwner' && <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Workout History</button>}
           <button className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>Your Timeline</button>
-          <button className={`tab-btn ${activeTab === 'bio' ? 'active' : ''}`} onClick={() => setActiveTab('bio')}>Health Bio</button>
+          {userRole !== 'GymOwner' && <button className={`tab-btn ${activeTab === 'bio' ? 'active' : ''}`} onClick={() => setActiveTab('bio')}>Health Bio</button>}
+          {userRole === 'GymOwner' && <button className={`tab-btn ${activeTab === 'gig' ? 'active' : ''}`} onClick={() => setActiveTab('gig')}>Your Gym Gig</button>}
           <button className={`tab-btn ${activeTab === 'privacy' ? 'active' : ''}`} onClick={() => setActiveTab('privacy')}>Privacy & Data</button>
         </div>
 
@@ -458,6 +625,46 @@ const Profile = () => {
                 </div>
               </div>
 
+            </div>
+          )}
+
+          {/* GYM GIG TAB */}
+          {activeTab === 'gig' && (
+            <div className="glass-panel section-panel">
+              <h3 className="section-title"><Building size={20}/> Your Gym Gig</h3>
+              {myGymGig ? (
+                <div className="gym-gig-display" style={{ marginTop: '20px' }}>
+                  {myGymGig.equipmentImages?.[0] && (
+                    <div style={{ width: '100%', height: '200px', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
+                      <img src={myGymGig.equipmentImages[0]} alt="Gym Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+                  <h2 style={{ marginBottom: '10px' }}>{myGymGig.name}</h2>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>{myGymGig.location}</p>
+                  <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+                    <div><strong>Monthly Fee:</strong> ${myGymGig.monthlyFee}</div>
+                    <div><strong>Admission Fee:</strong> ${myGymGig.admissionFee || 0}</div>
+                  </div>
+                  {myGymGig.description && (
+                    <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
+                      <h4 style={{ marginBottom: '10px', color: 'var(--primary-accent)' }}>Gym Description (Post Info)</h4>
+                      <p style={{ whiteSpace: 'pre-wrap', margin: 0, lineHeight: '1.6' }}>{myGymGig.description}</p>
+                    </div>
+                  )}
+                  <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <a href="/admin" className="btn btn-outline" style={{ display: 'inline-block' }}>
+                      Manage in Dashboard
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '30px 0' }}>
+                  <p className="empty-text">You haven't set up your Gym Gig yet.</p>
+                  <a href="/admin" className="btn btn-primary" style={{ display: 'inline-block', marginTop: '15px' }}>
+                    Set Up Facility
+                  </a>
+                </div>
+              )}
             </div>
           )}
 

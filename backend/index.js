@@ -16,6 +16,9 @@ import adminRoutes from './routes/adminRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
 import gymOwnerRoutes from './routes/gymOwnerRoutes.js';
 import storeRoutes from './routes/storeRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import exerciseRoutes from './routes/exerciseRoutes.js';
+import planRoutes from './routes/planRoutes.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -54,6 +57,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/gym-owner', gymOwnerRoutes);
 app.use('/api/store', storeRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/exercises', exerciseRoutes);
+app.use('/api/plans', planRoutes);
 
 app.get('/', (req, res) => {
   res.send('GymSync API is running...');
