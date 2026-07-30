@@ -1,0 +1,104 @@
+================================================================================
+                           GYMSYNC - SYSTEM OVERVIEW & FEATURES
+================================================================================
+
+--------------------------------------------------------------------------------
+1. ABOUT GYMSYNC
+--------------------------------------------------------------------------------
+GymSync is a comprehensive, full-stack web application designed to connect 
+gym-goers, gym owners, and system administrators into an integrated fitness ecosystem.
+
+Built with the MERN stack (MongoDB Atlas, Express.js, React with Vite, and Node.js),
+GymSync combines AI-powered personal training, real-time exercise tracking, gym 
+discovery and membership management, e-commerce, social networking, and role-based 
+dashboards.
+
+--------------------------------------------------------------------------------
+2. COMPLETE FEATURE BREAKDOWN
+--------------------------------------------------------------------------------
+
+[1] AUTHENTICATION & ONBOARDING
+    - Multi-Role Portal: Sign up and log in as User, Gym Owner, or Administrator.
+    - JWT & Security: Token-based authentication with bcrypt password hashing and 
+      Role-Based Access Control (RBAC).
+    - Interactive Onboarding Wizard: Guides new users to define fitness goals, target 
+      weight, experience level, equipment availability, and dietary preferences.
+
+[2] AI FITNESS & NUTRITION TRAINER (AI TRAINER)
+    - Custom Workout Plan Generation: Generates targeted daily/weekly workout routines 
+      based on user input and 7-step dataset criteria.
+    - Personalized Diet & Meal Plans: Provides macro nutrient distributions and meal 
+      recommendations tailored to user weight goals.
+    - AI Computer Vision / Pose Detection (Push-up Counter): Real-time webcam integration 
+      using MediaPipe Pose to count reps and ensure correct exercise posture.
+    - AI Caching & Security: Fast response retrieval using cached query models (`AICache`).
+
+[3] GYM EXPLORATION & MEMBERSHIP MANAGEMENT (EXPLORE & YOUR GYM)
+    - Gym Discovery Engine: Search and filter local gyms by location, ratings, facilities, 
+      and photos.
+    - Detailed Gym Profiles: View gym schedules, amenities, address maps, and member reviews.
+    - Direct Membership Booking: Browse and purchase membership plans (`GymPlan`) directly.
+    - Your Gym Portal: View active gym subscriptions, membership status, and digital pass.
+    - Digital Attendance: Check-in history and attendance logging for gym members.
+
+[4] ACTIVITY & RUNNING TRACKER
+    - Outdoor & Indoor Running Tracker: Track runs with real-time metrics including 
+      distance covered, average pace, duration, and calories burned.
+    - Route Mapping: Visual route tracking and workout summary logs.
+    - History & Analytics: Keep historical logs of completed runs and workouts.
+
+[5] FITNESS E-COMMERCE STORE & PAYMENTS
+    - Product Catalog: Browse fitness equipment, supplements, apparel, and gym gear.
+    - Shopping Cart & Checkout: Multi-item cart management with instant price calculation.
+    - Payment Processing: Stripe integration (`PaymentConfig`, `Payment`) for secure online payments.
+    - Order Management: Order history tracking (`Order`, `Product`) for user purchases.
+
+[6] COMMUNITY FEED & SOCIAL MESSAGING
+    - Interactive Social Feed: Share workout achievements, post image updates (`Post`), 
+      like, and comment on community posts.
+    - Global & Direct Messaging: Real-time chat widget (`GlobalChat`, `Message`) for 
+      connecting with friends and trainers.
+    - Public User Profiles: Shareable public profile pages (`PublicProfile`) displaying 
+      achievements and user fitness stats.
+    - Notification System: Instant in-app alerts (`Notification`, `Broadcast`) for updates.
+
+[7] ROLE-BASED DASHBOARDS
+    - User Dashboard: Centralized portal for managing saved plans, active memberships, 
+      store order history, and activity stats.
+    - Gym Owner Dashboard: Portal for gym owners to manage gym profile details, list 
+      membership packages, monitor member attendance, view revenue metrics, and send 
+      member broadcasts.
+    - Admin Dashboard: System-wide admin management including user role assignment, gym 
+      owner approval, complaint moderation (`Complaint`), audit logging (`AuditLog`), 
+      and system performance analytics.
+
+--------------------------------------------------------------------------------
+3. HOW TO RUN LOCALLY
+--------------------------------------------------------------------------------
+
+Prerequisites:
+  - Node.js (v18+)
+  - npm
+  - Internet connection for MongoDB Atlas DB access
+
+Step 1: Start Backend Server
+  $ cd backend
+  $ npm install
+  $ npm run dev
+  (Runs on http://localhost:5000)
+
+Step 2: Start Frontend Server
+  $ cd frontend
+  $ npm install
+  $ npm run dev -- --host
+  (Runs on http://localhost:5173)
+
+Step 3: Open Browser
+  Navigate to http://localhost:5173 in Firefox / Chrome / Edge.
+
+--------------------------------------------------------------------------------
+4. GIT REPOSITORY UPDATE
+--------------------------------------------------------------------------------
+All changes and documentation have been staged and pushed to GitHub main branch:
+  Repository: https://github.com/butoameerali/GymSync.git
+================================================================================
