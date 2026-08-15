@@ -26,10 +26,21 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Connect to database
-connectDB();
-
 const app = express();
+
+// Middleware to ensure DB connection on serverless requests
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({
+      message: 'Database is not connected. Please check MONGO_URI environment variable on Vercel and MongoDB Atlas status.',
+      error: err.message
+    });
+  }
+});
+
 
 // Security Middleware
 app.use(securityHeaders);
