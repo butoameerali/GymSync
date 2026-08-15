@@ -255,7 +255,9 @@ export const uploadGymPhoto = async (req, res) => {
       return res.status(400).json({ message: 'No photo was uploaded' });
     }
 
-    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    const imageUrl = req.file.buffer
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+      : `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
     let gym = null;
 
     if (id && id !== 'gym_demo_id') {

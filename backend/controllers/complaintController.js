@@ -24,7 +24,11 @@ export const createComplaint = async (req, res) => {
     const { reporterName, reportedEntityType, reportedEntityId, reportedEntityTitle, reason, description } = req.body;
     let evidenceUrls = [];
     if (req.file) {
-      evidenceUrls.push(`/uploads/${req.file.filename}`);
+      if (req.file.buffer) {
+        evidenceUrls.push(`data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`);
+      } else {
+        evidenceUrls.push(`/uploads/${req.file.filename}`);
+      }
     }
 
     if (!reporterName || !reportedEntityType || !reportedEntityId || !reason || !description) {

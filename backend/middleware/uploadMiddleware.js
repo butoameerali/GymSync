@@ -1,33 +1,9 @@
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
-import os from 'os';
 
-// Safely obtain a writable uploads directory (handles serverless/Vercel environments)
-const getUploadsDir = () => {
-  let dir = process.env.VERCEL ? path.join(os.tmpdir(), 'uploads') : 'uploads/';
-  try {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-  } catch (err) {
-    dir = path.join(os.tmpdir(), 'uploads');
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-  }
-  return dir;
-};
-
-// Set storage engine
-const storage = multer.diskStorage({
-  destination: function(req, file, cb) {
-    cb(null, getUploadsDir());
-  },
-  filename: function(req, file, cb) {
-    cb(null, `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
-  }
-});
+// Use memory storage so file buffers are converted directly into Base64 Data URIs.
+// This allows permanent storage in MongoDB without relying on dynamic serverless disk storage.
+const storage = multer.memoryStorage();
 
 // Check File Type
 function checkFileType(file, cb) {
@@ -44,7 +20,7 @@ function checkFileType(file, cb) {
 
 export const upload = multer({
   storage: storage,
-  limits: { fileSize: 10000000 }, // 10MB limit
+  limits: { fileSize: 8000000 }, // 8MB limit for Base64 in MongoDB
   fileFilter: function(req, file, cb) {
     checkFileType(file, cb);
   }

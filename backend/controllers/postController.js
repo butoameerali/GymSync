@@ -24,7 +24,11 @@ export const createPost = async (req, res) => {
   let mediaUrl = '';
   
   if (req.file) {
-    mediaUrl = `/uploads/${req.file.filename}`;
+    if (req.file.buffer) {
+      mediaUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    } else {
+      mediaUrl = `/uploads/${req.file.filename}`;
+    }
   } else if (req.body.mediaUrl) {
     mediaUrl = req.body.mediaUrl;
   }
