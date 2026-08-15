@@ -1,5 +1,6 @@
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
+import Payment from '../models/Payment.js';
 import { logAuditTrail } from '../middleware/securityMiddleware.js';
 
 const MOCK_STORE_ITEMS = [
@@ -97,10 +98,30 @@ export const updateProductStatus = async (req, res) => {
 // @access  Public / User
 export const createOrder = async (req, res) => {
   try {
-    const { userName, items, totalAmount, shippingAddress } = req.body;
+    const { items, totalAmount, shippingAddress, paymentId } = req.body;
+    const userName = req.user?.name;
 
-    if (!userName || !items || items.length === 0 || !totalAmount || !shippingAddress) {
+    if (!userName || !items || items.length === 0 || !totalAmount || !shippingAddress || !paymentId) {
       return res.status(400).json({ message: 'Required order details missing' });
+    }
+
+    const payment = await Payment.findOne({
+      $or: [
+        { _id: paymentId },
+        { paymentId }
+      ]
+    });
+
+    if (!payment) {
+      return res.status(400).json({ message: 'Valid payment record is required before creating an order' });
+    }
+
+    if (payment.userName !== userName) {
+      return res.status(403).json({ message: 'Payment record does not belong to the authenticated user' });
+    }
+
+    if (payment.paymentType !== 'StoreOrder') {
+      return res.status(400).json({ message: 'Payment record is not linked to a store order' });
     }
 
     const count = await Order.countDocuments();
@@ -109,11 +130,12 @@ export const createOrder = async (req, res) => {
     const order = await Order.create({
       orderId,
       userName,
+      paymentId: payment.paymentId,
       items,
       totalAmount: Number(totalAmount),
       shippingAddress,
-      paymentStatus: 'Paid',
-      orderStatus: 'Processing'
+      paymentStatus: payment.status === 'Completed' ? 'Paid' : 'Pending',
+      orderStatus: payment.status === 'Completed' ? 'Processing' : 'Pending'
     });
 
     res.status(201).json(order);
@@ -134,13 +156,51 @@ export const getOrders = async (req, res) => {
   }
 };
 
+// @desc    Get orders belonging to the signed-in customer
+export const getMyOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ userName: req.user.name }).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Customer cancellation before dispatch/delivery
+export const cancelMyOrder = async (req, res) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, userName: req.user.name });
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (!['Pending', 'Processing'].includes(order.orderStatus)) {
+      return res.status(400).json({ message: 'This order can no longer be cancelled.' });
+    }
+    order.orderStatus = 'Cancelled';
+    await order.save();
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const requestOrderRefund = async (req, res) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, userName: req.user.name });
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (order.refundStatus === 'Approved') return res.status(400).json({ message: 'This order has already been refunded.' });
+    order.refundStatus = 'Requested';
+    order.refundReason = (req.body.reason || '').trim();
+    await order.save();
+    res.json(order);
+  } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
 // @desc    Update Order Status
 // @route   PUT /api/store/orders/:id/status
 // @access  Private / StoreManager, Admin
 export const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { orderStatus, handledBy } = req.body;
+    const { orderStatus, handledBy, courierName, trackingNumber, estimatedDeliveryDate, refundStatus } = req.body;
 
     const order = await Order.findById(id);
     if (!order) {
@@ -149,9 +209,16 @@ export const updateOrderStatus = async (req, res) => {
 
     order.orderStatus = orderStatus;
     if (handledBy) order.handledBy = handledBy;
+    if (typeof courierName === 'string') order.courierName = courierName;
+    if (typeof trackingNumber === 'string') order.trackingNumber = trackingNumber;
+    if (estimatedDeliveryDate !== undefined) order.estimatedDeliveryDate = estimatedDeliveryDate || null;
+    if (['Approved', 'Rejected'].includes(refundStatus) && order.refundStatus === 'Requested') {
+      order.refundStatus = refundStatus;
+      order.refundReviewedBy = req.user?.name || handledBy || 'Admin';
+    }
     await order.save();
 
-    logAuditTrail(handledBy || 'Store Manager', 'StoreManager', 'Updated Order Status', order.orderId, `Status: ${orderStatus}`, req);
+    logAuditTrail(handledBy || req.user?.name || 'Store Manager', req.user?.role || 'StoreManager', 'Updated Order Status', order.orderId, `Status: ${orderStatus}; Refund: ${order.refundStatus}`, req);
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });

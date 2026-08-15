@@ -18,8 +18,12 @@ const Home = () => {
   
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
+  const isTrainee = userRole === 'User' || userRole === 'user' || isGuest;
   const isAdmin = userRole === 'Admin' || userRole === 'SuperAdmin' || userRole === 'ComplaintModerator';
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest User';
+  const authHeaders = localStorage.getItem('gymsync_token')
+    ? { Authorization: `Bearer ${localStorage.getItem('gymsync_token')}` }
+    : {};
 
   const [feedTab, setFeedTab] = useState('global');
   const [currentUser, setCurrentUser] = useState(null);
@@ -80,10 +84,6 @@ const Home = () => {
 
     const formData = new FormData();
     formData.append('content', newPost);
-    formData.append('authorName', userName);
-    formData.append('authorRole', userRole);
-    // Since we don't have full JWT auth implemented, we'll mock the author object via a known ID or let backend fallback
-    // In a real app we'd pass the auth token.
     if (selectedFile) {
       formData.append('media', selectedFile);
     }
@@ -91,6 +91,7 @@ const Home = () => {
     try {
       const res = await fetch('/api/posts', {
         method: 'POST',
+        headers: authHeaders,
         body: formData
       });
       
@@ -116,33 +117,25 @@ const Home = () => {
       toast.error("Guests cannot like posts.");
       return;
     }
+    
+    // Optimistic UI Update
+    setPosts(prevPosts => prevPosts.map(post => {
+      if (post._id === id) {
+        const isLiked = post.likes.includes(userName);
+        const newLikes = isLiked 
+          ? post.likes.filter(n => n !== userName) 
+          : [...post.likes, userName];
+          
+        return { ...post, likes: newLikes };
+      }
+      return post;
+    }));
+
     try {
-      const res = await fetch(`/api/posts/${id}/like`, {
+      await fetch(`/api/posts/${id}/like`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userName })
+        headers: { 'Content-Type': 'application/json', ...authHeaders }
       });
-      const data = await res.json();
-      
-      setPosts(posts.map(post => {
-        if (post._id === id) {
-          // If we just liked it, let's send a notification to the author
-          if (!post.likes.includes(userName)) {
-            fetch('/api/notifications', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: post.author?.name || 'Unknown User',
-                type: 'like',
-                message: `${userName} liked your post.`,
-                link: `/home`
-              })
-            });
-          }
-          return { ...post, likes: data.likes };
-        }
-        return post;
-      }));
     } catch (err) {
       console.error(err);
       toast.error("Failed to like post");
@@ -155,29 +148,31 @@ const Home = () => {
 
   return (
     <div className="home-page">
-      <div className="container feed-container">
+      <div className="container feed-container" style={!isTrainee ? { display: 'block', maxWidth: '800px', margin: '0 auto' } : {}}>
         
-        {/* Left Sidebar (Ads/Suggestions) */}
-        <div className="feed-sidebar">
-          {leftAds.map(ad => (
-            <div key={ad._id} className="glass-panel sidebar-widget ad-widget">
-              <h4>Suggested {ad.type}</h4>
-              <p className="ad-title">{ad.title}</p>
-              <p className="ad-desc">{ad.description}</p>
-              <button className="btn btn-outline btn-sm w-100 mt-10">View details</button>
-            </div>
-          ))}
+        {/* Left Sidebar (Ads/Suggestions) - Trainee Only */}
+        {isTrainee && (
+          <div className="feed-sidebar">
+            {leftAds.map(ad => (
+              <div key={ad._id} className="glass-panel sidebar-widget ad-widget">
+                <h4>Suggested {ad.type}</h4>
+                <p className="ad-title">{ad.title}</p>
+                <p className="ad-desc">{ad.description}</p>
+                <button className="btn btn-outline btn-sm w-100 mt-10">View details</button>
+              </div>
+            ))}
 
-          <div className="glass-panel sidebar-widget ad-widget" style={{ marginTop: '15px' }}>
-            <h4>🛒 GymSync Store Deals</h4>
-            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px', marginBottom: '10px', textAlign: 'center' }}>
-               <img src="https://images.unsplash.com/photo-1593095948071-474c5cc2989d?q=80&w=1470&auto=format&fit=crop" alt="Whey" style={{width: '100%', height: '100px', objectFit: 'cover', borderRadius: '8px'}} />
-               <p style={{ fontWeight: 'bold', marginTop: '10px' }}>Gold Standard Whey</p>
-               <p style={{ color: '#10b981' }}>$64.99</p>
+            <div className="glass-panel sidebar-widget ad-widget" style={{ marginTop: '15px' }}>
+              <h4>🛒 GymSync Store Deals</h4>
+              <div style={{ background: 'var(--card-bg)', padding: '10px', borderRadius: '8px', marginBottom: '10px', textAlign: 'center' }}>
+                 <img src="https://images.unsplash.com/photo-1593095948071-474c5cc2989d?q=80&w=1470&auto=format&fit=crop" alt="Whey" style={{width: '100%', height: '100px', objectFit: 'cover', borderRadius: '8px'}} />
+                 <p style={{ fontWeight: 'bold', marginTop: '10px' }}>Gold Standard Whey</p>
+                 <p style={{ color: '#10b981' }}>$64.99</p>
+              </div>
+              <button className="btn btn-primary btn-sm w-100 mt-10" onClick={() => window.location.href='/store'}>Shop Now</button>
             </div>
-            <button className="btn btn-primary btn-sm w-100 mt-10" onClick={() => window.location.href='/store'}>Shop Now</button>
           </div>
-        </div>
+        )}
 
         {/* Center Main Feed */}
         <div className="main-feed">
@@ -188,14 +183,14 @@ const Home = () => {
               <button 
                 className={`feed-tab-btn ${feedTab === 'global' ? 'active' : ''}`}
                 onClick={() => setFeedTab('global')}
-                style={{ flex: 1, padding: '15px', background: feedTab === 'global' ? 'rgba(16, 185, 129, 0.1)' : 'transparent', border: 'none', borderBottom: feedTab === 'global' ? '2px solid var(--primary-accent)' : '2px solid transparent', color: feedTab === 'global' ? 'var(--primary-accent)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 'bold' }}
+                style={{ flex: 1, padding: '15px', background: feedTab === 'global' ? 'var(--card-bg)' : 'transparent', border: 'none', borderBottom: feedTab === 'global' ? '2px solid var(--primary-accent)' : '2px solid transparent', color: feedTab === 'global' ? 'var(--primary-accent)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 'bold' }}
               >
                 Global Feed
               </button>
               <button 
                 className={`feed-tab-btn ${feedTab === 'following' ? 'active' : ''}`}
                 onClick={() => setFeedTab('following')}
-                style={{ flex: 1, padding: '15px', background: feedTab === 'following' ? 'rgba(16, 185, 129, 0.1)' : 'transparent', border: 'none', borderBottom: feedTab === 'following' ? '2px solid var(--primary-accent)' : '2px solid transparent', color: feedTab === 'following' ? 'var(--primary-accent)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 'bold' }}
+                style={{ flex: 1, padding: '15px', background: feedTab === 'following' ? 'var(--card-bg)' : 'transparent', border: 'none', borderBottom: feedTab === 'following' ? '2px solid var(--primary-accent)' : '2px solid transparent', color: feedTab === 'following' ? 'var(--primary-accent)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 'bold' }}
               >
                 Following
               </button>
@@ -217,7 +212,7 @@ const Home = () => {
             
             {/* File Preview */}
             {selectedFile && (
-              <div style={{ margin: '10px 20px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ margin: '10px 20px', padding: '10px', background: 'var(--card-bg)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.9rem', color: 'var(--primary-accent)' }}>📎 {selectedFile.name}</span>
                 <button onClick={() => setSelectedFile(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={16} /></button>
               </div>
@@ -256,7 +251,7 @@ const Home = () => {
                     </div>
                     <div className="post-meta">
                       <h4>
-                        <Link to={post.authorName === userName ? '/profile' : `/profile/${post.authorName || post.author?.name}`} style={{ color: 'white', textDecoration: 'none' }}>
+                        <Link to={post.authorName === userName ? '/profile' : `/profile/${post.authorName || post.author?.name}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>
                           {post.authorName || post.author?.name || 'Unknown User'}
                         </Link>
                         <span className="role-badge">{post.authorRole || post.author?.role || 'user'}</span>
@@ -271,7 +266,7 @@ const Home = () => {
                       onClick={async () => {
                         if(window.confirm('Are you sure you want to delete this post?')) {
                           try {
-                            const res = await fetch(`/api/posts/${post._id}`, { method: 'DELETE' });
+                            const res = await fetch(`/api/posts/${post._id}`, { method: 'DELETE', headers: authHeaders });
                             if (res.ok) {
                               setPosts(posts.filter(p => p._id !== post._id));
                               toast.success("Post deleted.");
@@ -333,7 +328,7 @@ const Home = () => {
                 
                 {/* Comment Section Dropdown */}
                 {activeCommentPostId === post._id && (
-                  <div style={{ marginTop: '15px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
+                  <div style={{ marginTop: '15px', borderTop: '1px solid var(--card-border)', paddingTop: '15px' }}>
                     {post.commentRestriction === 'SubscribersOnly' && !(localStorage.getItem('gymsync_subscribed') === 'true' || userRole === 'Admin' || userRole === 'SuperAdmin' || userRole === 'GymOwner') ? (
                       <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '10px', color: '#fca5a5', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
                         🔒 <strong>Subscriber Exclusive:</strong> Only GymSync Subscribers can comment on this Admin post.
@@ -343,7 +338,7 @@ const Home = () => {
                         <input 
                           type="text" 
                           placeholder="Write a comment..." 
-                          style={{ flex: 1, padding: '10px', borderRadius: '20px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                          style={{ flex: 1, padding: '10px', borderRadius: '20px', background: 'var(--card-bg)', border: '1px solid var(--card-border)', color: 'var(--text-primary)' }}
                           id={`comment-input-${post._id}`}
                           onKeyDown={async (e) => {
                             if(e.key === 'Enter' && e.target.value.trim()) {
@@ -352,8 +347,8 @@ const Home = () => {
                               try {
                                 const res = await fetch(`/api/posts/${post._id}/comment`, {
                                   method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ text: val, authorName: userName })
+                                  headers: { 'Content-Type': 'application/json', ...authHeaders },
+                                  body: JSON.stringify({ text: val })
                                 });
                                 const updatedComments = await res.json();
                                 setPosts(posts.map(p => p._id === post._id ? { ...p, comments: updatedComments } : p));
@@ -374,7 +369,7 @@ const Home = () => {
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {post.comments && post.comments.map((c) => (
-                        <div key={c._id || Math.random()} style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 15px', borderRadius: '12px' }}>
+                        <div key={c._id || Math.random()} style={{ background: 'var(--card-bg)', padding: '10px 15px', borderRadius: '12px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                             <span style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>{c.author || 'User'}</span>
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{new Date(c.date).toLocaleDateString()}</span>
@@ -382,7 +377,7 @@ const Home = () => {
                           <p style={{ fontSize: '0.9rem', margin: 0 }}>{c.text}</p>
                           
                           {/* Nested Replies Display */}
-                          <div style={{ marginTop: '10px', paddingLeft: '15px', borderLeft: '2px solid rgba(255,255,255,0.1)' }}>
+                          <div style={{ marginTop: '10px', paddingLeft: '15px', borderLeft: '2px solid var(--card-border)' }}>
                             {c.replies && c.replies.map(r => (
                               <div key={r._id || Math.random()} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div>
@@ -444,7 +439,7 @@ const Home = () => {
                               <input 
                                 type="text" 
                                 placeholder="Reply..." 
-                                style={{ flex: 1, padding: '5px 10px', borderRadius: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: 'white', fontSize: '0.8rem' }}
+                                style={{ flex: 1, padding: '5px 10px', borderRadius: '12px', background: 'var(--card-bg)', border: '1px solid var(--card-bg)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
                                 onKeyDown={async (e) => {
                                   if(e.key === 'Enter' && e.target.value.trim()) {
                                     const val = e.target.value;
@@ -482,42 +477,44 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Right Sidebar (Ads/Suggestions & Widgets) */}
-        <div className="feed-sidebar">
-          {rightAds.map(ad => (
-            <div key={ad._id} className="glass-panel sidebar-widget ad-widget">
-              <h4>Suggested {ad.type}</h4>
-              <p className="ad-title">{ad.title}</p>
-              <p className="ad-desc">{ad.description}</p>
-              <button className="btn btn-outline btn-sm w-100 mt-10">View details</button>
+        {/* Right Sidebar (Ads/Suggestions & Widgets) - Trainee Only */}
+        {isTrainee && (
+          <div className="feed-sidebar">
+            {rightAds.map(ad => (
+              <div key={ad._id} className="glass-panel sidebar-widget ad-widget">
+                <h4>Suggested {ad.type}</h4>
+                <p className="ad-title">{ad.title}</p>
+                <p className="ad-desc">{ad.description}</p>
+                <button className="btn btn-outline btn-sm w-100 mt-10">View details</button>
+              </div>
+            ))}
+            
+            <div className="glass-panel sidebar-widget ad-widget" style={{ marginTop: '15px' }}>
+              <h4>🔥 Weekly Leaderboard</h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '10px 0', borderBottom: '1px solid var(--card-border)', paddingBottom: '5px' }}>
+                <span>1. Mike Tyson</span>
+                <span style={{ color: 'var(--primary-accent)' }}>150 Pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '10px 0', borderBottom: '1px solid var(--card-border)', paddingBottom: '5px' }}>
+                <span>2. {userName}</span>
+                <span style={{ color: 'var(--primary-accent)' }}>{localStorage.getItem('gymsync_points') || 0} Pts</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '10px 0' }}>
+                <span>3. Arnold S.</span>
+                <span style={{ color: 'var(--primary-accent)' }}>95 Pts</span>
+              </div>
+              <button className="btn btn-outline btn-sm w-100 mt-10" onClick={() => window.location.href='/profile'}>View Your Stats</button>
             </div>
-          ))}
-          
-          <div className="glass-panel sidebar-widget ad-widget" style={{ marginTop: '15px' }}>
-            <h4>🔥 Weekly Leaderboard</h4>
-            <div style={{ display: 'flex', justifyContent: 'space-between', margin: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '5px' }}>
-              <span>1. Mike Tyson</span>
-              <span style={{ color: 'var(--primary-accent)' }}>150 Pts</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', margin: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '5px' }}>
-              <span>2. {userName}</span>
-              <span style={{ color: 'var(--primary-accent)' }}>{localStorage.getItem('gymsync_points') || 0} Pts</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', margin: '10px 0' }}>
-              <span>3. Arnold S.</span>
-              <span style={{ color: 'var(--primary-accent)' }}>95 Pts</span>
-            </div>
-            <button className="btn btn-outline btn-sm w-100 mt-10" onClick={() => window.location.href='/profile'}>View Your Stats</button>
-          </div>
 
-          <div className="glass-panel sidebar-widget ad-widget" style={{ marginTop: '15px' }}>
-            <h4>📍 Nearby Gyms</h4>
-            <p className="ad-title">Iron Temple Fitness</p>
-            <p className="ad-desc">0.5 miles away • Open 24/7</p>
-            <button className="btn btn-outline btn-sm w-100 mt-10" onClick={() => window.location.href='/explore'}>Explore Map</button>
-          </div>
+            <div className="glass-panel sidebar-widget ad-widget" style={{ marginTop: '15px' }}>
+              <h4>📍 Nearby Gyms</h4>
+              <p className="ad-title">Iron Temple Fitness</p>
+              <p className="ad-desc">0.5 miles away • Open 24/7</p>
+              <button className="btn btn-outline btn-sm w-100 mt-10" onClick={() => window.location.href='/explore'}>Explore Map</button>
+            </div>
 
-        </div>
+          </div>
+        )}
       </div>
       
       {/* Admin Post Removal Modal */}
@@ -550,7 +547,6 @@ const Home = () => {
               className="search-input"
               value={removalReason}
               onChange={e => setRemovalReason(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(30,41,59,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
             >
               <option value="Violation of community guidelines">Violation of community guidelines</option>
               <option value="Inappropriate content or spam">Inappropriate content or spam</option>
@@ -572,9 +568,8 @@ const Home = () => {
           try {
             const res = await fetch(`/api/posts/${reportPostId}/report`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', ...authHeaders },
               body: JSON.stringify({ 
-                reporterName: userName, 
                 reason: reportReason, 
                 explanation: reportExplanation 
               })
@@ -598,7 +593,6 @@ const Home = () => {
               className="search-input"
               value={reportReason}
               onChange={e => setReportReason(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(30,41,59,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
             >
               <option value="Inappropriate Content">Inappropriate Content</option>
               <option value="Spam">Spam</option>
@@ -614,10 +608,10 @@ const Home = () => {
               value={reportExplanation}
               onChange={e => setReportExplanation(e.target.value)}
               placeholder="Provide more details about why you are reporting this post..."
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(30,41,59,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'var(--panel-bg)', color: 'var(--text-primary)', border: '1px solid var(--card-border)' }}
             />
           </div>
-          <button type="submit" className="btn btn-primary" style={{ background: '#f59e0b', borderColor: '#f59e0b', color: 'white' }}>
+          <button type="submit" className="btn btn-primary" style={{ background: '#f59e0b', borderColor: '#f59e0b', color: 'var(--text-primary)' }}>
             <AlertTriangle size={16} /> Submit Report
           </button>
         </form>
@@ -630,7 +624,7 @@ const Home = () => {
           onClick={() => setSelectedImage(null)}
         >
           <img src={selectedImage} alt="Full Size" style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }} />
-          <button style={{ position: 'absolute', top: '20px', right: '30px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: '50%', padding: '10px', cursor: 'pointer' }}>
+          <button style={{ position: 'absolute', top: '20px', right: '30px', background: 'var(--card-border)', border: 'none', color: 'var(--text-primary)', borderRadius: '50%', padding: '10px', cursor: 'pointer' }}>
             <X size={24} />
           </button>
         </div>

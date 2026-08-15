@@ -1,5 +1,5 @@
+import 'dotenv/config';
 import express from 'express';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/db.js';
 import { securityHeaders, rateLimiter } from './middleware/securityMiddleware.js';
@@ -26,9 +26,6 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load env vars
-dotenv.config();
-
 // Connect to database
 connectDB();
 
@@ -36,7 +33,19 @@ const app = express();
 
 // Security Middleware
 app.use(securityHeaders);
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost',
+  ...(process.env.FRONTEND_URL || '').split(',').map(origin => origin.trim()).filter(Boolean)
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-name', 'x-user-role']
+}));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

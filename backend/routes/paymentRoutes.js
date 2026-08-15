@@ -4,14 +4,16 @@ import {
   getPaymentConfigs,
   updatePaymentConfig,
   getPendingPayments,
-  approvePayment
+  approvePayment,
+  createPaymentIntent
 } from '../controllers/paymentController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 router.get('/config', getPaymentConfigs);
-router.post('/', createPayment);
+router.post('/', protect, createPayment);
+router.post('/create-intent', protect, createPaymentIntent);
 
 router.put('/config/:method', protect, authorizeRoles('SuperAdmin', 'Admin'), updatePaymentConfig);
 router.get('/pending', protect, authorizeRoles('SuperAdmin', 'Admin'), getPendingPayments);

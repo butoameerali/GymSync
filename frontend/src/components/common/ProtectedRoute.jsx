@@ -1,15 +1,18 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const normalizeRole = (role = '') => role.toLowerCase().replace(/[_\s]/g, '');
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const location = useLocation();
-  const userName = localStorage.getItem('gymsync_user_name');
-  const userRole = localStorage.getItem('gymsync_role') || 'User';
-  const userInfo = localStorage.getItem('userInfo');
+  const { user, loading } = useAuth();
+  const token = localStorage.getItem('gymsync_token');
+  const userRole = user?.role || localStorage.getItem('gymsync_role') || '';
 
-  const isAuthenticated = Boolean(userInfo || (userName && userName !== 'Guest User') || (userRole && userRole !== 'guest'));
+  if (loading) return null;
+
+  const isAuthenticated = Boolean((user || token) && userRole.toLowerCase() !== 'guest');
 
   if (!isAuthenticated) {
     // Redirect unauthenticated user to auth portal / landing page

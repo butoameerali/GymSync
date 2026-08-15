@@ -1,0 +1,14 @@
+.instructor-dashboard-page {
+  min-height: 85vh;
+}
+
+.instructor-header h1 {
+  color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+  .instructor-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

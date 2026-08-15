@@ -35,8 +35,16 @@ const GymOwnerDashboard = () => {
     monthlyFee: 50,
     admissionFee: 0,
     bankDetails: '',
-    description: 'A premium fitness facility.'
+    description: 'A premium fitness facility.',
+    equipmentListStr: 'Treadmills, Dumbbells, Power Racks, Cable Crossover, Smith Machine',
+    weekdayTimings: '6:00 AM - 10:00 PM',
+    weekendTimings: '8:00 AM - 8:00 PM'
   });
+
+  // Trainer Management State
+  const [trainers, setTrainers] = useState([]);
+  const [showTrainerModal, setShowTrainerModal] = useState(false);
+  const [trainerForm, setTrainerForm] = useState({ name: '', email: '', password: '' });
 
   const ownerName = localStorage.getItem('gymsync_user_name') || 'Gym Owner';
 
@@ -63,14 +71,60 @@ const GymOwnerDashboard = () => {
             monthlyFee: data.gym.monthlyFee ?? 50,
             admissionFee: data.gym.admissionFee ?? 0,
             bankDetails: data.gym.bankDetails || '',
-            description: data.gym.description || ''
+            description: data.gym.description || '',
+            equipmentListStr: Array.isArray(data.gym.equipmentList) ? data.gym.equipmentList.join(', ') : 'Treadmills, Dumbbells, Power Racks, Cable Crossover',
+            weekdayTimings: data.gym.timings?.weekday || '6:00 AM - 10:00 PM',
+            weekendTimings: data.gym.timings?.weekend || '8:00 AM - 8:00 PM'
           });
+          if (data.gym.name) {
+            fetchTrainers(data.gym.name);
+          }
         }
       }
     } catch (err) {
       console.error('Error fetching Gym Owner data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTrainers = async (gymName) => {
+    try {
+      const res = await fetch(`/api/gym-owner/trainers/${gymName}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` }
+      });
+      if (res.ok) setTrainers(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const handleCreateTrainer = async (e) => {
+    e.preventDefault();
+    if (!trainerForm.name || !trainerForm.email || !trainerForm.password) {
+      return toast.warn('All fields are required for creating a trainer account');
+    }
+    try {
+      const res = await fetch('/api/gym-owner/trainers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
+        body: JSON.stringify({
+          ...trainerForm,
+          gymName: gymProfile.name || dashboardData?.gym?.name
+        })
+      });
+      if (res.ok) {
+        toast.success(`Gym Trainer account created for ${trainerForm.name}!`);
+        setShowTrainerModal(false);
+        setTrainerForm({ name: '', email: '', password: '' });
+        fetchTrainers(gymProfile.name || dashboardData?.gym?.name);
+      } else {
+        const err = await res.json();
+        toast.error(err.message || 'Failed to create trainer');
+      }
+    } catch (err) {
+      toast.error('Error creating trainer account');
     }
   };
 
@@ -152,7 +206,12 @@ const GymOwnerDashboard = () => {
           monthlyFee: Number(gymProfile.monthlyFee),
           admissionFee: Number(gymProfile.admissionFee),
           bankDetails: gymProfile.bankDetails,
-          description: gymProfile.description
+          description: gymProfile.description,
+          equipmentList: gymProfile.equipmentListStr.split(',').map(item => item.trim()),
+          timings: {
+            weekday: gymProfile.weekdayTimings,
+            weekend: gymProfile.weekendTimings
+          }
         })
       });
 
@@ -307,6 +366,13 @@ const GymOwnerDashboard = () => {
               onClick={() => setActiveTab('plans')}
             >
               <FileText size={16} /> Member Plans
+            </button>
+
+            <button 
+              className={`tab-btn ${activeTab === 'trainers' ? 'active' : ''}`}
+              onClick={() => setActiveTab('trainers')}
+            >
+              <Users size={16} /> Gym Trainers ({trainers.length})
             </button>
             <button 
               className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
@@ -633,6 +699,40 @@ const GymOwnerDashboard = () => {
                     </div>
 
                     <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Equipment Inventory List (Comma separated)</label>
+                      <input
+                        type="text"
+                        className="search-input"
+                        placeholder="Treadmills, Dumbbells, Smith Machine, Cable Crossover, Power Racks"
+                        value={gymProfile.equipmentListStr}
+                        onChange={e => setGymProfile({ ...gymProfile, equipmentListStr: e.target.value })}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Weekday Timings</label>
+                        <input
+                          type="text"
+                          className="search-input"
+                          placeholder="e.g. 6:00 AM - 10:00 PM"
+                          value={gymProfile.weekdayTimings}
+                          onChange={e => setGymProfile({ ...gymProfile, weekdayTimings: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Weekend Timings</label>
+                        <input
+                          type="text"
+                          className="search-input"
+                          placeholder="e.g. 8:00 AM - 8:00 PM"
+                          value={gymProfile.weekendTimings}
+                          onChange={e => setGymProfile({ ...gymProfile, weekendTimings: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
                       <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Upload Gym Photo</label>
                       <input
                         type="file"
@@ -654,6 +754,65 @@ const GymOwnerDashboard = () => {
                     </div>
                   </form>
                 )}
+              </div>
+            )}
+
+            {/* GYM TRAINERS TAB */}
+            {activeTab === 'trainers' && (
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <div>
+                    <h3>Gym Trainers Directory</h3>
+                    <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Register and manage official trainers for {gymProfile.name || 'your gym'}</p>
+                  </div>
+                  <button className="btn btn-primary" onClick={() => setShowTrainerModal(true)}>
+                    <Plus size={16} /> Register New Trainer
+                  </button>
+                </div>
+
+                {showTrainerModal && (
+                  <form onSubmit={handleCreateTrainer} className="glass-panel" style={{ padding: '20px', borderRadius: '12px', marginBottom: '25px', display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(15,23,42,0.9)' }}>
+                    <h4 style={{ margin: 0, color: 'var(--primary-accent)' }}>Create Gym Trainer Credentials</h4>
+                    <input type="text" required placeholder="Trainer Full Name" className="search-input" value={trainerForm.name} onChange={e => setTrainerForm({ ...trainerForm, name: e.target.value })} />
+                    <input type="email" required placeholder="Trainer Email Address" className="search-input" value={trainerForm.email} onChange={e => setTrainerForm({ ...trainerForm, email: e.target.value })} />
+                    <input type="password" required placeholder="Password" className="search-input" value={trainerForm.password} onChange={e => setTrainerForm({ ...trainerForm, password: e.target.value })} />
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button type="submit" className="btn btn-primary">Create Trainer</button>
+                      <button type="button" className="btn btn-outline" onClick={() => setShowTrainerModal(false)}>Cancel</button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="table-responsive">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Trainer Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Assigned Gym</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trainers.length > 0 ? trainers.map(t => (
+                        <tr key={t._id}>
+                          <td><strong>{t.name}</strong></td>
+                          <td>{t.email}</td>
+                          <td><span className="category-badge">{t.role}</span></td>
+                          <td>{t.assignedGymName || gymProfile.name}</td>
+                          <td><span style={{ color: '#10b981', fontWeight: 600 }}>Active</span></td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
+                            No trainers registered yet. Click "Register New Trainer" to create accounts for your gym staff.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </>

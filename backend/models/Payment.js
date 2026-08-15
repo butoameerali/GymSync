@@ -6,7 +6,7 @@ const paymentSchema = new mongoose.Schema({
   gymName: { type: String, default: 'GymSync Platform' },
   paymentType: { 
     type: String, 
-    enum: ['GymMembership', 'PlatformSubscription', 'StoreOrder'], 
+    enum: ['GymMembership', 'GymRegistration', 'PlatformSubscription', 'StoreOrder'], 
     default: 'GymMembership' 
   },
   paymentMethod: { 
@@ -24,6 +24,9 @@ const paymentSchema = new mongoose.Schema({
   screenshotUrl: { type: String, default: '' },
   transactionRef: { type: String, default: '' },
   methodDetails: { type: String, default: '' },
+  startNextMonth: { type: Boolean, default: false },
+  membershipType: { type: String, enum: ['Monthly', 'Yearly'], default: 'Monthly' },
+  joiningDate: { type: Date, default: null },
   approvedBy: { type: String, default: '' }
 }, { timestamps: true });
 

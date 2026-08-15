@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Dumbbell, Flame, MapPin, Calendar, Award, AlertTriangle, FileText, ChevronRight, PlusCircle } from 'lucide-react';
+import { Activity, Dumbbell, Flame, MapPin, Calendar, Award, AlertTriangle, FileText, ChevronRight, PlusCircle, Building } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import ComplaintModal from '../../components/common/ComplaintModal';
@@ -32,7 +33,11 @@ const UserDashboard = () => {
       }
 
       // Fetch user submitted complaints
-      const complaintsRes = await fetch('/api/complaints');
+      const complaintsRes = await fetch('/api/complaints', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        }
+      });
       if (complaintsRes.ok) {
         const allComplaints = await complaintsRes.json();
         setUserComplaints(allComplaints.filter(c => c.reporterName === userName));
@@ -206,7 +211,7 @@ const UserDashboard = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
                   <div className="glass-panel" style={{ padding: '20px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <span className="feature-tag" style={{ background: 'var(--primary-accent)', color: '#fff' }}>Workout Routine</span>
+                      <span className="feature-tag" style={{ background: 'var(--primary-accent)', color: 'var(--text-primary)' }}>Workout Routine</span>
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Assigned by Gym Owner</span>
                     </div>
                     <h4>4-Week Hypertrophy & Power Plan</h4>
@@ -220,7 +225,7 @@ const UserDashboard = () => {
 
                   <div className="glass-panel" style={{ padding: '20px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <span className="feature-tag" style={{ background: '#10b981', color: '#fff' }}>Nutrition Plan</span>
+                      <span className="feature-tag" style={{ background: '#10b981', color: 'var(--text-primary)' }}>Nutrition Plan</span>
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>AI Medical Prescription</span>
                     </div>
                     <h4>High-Protein Recovery Diet</h4>
@@ -309,14 +314,14 @@ const UserDashboard = () => {
       {/* Complaint Chat Thread Modal */}
       <Modal isOpen={Boolean(selectedComplaint)} onClose={() => setSelectedComplaint(null)} title={`Complaint Thread #${selectedComplaint?.complaintId}`}>
         <div>
-          <div style={{ maxHeight: '250px', overflowY: 'auto', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
+          <div style={{ maxHeight: '250px', overflowY: 'auto', background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
             {(selectedComplaint?.chatMessages || []).length === 0 ? (
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No messages yet. Start conversation below.</p>
             ) : (
               selectedComplaint?.chatMessages?.map((msg, i) => (
                 <div key={i} style={{ marginBottom: '10px', textAlign: msg.senderName === userName ? 'right' : 'left' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{msg.senderName} ({msg.role})</span>
-                  <div style={{ background: msg.senderName === userName ? '#3b82f6' : 'rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '8px', display: 'inline-block', marginTop: '2px' }}>
+                  <div style={{ background: msg.senderName === userName ? '#3b82f6' : 'var(--card-border)', padding: '8px 12px', borderRadius: '8px', display: 'inline-block', marginTop: '2px' }}>
                     {msg.text}
                   </div>
                 </div>

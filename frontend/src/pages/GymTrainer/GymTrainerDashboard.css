@@ -1,0 +1,56 @@
+.gym-trainer-dashboard {
+  min-height: 85vh;
+}
+
+.trainer-header h1 {
+  color: var(--text-primary);
+}
+
+.trainer-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.trainer-tabs .tab-btn {
+  flex: 1;
+  padding: 15px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.trainer-tabs .tab-btn:hover {
+  background: var(--card-border);
+  color: var(--text-primary);
+}
+
+.trainer-tabs .tab-btn.active {
+  background: var(--primary-accent) !important;
+  color: #ffffff !important;
+  border-color: var(--primary-accent) !important;
+}
+
+.routine-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.routine-calendar button { min-height: 34px; border: 1px solid var(--card-border); border-radius: 8px; background: var(--card-bg); color: var(--text-primary); cursor: pointer; }
+.routine-calendar button.selected { background: var(--primary-accent); color: #fff; border-color: var(--primary-accent); }
+.exercise-picker { max-height: 145px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; padding: 10px; border: 1px solid var(--card-border); border-radius: 10px; }
+.exercise-picker label { font-size: .85rem; color: var(--text-secondary); }
+
+@media (max-width: 768px) {
+  .trainer-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .trainer-tabs {
+    flex-direction: column;
+  }
+}

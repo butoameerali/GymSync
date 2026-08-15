@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Activity, Flame, Target, MapPin, Calendar, CheckCircle, Clock, DownloadCloud, Trash2, Shield, Lock, Camera, Building } from 'lucide-react';
 import ImageCropper from '../../components/layout/ImageCropper';
+import Modal from '../../components/common/Modal';
+import { toast } from 'react-toastify';
 import './Profile.css';
 
 const Profile = () => {
-  const [activeTab, setActiveTab] = useState('history'); // 'history', 'posts', 'bio'
+  const userRole = localStorage.getItem('gymsync_role') || 'User';
+  const isTrainee = userRole === 'User' || userRole === 'Guest';
+  const [activeTab, setActiveTab] = useState(() => (userRole === 'GymOwner' ? 'gig' : (isTrainee ? 'history' : 'posts')));
   const [isEditingBio, setIsEditingBio] = useState(false);
   
   // Stats
@@ -16,6 +20,7 @@ const Profile = () => {
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest User';
   const userKey = userName.replace(/\s+/g, '_'); // normalize for local storage key
   const [profilePic, setProfilePic] = useState(localStorage.getItem(`gymsync_${userKey}_pic`) || '');
+  const [userData, setUserData] = useState(null);
   const [rawImageSrc, setRawImageSrc] = useState(null);
 
   // Bio Data
@@ -28,6 +33,68 @@ const Profile = () => {
   });
 
   const fileInputRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Email Verification Modal State
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [verifyEmailInput, setVerifyEmailInput] = useState('');
+  const [otpStep, setOtpStep] = useState(1);
+  const [otpInput, setOtpInput] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  const handleSendEmailOtp = async (e) => {
+    e.preventDefault();
+    if (!verifyEmailInput.trim()) return;
+    setIsSendingOtp(true);
+    try {
+      const res = await fetch('/api/users/send-verification-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
+        body: JSON.stringify({ userName, email: verifyEmailInput.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to send OTP');
+
+      toast.success(data.message || '6-digit OTP sent to your Gmail address. Please check your inbox.');
+      setOtpStep(2);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async (e) => {
+    e.preventDefault();
+    if (!otpInput.trim()) return;
+    setIsVerifyingOtp(true);
+    try {
+      const res = await fetch('/api/users/verify-email-otp', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
+        body: JSON.stringify({ userName, email: verifyEmailInput.trim(), otp: otpInput.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'OTP Verification failed');
+
+      setUserData(prev => ({ ...(prev || {}), email: verifyEmailInput.trim(), isEmailVerified: true, isGoogleApproved: true }));
+      toast.success('✅ Google Gmail authenticated & verified successfully!');
+      setIsVerifyModalOpen(false);
+      setOtpStep(1);
+      setOtpInput('');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
 
   useEffect(() => {
     // Load local storage states for FYP Demo, scoped to userName
@@ -58,51 +125,63 @@ const Profile = () => {
     };
 
     loadBioData();
-
-    // Listen for bio update event from OnboardingWizard or manual edits
     window.addEventListener('gymsync_bio_updated', loadBioData);
 
-    // Fetch user profile from DB to sync profile picture across browsers
+    const fetches = [];
+
     if (userName !== 'Guest User') {
-      fetch(`/api/users/${userName}`)
+      fetches.push(
+        fetch(`/api/users/${userName}`)
+          .then(res => res.json())
+          .then(user => {
+            if (user) {
+              setUserData(user);
+              if (user.profilePic) {
+                setProfilePic(user.profilePic);
+                localStorage.setItem(`gymsync_${userKey}_pic`, user.profilePic);
+              }
+            }
+          })
+          .catch(err => console.error("Error fetching profile from DB:", err))
+      );
+    }
+
+    fetches.push(
+      fetch('/api/posts')
         .then(res => res.json())
-        .then(user => {
-          if (user && user.profilePic) {
-            setProfilePic(user.profilePic);
-            localStorage.setItem(`gymsync_${userKey}_pic`, user.profilePic);
+        .then(data => {
+          if(Array.isArray(data)) {
+            setMyPosts(data.filter(p => p.authorName === userName || p.author?.name === userName));
           }
         })
-        .catch(err => console.error("Error fetching profile from DB:", err));
-    }
+        .catch(err => console.error(err))
+    );
 
-    // Fetch user posts
-    fetch('/api/posts')
-      .then(res => res.json())
-      .then(data => {
-        if(Array.isArray(data)) {
-          // Filter posts authored by the currently logged-in user
-          setMyPosts(data.filter(p => p.authorName === userName || p.author?.name === userName));
-        }
-      })
-      .catch(err => console.error(err));
-
-    const userRole = localStorage.getItem('gymsync_role');
-    if (userRole === 'GymOwner') {
+    const role = localStorage.getItem('gymsync_role');
+    if (role === 'GymOwner') {
       setActiveTab('gig');
-      fetch(`/api/gym-owner/dashboard/${userName}`, {
-        headers: {
-          'x-user-name': userName,
-          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
-        }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.gym && data.gym._id !== 'gym_demo_id') {
-          setMyGymGig(data.gym);
-        }
-      })
-      .catch(err => console.error('Error fetching gym gig', err));
+      fetches.push(
+        fetch(`/api/gym-owner/dashboard/${userName}`, {
+          headers: {
+            'x-user-name': userName,
+            'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+          }
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.gym && data.gym._id !== 'gym_demo_id') {
+            setMyGymGig(data.gym);
+          }
+        })
+        .catch(err => console.error('Error fetching gym gig', err))
+      );
+    } else if (!isTrainee) {
+      setActiveTab('posts');
     }
+
+    Promise.allSettled(fetches).then(() => {
+      setIsLoading(false);
+    });
 
     return () => {
       window.removeEventListener('gymsync_bio_updated', loadBioData);
@@ -110,7 +189,7 @@ const Profile = () => {
   }, [userKey, userName]);
 
   const [validationErrors, setValidationErrors] = useState([]);
-  const userRole = localStorage.getItem('gymsync_role') || 'User';
+  const [hideHealthData, setHideHealthData] = useState(() => localStorage.getItem('gymsync_privacy_hideHealth') === 'true');
   const isAdminUser = ['SuperAdmin', 'Admin', 'ComplaintModerator'].includes(userRole);
   const authToken = localStorage.getItem('gymsync_token');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -141,19 +220,7 @@ const Profile = () => {
     localStorage.setItem(`gymsync_${userKey}_bio_data`, JSON.stringify(bio));
     localStorage.setItem(`gymsync_${userKey}_bio`, JSON.stringify(bio));
     
-    if (profilePic) {
-      localStorage.setItem(`gymsync_${userKey}_pic`, profilePic);
-      // Sync to MongoDB
-      try {
-        await fetch('/api/users/profile-pic', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: userName, profilePic })
-        });
-      } catch (err) {
-        console.error("Failed to sync profile pic to DB");
-      }
-    }
+    if (profilePic) await saveProfilePic(profilePic);
     
     setIsEditingBio(false);
     window.dispatchEvent(new Event('gymsync_bio_updated'));
@@ -178,9 +245,29 @@ const Profile = () => {
     if (e.target) e.target.value = null;
   };
 
-  const onCropComplete = (croppedImage) => {
+  const saveProfilePic = async (image) => {
+    localStorage.setItem(`gymsync_${userKey}_pic`, image);
+    const response = await fetch('/api/users/profile-pic', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+      },
+      body: JSON.stringify({ profilePic: image })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Unable to save profile picture.');
+  };
+
+  const onCropComplete = async (croppedImage) => {
     setProfilePic(croppedImage);
     setRawImageSrc(null);
+    try {
+      await saveProfilePic(croppedImage);
+      toast.success('Profile picture updated.');
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   const handleChangePassword = async (e) => {
@@ -195,6 +282,10 @@ const Profile = () => {
 
     if (newPassword !== confirmPassword) {
       setPasswordError('New passwords do not match.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.');
       return;
     }
 
@@ -233,11 +324,11 @@ const Profile = () => {
         <div className="profile-cover"></div>
         <div className="container">
           <div className="profile-header glass-panel" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '20px', alignItems: 'center' }}>
-            <div className="profile-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }}>
+            <div className="profile-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '120px', height: '120px', borderRadius: '50%', background: 'var(--card-bg)' }}>
               {profilePic ? (
                 <img src={profilePic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <span style={{ fontSize: '3rem', color: 'white' }}>{userName.charAt(0).toUpperCase()}</span>
+                <span style={{ fontSize: '3rem', color: 'var(--text-primary)' }}>{userName.charAt(0).toUpperCase()}</span>
               )}
             </div>
             <div className="profile-info">
@@ -300,21 +391,26 @@ const Profile = () => {
               </div>
               <button
                 className="btn"
-                style={{ background: '#ef4444', color: 'white', minWidth: '180px' }}
+                style={{ background: '#ef4444', color: 'var(--text-primary)', minWidth: '180px' }}
                 onClick={async () => {
                   if (window.confirm('Are you ABSOLUTELY sure you want to permanently delete your account? This cannot be undone!')) {
                     try {
-                      await fetch(`/api/users/${userName}/delete`, {
+                      const response = await fetch('/api/users/me', {
                         method: 'DELETE',
                         headers: {
                           ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
                         }
                       });
+                      if (!response.ok) throw new Error('Unable to delete account.');
                     } catch (err) {
-                      console.warn('Account deletion endpoint unavailable or failed. Clearing local session.');
+                      toast.error(err.message || 'Unable to delete account.');
+                      return;
                     }
-                    localStorage.clear();
-                    window.location.href = '/login';
+                    localStorage.removeItem('userInfo');
+                    localStorage.removeItem('gymsync_token');
+                    localStorage.removeItem('gymsync_role');
+                    localStorage.removeItem('gymsync_user_name');
+                    window.location.href = '/';
                   }
                 }}
               >
@@ -322,6 +418,19 @@ const Profile = () => {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="profile-page" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div className="profile-cover" style={{ background: 'var(--card-bg)' }}></div>
+        <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', marginTop: '-60px' }}>
+          <div style={{ width: '150px', height: '150px', borderRadius: '50%', background: 'var(--card-border)', animation: 'pulseBlue 2s infinite' }} />
+          <div style={{ width: '250px', height: '40px', background: 'var(--card-border)', borderRadius: '8px', animation: 'pulseBlue 2s infinite' }} />
+          <div style={{ width: '100%', maxWidth: '800px', height: '400px', background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--card-border)', animation: 'pulseBlue 2s infinite', marginTop: '20px' }} />
         </div>
       </div>
     );
@@ -351,7 +460,30 @@ const Profile = () => {
           <input type="file" ref={fileInputRef} accept="image/*" style={{display: 'none'}} onChange={handlePicUpload} />
           <div className="profile-info">
             <h1>{userName}</h1>
-            <p className="bio-tagline">{bio.location ? <><MapPin size={16}/> {bio.location}</> : 'Fitness Enthusiast'}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <p className="bio-tagline" style={{ margin: 0 }}>{bio.location ? <><MapPin size={16}/> {bio.location}</> : 'Fitness Enthusiast'}</p>
+              {userData?.isGoogleApproved || userData?.isEmailVerified ? (
+                <span className="category-badge" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 600 }}>
+                  ✅ Gmail Verified
+                </span>
+              ) : (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span className="category-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 600 }}>
+                    ⚠️ Gmail Verification Pending
+                  </span>
+                  <button 
+                    className="btn btn-primary btn-sm" 
+                    style={{ padding: '3px 10px', fontSize: '0.75rem', background: '#10b981', borderColor: '#10b981', borderRadius: '12px', cursor: 'pointer' }}
+                    onClick={() => {
+                      setVerifyEmailInput(userData?.email || '');
+                      setIsVerifyModalOpen(true);
+                    }}
+                  >
+                    Verify Email Now
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           <div className="profile-stats">
             <div className="stat-badge pulse-blue">
@@ -367,9 +499,9 @@ const Profile = () => {
 
         {/* Navigation Tabs */}
         <div className="profile-tabs glass-panel">
-          {userRole !== 'GymOwner' && <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Workout History</button>}
+          {isTrainee && <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Workout History</button>}
           <button className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>Your Timeline</button>
-          {userRole !== 'GymOwner' && <button className={`tab-btn ${activeTab === 'bio' ? 'active' : ''}`} onClick={() => setActiveTab('bio')}>Health Bio</button>}
+          {isTrainee && <button className={`tab-btn ${activeTab === 'bio' ? 'active' : ''}`} onClick={() => setActiveTab('bio')}>Health Bio</button>}
           {userRole === 'GymOwner' && <button className={`tab-btn ${activeTab === 'gig' ? 'active' : ''}`} onClick={() => setActiveTab('gig')}>Your Gym Gig</button>}
           <button className={`tab-btn ${activeTab === 'privacy' ? 'active' : ''}`} onClick={() => setActiveTab('privacy')}>Privacy & Data</button>
         </div>
@@ -501,7 +633,7 @@ const Profile = () => {
                   {/* Visual Body Progress Card */}
                   <div className="bio-stat-card full" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <h4 style={{ alignSelf: 'flex-start' }}>Saved Body Baseline</h4>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '10px' }}>
+                    <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '16px', border: '1px solid var(--card-border)', marginTop: '10px' }}>
                       <svg viewBox="0 0 100 200" style={{ height: '200px' }}>
                         <circle cx="50" cy="20" r="12" fill="var(--primary-accent)" />
                         <ellipse cx="50" cy="50" rx={18 + ((bio.bodyFatVolume || 30)/20)} ry="10" fill="var(--primary-accent)" />
@@ -550,7 +682,7 @@ const Profile = () => {
               <h3 className="section-title"><Shield size={20} color="var(--primary-accent)"/> Privacy & GDPR Controls</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Manage your data privacy and control what others can see on your public profile.</p>
 
-              <div style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
+              <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Lock size={16}/> Private Health Bio</h4>
@@ -559,20 +691,20 @@ const Profile = () => {
                   <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                     <input 
                       type="checkbox" 
-                      checked={localStorage.getItem('gymsync_privacy_hideHealth') === 'true'} 
+                      checked={hideHealthData} 
                       onChange={(e) => {
-                        localStorage.setItem('gymsync_privacy_hideHealth', e.target.checked ? 'true' : 'false');
-                        // Force a re-render by doing a tiny state update if needed
-                        setActiveTab(prev => prev);
-                        alert(`Health data is now ${e.target.checked ? 'PRIVATE' : 'PUBLIC'} on your profile.`);
+                        const isChecked = e.target.checked;
+                        setHideHealthData(isChecked);
+                        localStorage.setItem('gymsync_privacy_hideHealth', isChecked ? 'true' : 'false');
+                        toast.success(`Health data is now ${isChecked ? 'PRIVATE' : 'PUBLIC'} on your profile.`);
                       }}
-                      style={{ transform: 'scale(1.5)' }}
+                      style={{ transform: 'scale(1.5)', cursor: 'pointer' }}
                     />
                   </label>
                 </div>
               </div>
 
-              <div style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
+              <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><DownloadCloud size={16}/> Download My Data</h4>
@@ -607,15 +739,22 @@ const Profile = () => {
                   </div>
                   <button 
                     className="btn"
-                    style={{ background: '#ef4444', color: 'white' }}
+                    style={{ background: '#ef4444', color: 'var(--text-primary)' }}
                     onClick={async () => {
                       if(window.confirm('Are you ABSOLUTELY sure you want to permanently delete your account? This cannot be undone!')) {
                         try {
-                          await fetch(`/api/users/${userName}/delete`, { method: 'DELETE' }); // Optional backend endpoint
-                          localStorage.clear();
-                          window.location.href = '/login';
+                          const response = await fetch('/api/users/me', {
+                            method: 'DELETE',
+                            headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+                          });
+                          if (!response.ok) throw new Error('Unable to delete account.');
+                          localStorage.removeItem('userInfo');
+                          localStorage.removeItem('gymsync_token');
+                          localStorage.removeItem('gymsync_role');
+                          localStorage.removeItem('gymsync_user_name');
+                          window.location.href = '/';
                         } catch (err) {
-                          alert("Failed to delete account");
+                          toast.error(err.message || 'Failed to delete account');
                         }
                       }
                     }}
@@ -646,12 +785,12 @@ const Profile = () => {
                     <div><strong>Admission Fee:</strong> ${myGymGig.admissionFee || 0}</div>
                   </div>
                   {myGymGig.description && (
-                    <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
+                    <div style={{ background: 'var(--card-bg)', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
                       <h4 style={{ marginBottom: '10px', color: 'var(--primary-accent)' }}>Gym Description (Post Info)</h4>
                       <p style={{ whiteSpace: 'pre-wrap', margin: 0, lineHeight: '1.6' }}>{myGymGig.description}</p>
                     </div>
                   )}
-                  <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--card-border)' }}>
                     <a href="/admin" className="btn btn-outline" style={{ display: 'inline-block' }}>
                       Manage in Dashboard
                     </a>
@@ -677,6 +816,58 @@ const Profile = () => {
           onCancel={() => setRawImageSrc(null)} 
         />
       )}
+
+      <Modal isOpen={isVerifyModalOpen} onClose={() => { setIsVerifyModalOpen(false); setOtpStep(1); setOtpInput(''); }} title="Authenticate & Verify Gmail">
+        {otpStep === 1 ? (
+          <form onSubmit={handleSendEmailOtp} style={{ display: 'grid', gap: '16px', padding: '10px 0' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0, lineHeight: '1.5' }}>
+              Step 1: Enter your Google Gmail address. We will send a 6-digit OTP code to authenticate your account.
+            </p>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, color: 'var(--text-primary)' }}>Google Gmail Address</label>
+              <input 
+                type="email" 
+                required 
+                className="search-input"
+                style={{ width: '100%', padding: '12px' }}
+                placeholder="name@gmail.com" 
+                value={verifyEmailInput} 
+                onChange={e => setVerifyEmailInput(e.target.value)} 
+              />
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px', background: '#3b82f6', borderColor: '#3b82f6', marginTop: '10px' }} disabled={isSendingOtp}>
+              {isSendingOtp ? 'Sending OTP Code...' : 'Send 6-Digit OTP Code'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyEmailOtp} style={{ display: 'grid', gap: '16px', padding: '10px 0' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0, lineHeight: '1.5' }}>
+              Step 2: Enter the 6-digit OTP code sent to <strong style={{ color: 'var(--primary-accent)' }}>{verifyEmailInput}</strong> to confirm authentication.
+            </p>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, color: 'var(--text-primary)' }}>6-Digit OTP Code</label>
+              <input 
+                type="text" 
+                required 
+                maxLength={6}
+                className="search-input"
+                style={{ width: '100%', padding: '12px', letterSpacing: '6px', textAlign: 'center', fontSize: '1.4rem', fontWeight: 'bold' }}
+                placeholder="123456" 
+                value={otpInput} 
+                onChange={e => setOtpInput(e.target.value)} 
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="btn btn-outline" style={{ flex: 1, padding: '12px' }} onClick={() => setOtpStep(1)}>
+                Back
+              </button>
+              <button type="submit" className="btn btn-primary" style={{ flex: 2, padding: '12px', background: '#10b981', borderColor: '#10b981' }} disabled={isVerifyingOtp}>
+                {isVerifyingOtp ? 'Authenticating...' : 'Authenticate & Approve'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 };

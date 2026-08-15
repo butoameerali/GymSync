@@ -1,8 +1,9 @@
 .onboarding-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(10, 10, 15, 0.95);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -11,13 +12,14 @@
 }
 
 .onboarding-modal {
-  background: #1a1d24;
+  background: var(--panel-bg);
+  color: var(--text-primary);
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -47,12 +49,12 @@
 }
 
 .skip-btn:hover {
-  color: white;
+  color: var(--text-primary);
 }
 
 .progress-bar-container {
   height: 4px;
-  background: rgba(255,255,255,0.1);
+  background: var(--card-border);
   width: 100%;
 }
 
@@ -82,14 +84,14 @@
   width: 6px;
 }
 .onboarding-content::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1);
+  background: var(--card-border);
   border-radius: 10px;
 }
 
 .wiz-step h2 {
   font-size: 2rem;
   margin-bottom: 5px;
-  color: white;
+  color: var(--text-primary);
 }
 
 .wiz-subtitle {
@@ -129,7 +131,7 @@
 
 .goal-category {
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
   overflow: hidden;
   transition: 0.3s;
@@ -187,8 +189,8 @@
 
 .sub-pill {
   padding: 8px 16px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 20px;
   font-size: 0.85rem;
   cursor: pointer;
@@ -196,13 +198,13 @@
 }
 
 .sub-pill:hover {
-  background: rgba(255,255,255,0.1);
+  background: var(--card-border);
 }
 
 .sub-pill.selected {
   background: var(--primary-accent);
   border-color: var(--primary-accent);
-  color: white;
+  color: var(--text-primary);
   font-weight: bold;
 }
 
@@ -215,7 +217,7 @@
 .gender-card {
   flex: 1;
   padding: 20px;
-  background: rgba(255,255,255,0.05);
+  background: var(--card-bg);
   border: 2px solid transparent;
   border-radius: 16px;
   text-align: center;
@@ -225,7 +227,7 @@
 }
 
 .gender-card:hover {
-  background: rgba(255,255,255,0.1);
+  background: var(--card-border);
 }
 
 .gender-card.selected {
@@ -237,10 +239,10 @@
 .wiz-input, .wiz-select {
   width: 100%;
   padding: 15px;
-  background: rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
-  color: white;
+  color: var(--text-primary);
   font-size: 1rem;
 }
 
@@ -252,7 +254,7 @@
 /* Step 3: Metrics */
 .unit-switcher {
   display: flex;
-  background: rgba(0,0,0,0.3);
+  background: var(--card-bg);
   border-radius: 30px;
   padding: 5px;
   margin-bottom: 30px;
@@ -272,7 +274,7 @@
 
 .unit-switcher button.active {
   background: var(--primary-accent);
-  color: white;
+  color: var(--text-primary);
 }
 
 .metrics-grid {
@@ -330,7 +332,7 @@
   padding: 20px;
   background: rgba(255,255,255,0.02);
   border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.05);
+  border: 1px solid var(--card-bg);
 }
 
 .body-svg {
@@ -346,7 +348,7 @@
   padding: 20px;
   background: rgba(255,255,255,0.02);
   border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.05);
+  border: 1px solid var(--card-bg);
   margin-bottom: 20px;
 }
 
@@ -356,7 +358,7 @@
 
 .muscle-part {
   fill: url(#muscleGrad);
-  stroke: rgba(255,255,255,0.1);
+  stroke: var(--card-border);
   stroke-width: 0.5;
   filter: url(#bevel3d);
   transition: 0.3s;
@@ -383,7 +385,7 @@
 
 .muscle-tag {
   background: var(--primary-accent);
-  color: white;
+  color: var(--text-primary);
   padding: 5px 12px;
   border-radius: 20px;
   font-size: 0.85rem;
@@ -418,7 +420,7 @@
 .shape-placeholder {
   width: 60px;
   height: 100px;
-  background: rgba(255,255,255,0.1);
+  background: var(--card-border);
   margin: 0 auto 15px auto;
   border-radius: 30px;
 }
@@ -442,9 +444,9 @@
 .joint-btn {
   padding: 10px 20px;
   border-radius: 30px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: white;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
@@ -464,7 +466,7 @@
 .condition-item {
   padding: 15px;
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
   cursor: pointer;
 }
@@ -496,7 +498,7 @@
   padding: 20px 40px;
   display: flex;
   justify-content: space-between;
-  border-top: 1px solid rgba(255,255,255,0.1);
+  border-top: 1px solid var(--card-border);
 }
 
 @media (max-width: 600px) {

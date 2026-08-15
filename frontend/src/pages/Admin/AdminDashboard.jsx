@@ -18,9 +18,10 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // Admin Role Identity
-  const userName = localStorage.getItem('gymsync_user_name') || 'Admin Manager';
+  const userName = localStorage.getItem('gymsync_user_name') || 'Admin';
   const userRole = localStorage.getItem('gymsync_role') || 'Admin';
   const isSeniorAdmin = userRole === 'SuperAdmin' || userName.toLowerCase().includes('senior') || userName.toLowerCase() === 'admin manager';
+  const isJuniorAdmin = userRole === 'Admin' && !isSeniorAdmin;
 
   // Complaint Chat State
   const [selectedComplaint, setSelectedComplaint] = useState(null);
@@ -42,6 +43,67 @@ const AdminDashboard = () => {
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastType, setBroadcastType] = useState('ExclusiveEvent');
   const [broadcastMessage, setBroadcastMessage] = useState('');
+
+  // Fitness Instructor Creation State
+  const [instructorForm, setInstructorForm] = useState({ name: '', email: '', password: '' });
+  const [isCreatingInstructor, setIsCreatingInstructor] = useState(false);
+
+  const handleEditUser = async (account) => {
+    const name = window.prompt('User name', account.name);
+    if (name === null) return;
+    const email = window.prompt('Email address', account.email);
+    if (email === null) return;
+    try {
+      const res = await fetch(`/api/admin/users/${account._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        body: JSON.stringify({ name, email })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      toast.success('User details updated');
+      fetchAdminData();
+    } catch (error) { toast.error(error.message || 'Could not update user'); }
+  };
+
+  const handleDeleteUser = async (account) => {
+    if (!window.confirm(`Delete ${account.name}'s account? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/admin/users/${account._id}`, { method: 'DELETE', headers: { 'x-user-name': userName } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      toast.success('User account deleted');
+      fetchAdminData();
+    } catch (error) { toast.error(error.message || 'Could not delete user'); }
+  };
+
+  const handleCreateInstructor = async (e) => {
+    e.preventDefault();
+    if (!instructorForm.name || !instructorForm.email || !instructorForm.password) {
+      toast.warn('Please fill in all fields');
+      return;
+    }
+    setIsCreatingInstructor(true);
+    try {
+      const res = await fetch('/api/admin/create-instructor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        body: JSON.stringify(instructorForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Fitness Instructor '${instructorForm.name}' created successfully! Account role set to FitnessInstructor.`);
+        setInstructorForm({ name: '', email: '', password: '' });
+        fetchAdminData();
+      } else {
+        toast.error(data.message || 'Failed to create instructor');
+      }
+    } catch (err) {
+      toast.error('Error creating instructor account');
+    } finally {
+      setIsCreatingInstructor(false);
+    }
+  };
 
   // Pro Plan Price State
   const [proPriceInput, setProPriceInput] = useState(localStorage.getItem('gymsync_pro_plan_price') || '9.99');
@@ -371,9 +433,11 @@ const AdminDashboard = () => {
             <button className={`tab-btn ${activeTab === 'gym_approvals' ? 'active' : ''}`} onClick={() => setActiveTab('gym_approvals')}>
               <Building size={16} /> Gym Approvals ({pendingGyms.length})
             </button>
-            <button className={`tab-btn ${activeTab === 'exercises_plans' ? 'active' : ''}`} onClick={() => setActiveTab('exercises_plans')}>
-              <Dumbbell size={16} /> Exercise Library & Plans ({dbExercises.length})
-            </button>
+            {!isJuniorAdmin && (
+              <button className={`tab-btn ${activeTab === 'exercises_plans' ? 'active' : ''}`} onClick={() => setActiveTab('exercises_plans')}>
+                <Dumbbell size={16} /> Exercise Library & Plans ({dbExercises.length})
+              </button>
+            )}
             <button className={`tab-btn ${activeTab === 'reported_posts' ? 'active' : ''}`} onClick={() => setActiveTab('reported_posts')}>
               <AlertTriangle size={16} /> Reported Posts ({reportedPosts.length})
             </button>
@@ -388,6 +452,9 @@ const AdminDashboard = () => {
             </button>
             <button className={`tab-btn ${activeTab === 'broadcast' ? 'active' : ''}`} onClick={() => setActiveTab('broadcast')}>
               <Send size={16} /> Broadcast Events
+            </button>
+            <button className={`tab-btn ${activeTab === 'users_instructors' ? 'active' : ''}`} onClick={() => setActiveTab('users_instructors')}>
+              <Users size={16} /> Users & Fitness Instructors
             </button>
             {isSeniorAdmin && (
               <button className={`tab-btn ${activeTab === 'audit_logs' ? 'active' : ''}`} onClick={() => setActiveTab('audit_logs')}>
@@ -406,7 +473,7 @@ const AdminDashboard = () => {
         ) : (
           <>
             {/* EXERCISE LIBRARY & PRE-MADE PLANS TAB */}
-            {activeTab === 'exercises_plans' && (
+            {activeTab === 'exercises_plans' && !isJuniorAdmin && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
                   <div>
@@ -435,7 +502,7 @@ const AdminDashboard = () => {
                     {dbPlans.map(plan => (
                       <div key={plan._id} className="glass-panel" style={{ padding: '16px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                          <h4 style={{ color: 'white', margin: 0 }}>{plan.title}</h4>
+                          <h4 style={{ color: 'var(--text-primary)', margin: 0 }}>{plan.title}</h4>
                           <span className="category-badge" style={{ background: plan.type === 'Diet' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)', color: plan.type === 'Diet' ? '#f59e0b' : '#3b82f6' }}>
                             {plan.type} • {plan.category}
                           </span>
@@ -460,7 +527,7 @@ const AdminDashboard = () => {
                 <div className="glass-panel" style={{ padding: '0', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead>
-                      <tr style={{ background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                      <tr style={{ background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid var(--card-border)' }}>
                         <th style={{ padding: '12px 16px' }}>ID / Name</th>
                         <th style={{ padding: '12px 16px' }}>Target Muscles</th>
                         <th style={{ padding: '12px 16px' }}>Equipment</th>
@@ -477,9 +544,9 @@ const AdminDashboard = () => {
                         const muscleMatch = musclesStr.toLowerCase().includes(searchLower);
                         return nameMatch || muscleMatch;
                       }).slice(0, 100).map(ex => (
-                        <tr key={ex._id || ex.exerciseId} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <tr key={ex._id || ex.exerciseId} style={{ borderBottom: '1px solid var(--card-bg)' }}>
                           <td style={{ padding: '12px 16px' }}>
-                            <strong style={{ color: 'white', display: 'block' }}>{ex.name}</strong>
+                            <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{ex.name}</strong>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{ex.exerciseId}</span>
                           </td>
                           <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>
@@ -487,7 +554,7 @@ const AdminDashboard = () => {
                           </td>
                           <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{ex.equipmentRequired || 'Bodyweight'}</td>
                           <td style={{ padding: '12px 16px' }}>
-                            <span className="category-badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>{ex.difficulty || 'Beginner'}</span>
+                            <span className="category-badge" style={{ background: 'var(--card-border)', color: 'var(--text-secondary)' }}>{ex.difficulty || 'Beginner'}</span>
                           </td>
                           <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: ex.mediaUrl ? '#10b981' : '#ef4444' }}>
                             {ex.mediaUrl ? '✓ Has Video/GIF' : '✕ No Media URL'}
@@ -668,85 +735,6 @@ const AdminDashboard = () => {
 
                 {isSeniorAdmin ? (
                   <>
-                    <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
-                      <h3>Pro Plan Subscription Pricing Settings</h3>
-                      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                        Configure the monthly subscription price for the GymSync Pro Plan (Unlocks AI Trainer, AI Chat, and Diet Plans across the platform).
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '400px' }}>
-                        <div style={{ position: 'relative', flex: 1 }}>
-                          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', color: 'var(--primary-accent)' }}>$</span>
-                          <input 
-                            type="number" 
-                            step="0.01"
-                            className="search-input"
-                            style={{ paddingLeft: '28px', fontWeight: 'bold' }}
-                            value={proPriceInput}
-                            onChange={e => setProPriceInput(e.target.value)}
-                          />
-                        </div>
-                        <button 
-                          className="btn btn-primary"
-                          onClick={() => {
-                            localStorage.setItem('gymsync_pro_plan_price', proPriceInput);
-                            toast.success(`Pro Plan subscription price updated to $${proPriceInput}/month!`);
-                          }}
-                        >
-                          Save Pro Price
-                        </button>
-                      </div>
-                    </div>
-                    <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
-                      <h3>Pro Plan Payment Instructions</h3>
-                      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                        Edit the mobile wallet details shown to users for Easypaisa and JazzCash subscription payments.
-                      </p>
-                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '18px' }}>
-                        {['Easypaisa', 'JazzCash'].map(method => (
-                          <button
-                            key={method}
-                            type="button"
-                            className={`btn ${selectedPaymentMethod === method ? 'btn-primary' : 'btn-outline'}`}
-                            onClick={() => handleSelectPaymentMethod(method)}
-                          >
-                            {method}
-                          </button>
-                        ))}
-                      </div>
-                      <div style={{ display: 'grid', gap: '14px', maxWidth: '600px' }}>
-                        <div>
-                          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Account / Mobile Number</label>
-                          <input
-                            type="text"
-                            className="search-input"
-                            value={configNumber}
-                            onChange={e => setConfigNumber(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Bank / Wallet Details</label>
-                          <input
-                            type="text"
-                            className="search-input"
-                            value={configDetails}
-                            onChange={e => setConfigDetails(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Notes for Users</label>
-                          <textarea
-                            rows={3}
-                            className="search-input"
-                            value={configNotes}
-                            onChange={e => setConfigNotes(e.target.value)}
-                            placeholder="e.g. Send payment screenshot for approval after transfer"
-                          />
-                        </div>
-                        <button className="btn btn-primary" onClick={handleSavePaymentConfig}>
-                          Save {selectedPaymentMethod} Settings
-                        </button>
-                      </div>
-                    </div>
                   </>
                 ) : (
                   <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
@@ -882,7 +870,7 @@ const AdminDashboard = () => {
                                 <button className="btn btn-sm btn-outline" onClick={() => setViewPostModalData(post)}>
                                   <Eye size={14} /> View Post
                                 </button>
-                                <button className="btn btn-sm" style={{ background: '#ef4444', color: '#fff' }} onClick={() => handleModeratePost(post._id, 'delete')}>
+                                <button className="btn btn-sm" style={{ background: '#ef4444', color: 'var(--text-primary)' }} onClick={() => handleModeratePost(post._id, 'delete')}>
                                   <Trash2 size={14} /> Delete Post
                                 </button>
                                 <button className="btn btn-sm btn-outline" onClick={() => handleModeratePost(post._id, 'dismiss')}>
@@ -978,7 +966,7 @@ const AdminDashboard = () => {
                     )}
 
                     {/* Subscription Refund Cashback Requests */}
-                    <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid var(--card-border)' }}>
                       <h3>Subscription Refund Cashback Approvals</h3>
                       <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
                         Review refund requests submitted via complaint tickets by Junior Admins
@@ -1168,6 +1156,122 @@ const AdminDashboard = () => {
               </div>
             )}
 
+            {/* USERS & FITNESS INSTRUCTORS TAB */}
+            {activeTab === 'users_instructors' && (
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                  <div>
+                    <h3>Users & Fitness Instructors Management</h3>
+                    <p style={{ color: 'var(--text-secondary)' }}>Create Fitness Instructor accounts and manage platform users</p>
+                  </div>
+                </div>
+
+                {/* Form to Create Fitness Instructor */}
+                <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '20px', borderRadius: '16px', marginBottom: '30px' }}>
+                  <h4 style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                    <PlusCircle size={20} /> Create New Fitness Instructor Account
+                  </h4>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                    Instructors will be assigned the <strong>FitnessInstructor</strong> role to access the Fitness Instructor Portal (<code>/fitness-instructor</code>).
+                  </p>
+                  <form onSubmit={handleCreateInstructor} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', alignItems: 'end' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Instructor Full Name</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Coach Sarah Jenkins" 
+                        value={instructorForm.name} 
+                        onChange={e => setInstructorForm({ ...instructorForm, name: e.target.value })} 
+                        className="search-input"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Email / Login Username</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. sarah@gymsync.com" 
+                        value={instructorForm.email} 
+                        onChange={e => setInstructorForm({ ...instructorForm, email: e.target.value })} 
+                        className="search-input"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Password</label>
+                      <input 
+                        type="password" 
+                        placeholder="Password" 
+                        value={instructorForm.password} 
+                        onChange={e => setInstructorForm({ ...instructorForm, password: e.target.value })} 
+                        className="search-input"
+                        required
+                      />
+                    </div>
+                    <button type="submit" className="btn btn-primary" disabled={isCreatingInstructor} style={{ background: '#10b981', borderColor: '#10b981', padding: '12px' }}>
+                      {isCreatingInstructor ? 'Creating...' : 'Create Instructor Account'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Registered Users List */}
+                <div>
+                  <h4>All Registered Platform Users & Accounts ({users.length})</h4>
+                  <div className="table-responsive" style={{ marginTop: '15px' }}>
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Role</th>
+                          <th>Status</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.map(u => (
+                          <tr key={u._id}>
+                            <td><strong>{u.name}</strong></td>
+                            <td>{u.email}</td>
+                            <td>
+                              <span className="category-badge" style={{ background: u.role === 'FitnessInstructor' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)', color: u.role === 'FitnessInstructor' ? '#10b981' : '#3b82f6' }}>
+                                {u.role}
+                              </span>
+                            </td>
+                            <td>{u.isBanned ? <span style={{ color: '#ef4444' }}>Banned</span> : <span style={{ color: '#10b981' }}>Active</span>}</td>
+                            <td style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <button className="btn btn-outline btn-sm" onClick={() => handleEditUser(u)} title="Edit user name and email"><Edit3 size={14} /> Edit</button>
+                              <button 
+                                className={`btn btn-sm ${u.isBanned ? 'btn-primary' : 'btn-outline'}`}
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch(`/api/admin/users/${u._id}/ban`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+                                      body: JSON.stringify({ isBanned: !u.isBanned })
+                                    });
+                                    if (res.ok) {
+                                      toast.success(`User ${u.name} status updated`);
+                                      fetchAdminData();
+                                    }
+                                  } catch (err) {
+                                    toast.error('Failed to update ban status');
+                                  }
+                                }}
+                              >
+                                {u.isBanned ? 'Unban User' : 'Ban User'}
+                              </button>
+                              <button className="btn btn-outline btn-sm" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={() => handleDeleteUser(u)} title="Delete this user account"><Trash2 size={14} /> Delete</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* AUDIT LOGS TAB (SENIOR SUPER ADMIN ONLY) */}
             {activeTab === 'audit_logs' && isSeniorAdmin && (
               <div className="glass-panel" style={{ padding: '24px' }}>
@@ -1208,14 +1312,14 @@ const AdminDashboard = () => {
       {/* Complaint Chat Thread Modal */}
       <Modal isOpen={Boolean(selectedComplaint)} onClose={() => setSelectedComplaint(null)} title={`Complaint Thread #${selectedComplaint?.complaintId}`}>
         <div>
-          <div style={{ maxHeight: '250px', overflowY: 'auto', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
+          <div style={{ maxHeight: '250px', overflowY: 'auto', background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
             {(selectedComplaint?.chatMessages || []).length === 0 ? (
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No messages yet. Start conversation below.</p>
             ) : (
               selectedComplaint?.chatMessages?.map((msg, i) => (
                 <div key={i} style={{ marginBottom: '10px', textAlign: msg.senderName === userName ? 'right' : 'left' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{msg.senderName} ({msg.role})</span>
-                  <div style={{ background: msg.senderName === userName ? '#3b82f6' : 'rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '8px', display: 'inline-block', marginTop: '2px' }}>
+                  <div style={{ background: msg.senderName === userName ? '#3b82f6' : 'var(--card-border)', padding: '8px 12px', borderRadius: '8px', display: 'inline-block', marginTop: '2px' }}>
                     {msg.text}
                   </div>
                 </div>
@@ -1268,7 +1372,7 @@ const AdminDashboard = () => {
           </p>
           <div style={{ maxHeight: '300px', overflowY: 'auto', background: 'rgba(0,0,0,0.4)', padding: '16px', borderRadius: '10px' }}>
             {(inspectionComplaint?.chatMessages || []).map((m, i) => (
-              <div key={i} style={{ marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+              <div key={i} style={{ marginBottom: '8px', borderBottom: '1px solid var(--card-bg)', paddingBottom: '6px' }}>
                 <strong style={{ color: m.role?.includes('Admin') ? '#3b82f6' : '#fff' }}>{m.senderName} ({m.role}):</strong> {m.text}
               </div>
             ))}
@@ -1322,7 +1426,7 @@ const AdminDashboard = () => {
           </div>
           <div>
             <h4 style={{ margin: '0 0 5px 0' }}>Content</h4>
-            <p style={{ margin: 0, padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+            <p style={{ margin: 0, padding: '10px', background: 'var(--card-bg)', borderRadius: '8px' }}>
               {viewPostModalData?.content}
             </p>
           </div>

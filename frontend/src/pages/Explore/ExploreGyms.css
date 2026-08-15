@@ -10,13 +10,15 @@
   border-top: none;
   border-left: none;
   border-right: none;
-  background: rgba(21, 24, 33, 0.8);
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--card-border);
   margin-bottom: 40px;
 }
 
 .explore-header h2 {
   font-size: 2.5rem;
   margin-bottom: 8px;
+  color: var(--text-primary);
 }
 
 .explore-header p {
@@ -47,8 +49,8 @@
   width: 100%;
   padding: 16px 16px 16px 48px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.3s ease;
@@ -57,7 +59,7 @@
 .search-input:focus {
   outline: none;
   border-color: var(--primary-accent);
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--panel-bg);
 }
 
 .search-btn {
@@ -76,8 +78,8 @@
   gap: 8px;
   padding: 8px 16px;
   border-radius: 30px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   color: var(--text-secondary);
   font-size: 0.9rem;
   cursor: pointer;
@@ -85,14 +87,14 @@
 }
 
 .filter-btn:hover {
-  background: rgba(255,255,255,0.1);
+  background: var(--card-border);
   color: var(--text-primary);
 }
 
 .filter-btn.active {
-  background: rgba(59, 130, 246, 0.15);
-  border-color: var(--primary-accent);
-  color: var(--primary-accent);
+  background: var(--primary-accent) !important;
+  border-color: var(--primary-accent) !important;
+  color: #ffffff !important;
 }
 
 .explore-content {
@@ -117,13 +119,15 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(11, 13, 20, 0.7);
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
   backdrop-filter: blur(4px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  color: var(--text-primary);
 }
 
 .map-overlay h3 {

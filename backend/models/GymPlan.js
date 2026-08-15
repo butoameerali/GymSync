@@ -9,8 +9,17 @@ const gymPlanSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
   schedule: [{
+    date: Date,
     day: String,
-    routine: String
+    routine: String,
+    exercises: [{
+      name: String,
+      sets: String,
+      reps: String,
+      notes: String
+    }],
+    dietInstructions: String
+    ,completedAt: { type: Date, default: null }
   }],
   nutritionMacros: {
     calories: Number,

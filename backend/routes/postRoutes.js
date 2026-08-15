@@ -11,24 +11,25 @@ import {
   reportPost
 } from '../controllers/postController.js';
 import { upload } from '../middleware/uploadMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 router.route('/')
   .get(getPosts)
-  .post(upload.single('media'), createPost);
+  .post(protect, upload.single('media'), createPost);
 
 router.route('/:id')
-  .delete(deletePost);
+  .delete(protect, deletePost);
 
 router.route('/:id/like')
-  .put(toggleLike);
+  .put(protect, toggleLike);
 
 router.route('/:id/report')
-  .post(reportPost);
+  .post(protect, reportPost);
 
 router.route('/:id/comment')
-  .post(addComment);
+  .post(protect, addComment);
 
 router.route('/:id/comment/:commentId/reply')
   .post(addReply);

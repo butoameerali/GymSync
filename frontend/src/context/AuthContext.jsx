@@ -14,6 +14,12 @@ export const getRoleRedirectPath = (role) => {
   if (normalized === 'gymowner') {
     return '/gym-owner';
   }
+  if (normalized === 'fitnessinstructor') {
+    return '/fitness-instructor';
+  }
+  if (normalized === 'gymtrainer') {
+    return '/gym-trainer';
+  }
   return '/home'; // Standard user redirects to Homepage feed
 };
 
@@ -28,14 +34,20 @@ export const AuthProvider = ({ children }) => {
     const name = localStorage.getItem('gymsync_user_name');
     const userInfoStr = localStorage.getItem('userInfo');
 
-    if (userInfoStr) {
+    if (userInfoStr && userInfoStr !== 'undefined' && userInfoStr !== 'null') {
       try {
         setUser(JSON.parse(userInfoStr));
       } catch (e) {
-        setUser(null);
+        if (token && role && role !== 'guest') {
+          setUser({ name, role, token });
+        } else {
+          setUser(null);
+        }
       }
     } else if (token && role && role !== 'guest') {
       setUser({ name, role, token });
+    } else {
+      setUser(null);
     }
 
     setLoading(false);
@@ -80,6 +92,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('gymsync_token');
     localStorage.removeItem('gymsync_role');
     localStorage.removeItem('gymsync_user_name');
+    localStorage.removeItem('gymsync_subscribed');
     setUser(null);
   };
 

@@ -1,4 +1,5 @@
 import Post from '../models/Post.js';
+import Notification from '../models/Notification.js';
 
 // @desc    Get all posts
 // @route   GET /api/posts
@@ -18,7 +19,7 @@ export const getPosts = async (req, res) => {
 // @route   POST /api/posts
 // @access  Private
 export const createPost = async (req, res) => {
-  const { content, authorId, authorName, authorRole } = req.body;
+  const { content } = req.body;
   let mediaUrl = '';
   
   if (req.file) {
@@ -28,10 +29,14 @@ export const createPost = async (req, res) => {
   }
 
   try {
+    if (!content?.trim() && !mediaUrl) {
+      return res.status(400).json({ message: 'Add text or media before publishing.' });
+    }
     const post = new Post({
-      authorName: authorName || 'Unknown User',
-      authorRole: authorRole || 'user',
-      content,
+      author: req.user._id,
+      authorName: req.user.name,
+      authorRole: req.user.role || 'User',
+      content: content?.trim() || '',
       mediaUrl,
       likes: [],
       comments: []
@@ -48,7 +53,7 @@ export const createPost = async (req, res) => {
 // @route   PUT /api/posts/:id/like
 // @access  Private
 export const toggleLike = async (req, res) => {
-  const { userId } = req.body; // Using a generic string ID or Name for FYP demo
+  const userId = req.user.name;
   
   try {
     const post = await Post.findById(req.params.id);
@@ -59,8 +64,27 @@ export const toggleLike = async (req, res) => {
     const isLiked = post.likes.includes(userId);
     if (isLiked) {
       post.likes = post.likes.filter(id => id !== userId);
+      // A removed like should not leave an old alert behind, nor create another
+      // one if the member likes the post again later.
+      await Notification.deleteMany({ eventKey: `post-like:${post._id}:${userId}` });
     } else {
       post.likes.push(userId);
+      if (post.authorName && post.authorName !== userId) {
+        await Notification.findOneAndUpdate(
+          { eventKey: `post-like:${post._id}:${userId}` },
+          {
+            $set: {
+              userId: post.authorName,
+              type: 'like',
+              message: `${userId} liked your post.`,
+              link: '/home',
+              isRead: false
+            },
+            $setOnInsert: { eventKey: `post-like:${post._id}:${userId}` }
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+      }
     }
 
     await post.save();
@@ -74,12 +98,13 @@ export const toggleLike = async (req, res) => {
 // @route   POST /api/posts/:id/comment
 // @access  Private
 export const addComment = async (req, res) => {
-  const { text, authorName } = req.body;
+  const { text } = req.body;
   try {
+    if (!text?.trim()) return res.status(400).json({ message: 'Comment cannot be empty.' });
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
-    const newComment = { text, author: authorName || 'Unknown User', date: new Date(), replies: [] };
+    const newComment = { text: text.trim(), author: req.user.name, date: new Date(), replies: [] };
     post.comments.push(newComment);
     await post.save();
 
@@ -159,17 +184,18 @@ export const editReply = async (req, res) => {
 // @access  Public / User
 export const reportPost = async (req, res) => {
   try {
-    const { reporterName, reason, explanation } = req.body;
+    const { reason, explanation } = req.body;
+    const reporterName = req.user.name;
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
     if (!post.reportedBy) post.reportedBy = [];
     
     // Check if already reported by this user
-    const alreadyReported = post.reportedBy.some(r => r.userName === (reporterName || 'Guest User'));
+    const alreadyReported = post.reportedBy.some(r => r.userName === reporterName);
     if (!alreadyReported) {
       post.reportedBy.push({
-        userName: reporterName || 'Guest User',
+        userName: reporterName,
         reason: reason || 'Inappropriate',
         explanation: explanation || ''
       });
@@ -188,10 +214,15 @@ export const reportPost = async (req, res) => {
 // @access  Private
 export const deletePost = async (req, res) => {
   try {
-    const post = await Post.findByIdAndDelete(req.params.id);
+    const post = await Post.findById(req.params.id);
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
+    const isModerator = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user.role);
+    if (post.authorName !== req.user.name && !isModerator) {
+      return res.status(403).json({ message: 'You can only delete your own posts.' });
+    }
+    await post.deleteOne();
     res.json({ message: 'Post removed' });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -97,7 +97,7 @@
 .auth-header h2 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-primary);
   margin: 0 0 6px 0;
 }
 
@@ -155,10 +155,10 @@
 .input-wrapper select {
   width: 100%;
   padding: 12px 14px 12px 42px;
-  background: rgba(30, 41, 59, 0.6) !important;
+  background: var(--bg-secondary) !important;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
-  color: #ffffff !important;
+  color: var(--text-primary) !important;
   font-size: 0.95rem;
   transition: all 0.2s;
 }
@@ -168,8 +168,8 @@
 .input-wrapper input:-webkit-autofill:hover,
 .input-wrapper input:-webkit-autofill:focus,
 .input-wrapper input:-webkit-autofill:active {
-  -webkit-text-fill-color: #ffffff !important;
-  -webkit-box-shadow: 0 0 0px 1000px #1e293b inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--bg-secondary) inset !important;
   transition: background-color 5000s ease-in-out 0s;
   border: 1px solid rgba(59, 130, 246, 0.5) !important;
 }
@@ -290,3 +290,181 @@
     width: 100%;
   }
 }
+
+/* ── Theme Toggle ── */
+.auth-theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  background: var(--card-bg, rgba(30,41,59,0.8));
+  border: 1px solid var(--card-border, rgba(255,255,255,0.1));
+  color: var(--text-primary, #f8fafc);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+}
+.auth-theme-toggle:hover {
+  transform: scale(1.1);
+  border-color: var(--primary-accent, #3b82f6);
+}
+
+/* ── Forgot Password Link ── */
+.forgot-link {
+  background: none;
+  border: none;
+  color: var(--primary-accent, #3b82f6);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  font-weight: 500;
+}
+.forgot-link:hover { opacity: 0.8; }
+
+/* ── Password Show/Hide Toggle ── */
+.pass-toggle {
+  position: absolute;
+  right: 14px;
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  z-index: 2;
+}
+.pass-toggle:hover { color: var(--text-primary, #f8fafc); }
+
+/* ── Google Button Wrapper ── */
+.google-btn-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0;
+}
+.google-config-note {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #64748b;
+  padding: 10px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  border: 1px dashed rgba(255,255,255,0.1);
+  width: 100%;
+}
+.google-config-note code {
+  background: rgba(59,130,246,0.15);
+  color: #60a5fa;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+/* ── Forgot Password Modal ── */
+.forgot-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+.forgot-modal {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+  border-radius: 20px;
+  background: rgba(15,23,42,0.95);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.forgot-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.forgot-header h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--text-primary, #f8fafc);
+}
+.forgot-close {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 4px;
+}
+.forgot-close:hover { color: var(--text-primary, #f8fafc); }
+.forgot-desc {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.forgot-error {
+  font-size: 0.82rem;
+  color: #fca5a5;
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.25);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+.forgot-resend {
+  display: block;
+  margin: 12px auto 0;
+  background: none;
+  border: none;
+  color: var(--primary-accent, #3b82f6);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Light Mode overrides for auth page ── */
+body.light-mode .auth-card {
+  background: rgba(255,255,255,0.9);
+  border-color: rgba(0,0,0,0.1);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+}
+body.light-mode .auth-header h2 { color: #0f172a; }
+body.light-mode .feature-item {
+  background: rgba(0,0,0,0.03);
+  border-color: rgba(0,0,0,0.08);
+  color: #1e293b;
+}
+body.light-mode .input-wrapper input,
+body.light-mode .input-wrapper select {
+  background: rgba(241,245,249,0.9) !important;
+  color: #0f172a !important;
+  border-color: rgba(0,0,0,0.15);
+}
+body.light-mode .guest-btn {
+  color: #1e293b;
+  border-color: rgba(0,0,0,0.15);
+}
+body.light-mode .auth-toggle { color: #475569; }
+body.light-mode .forgot-modal { background: rgba(255,255,255,0.98); }
+body.light-mode .forgot-header h3,
+body.light-mode .forgot-desc { color: #1e293b; }
+

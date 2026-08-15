@@ -18,27 +18,28 @@
   margin-bottom: 10px;
 }
 
-.trainer-tabs {
+.ai-trainer-page .trainer-tabs {
   display: flex;
   gap: 10px;
   margin-bottom: 24px;
 }
 
-.tab-btn {
+.ai-trainer-page .tab-btn {
   flex: 1;
   padding: 15px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: white;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
   border-radius: 12px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.tab-btn.active {
-  background: var(--primary-accent);
-  border-color: var(--primary-accent);
+.ai-trainer-page .tab-btn.active {
+  background: var(--primary-accent) !important;
+  color: #ffffff !important;
+  border-color: var(--primary-accent) !important;
 }
 
 .library-filters {
@@ -53,17 +54,17 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(0,0,0,0.3);
+  background: var(--card-bg);
   padding: 12px 20px;
   border-radius: 30px;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--card-border);
 }
 
 .search-bar input {
   flex: 1;
   background: none;
   border: none;
-  color: white;
+  color: var(--text-primary);
   outline: none;
 }
 
@@ -77,16 +78,16 @@
 .cat-pill {
   padding: 8px 16px;
   border-radius: 20px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: white;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
   white-space: nowrap;
   cursor: pointer;
 }
 
 .cat-pill.active {
-  background: white;
-  color: black;
+  background: var(--text-primary);
+  color: var(--bg-color);
   font-weight: bold;
 }
 
@@ -98,8 +99,8 @@
 }
 
 .exercise-card {
-  background: rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   padding: 20px;
   border-radius: 12px;
   display: flex;
@@ -157,7 +158,7 @@
 
 .tracking-mode-toggle {
   display: flex;
-  background: rgba(0,0,0,0.3);
+  background: var(--card-bg);
   padding: 5px;
   border-radius: 12px;
   margin-bottom: 20px;
@@ -178,8 +179,8 @@
 }
 
 .mode-btn.active {
-  background: rgba(255,255,255,0.1);
-  color: white;
+  background: var(--card-bg);
+  color: var(--text-primary);
   font-weight: bold;
 }
 
@@ -228,12 +229,12 @@
   bottom: 20px;
   left: 20px;
   right: 20px;
-  background: rgba(0,0,0,0.8);
+  background: var(--panel-bg);
   padding: 15px;
   border-radius: 12px;
   display: flex;
   justify-content: space-around;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--card-border);
   backdrop-filter: blur(10px);
 }
 
@@ -252,7 +253,7 @@
 .stat-value {
   font-size: 1.5rem;
   font-weight: bold;
-  color: white;
+  color: var(--text-primary);
 }
 
 .text-success { color: #10b981; }

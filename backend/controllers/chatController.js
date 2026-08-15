@@ -19,6 +19,29 @@ export const getConversation = async (req, res) => {
   }
 };
 
+// @desc    Get all unique conversation contacts for a user
+// @route   GET /api/chat/conversations/:userName
+// @access  Public
+export const getConversations = async (req, res) => {
+  const { userName } = req.params;
+  try {
+    const messages = await Message.find({
+      $or: [{ sender: userName }, { receiver: userName }]
+    }).sort({ createdAt: -1 });
+    
+    // get unique contacts
+    const contacts = new Set();
+    messages.forEach(msg => {
+      if (msg.sender !== userName) contacts.add(msg.sender);
+      if (msg.receiver !== userName) contacts.add(msg.receiver);
+    });
+
+    res.json(Array.from(contacts));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Send a message
 // @route   POST /api/chat
 // @access  Public

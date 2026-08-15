@@ -80,7 +80,7 @@ export const getGymOwnerDashboard = async (req, res) => {
 export const updateGymProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, location, monthlyFee, admissionFee, bankDetails, description, facilities, equipmentImages, todayTrainingTip, dailyTip } = req.body;
+    const { name, location, monthlyFee, admissionFee, bankDetails, description, facilities, equipmentImages, equipmentList, timings, todayTrainingTip, dailyTip } = req.body;
     const tipPayload = todayTrainingTip || dailyTip;
 
     try {
@@ -110,6 +110,8 @@ export const updateGymProfile = async (req, res) => {
         if (description) gym.description = description;
         if (Array.isArray(facilities)) gym.facilities = facilities;
         if (Array.isArray(equipmentImages)) gym.equipmentImages = equipmentImages;
+        if (Array.isArray(equipmentList)) gym.equipmentList = equipmentList;
+        if (timings) gym.timings = timings;
         if (typeof tipPayload !== 'undefined') gym.todayTrainingTip = tipPayload;
         await gym.save();
         return res.json(gym);
@@ -297,10 +299,21 @@ export const createGymPlan = async (req, res) => {
     }
 
     try {
+      const member = await User.findOne({ name: memberName }).select('_id subscribedGymName');
+      if (!member) return res.status(404).json({ message: 'Member not found' });
+
+      // The client may send a gym name; plans are always stored against the
+      // gym's database id so they appear on the member's Your Gym page.
+      let gym = null;
+      if (gymId && /^[a-f\d]{24}$/i.test(gymId)) gym = await Gym.findById(gymId);
+      if (!gym) gym = await Gym.findOne({ name: member.subscribedGymName || gymId });
+      if (!gym) return res.status(404).json({ message: 'Gym not found for this member' });
+
       const plan = await GymPlan.create({
-        gymId: gymId || 'gym_demo_id',
-        memberId: `mem_${Date.now()}`,
+        gymId: gym._id.toString(),
+        memberId: member._id.toString(),
         memberName,
+        assignedBy: req.user?.name || req.headers['x-user-name'] || 'Gym Trainer',
         planType: planType || 'Workout',
         title,
         description: description || '',
@@ -308,17 +321,62 @@ export const createGymPlan = async (req, res) => {
         nutritionMacros: nutritionMacros || {}
       });
       return res.status(201).json(plan);
-    } catch (e) {}
-
-    res.status(201).json({
-      _id: `plan_${Date.now()}`,
-      memberName,
-      title,
-      planType: planType || 'Workout'
-    });
+    } catch (error) {
+      return res.status(500).json({ message: error.message || 'Unable to save the member plan' });
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 export const createMemberPlan = createGymPlan;
+
+// @desc    Create Gym Trainer Account
+// @route   POST /api/gym-owner/trainers
+// @access  Private / GymOwner
+export const createGymTrainer = async (req, res) => {
+  try {
+    const { name, email, password, gymName } = req.body;
+    if (!name || !email || !password || !gymName) {
+      return res.status(400).json({ message: 'Name, email, password, and gym name are required' });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'A user with this email already exists' });
+    }
+
+    const trainer = await User.create({
+      name,
+      email,
+      password,
+      role: 'GymTrainer',
+      assignedGymName: gymName
+    });
+
+    return res.status(201).json({
+      _id: trainer._id,
+      name: trainer.name,
+      email: trainer.email,
+      role: trainer.role,
+      assignedGymName: trainer.assignedGymName
+    });
+  } catch (error) {
+    console.error('createGymTrainer error:', error.message);
+    res.status(500).json({ message: 'Failed to create gym trainer' });
+  }
+};
+
+// @desc    Get Gym Trainers for a Gym
+// @route   GET /api/gym-owner/trainers/:gymName
+// @access  Private / GymOwner
+export const getGymTrainers = async (req, res) => {
+  try {
+    const { gymName } = req.params;
+    const trainers = await User.find({ role: 'GymTrainer', assignedGymName: gymName }).select('-password');
+    return res.json(trainers);
+  } catch (error) {
+    console.error('getGymTrainers error:', error.message);
+    res.status(500).json({ message: 'Failed to fetch gym trainers' });
+  }
+};

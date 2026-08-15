@@ -16,8 +16,11 @@ const GlobalChat = () => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState({});
   const [dynamicFriends, setDynamicFriends] = useState([]);
+  const [gymTrainerContacts, setGymTrainerContacts] = useState([]);
+  const [spamContacts, setSpamContacts] = useState([]);
+  const [showSpam, setShowSpam] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(true);
   const messagesEndRef = useRef(null);
 
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
@@ -25,8 +28,8 @@ const GlobalChat = () => {
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest';
 
   useEffect(() => {
-    const startingSubscribed = localStorage.getItem('gymsync_subscribed') === 'true' || userRole === 'Admin' || userRole === 'SuperAdmin' || userRole === 'GymOwner' || userRole === 'StoreManager';
-    setIsSubscribed(startingSubscribed);
+    localStorage.setItem('gymsync_subscribed', 'true');
+    setIsSubscribed(true);
   }, [userRole]);
   const proPrice = localStorage.getItem('gymsync_pro_plan_price') || '9.99';
 
@@ -57,11 +60,77 @@ const GlobalChat = () => {
               };
             }));
             setDynamicFriends(friendsWithPics);
+
+            // Trainers of the member's subscribed gym are trusted contacts,
+            // not message requests. They are available even before either
+            // person has sent the first message.
+            let trustedTrainerNames = [];
+            if (user.subscribedGymName) {
+              const usersRes = await fetch('/api/users');
+              const allUsers = usersRes.ok ? await usersRes.json() : [];
+              const trainers = allUsers
+                .filter(person => person.role === 'GymTrainer' && person.assignedGymName === user.subscribedGymName)
+                .map(person => ({
+                  id: person.name,
+                  name: person.name,
+                  role: `Gym Trainer · ${user.subscribedGymName}`,
+                  avatar: person.profilePic || person.name.charAt(0).toUpperCase(),
+                  isPremium: false,
+                  isImage: Boolean(person.profilePic),
+                  isTrainer: true
+                }));
+              trustedTrainerNames = trainers.map(trainer => trainer.id);
+              setGymTrainerContacts(trainers);
+            } else {
+              setGymTrainerContacts([]);
+            }
+            
+            // Fetch all conversations to determine spam
+            const convRes = await fetch(`/api/chat/conversations/${userName}`);
+            const convContacts = await convRes.json();
+            
+            // Filter out friends and AI/Gym support
+            const spamNames = convContacts.filter(c => !user.friends.includes(c) && !trustedTrainerNames.includes(c) && c !== 'ai' && c !== 'gym' && c !== userName);
+            const spamWithPics = await Promise.all(spamNames.map(async (spamName) => {
+              const friendRes = await fetch(`/api/users/${spamName}`);
+              const friendData = await friendRes.json();
+              return {
+                id: spamName,
+                name: spamName,
+                role: 'Non-follower (Spam)',
+                avatar: friendData.profilePic || spamName.charAt(0).toUpperCase(),
+                isPremium: false,
+                isImage: !!friendData.profilePic
+              };
+            }));
+            setSpamContacts(spamWithPics);
           }
         })
         .catch(err => console.error(err));
     }
-  }, [isOpen, isGuest, userName]);
+
+    const handleOpenChat = (e) => {
+      setIsOpen(true);
+      const contactName = e.detail.userName;
+      const existingContact = dynamicFriends.find(c => c.id === contactName) || spamContacts.find(c => c.id === contactName) || CONTACTS.find(c => c.id === contactName);
+      if (existingContact) {
+        handleContactClick(existingContact);
+      } else {
+        // Create temporary contact for new chats
+        const newContact = {
+          id: contactName,
+          name: contactName,
+          role: 'User',
+          avatar: contactName.charAt(0).toUpperCase(),
+          isPremium: false,
+          isImage: false
+        };
+        handleContactClick(newContact);
+      }
+    };
+    window.addEventListener('open_chat', handleOpenChat);
+    return () => window.removeEventListener('open_chat', handleOpenChat);
+  }, [isGuest, userName]);
 
   if (isGuest) return null;
 
@@ -89,7 +158,7 @@ const GlobalChat = () => {
     if (!messages[contact.id]) {
       setMessages(prev => ({ ...prev, [contact.id]: [] }));
     }
-    if (contact.role === 'Friend') {
+    if (contact.role === 'Friend' || contact.isTrainer || contact.role?.includes('Gym Trainer') || contact.role?.includes('Spam')) {
       fetchConversation(contact.id);
     } else if (contact.id === 'ai' && isSubscribed) {
       if(!messages[contact.id] || messages[contact.id].length === 0) {
@@ -104,11 +173,6 @@ const GlobalChat = () => {
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || !activeContact) return;
-
-    if (activeContact.id === 'ai' && !isSubscribed) {
-      toast.warn(`AI Chat is locked. Please subscribe to Pro Plan ($${proPrice}/mo) to access AI Fitness Coach.`);
-      return;
-    }
 
     const messageText = input;
     const newMsg = {
@@ -125,7 +189,7 @@ const GlobalChat = () => {
 
     setInput('');
 
-    if (activeContact.role === 'Friend') {
+    if (activeContact.role === 'Friend' || activeContact.isTrainer || activeContact.role?.includes('Gym Trainer') || activeContact.role?.includes('Spam')) {
       try {
         await fetch('/api/chat', {
           method: 'POST',
@@ -225,7 +289,45 @@ const GlobalChat = () => {
 
         {!activeContact ? (
           <div className="contact-list" style={{flex: 1, overflowY: 'auto'}}>
-            {[...CONTACTS, ...dynamicFriends].map(contact => (
+            
+            {/* SPAM FOLDER (MESSAGE REQUESTS) */}
+            {spamContacts.length > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <div 
+                  onClick={() => setShowSpam(!showSpam)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', background: 'rgba(239, 68, 68, 0.1)', borderBottom: '1px solid rgba(239, 68, 68, 0.2)', cursor: 'pointer', color: '#ef4444', fontWeight: 'bold' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <MessageCircle size={18} /> Message Requests (Spam)
+                  </div>
+                  <span>{showSpam ? '▼' : '▶'}</span>
+                </div>
+                
+                {showSpam && spamContacts.map(contact => (
+                  <div 
+                    key={contact.id} 
+                    onClick={() => handleContactClick(contact)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s', opacity: 0.8 }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', overflow: 'hidden' }}>
+                      {contact.isImage ? <img src={contact.avatar} alt={contact.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : contact.avatar}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <h4 style={{ margin: 0, color: '#ef4444' }}>{contact.name}</h4>
+                      </div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {contact.role}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {[...CONTACTS, ...gymTrainerContacts, ...dynamicFriends].map(contact => (
               <div 
                 key={contact.id} 
                 onClick={() => handleContactClick(contact)}
@@ -239,10 +341,9 @@ const GlobalChat = () => {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <h4 style={{ margin: 0 }}>{contact.name}</h4>
-                    {contact.id === 'ai' && !isSubscribed && <Lock size={14} color="#ef4444" />}
                   </div>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    {contact.id === 'ai' && !isSubscribed ? 'Locked (Pro Plan)' : contact.role}
+                    {contact.role}
                   </span>
                 </div>
               </div>
@@ -251,60 +352,27 @@ const GlobalChat = () => {
         ) : (
           <>
             <div className="chat-body" style={{ overflowY: 'auto', flex: 1 }}>
-              {activeContact.id === 'ai' && !isSubscribed ? (
-                <div style={{ padding: '24px 16px', textAlign: 'center' }}>
-                  <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px auto' }}>
-                    <Lock size={30} color="#ef4444" />
+              <>
+                {(messages[activeContact.id] || []).map((msg, idx) => (
+                  <div key={idx} className={`chat-bubble ${msg.sender === 'user' ? 'outgoing' : 'incoming'}`}>
+                    {activeContact.id === 'ai' && msg.sender === 'other' ? (
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    ) : (
+                      msg.text
+                    )}
                   </div>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: '#fff' }}>AI Trainer Locked</h4>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '20px' }}>
-                    AI Fitness Coaching and instant rep counting are exclusively available for <strong>GymSync Pro Subscribers</strong>.
-                  </p>
-                  <button 
-                    className="btn btn-primary w-100"
-                    style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: 'bold' }}
-                    onClick={() => setIsPaymentModalOpen(true)}
-                  >
-                    Subscribe to Pro Plan (${proPrice}/mo)
-                  </button>
-                </div>
-              ) : (
-                <>
-                  {(messages[activeContact.id] || []).map((msg, idx) => (
-                    <div key={idx} className={`chat-bubble ${msg.sender === 'user' ? 'outgoing' : 'incoming'}`}>
-                      {activeContact.id === 'ai' && msg.sender === 'other' ? (
-                        <ReactMarkdown>{msg.text}</ReactMarkdown>
-                      ) : (
-                        msg.text
-                      )}
-                    </div>
-                  ))}
-                  {(!messages[activeContact.id] || messages[activeContact.id].length === 0) && (
-                    <p style={{textAlign: 'center', color: 'var(--text-secondary)', marginTop: '20px'}}>Say hi to {activeContact.name}!</p>
-                  )}
-                  <div ref={messagesEndRef} />
-                </>
-              )}
+                ))}
+                {(!messages[activeContact.id] || messages[activeContact.id].length === 0) && (
+                  <p style={{textAlign: 'center', color: 'var(--text-secondary)', marginTop: '20px'}}>Say hi to {activeContact.name}!</p>
+                )}
+                <div ref={messagesEndRef} />
+              </>
             </div>
 
-            {!(activeContact.id === 'ai' && !isSubscribed) && (
-              <form className="chat-footer" onSubmit={handleSend}>
-                <input type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} />
-                <button type="submit" className="send-btn"><Send size={18} /></button>
-              </form>
-            )}
-      <PaymentModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        amount={proPrice}
-        title="Subscribe to GymSync Pro"
-        paymentType="PlatformSubscription"
-        onPaymentSuccess={() => {
-          localStorage.setItem('gymsync_subscribed', 'true');
-          toast.success(`Subscription activated for Pro Plan ($${proPrice}/mo)! AI Chat is now unlocked.`);
-          window.location.reload();
-        }}
-      />
+            <form className="chat-footer" onSubmit={handleSend}>
+              <input type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} />
+              <button type="submit" className="send-btn"><Send size={18} /></button>
+            </form>
           </>
         )}
       </div>

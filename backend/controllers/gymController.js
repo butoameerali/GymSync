@@ -95,10 +95,12 @@ export const getGymsList = async (req, res) => {
 export const getMyGymData = async (req, res) => {
   try {
     const { userName } = req.params;
-    const user = await User.findOne({ name: userName });
+    const user = req.user?._id
+      ? await User.findById(req.user._id)
+      : await User.findOne({ name: userName });
     
     if (!user || !user.subscribedGymName) {
-      return res.status(404).json({ message: 'User is not subscribed to any gym' });
+      return res.status(404).json({ message: 'No active gym membership was found for this account.' });
     }
 
     const gym = await Gym.findOne({ name: user.subscribedGymName });
@@ -113,10 +115,18 @@ export const getMyGymData = async (req, res) => {
     const attendanceLogs = await Attendance.find({ memberName: userName, gymId: gym._id.toString() }).sort({ checkInTime: -1 });
 
     // Fetch gym owner's posts
-    const posts = await Post.find({ author: gym.ownerName }).sort({ createdAt: -1 }).limit(5);
+    // `author` is an ObjectId; gym.ownerName is a display name. Query the
+    // dedicated name field to avoid an ObjectId cast error on Your Gym.
+    const posts = await Post.find({ authorName: gym.ownerName }).sort({ createdAt: -1 }).limit(5);
 
     return res.json({
       gym,
+      membership: {
+        type: user.gymMembershipType,
+        joiningDate: user.gymJoiningDate,
+        expiresAt: user.gymMembershipExpiresAt,
+        autoRenew: user.gymAutoRenew
+      },
       plans,
       attendanceLogs,
       posts
@@ -124,4 +134,16 @@ export const getMyGymData = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+export const completeGymPlanDay = async (req, res) => {
+  try {
+    const plan = await GymPlan.findOne({ _id: req.params.planId, memberId: req.user._id.toString() });
+    if (!plan) return res.status(404).json({ message: 'Assigned plan not found' });
+    const schedule = plan.schedule.id(req.params.scheduleId);
+    if (!schedule) return res.status(404).json({ message: 'Scheduled day not found' });
+    schedule.completedAt = schedule.completedAt ? null : new Date();
+    await plan.save();
+    res.json({ completedAt: schedule.completedAt });
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };

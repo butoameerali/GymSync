@@ -3,6 +3,8 @@ import {
   getAdminStats, 
   getAllUsers, 
   updateUserRole, 
+  updateUserDetails,
+  deleteUserByAdmin,
   toggleUserBan,
   getPendingGymApprovals,
   updateGymApprovalStatus,
@@ -17,7 +19,8 @@ import {
   removePostWithReason,
   requestRefundCashback,
   approveRefundCashback,
-  sendSubscriberBroadcast
+  sendSubscriberBroadcast,
+  createInstructor
 } from '../controllers/adminController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -26,9 +29,12 @@ const router = express.Router();
 // Apply protection to all admin endpoints
 router.use(protect);
 
+router.post('/create-instructor', authorizeRoles('SuperAdmin', 'Admin'), createInstructor);
 router.get('/stats', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), getAdminStats);
 router.get('/users', authorizeRoles('SuperAdmin', 'Admin'), getAllUsers);
 router.put('/users/:id/role', authorizeRoles('SuperAdmin', 'Admin'), updateUserRole);
+router.put('/users/:id', authorizeRoles('SuperAdmin', 'Admin'), updateUserDetails);
+router.delete('/users/:id', authorizeRoles('SuperAdmin', 'Admin'), deleteUserByAdmin);
 router.put('/users/:id/ban', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), toggleUserBan);
 
 // Gym Approvals
@@ -52,7 +58,7 @@ router.put('/complaints/:id/approve-refund', authorizeRoles('SuperAdmin'), appro
 router.post('/broadcast', authorizeRoles('SuperAdmin', 'Admin'), sendSubscriberBroadcast);
 
 // Complaint Chat Thread & Senior Audit Inspection
-router.post('/complaints/:id/chat', addComplaintChatMessage);
+router.post('/complaints/:id/chat', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), addComplaintChatMessage);
 router.get('/complaints/chats-inspection', authorizeRoles('SuperAdmin'), getComplaintChatsInspection);
 
 // Senior Admin Audit Logs

@@ -10,7 +10,7 @@
   height: 60px;
   border-radius: 50%;
   background: var(--accent-gradient);
-  color: white;
+  color: var(--text-primary);
   border: none;
   display: flex;
   align-items: center;
@@ -49,7 +49,7 @@
   width: 350px;
   height: 500px;
   background: rgba(15, 17, 26, 0.95);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--card-border);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -70,11 +70,11 @@
 
 .chat-header {
   padding: 16px;
-  background: rgba(0,0,0,0.3);
+  background: var(--card-bg);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .chat-header h3 {
@@ -90,13 +90,13 @@
 }
 
 .close-btn:hover {
-  color: white;
+  color: var(--text-primary);
 }
 
 .chat-tabs {
   display: flex;
-  background: rgba(0,0,0,0.2);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .tab-btn {
@@ -116,8 +116,8 @@
 }
 
 .tab-btn:hover {
-  color: white;
-  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
+  background: var(--card-bg);
 }
 
 .tab-btn.active {
@@ -145,32 +145,32 @@
 
 .chat-bubble.incoming {
   align-self: flex-start;
-  background: rgba(255,255,255,0.1);
+  background: var(--card-border);
   border-bottom-left-radius: 4px;
 }
 
 .chat-bubble.outgoing {
   align-self: flex-end;
   background: var(--primary-accent);
-  color: white;
+  color: var(--text-primary);
   border-bottom-right-radius: 4px;
 }
 
 .chat-footer {
   padding: 12px;
-  background: rgba(0,0,0,0.3);
-  border-top: 1px solid rgba(255,255,255,0.1);
+  background: var(--card-bg);
+  border-top: 1px solid var(--card-border);
   display: flex;
   gap: 10px;
 }
 
 .chat-footer input {
   flex: 1;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   padding: 10px 14px;
   border-radius: 20px;
-  color: white;
+  color: var(--text-primary);
   font-size: 0.9rem;
 }
 
@@ -185,7 +185,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  color: white;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -23,10 +23,14 @@ const gymSchema = new mongoose.Schema({
     today: { type: String },
     tomorrow: { type: String }
   },
-  monthlyFee: { type: Number, required: true }
-  ,
+  monthlyFee: { type: Number, required: true },
   admissionFee: { type: Number, default: 0 },
-  bankDetails: { type: String, default: '' }
+  bankDetails: { type: String, default: '' },
+  equipmentList: [String],
+  timings: {
+    weekday: { type: String, default: '6:00 AM - 10:00 PM' },
+    weekend: { type: String, default: '8:00 AM - 8:00 PM' }
+  }
 }, { timestamps: true });
 
 export default mongoose.model('Gym', gymSchema);

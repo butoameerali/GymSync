@@ -11,16 +11,17 @@
 
 .navbar.scrolled {
   padding: 16px 0;
-  background: rgba(11, 13, 20, 0.85);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .nav-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: nowrap;
 }
 
 .nav-logo {
@@ -32,6 +33,7 @@
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.5px;
+  flex-shrink: 0;
 }
 
 .logo-icon {
@@ -42,6 +44,8 @@
   display: flex;
   align-items: center;
   gap: 32px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .nav-link {
@@ -49,6 +53,7 @@
   font-weight: 500;
   color: var(--text-secondary);
   position: relative;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -74,6 +79,8 @@
   display: flex;
   align-items: center;
   gap: 20px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .nav-login {

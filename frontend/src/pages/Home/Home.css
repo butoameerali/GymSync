@@ -49,6 +49,7 @@
 }
 
 .create-post-box {
+  background-color: var(--card-bg, #151821);
   padding: 20px;
   margin-bottom: 24px;
 }
@@ -61,11 +62,11 @@
 
 .post-input {
   flex: 1;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   padding: 12px 20px;
   border-radius: 30px;
-  color: white;
+  color: var(--text-primary);
 }
 
 .post-input:focus {
@@ -100,11 +101,12 @@
 }
 
 .post-action-btn:hover {
-  background: rgba(255,255,255,0.05);
-  color: white;
+  background: var(--card-bg);
+  color: var(--text-primary);
 }
 
 .post-card {
+  background-color: var(--card-bg, #151821);
   padding: 20px;
   margin-bottom: 20px;
 }
@@ -160,7 +162,7 @@
 }
 
 .action-btn:hover {
-  color: white;
+  color: var(--text-primary);
 }
 
 .action-btn.active {

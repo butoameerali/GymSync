@@ -11,7 +11,8 @@
   border-top: none;
   border-left: none;
   border-right: none;
-  background: rgba(21, 24, 33, 0.8);
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--card-border);
   margin-bottom: 30px;
 }
 
@@ -41,8 +42,8 @@
 .search-box {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   padding: 10px 16px;
   border-radius: 30px;
   width: 300px;
@@ -51,7 +52,7 @@
 .search-box input {
   background: transparent;
   border: none;
-  color: white;
+  color: var(--text-primary);
   margin-left: 10px;
   outline: none;
   width: 100%;
@@ -60,7 +61,7 @@
 .cart-toggle-btn {
   position: relative;
   background: var(--accent-gradient);
-  color: white;
+  color: var(--text-primary);
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -79,7 +80,7 @@
   top: -5px;
   right: -5px;
   background: var(--danger);
-  color: white;
+  color: var(--text-primary);
   font-size: 0.75rem;
   font-weight: bold;
   width: 22px;
@@ -108,8 +109,8 @@
 .category-btn {
   padding: 8px 20px;
   border-radius: 30px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   color: var(--text-secondary);
   font-weight: 500;
   white-space: nowrap;
@@ -117,13 +118,13 @@
 }
 
 .category-btn:hover {
-  background: rgba(255,255,255,0.1);
-  color: white;
+  background: var(--card-border);
+  color: var(--text-primary);
 }
 
 .category-btn.active {
   background: var(--primary-accent);
-  color: white;
+  color: var(--text-primary);
   border-color: var(--primary-accent);
 }
 
@@ -172,7 +173,7 @@
   top: 16px;
   left: 16px;
   background: var(--danger);
-  color: white;
+  color: var(--text-primary);
   padding: 4px 12px;
   border-radius: 4px;
   font-size: 0.8rem;
@@ -185,7 +186,7 @@
   right: 16px;
   background: rgba(0,0,0,0.5);
   backdrop-filter: blur(4px);
-  color: white;
+  color: var(--text-primary);
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -240,7 +241,7 @@
 }
 
 .no-products h3 {
-  color: white;
+  color: var(--text-primary);
   margin: 16px 0 8px;
 }
 
@@ -263,7 +264,7 @@
   max-width: 400px;
   height: 100%;
   background: rgba(15, 17, 26, 0.95);
-  border-left: 1px solid rgba(255,255,255,0.1);
+  border-left: 1px solid var(--card-border);
   border-radius: 0;
   display: flex;
   flex-direction: column;
@@ -280,7 +281,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .cart-header h3 {
@@ -293,7 +294,7 @@
 }
 
 .close-btn:hover {
-  color: white;
+  color: var(--text-primary);
 }
 
 .cart-items {
@@ -354,7 +355,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(0,0,0,0.3);
+  background: var(--card-bg);
   width: fit-content;
   border-radius: 6px;
   padding: 4px 8px;
@@ -365,7 +366,7 @@
 }
 
 .quantity-controls button:hover {
-  color: white;
+  color: var(--text-primary);
 }
 
 .remove-item-btn {
@@ -381,8 +382,8 @@
 
 .cart-footer {
   padding: 24px;
-  border-top: 1px solid rgba(255,255,255,0.1);
-  background: rgba(0,0,0,0.2);
+  border-top: 1px solid var(--card-border);
+  background: var(--card-bg);
 }
 
 .cart-total {
@@ -414,4 +415,12 @@
     flex: 1;
     margin-right: 16px;
   }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.checkout-spinner {
+  animation: spin 1s linear infinite;
 }

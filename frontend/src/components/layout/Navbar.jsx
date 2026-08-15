@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Menu, X, Activity, Bell } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, Activity, Bell, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 import './Navbar.css';
 
 const Navbar = () => {
+  const { theme, toggleTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -21,16 +23,40 @@ const Navbar = () => {
   const isLoggedIn = Boolean(userRole && userRole !== 'guest');
   const isAdmin = normalizedRole === 'admin' || normalizedRole === 'superadmin' || normalizedRole === 'complaintmoderator';
   const isGymOwner = normalizedRole === 'gymowner';
+  const isFitnessInstructor = normalizedRole === 'fitnessinstructor';
+  const isGymTrainer = normalizedRole === 'gymtrainer';
   const userName = localStorage.getItem('gymsync_user_name') || 'User';
 
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [profilePic, setProfilePic] = useState('');
   const [hasGymSubscription, setHasGymSubscription] = useState(false);
   
   // Friend Requests
   const [friendRequests, setFriendRequests] = useState([]);
   const [showRequests, setShowRequests] = useState(false);
+  
+  const location = useLocation();
+  const profileDropdownRef = useRef(null);
+
+  // Close menus when route changes
+  useEffect(() => {
+    setIsMenuOpen(false);
+    setShowProfileMenu(false);
+    setShowNotifications(false);
+  }, [location]);
+
+  // Click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -52,10 +78,10 @@ const Navbar = () => {
              if (user.receivedRequests) {
                setFriendRequests(Array.isArray(user.receivedRequests) ? user.receivedRequests : []);
              }
-             if (user.subscribedGymName) {
-               setHasGymSubscription(true);
-               localStorage.setItem('gymsync_user_gym', user.subscribedGymName);
-             }
+             const subscribedGym = user.subscribedGymName || '';
+             setHasGymSubscription(Boolean(subscribedGym));
+             if (subscribedGym) localStorage.setItem('gymsync_user_gym', subscribedGym);
+             else localStorage.removeItem('gymsync_user_gym');
            }
         })
         .catch(err => console.error(err));
@@ -73,10 +99,10 @@ const Navbar = () => {
                if (user.receivedRequests) {
                  setFriendRequests(Array.isArray(user.receivedRequests) ? user.receivedRequests : []);
                }
-               if (user.subscribedGymName) {
-                 setHasGymSubscription(true);
-                 localStorage.setItem('gymsync_user_gym', user.subscribedGymName);
-               }
+               const subscribedGym = user.subscribedGymName || '';
+               setHasGymSubscription(Boolean(subscribedGym));
+               if (subscribedGym) localStorage.setItem('gymsync_user_gym', subscribedGym);
+               else localStorage.removeItem('gymsync_user_gym');
              }
           })
           .catch(err => console.error("Interval Error", err));
@@ -104,9 +130,11 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('userInfo');
     localStorage.removeItem('gymsync_token');
     localStorage.removeItem('gymsync_role');
     localStorage.removeItem('gymsync_user_name');
+    localStorage.removeItem('gymsync_subscribed');
     window.location.href = '/'; // Redirect to auth portal
   };
 
@@ -120,12 +148,14 @@ const Navbar = () => {
 
         <div className={`nav-links ${isMenuOpen ? 'active' : ''}`}>
           <Link to="/home" className="nav-link">Home</Link>
-          {!isAdmin && !isGymOwner && <Link to="/explore" className="nav-link">Explore Gyms</Link>}
-          {!isAdmin && !isGymOwner && <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>}
-          {isLoggedIn && !isAdmin && !isGymOwner && hasGymSubscription && <Link to="/your-gym" className="nav-link">YourGym</Link>}
+          {!isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && <Link to="/explore" className="nav-link">Explore Gyms</Link>}
+          {!isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>}
+          {isLoggedIn && !isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && hasGymSubscription && <Link to="/your-gym" className="nav-link">YourGym</Link>}
           <Link to="/store" className="nav-link">Store</Link>
           {isLoggedIn && isAdmin && <Link to="/admin" className="nav-link" style={{ color: 'var(--primary-accent)', fontWeight: 600 }}>Admin Panel</Link>}
           {isLoggedIn && isGymOwner && <Link to="/gym-owner" className="nav-link" style={{ color: '#8b5cf6', fontWeight: 600 }}>Gym Panel</Link>}
+          {isLoggedIn && isFitnessInstructor && <Link to="/fitness-instructor" className="nav-link" style={{ color: '#10b981', fontWeight: 600 }}>Instructor Panel</Link>}
+          {isLoggedIn && isGymTrainer && <Link to="/gym-trainer" className="nav-link" style={{ color: '#3b82f6', fontWeight: 600 }}>Trainer Panel</Link>}
           
           <div className="nav-auth-mobile">
             {!isLoggedIn ? (
@@ -138,6 +168,15 @@ const Navbar = () => {
 
         <div className="nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           
+          <button 
+            onClick={toggleTheme} 
+            className="btn btn-icon" 
+            style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '6px' }}
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
           {/* Notification Center */}
           {isLoggedIn && (
             <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
@@ -146,7 +185,7 @@ const Navbar = () => {
               <div className="notification-container" style={{ position: 'relative' }}>
                 <button 
                   className="btn btn-icon" 
-                  style={{ background: 'none', border: 'none', color: 'white', position: 'relative', cursor: 'pointer' }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-primary)', position: 'relative', cursor: 'pointer' }}
                   onClick={() => {
                     setShowNotifications(!showNotifications);
                     // Mark as read when opened
@@ -207,14 +246,11 @@ const Navbar = () => {
           )}
 
           {!isGuest ? (
-            <div className="profile-dropdown-container" style={{ position: 'relative' }}>
+            <div className="profile-dropdown-container" ref={profileDropdownRef} style={{ position: 'relative' }}>
               <button 
                 className="btn btn-outline profile-btn-mobile" 
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.2)' }}
-                onClick={(e) => {
-                  const menu = e.currentTarget.nextElementSibling;
-                  menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-                }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' }}
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--primary-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', overflow: 'hidden', flexShrink: 0 }}>
                   {profilePic ? <img src={profilePic} alt="Me" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : userName.charAt(0).toUpperCase()}
@@ -223,11 +259,13 @@ const Navbar = () => {
               </button>
               
               {/* Dropdown Menu */}
-              <div className="glass-panel profile-dropdown-menu" style={{ display: 'none', position: 'absolute', top: '100%', right: '0', marginTop: '10px', width: '200px', padding: '10px', borderRadius: '12px', zIndex: 1000 }}>
-                <Link to="/profile" style={{ display: 'block', padding: '10px', color: 'white', textDecoration: 'none', borderRadius: '8px' }} onMouseEnter={e => e.target.style.background='rgba(255,255,255,0.1)'} onMouseLeave={e => e.target.style.background='transparent'}>View Profile</Link>
-                <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '5px 0' }}></div>
-                <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '10px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '8px' }} onMouseEnter={e => e.target.style.background='rgba(239,68,68,0.1)'} onMouseLeave={e => e.target.style.background='transparent'}>Log Out</button>
-              </div>
+              {showProfileMenu && (
+                <div className="glass-panel profile-dropdown-menu" style={{ position: 'absolute', top: '100%', right: '0', marginTop: '10px', width: '200px', padding: '10px', borderRadius: '12px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
+                  <Link to="/profile" onClick={() => setShowProfileMenu(false)} style={{ display: 'block', padding: '10px', color: 'var(--text-primary)', textDecoration: 'none', borderRadius: '8px', fontWeight: 500 }} onMouseEnter={e => e.target.style.background='var(--card-bg)'} onMouseLeave={e => e.target.style.background='transparent'}>View Profile</Link>
+                  <div style={{ height: '1px', background: 'var(--card-border)', margin: '5px 0' }}></div>
+                  <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '10px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '8px', fontWeight: 500 }} onMouseEnter={e => e.target.style.background='rgba(239,68,68,0.1)'} onMouseLeave={e => e.target.style.background='transparent'}>Log Out</button>
+                </div>
+              )}
             </div>
           ) : (
             <Link to="/" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

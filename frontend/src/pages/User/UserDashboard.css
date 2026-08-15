@@ -7,8 +7,9 @@
 .user-dashboard-header {
   padding: 30px 0 0 0;
   border-radius: 0 0 24px 24px;
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--panel-bg);
   margin-bottom: 30px;
+  border-bottom: 1px solid var(--card-border);
 }
 
 .user-avatar-badge {

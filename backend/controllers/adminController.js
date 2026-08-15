@@ -113,6 +113,37 @@ export const updateUserRole = async (req, res) => {
   }
 };
 
+// @desc    Edit a user's basic account details
+export const updateUserDetails = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+    const { name, email } = req.body;
+    if (!name?.trim() || !email?.trim()) return res.status(400).json({ message: 'Name and email are required' });
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const duplicate = await User.findOne({ email: email.trim().toLowerCase(), _id: { $ne: user._id } });
+    if (duplicate) return res.status(400).json({ message: 'This email is already used by another account' });
+    user.name = name.trim();
+    user.email = email.trim().toLowerCase();
+    await user.save();
+    logAuditTrail(req.user?.name || 'Admin', req.user?.role || 'Admin', 'Edited User Account', user._id.toString(), 'Updated name and email', req);
+    res.json({ user });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+// @desc    Delete an account and its messages safely (admin only)
+export const deleteUserByAdmin = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (req.user?._id?.toString() === user._id.toString()) return res.status(400).json({ message: 'You cannot delete your own admin account' });
+    await user.deleteOne();
+    logAuditTrail(req.user?.name || 'Admin', req.user?.role || 'Admin', 'Deleted User Account', req.params.id, `Deleted ${user.email}`, req);
+    res.json({ message: 'User account deleted' });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
 // @desc    Ban or Unban a user
 // @route   PUT /api/admin/users/:id/ban
 // @access  Private / SuperAdmin, Admin, ComplaintModerator
@@ -184,8 +215,8 @@ export const updateGymApprovalStatus = async (req, res) => {
     
     if (status === 'Approved') {
       await Notification.create({
-        userName: gym.ownerName,
-        type: 'gym_approval',
+        userId: gym.ownerName,
+        type: 'system',
         message: 'Your gym facility has been approved by the Admin and is now public!'
       });
     }
@@ -612,6 +643,31 @@ export const getAuditLogs = async (req, res) => {
         timestamp: new Date(Date.now() - 3600000)
       }
     ]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Create a new Fitness Instructor account
+// @route   POST /api/admin/create-instructor
+// @access  Private / Admin, SuperAdmin
+export const createInstructor = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required' });
+    }
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ message: 'User with this email already exists' });
+    }
+    const instructor = await User.create({
+      name,
+      email,
+      password,
+      role: 'FitnessInstructor'
+    });
+    res.status(201).json({ message: 'Fitness Instructor account created successfully', instructor });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

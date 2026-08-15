@@ -10,10 +10,15 @@ const GymDetails = () => {
   const [gym, setGym] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [startNextMonth, setStartNextMonth] = useState(false);
+  const [membershipType, setMembershipType] = useState('Monthly');
+  const [joiningDate, setJoiningDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [fetchError, setFetchError] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
 
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
+  const userName = localStorage.getItem('gymsync_user_name');
 
   useEffect(() => {
     const loadGym = async () => {
@@ -32,9 +37,24 @@ const GymDetails = () => {
         setLoading(false);
       }
     };
+    
+    const loadUser = async () => {
+      if (!isGuest && userName) {
+        try {
+          const res = await fetch(`/api/users/${userName}`);
+          if (res.ok) {
+            const data = await res.json();
+            setCurrentUser(data);
+          }
+        } catch (e) {
+          console.error("Failed to load user profile", e);
+        }
+      }
+    };
 
     loadGym();
-  }, [id]);
+    loadUser();
+  }, [id, isGuest, userName]);
 
   const handleJoinClick = () => {
     if (isGuest) {
@@ -42,10 +62,19 @@ const GymDetails = () => {
       navigate('/');
       return;
     }
+    if (currentUser?.subscribedGymName && currentUser.subscribedGymName !== gym.name) {
+      const startNext = window.confirm(
+        `You are already registered in ${currentUser.subscribedGymName}. Do you want to subscribe to ${gym.name} from next month when your current month completes?\n\nClick OK to schedule for next month, or Cancel to subscribe immediately (overriding current gym).`
+      );
+      setStartNextMonth(startNext);
+    } else {
+      setStartNextMonth(false);
+    }
     setIsPaymentModalOpen(true);
   };
 
   const bannerImage = gym?.equipmentImages?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop';
+  const membershipAmount = Number(gym?.monthlyFee || 0) * (membershipType === 'Yearly' ? 12 : 1);
 
   if (loading) {
     return (
@@ -121,9 +150,21 @@ const GymDetails = () => {
           <h3>Membership</h3>
           <div className="price-tag">
             <span className="currency">$</span>
-            <span className="amount">{gym.monthlyFee ?? 0}</span>
-            <span className="period">/month</span>
+            <span className="amount">{membershipAmount}</span>
+            <span className="period">/{membershipType === 'Yearly' ? 'year' : 'month'}</span>
           </div>
+
+          {!isGuest && <div style={{ display: 'grid', gap: '10px', marginTop: '16px', textAlign: 'left' }}>
+            <label style={{ fontSize: '.85rem' }}>Membership plan
+              <select className="search-input" value={membershipType} onChange={event => setMembershipType(event.target.value)}>
+                <option value="Monthly">Monthly</option>
+                <option value="Yearly">Yearly</option>
+              </select>
+            </label>
+            <label style={{ fontSize: '.85rem' }}>Joining date
+              <input className="search-input" type="date" min={new Date().toISOString().slice(0, 10)} value={joiningDate} onChange={event => setJoiningDate(event.target.value)} />
+            </label>
+          </div>}
 
           <button
             className="btn btn-primary w-100 mt-20"
@@ -138,9 +179,12 @@ const GymDetails = () => {
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
-        amount={gym.monthlyFee ?? 0}
+        amount={membershipAmount}
         gymName={gym.name}
         paymentType="GymMembership"
+        startNextMonth={startNextMonth}
+        membershipType={membershipType}
+        joiningDate={joiningDate}
         title={`Join ${gym.name}`}
         onPaymentSuccess={() => {
           localStorage.setItem('gymsync_user_gym', gym.name);

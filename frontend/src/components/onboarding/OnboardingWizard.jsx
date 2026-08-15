@@ -452,7 +452,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
             <p className="wiz-subtitle">Help us tailor your gym recommendations and community matches.</p>
             
             <label className="wiz-label">Daily Activity Level</label>
-            <select className="wiz-select" value={data.activityLevel} onChange={e => updateData('activityLevel', e.target.value)}>
+            <select className="search-input" value={data.activityLevel} onChange={e => updateData('activityLevel', e.target.value)}>
               <option value="" disabled>Select Level...</option>
               <option value="sedentary">Sedentary (Desk job, under 4000 steps)</option>
               <option value="light">Lightly Active (Teacher, walking during day)</option>
@@ -461,7 +461,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
             </select>
 
             <label className="wiz-label" style={{ marginTop: '20px' }}>Fitness Experience</label>
-            <select className="wiz-select" value={data.experience} onChange={e => updateData('experience', e.target.value)}>
+            <select className="search-input" value={data.experience} onChange={e => updateData('experience', e.target.value)}>
               <option value="" disabled>Select Experience...</option>
               <option value="beginner">Beginner (Never trained consistently)</option>
               <option value="intermediate">Intermediate (Know basics, trained months/years)</option>
