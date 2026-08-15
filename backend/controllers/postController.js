@@ -1,5 +1,6 @@
 import Post from '../models/Post.js';
 import Notification from '../models/Notification.js';
+import mongoose from 'mongoose';
 
 // @desc    Get all posts
 // @route   GET /api/posts
@@ -32,10 +33,13 @@ export const createPost = async (req, res) => {
     if (!content?.trim() && !mediaUrl) {
       return res.status(400).json({ message: 'Add text or media before publishing.' });
     }
+
+    const authorId = req.user?._id || new mongoose.Types.ObjectId();
+
     const post = new Post({
-      author: req.user._id,
-      authorName: req.user.name,
-      authorRole: req.user.role || 'User',
+      author: authorId,
+      authorName: req.user?.name || 'User',
+      authorRole: req.user?.role || 'User',
       content: content?.trim() || '',
       mediaUrl,
       likes: [],
@@ -45,6 +49,7 @@ export const createPost = async (req, res) => {
     const createdPost = await post.save();
     res.status(201).json(createdPost);
   } catch (error) {
+    console.error('Error creating post:', error);
     res.status(500).json({ message: error.message });
   }
 };

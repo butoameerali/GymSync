@@ -21,9 +21,14 @@ const Home = () => {
   const isTrainee = userRole === 'User' || userRole === 'user' || isGuest;
   const isAdmin = userRole === 'Admin' || userRole === 'SuperAdmin' || userRole === 'ComplaintModerator';
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest User';
-  const authHeaders = localStorage.getItem('gymsync_token')
-    ? { Authorization: `Bearer ${localStorage.getItem('gymsync_token')}` }
-    : {};
+  const authHeaders = {
+    ...(localStorage.getItem('gymsync_token')
+      ? { Authorization: `Bearer ${localStorage.getItem('gymsync_token')}` }
+      : {}),
+    ...(localStorage.getItem('gymsync_user_name')
+      ? { 'x-user-name': localStorage.getItem('gymsync_user_name') }
+      : {})
+  };
 
   const [feedTab, setFeedTab] = useState('global');
   const [currentUser, setCurrentUser] = useState(null);
@@ -95,7 +100,10 @@ const Home = () => {
         body: formData
       });
       
-      if (!res.ok) throw new Error("Failed to post");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to post");
+      }
       
       const createdPost = await res.json();
       
@@ -107,7 +115,7 @@ const Home = () => {
       setSelectedFile(null);
       toast.success("Post published to Timeline!");
     } catch (err) {
-      toast.error("Error creating post");
+      toast.error(err.message || "Error creating post");
       console.error(err);
     }
   };
