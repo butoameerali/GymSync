@@ -163,7 +163,6 @@ const Profile = () => {
       fetches.push(
         fetch(`/api/gym-owner/dashboard/${userName}`, {
           headers: {
-            'x-user-name': userName,
             'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
           }
         })

@@ -29,10 +29,14 @@ const createTransporter = () => nodemailer.createTransport({
 
 // Generate JWT
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'supersecretgymsyncjwtkey', {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('CRITICAL: JWT_SECRET environment variable is missing.');
+  }
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '30d',
   });
 };
+
 
 const checkDBConnection = () => {
   if (mongoose.connection.readyState !== 1) {

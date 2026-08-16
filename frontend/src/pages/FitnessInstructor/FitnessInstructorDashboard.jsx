@@ -92,7 +92,10 @@ const FitnessInstructorDashboard = () => {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
         body: JSON.stringify(payload)
       });
 

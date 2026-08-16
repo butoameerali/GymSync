@@ -24,9 +24,6 @@ const Home = () => {
   const authHeaders = {
     ...(localStorage.getItem('gymsync_token')
       ? { Authorization: `Bearer ${localStorage.getItem('gymsync_token')}` }
-      : {}),
-    ...(localStorage.getItem('gymsync_user_name')
-      ? { 'x-user-name': localStorage.getItem('gymsync_user_name') }
       : {})
   };
 
@@ -533,7 +530,7 @@ const Home = () => {
           try {
             const res = await fetch(`/api/admin/posts/${removalPostId}/remove-with-reason`, {
               method: 'DELETE',
-              headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+              headers: { 'Content-Type': 'application/json', ...authHeaders },
               body: JSON.stringify({ reason: removalReason })
             });
             if (res.ok) {

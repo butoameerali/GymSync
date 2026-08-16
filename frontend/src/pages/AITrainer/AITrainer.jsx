@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles } from 'lucide-react';
 import { toast } from 'react-toastify';
 import PaymentModal from '../../components/common/PaymentModal';
 import { EXERCISE_LIBRARY, EXERCISE_CATEGORIES } from '../../data/exercises';
 import { useNavigate } from 'react-router-dom';
+import AIDetectorContainer from '../../ai-detectors/AIDetectorContainer';
 import './AITrainer.css';
 
 const AITrainer = () => {
@@ -12,6 +13,7 @@ const AITrainer = () => {
   const [activeEquipment, setActiveEquipment] = useState('All');
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState([]);
+  const [aiModeChoice, setAiModeChoice] = useState(null); // null | 'with_ai' | 'without_ai'
   
   // Exercise states
   const [currentExercise, setCurrentExercise] = useState(null);
@@ -239,6 +241,43 @@ const AITrainer = () => {
 
     toast.success(isGuest ? `Exercise Cached Temporarily! Log in to save to your Profile.` : `Exercise Completed! +${pointsEarned} Point added to your Profile.`);
     setCurrentExercise(null);
+    setAiModeChoice(null);
+  };
+
+  const handleAIComplete = (resultContract) => {
+    const pointsEarned = 1;
+    const storageKey = isGuest ? 'gymsync_Guest_User_history' : `gymsync_${localStorage.getItem('gymsync_user_name')?.replace(/\s+/g, '_')}_history`;
+    const history = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    history.push({
+      ...currentExercise,
+      date: new Date().toISOString(),
+      pointsEarned,
+      trackedViaAI: true,
+      aiResult: resultContract
+    });
+    localStorage.setItem(storageKey, JSON.stringify(history));
+
+    if (!isGuest) {
+      const userKey = localStorage.getItem('gymsync_user_name')?.replace(/\s+/g, '_');
+      const currentPoints = parseInt(localStorage.getItem(`gymsync_${userKey}_points`) || '0');
+      const currentStreak = parseInt(localStorage.getItem(`gymsync_${userKey}_streak`) || '0');
+      
+      localStorage.setItem(`gymsync_${userKey}_points`, currentPoints + pointsEarned);
+      localStorage.setItem(`gymsync_${userKey}_streak`, currentStreak === 0 ? 1 : currentStreak);
+    }
+
+    if (currentExercise.aiWorkoutIndex !== undefined) {
+      setCheckedExercises(prev => {
+        if (!prev.includes(currentExercise.aiWorkoutIndex)) {
+          return [...prev, currentExercise.aiWorkoutIndex];
+        }
+        return prev;
+      });
+    }
+
+    toast.success(`AI Session Complete! Tracked ${resultContract.reps || 0} reps with ${Math.round((resultContract.confidence || 0.85) * 100)}% confidence.`);
+    setCurrentExercise(null);
+    setAiModeChoice(null);
   };
 
   const handleAIModeClick = () => {
@@ -282,67 +321,140 @@ const AITrainer = () => {
           </button>
         </div>
 
-        {/* ACTIVE EXERCISE VIEW WITH GIF / VIDEO DEMONSTRATION PLAYER */}
-        {currentExercise && (
-          <div className="active-exercise-view glass-panel" style={{border: '1px solid #3b82f6', boxShadow: '0 8px 30px rgba(59,130,246,0.2)'}}>
-            <div className="view-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-              <div>
-                <h2>{currentExercise.name}</h2>
-                <div style={{display: 'flex', gap: '10px', marginTop: '5px'}}>
-                  <span className="category-badge">{Array.isArray(currentExercise.targetMuscles) ? currentExercise.targetMuscles.join(', ') : (currentExercise.category || 'General')}</span>
-                  <span className="category-badge" style={{background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b'}}>{currentExercise.equipmentRequired || currentExercise.equipment || 'Bodyweight'}</span>
+        {/* ACTIVE EXERCISE VIEW WITH GIF / VIDEO DEMONSTRATION PLAYER OR AI DETECTION */}
+        {currentExercise && (() => {
+          const isAiEnabled = Boolean(currentExercise.aiDetection?.enabled || currentExercise.isAiTrackable);
+
+          // 1. If AI is enabled and user hasn't made a choice yet -> Show Choice Selection Screen
+          if (isAiEnabled && aiModeChoice === null) {
+            return (
+              <div className="active-exercise-view glass-panel" style={{border: '1px solid #3b82f6', boxShadow: '0 8px 30px rgba(59,130,246,0.2)'}}>
+                <div className="view-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <div>
+                    <h2>{currentExercise.name}</h2>
+                    <div style={{display: 'flex', gap: '10px', marginTop: '5px'}}>
+                      <span className="category-badge">{Array.isArray(currentExercise.targetMuscles) ? currentExercise.targetMuscles.join(', ') : (currentExercise.category || 'General')}</span>
+                      <span className="category-badge" style={{background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b'}}>{currentExercise.equipmentRequired || currentExercise.equipment || 'Bodyweight'}</span>
+                    </div>
+                  </div>
+                  <button className="btn btn-outline btn-sm" onClick={() => setCurrentExercise(null)}>✕ Close</button>
+                </div>
+
+                <div style={{ padding: '30px', textAlign: 'center', background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid #3b82f6', marginTop: '20px' }}>
+                  <div style={{ display: 'inline-flex', padding: '14px', borderRadius: '50%', background: 'rgba(59,130,246,0.15)', color: '#3b82f6', marginBottom: '15px' }}>
+                    <Sparkles size={36} />
+                  </div>
+                  <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>Select Exercise Tracking Mode</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '500px', margin: '0 auto 24px auto' }}>
+                    This exercise has optional AI Camera Pose Detection. How would you like to perform <strong>{currentExercise.name}</strong>?
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '540px', margin: '0 auto' }}>
+                    <button className="btn btn-outline" style={{ padding: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }} onClick={() => setAiModeChoice('without_ai')}>
+                      <Dumbbell size={28} />
+                      <span style={{ fontWeight: 'bold', fontSize: '1rem' }}>DO WITHOUT AI</span>
+                      <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Standard manual workout & GIF guide</span>
+                    </button>
+                    <button className="btn btn-primary" style={{ padding: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }} onClick={() => setAiModeChoice('with_ai')}>
+                      <Camera size={28} />
+                      <span style={{ fontWeight: 'bold', fontSize: '1rem' }}>DO WITH AI</span>
+                      <span style={{ fontSize: '0.75rem', opacity: 0.9 }}>Camera pose tracking & rep counter</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <button className="btn btn-outline btn-sm" onClick={() => setCurrentExercise(null)}>✕ Close</button>
-            </div>
+            );
+          }
 
-            {/* VISUAL DEMONSTRATION PLAYER (GIF / VIDEO) */}
-            <div style={{marginTop: '20px', background: 'rgba(0,0,0,0.5)', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--card-border)', textAlign: 'center'}}>
-              {currentExercise.mediaUrl ? (
-                currentExercise.mediaUrl.endsWith('.mp4') || currentExercise.mediaUrl.endsWith('.webm') ? (
-                  <video src={currentExercise.mediaUrl} controls autoPlay loop style={{width: '100%', maxHeight: '350px', objectFit: 'contain'}} />
-                ) : (
-                  <img src={currentExercise.mediaUrl} alt={currentExercise.name} style={{width: '100%', maxHeight: '350px', objectFit: 'contain'}} />
-                )
-              ) : (
-                <div style={{padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px'}}>
-                  <div style={{width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                    <Dumbbell size={40} color="#3b82f6" />
-                  </div>
+          // 2. If user chose AI mode -> Render AIDetectorContainer
+          if (isAiEnabled && aiModeChoice === 'with_ai') {
+            return (
+              <div className="active-exercise-view glass-panel" style={{border: '1px solid #3b82f6', boxShadow: '0 8px 30px rgba(59,130,246,0.2)'}}>
+                <div className="view-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
                   <div>
-                    <h4 style={{color: 'var(--text-primary)', marginBottom: '5px'}}>Visual Demonstration Preview</h4>
-                    <p style={{color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Maintain proper form & neutral posture during performance.</p>
+                    <h2>{currentExercise.name}</h2>
                   </div>
+                  <button className="btn btn-outline btn-sm" onClick={() => setCurrentExercise(null)}>✕ Close</button>
                 </div>
-              )}
-            </div>
-
-            <div className="manual-viewport" style={{padding: '20px', textAlign: 'center', background: 'var(--card-bg)', borderRadius: '12px', marginTop: '20px'}}>
-              <h4 style={{color: 'var(--primary-accent)', marginBottom: '8px'}}>Form & Performance Instructions</h4>
-              <p style={{fontSize: '1rem', lineHeight: 1.5, color: 'var(--text-secondary)'}}>{currentExercise.description || currentExercise.instructions || 'Maintain controlled breathing and steady tempo.'}</p>
-              
-              <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginTop: '20px'}}>
-                <label style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>Completed Reps Target</label>
-                <input 
-                  type="number" 
-                  min="0" 
-                  value={reps} 
-                  onChange={e => setReps(parseInt(e.target.value) || 0)}
-                  style={{fontSize: '2rem', fontWeight: 'bold', width: '120px', textAlign: 'center', background: 'rgba(0,0,0,0.4)', color: '#10b981', border: '2px solid #10b981', padding: '8px', borderRadius: '12px'}}
+                <AIDetectorContainer
+                  detectorId={currentExercise.aiDetection?.detectorId || 'pushup_v1'}
+                  exerciseName={currentExercise.name}
+                  onCompleteSession={handleAIComplete}
+                  onFallbackToManual={() => setAiModeChoice('without_ai')}
                 />
               </div>
-            </div>
+            );
+          }
 
-            <div className="exercise-footer" style={{marginTop: '20px', display: 'flex', gap: '15px'}}>
-              <button className="btn btn-success w-100" onClick={handleComplete}>
-                <CheckCircle size={20}/> Log Reps & Save Record
-              </button>
-              <button className="btn btn-outline w-100" onClick={() => setCurrentExercise(null)}>
-                Cancel
-              </button>
+          // 3. Normal workout view (if AI is disabled OR user clicked DO WITHOUT AI)
+          return (
+            <div className="active-exercise-view glass-panel" style={{border: '1px solid #3b82f6', boxShadow: '0 8px 30px rgba(59,130,246,0.2)'}}>
+              <div className="view-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <div>
+                  <h2>{currentExercise.name}</h2>
+                  <div style={{display: 'flex', gap: '10px', marginTop: '5px'}}>
+                    <span className="category-badge">{Array.isArray(currentExercise.targetMuscles) ? currentExercise.targetMuscles.join(', ') : (currentExercise.category || 'General')}</span>
+                    <span className="category-badge" style={{background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b'}}>{currentExercise.equipmentRequired || currentExercise.equipment || 'Bodyweight'}</span>
+                    {isAiEnabled && (
+                      <span className="category-badge" style={{background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa'}}>AI Optional</span>
+                    )}
+                  </div>
+                </div>
+                <button className="btn btn-outline btn-sm" onClick={() => setCurrentExercise(null)}>✕ Close</button>
+              </div>
+
+              {/* VISUAL DEMONSTRATION PLAYER (GIF / VIDEO) */}
+              <div style={{marginTop: '20px', background: 'rgba(0,0,0,0.5)', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--card-border)', textAlign: 'center'}}>
+                {currentExercise.mediaUrl ? (
+                  currentExercise.mediaUrl.endsWith('.mp4') || currentExercise.mediaUrl.endsWith('.webm') ? (
+                    <video src={currentExercise.mediaUrl} controls autoPlay loop style={{width: '100%', maxHeight: '350px', objectFit: 'contain'}} />
+                  ) : (
+                    <img src={currentExercise.mediaUrl} alt={currentExercise.name} style={{width: '100%', maxHeight: '350px', objectFit: 'contain'}} />
+                  )
+                ) : (
+                  <div style={{padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px'}}>
+                    <div style={{width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                      <Dumbbell size={40} color="#3b82f6" />
+                    </div>
+                    <div>
+                      <h4 style={{color: 'var(--text-primary)', marginBottom: '5px'}}>Visual Demonstration Preview</h4>
+                      <p style={{color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Maintain proper form & neutral posture during performance.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="manual-viewport" style={{padding: '20px', textAlign: 'center', background: 'var(--card-bg)', borderRadius: '12px', marginTop: '20px'}}>
+                <h4 style={{color: 'var(--primary-accent)', marginBottom: '8px'}}>Form & Performance Instructions</h4>
+                <p style={{fontSize: '1rem', lineHeight: 1.5, color: 'var(--text-secondary)'}}>{currentExercise.description || currentExercise.instructions || 'Maintain controlled breathing and steady tempo.'}</p>
+                
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginTop: '20px'}}>
+                  <label style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>Completed Reps Target</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    value={reps} 
+                    onChange={e => setReps(parseInt(e.target.value) || 0)}
+                    style={{fontSize: '2rem', fontWeight: 'bold', width: '120px', textAlign: 'center', background: 'rgba(0,0,0,0.4)', color: '#10b981', border: '2px solid #10b981', padding: '8px', borderRadius: '12px'}}
+                  />
+                </div>
+              </div>
+
+              <div className="exercise-footer" style={{marginTop: '20px', display: 'flex', gap: '15px'}}>
+                <button className="btn btn-success w-100" onClick={handleComplete}>
+                  <CheckCircle size={20}/> Log Reps & Save Record
+                </button>
+                {isAiEnabled && (
+                  <button className="btn btn-outline w-100" onClick={() => setAiModeChoice('with_ai')}>
+                    <Camera size={18} /> Switch to AI Camera Mode
+                  </button>
+                )}
+                <button className="btn btn-outline w-100" onClick={() => setCurrentExercise(null)}>
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
 
         {/* LIBRARY VIEW (ALL EXERCISES FROM MONGODB) */}

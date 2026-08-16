@@ -44,19 +44,19 @@ router.route('/me')
   .delete(protect, deleteCurrentUser);
 
 router.route('/request')
-  .post(sendFriendRequest);
+  .post(protect, sendFriendRequest);
 
 router.route('/accept')
-  .post(acceptFriendRequest);
+  .post(protect, acceptFriendRequest);
 
 router.route('/unfriend')
-  .post(unfriend);
+  .post(protect, unfriend);
 
 router.route('/follow')
-  .post(followUser);
+  .post(protect, followUser);
 
 router.route('/unfollow')
-  .post(unfollowUser);
+  .post(protect, unfollowUser);
 
 router.route('/:name')
   .get(getUserByName);

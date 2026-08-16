@@ -213,7 +213,7 @@ const Store = () => {
     try {
       const res = await fetch('/api/store/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken || ''}` },
         body: JSON.stringify({ ...productForm, createdBy: userName })
       });
       if (res.ok) {
@@ -233,7 +233,7 @@ const Store = () => {
     try {
       const res = await fetch(`/api/store/products/${productId}`, {
         method: 'DELETE',
-        headers: { 'x-user-name': userName }
+        headers: { 'Authorization': `Bearer ${authToken || ''}` }
       });
       if (res.ok) {
         setProducts(prev => prev.filter(p => (p._id || p.id) !== productId));

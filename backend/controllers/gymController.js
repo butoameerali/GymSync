@@ -108,11 +108,17 @@ export const getMyGymData = async (req, res) => {
       return res.status(404).json({ message: 'Gym not found' });
     }
 
-    // Fetch plans assigned to this user
-    const plans = await GymPlan.find({ memberName: userName, gymId: gym._id.toString() });
+    // Fetch plans assigned to this user (matching ObjectId or memberName)
+    const plans = await GymPlan.find({
+      gymId: gym._id.toString(),
+      $or: [{ memberId: user._id.toString() }, { memberName: user.name }]
+    });
     
     // Fetch user's attendance log
-    const attendanceLogs = await Attendance.find({ memberName: userName, gymId: gym._id.toString() }).sort({ checkInTime: -1 });
+    const attendanceLogs = await Attendance.find({
+      gymId: gym._id.toString(),
+      $or: [{ memberId: user._id.toString() }, { memberName: user.name }]
+    }).sort({ checkInTime: -1 });
 
     // Fetch gym owner's posts
     // `author` is an ObjectId; gym.ownerName is a display name. Query the

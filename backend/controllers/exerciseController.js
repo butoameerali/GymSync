@@ -45,12 +45,33 @@ export const getExerciseById = async (req, res) => {
   }
 };
 
+// Safe registered detector allowlist
+const SAFE_DETECTORS = {
+  'pushup_v1': '1.0',
+  'squat_v1': '1.0',
+  'plank_v1': '1.0',
+  'jumping_jack_v1': '1.0'
+};
+
 // POST /api/exercises (Admin)
 export const createExercise = async (req, res) => {
   try {
-    const { exerciseId, name, targetMuscles, equipmentRequired, difficulty, fitnessPaths, medicalAvoidIf, jointPainAvoidIf, mediaUrl, description } = req.body;
+    const { exerciseId, name, targetMuscles, equipmentRequired, difficulty, fitnessPaths, medicalAvoidIf, jointPainAvoidIf, mediaUrl, description, aiDetection } = req.body;
 
     if (!name) return res.status(400).json({ error: 'Exercise name is required' });
+
+    let parsedAiDetection = { enabled: false, detectorId: null, detectorVersion: null };
+    if (aiDetection && aiDetection.enabled) {
+      const detId = aiDetection.detectorId;
+      if (!detId || !SAFE_DETECTORS[detId]) {
+        return res.status(400).json({ error: `Invalid or unregistered detectorId '${detId}'` });
+      }
+      parsedAiDetection = {
+        enabled: true,
+        detectorId: detId,
+        detectorVersion: aiDetection.detectorVersion || SAFE_DETECTORS[detId]
+      };
+    }
 
     const newId = exerciseId || `EX-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
@@ -64,7 +85,9 @@ export const createExercise = async (req, res) => {
       medicalAvoidIf: Array.isArray(medicalAvoidIf) ? medicalAvoidIf : (medicalAvoidIf || '').split(',').map(s => s.trim()).filter(Boolean),
       jointPainAvoidIf: Array.isArray(jointPainAvoidIf) ? jointPainAvoidIf : (jointPainAvoidIf || '').split(',').map(s => s.trim()).filter(Boolean),
       mediaUrl: mediaUrl || '',
-      description: description || ''
+      description: description || '',
+      aiDetection: parsedAiDetection,
+      isAiTrackable: parsedAiDetection.enabled
     });
 
     res.status(201).json(exercise);
@@ -77,7 +100,7 @@ export const createExercise = async (req, res) => {
 // PUT /api/exercises/:id (Admin)
 export const updateExercise = async (req, res) => {
   try {
-    const { name, targetMuscles, equipmentRequired, difficulty, fitnessPaths, medicalAvoidIf, jointPainAvoidIf, mediaUrl, description } = req.body;
+    const { name, targetMuscles, equipmentRequired, difficulty, fitnessPaths, medicalAvoidIf, jointPainAvoidIf, mediaUrl, description, aiDetection } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -97,6 +120,24 @@ export const updateExercise = async (req, res) => {
     }
     if (jointPainAvoidIf !== undefined) {
       updateData.jointPainAvoidIf = Array.isArray(jointPainAvoidIf) ? jointPainAvoidIf : String(jointPainAvoidIf).split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    if (aiDetection !== undefined) {
+      if (aiDetection && aiDetection.enabled) {
+        const detId = aiDetection.detectorId;
+        if (!detId || !SAFE_DETECTORS[detId]) {
+          return res.status(400).json({ error: `Invalid or unregistered detectorId '${detId}'` });
+        }
+        updateData.aiDetection = {
+          enabled: true,
+          detectorId: detId,
+          detectorVersion: aiDetection.detectorVersion || SAFE_DETECTORS[detId]
+        };
+        updateData.isAiTrackable = true;
+      } else {
+        updateData.aiDetection = { enabled: false, detectorId: null, detectorVersion: null };
+        updateData.isAiTrackable = false;
+      }
     }
 
     const updated = await Exercise.findByIdAndUpdate(req.params.id, updateData, { new: true });

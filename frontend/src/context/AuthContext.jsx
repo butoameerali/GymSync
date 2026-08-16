@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
 
       setUser(data);
       localStorage.setItem('userInfo', JSON.stringify(data));
-      localStorage.setItem('gymsync_token', data.token || 'mocktoken');
+      localStorage.setItem('gymsync_token', data.token);
       localStorage.setItem('gymsync_role', data.role || 'User');
       localStorage.setItem('gymsync_user_name', data.name || 'User');
 
@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }) => {
 
       setUser(data);
       localStorage.setItem('userInfo', JSON.stringify(data));
-      localStorage.setItem('gymsync_token', data.token || 'mocktoken');
+      localStorage.setItem('gymsync_token', data.token);
       localStorage.setItem('gymsync_role', data.role || 'User');
       localStorage.setItem('gymsync_user_name', data.name || 'User');
 

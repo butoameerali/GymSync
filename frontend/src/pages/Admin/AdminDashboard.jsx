@@ -3,6 +3,7 @@ import { Shield, Users, Building, ShoppingBag, AlertTriangle, CheckCircle, XCirc
 import { toast } from 'react-toastify';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
+import { REGISTERED_DETECTORS } from '../../ai-detectors/registry.js';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -56,7 +57,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch(`/api/admin/users/${account._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
         body: JSON.stringify({ name, email })
       });
       const data = await res.json();
@@ -69,7 +70,7 @@ const AdminDashboard = () => {
   const handleDeleteUser = async (account) => {
     if (!window.confirm(`Delete ${account.name}'s account? This cannot be undone.`)) return;
     try {
-      const res = await fetch(`/api/admin/users/${account._id}`, { method: 'DELETE', headers: { 'x-user-name': userName } });
+      const res = await fetch(`/api/admin/users/${account._id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       toast.success('User account deleted');
@@ -87,7 +88,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch('/api/admin/create-instructor', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
         body: JSON.stringify(instructorForm)
       });
       const data = await res.json();
@@ -122,7 +123,7 @@ const AdminDashboard = () => {
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [editingExercise, setEditingExercise] = useState(null);
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
-  const [exerciseForm, setExerciseForm] = useState({ name: '', targetMuscles: 'Chest, Shoulders', equipmentRequired: 'Dumbbells', difficulty: 'Beginner', mediaUrl: '', description: '' });
+  const [exerciseForm, setExerciseForm] = useState({ name: '', targetMuscles: 'Chest, Shoulders', equipmentRequired: 'Dumbbells', difficulty: 'Beginner', mediaUrl: '', description: '', aiEnabled: false, detectorId: 'pushup_v1' });
   
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [planForm, setPlanForm] = useState({ title: '', type: 'Exercise', category: 'Full Body', description: '' });
@@ -148,31 +149,31 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       // 1. Stats
-      const statsRes = await fetch('/api/admin/stats', { headers: { 'x-user-name': userName } });
+      const statsRes = await fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } });
       if (statsRes.ok) setStats(await statsRes.json());
 
       // 2. Users
-      const usersRes = await fetch('/api/admin/users', { headers: { 'x-user-name': userName } });
+      const usersRes = await fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } });
       if (usersRes.ok) setUsers(await usersRes.json());
 
       // 3. Gym Approvals
-      const gymsRes = await fetch('/api/admin/gyms/pending', { headers: { 'x-user-name': userName } });
+      const gymsRes = await fetch('/api/admin/gyms/pending', { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } });
       if (gymsRes.ok) setPendingGyms(await gymsRes.json());
 
       // 4. Reported Posts
-      const postsRes = await fetch('/api/admin/posts/reported', { headers: { 'x-user-name': userName } });
+      const postsRes = await fetch('/api/admin/posts/reported', { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } });
       if (postsRes.ok) setReportedPosts(await postsRes.json());
 
       // 5. Complaints
-      const complaintsRes = await fetch('/api/complaints', { headers: { 'x-user-name': userName } });
+      const complaintsRes = await fetch('/api/complaints', { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } });
       if (complaintsRes.ok) setComplaints(await complaintsRes.json());
 
       // 6. Pending Cashback (Senior Admin)
       if (isSeniorAdmin) {
-        const cashbackRes = await fetch('/api/admin/posts/pending-cashback', { headers: { 'x-user-name': userName } });
+        const cashbackRes = await fetch('/api/admin/posts/pending-cashback', { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } });
         if (cashbackRes.ok) setPendingCashback(await cashbackRes.json());
 
-        const logsRes = await fetch('/api/admin/audit-logs', { headers: { 'x-user-name': userName } });
+        const logsRes = await fetch('/api/admin/audit-logs', { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } });
         if (logsRes.ok) setAuditLogs(await logsRes.json());
       }
 
@@ -181,7 +182,7 @@ const AdminDashboard = () => {
       if (productsRes.ok) setProducts(await productsRes.json());
 
       if (isSeniorAdmin) {
-        const configRes = await fetch('/api/payments/config', { headers: { 'x-user-name': userName } });
+        const configRes = await fetch('/api/payments/config', { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } });
         if (configRes.ok) {
           const configs = await configRes.json();
           setPaymentConfigs(configs);
@@ -195,7 +196,7 @@ const AdminDashboard = () => {
       }
 
       if (userRole === 'Admin' || userRole === 'SuperAdmin') {
-        const pendingRes = await fetch('/api/payments/pending', { headers: { 'x-user-name': userName } });
+        const pendingRes = await fetch('/api/payments/pending', { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } });
         if (pendingRes.ok) setPendingPayments(await pendingRes.json());
       }
 
@@ -211,7 +212,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch(`/api/admin/gyms/${gymId}/approval`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
         body: JSON.stringify({ status })
       });
       if (res.ok) {
@@ -228,7 +229,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch(`/api/admin/posts/${postId}/moderate`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
         body: JSON.stringify({ action })
       });
       if (res.ok) {
@@ -246,7 +247,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch('/api/admin/posts/cashback', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
         body: JSON.stringify({ content: cashbackContent, cashbackAmount, authorName: userName })
       });
       if (res.ok) {
@@ -267,7 +268,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch(`/api/payments/config/${selectedPaymentMethod}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
         body: JSON.stringify({ accountNumber: configNumber, bankDetails: configDetails, notes: configNotes })
       });
       if (res.ok) {
@@ -284,7 +285,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch(`/api/payments/${paymentId}/approve`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName }
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` }
       });
       if (res.ok) {
         toast.success('Payment approved successfully');
@@ -310,7 +311,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch(`/api/admin/posts/${postId}/review-cashback`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
         body: JSON.stringify({ status })
       });
       if (res.ok) {
@@ -328,7 +329,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch(`/api/admin/complaints/${complaintId}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
         body: JSON.stringify({ text: chatInput, senderName: userName, role: userRole })
       });
       if (res.ok) {
@@ -348,7 +349,6 @@ const AdminDashboard = () => {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json', 
-          'x-user-name': userName,
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         },
         body: JSON.stringify({ status })
@@ -368,7 +368,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch('/api/store/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
         body: JSON.stringify({ ...productForm, createdBy: userName })
       });
       if (res.ok) {
@@ -388,7 +388,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch('/api/admin/broadcast', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
         body: JSON.stringify({ title: broadcastTitle, message: broadcastMessage, eventType: broadcastType })
       });
       if (res.ok) {
@@ -481,7 +481,7 @@ const AdminDashboard = () => {
                     <p style={{ color: 'var(--text-secondary)' }}>Manage 600+ exercises, edit GIF/Video demonstration URLs, and publish pre-made plans.</p>
                   </div>
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <button className="btn btn-primary" onClick={() => { setEditingExercise(null); setExerciseForm({ name: '', targetMuscles: 'Chest, Shoulders', equipmentRequired: 'Dumbbells', difficulty: 'Beginner', mediaUrl: '', description: '' }); setIsExerciseModalOpen(true); }}>
+                    <button className="btn btn-primary" onClick={() => { setEditingExercise(null); setExerciseForm({ name: '', targetMuscles: 'Chest, Shoulders', equipmentRequired: 'Dumbbells', difficulty: 'Beginner', mediaUrl: '', description: '', aiEnabled: false, detectorId: 'pushup_v1' }); setIsExerciseModalOpen(true); }}>
                       <PlusCircle size={16} /> Add Exercise
                     </button>
                     <button className="btn btn-success" onClick={() => { setPlanForm({ title: '', type: 'Exercise', category: 'Full Body', description: '' }); setIsPlanModalOpen(true); }}>
@@ -510,7 +510,10 @@ const AdminDashboard = () => {
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '8px' }}>{plan.description}</p>
                         <button className="btn btn-outline btn-sm" style={{ marginTop: '10px', color: '#ef4444', borderColor: '#ef4444' }} onClick={async () => {
                           if (confirm('Delete this pre-made plan?')) {
-                            await fetch(`/api/plans/premade/${plan._id}`, { method: 'DELETE' });
+                            await fetch(`/api/plans/premade/${plan._id}`, {
+                              method: 'DELETE',
+                              headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` }
+                            });
                             toast.success('Plan deleted');
                             fetchExerciseAndPlanData();
                           }
@@ -568,7 +571,9 @@ const AdminDashboard = () => {
                                 equipmentRequired: ex.equipmentRequired || 'Bodyweight',
                                 difficulty: ex.difficulty || 'Beginner',
                                 mediaUrl: ex.mediaUrl || '',
-                                description: ex.description || ''
+                                description: ex.description || '',
+                                aiEnabled: Boolean(ex.aiDetection?.enabled || ex.isAiTrackable),
+                                detectorId: ex.aiDetection?.detectorId || 'pushup_v1'
                               });
                               setIsExerciseModalOpen(true);
                             }}>
@@ -576,7 +581,10 @@ const AdminDashboard = () => {
                             </button>
                             <button className="btn btn-outline btn-sm" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={async () => {
                               if (confirm(`Delete exercise ${ex.name}?`)) {
-                                await fetch(`/api/exercises/${ex._id}`, { method: 'DELETE' });
+                                await fetch(`/api/exercises/${ex._id}`, {
+                                  method: 'DELETE',
+                                  headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` }
+                                });
                                 toast.success('Exercise deleted');
                                 fetchExerciseAndPlanData();
                               }
@@ -623,20 +631,50 @@ const AdminDashboard = () => {
                       <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Description / Form Instructions</label>
                       <textarea className="search-input" style={{ height: '80px' }} value={exerciseForm.description} onChange={e => setExerciseForm({ ...exerciseForm, description: e.target.value })} />
                     </div>
+                    <div style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '12px', borderRadius: '8px' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={exerciseForm.aiEnabled} onChange={e => setExerciseForm({ ...exerciseForm, aiEnabled: e.target.checked })} />
+                        Enable AI Camera Pose Detection (Optional)
+                      </label>
+                      {exerciseForm.aiEnabled && (
+                        <div style={{ marginTop: '10px' }}>
+                          <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Registered Detection Algorithm</label>
+                          <select className="search-input" value={exerciseForm.detectorId} onChange={e => setExerciseForm({ ...exerciseForm, detectorId: e.target.value })}>
+                            {REGISTERED_DETECTORS.map(d => (
+                              <option key={d.id} value={d.id}>{d.name} (v{d.version} - {d.status})</option>
+                            ))}
+                          </select>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
+                            Only safe, pre-configured detector algorithms in the application registry can be selected.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                     <button className="btn btn-primary w-100" style={{ marginTop: '10px' }} onClick={async () => {
                       if (!exerciseForm.name) return toast.error('Exercise name is required');
+                      const payload = {
+                        ...exerciseForm,
+                        aiDetection: {
+                          enabled: exerciseForm.aiEnabled,
+                          detectorId: exerciseForm.aiEnabled ? exerciseForm.detectorId : null
+                        }
+                      };
+                      const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+                      };
                       if (editingExercise) {
                         await fetch(`/api/exercises/${editingExercise._id}`, {
                           method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(exerciseForm)
+                          headers,
+                          body: JSON.stringify(payload)
                         });
                         toast.success('Exercise updated');
                       } else {
                         await fetch('/api/exercises', {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(exerciseForm)
+                          headers,
+                          body: JSON.stringify(payload)
                         });
                         toast.success('Exercise created');
                       }
@@ -685,7 +723,10 @@ const AdminDashboard = () => {
 
                       await fetch('/api/plans/premade', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+                        },
                         body: JSON.stringify({ ...planForm, details: sampleDetails })
                       });
                       toast.success('Pre-Made Plan published!');
@@ -999,7 +1040,7 @@ const AdminDashboard = () => {
                                         try {
                                           const res = await fetch(`/api/admin/complaints/${c._id}/approve-refund`, {
                                             method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json', 'x-user-name': userName }
+                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` }
                                           });
                                           if (res.ok) {
                                             toast.success('Refund Cashback Approved! User notified: "Your refund will be given shortly."');
@@ -1247,7 +1288,7 @@ const AdminDashboard = () => {
                                   try {
                                     const res = await fetch(`/api/admin/users/${u._id}/ban`, {
                                       method: 'PUT',
-                                      headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+                                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
                                       body: JSON.stringify({ isBanned: !u.isBanned })
                                     });
                                     if (res.ok) {
@@ -1346,7 +1387,7 @@ const AdminDashboard = () => {
               try {
                 const res = await fetch(`/api/admin/complaints/${selectedComplaint._id}/request-refund`, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
                   body: JSON.stringify({ refundAmount: 29.99 })
                 });
                 if (res.ok) {

@@ -43,6 +43,11 @@ const exerciseSchema = new mongoose.Schema({
   isAiTrackable: {
     type: Boolean,
     default: false
+  },
+  aiDetection: {
+    enabled: { type: Boolean, default: false },
+    detectorId: { type: String, default: null },
+    detectorVersion: { type: String, default: null }
   }
 }, { timestamps: true });
 

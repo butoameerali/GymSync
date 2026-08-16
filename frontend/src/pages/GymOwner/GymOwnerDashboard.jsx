@@ -57,7 +57,6 @@ const GymOwnerDashboard = () => {
     try {
       const res = await fetch(`/api/gym-owner/dashboard/${ownerName}`, {
         headers: {
-          'x-user-name': ownerName,
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         }
       });
@@ -140,7 +139,6 @@ const GymOwnerDashboard = () => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-user-name': ownerName,
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         },
         body: JSON.stringify({
@@ -171,7 +169,6 @@ const GymOwnerDashboard = () => {
       const res = await fetch(`/api/gym-owner/attendance/check-out/${attendanceId}`, {
         method: 'PUT',
         headers: {
-          'x-user-name': ownerName,
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         }
       });
@@ -197,7 +194,6 @@ const GymOwnerDashboard = () => {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'x-user-name': ownerName,
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         },
         body: JSON.stringify({
@@ -227,7 +223,6 @@ const GymOwnerDashboard = () => {
           const photoRes = await fetch(`/api/gym-owner/gym/${targetGymId}/upload-photo`, {
             method: 'POST',
             headers: {
-              'x-user-name': ownerName,
               'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
             },
             body: formData
@@ -263,7 +258,6 @@ const GymOwnerDashboard = () => {
       const res = await fetch(`/api/gym-owner/gym/${gymId}`, {
         method: 'DELETE',
         headers: { 
-          'x-user-name': ownerName,
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         }
       });
@@ -300,7 +294,6 @@ const GymOwnerDashboard = () => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-user-name': ownerName,
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         },
         body: JSON.stringify({

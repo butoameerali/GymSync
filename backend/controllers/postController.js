@@ -125,17 +125,20 @@ export const addComment = async (req, res) => {
 
 // @desc    Add a reply to a comment
 // @route   POST /api/posts/:id/comment/:commentId/reply
+// @desc    Add a reply to a comment
+// @route   POST /api/posts/:id/comment/:commentId/reply
 // @access  Private
 export const addReply = async (req, res) => {
-  const { text, authorName } = req.body;
+  const { text } = req.body;
   try {
+    if (!text?.trim()) return res.status(400).json({ message: 'Reply text is required' });
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
     const comment = post.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
 
-    comment.replies.push({ text, author: authorName || 'Unknown User', date: new Date() });
+    comment.replies.push({ text: text.trim(), author: req.user.name, date: new Date() });
     await post.save();
 
     res.json(post.comments);
@@ -155,6 +158,14 @@ export const deleteReply = async (req, res) => {
     const comment = post.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
 
+    const reply = comment.replies.id(req.params.replyId);
+    if (!reply) return res.status(404).json({ message: 'Reply not found' });
+
+    const isModerator = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user.role);
+    if (reply.author !== req.user.name && !isModerator) {
+      return res.status(403).json({ message: 'You can only delete your own replies.' });
+    }
+
     comment.replies.pull(req.params.replyId);
     await post.save();
 
@@ -170,6 +181,7 @@ export const deleteReply = async (req, res) => {
 export const editReply = async (req, res) => {
   const { text } = req.body;
   try {
+    if (!text?.trim()) return res.status(400).json({ message: 'Reply text is required' });
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
@@ -179,7 +191,12 @@ export const editReply = async (req, res) => {
     const reply = comment.replies.id(req.params.replyId);
     if (!reply) return res.status(404).json({ message: 'Reply not found' });
 
-    reply.text = text;
+    const isModerator = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user.role);
+    if (reply.author !== req.user.name && !isModerator) {
+      return res.status(403).json({ message: 'You can only edit your own replies.' });
+    }
+
+    reply.text = text.trim();
     await post.save();
 
     res.json(post.comments);

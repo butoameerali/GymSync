@@ -96,7 +96,7 @@ export const updateGymProfile = async (req, res) => {
           gym = await Gym.findOne({ owner: req.user._id });
         }
         if (!gym && req.user && req.user.role !== 'GymOwner' && req.user.role !== 'gym_owner') {
-          const ownerName = req.headers['x-user-name'] || req.user?.name || 'Gym Owner';
+          const ownerName = req.user?.name || 'Gym Owner';
           gym = await Gym.findOne({ ownerName });
         }
       }
@@ -118,8 +118,8 @@ export const updateGymProfile = async (req, res) => {
       }
 
       // If still no gym found, create one for the owner
-      const ownerName = req.headers['x-user-name'] || req.user?.name || 'Gym Owner';
-      const ownerEmail = req.user?.email || req.headers['x-user-email'] || '';
+      const ownerName = req.user?.name || 'Gym Owner';
+      const ownerEmail = req.user?.email || '';
       const newGym = await Gym.create({
         owner: req.user?._id || null,
         ownerName,
@@ -165,7 +165,7 @@ export const deleteGymProfile = async (req, res) => {
         console.log(`Delete: found by owner ID:`, gym ? gym._id : 'null');
       }
       if (!gym && req.user && req.user.role !== 'GymOwner' && req.user.role !== 'gym_owner') {
-        const ownerName = req.headers['x-user-name'] || req.user?.name || 'Gym Owner';
+        const ownerName = req.user?.name || 'Gym Owner';
         gym = await Gym.findOne({ ownerName });
       }
     }
@@ -270,7 +270,7 @@ export const uploadGymPhoto = async (req, res) => {
         gym = await Gym.findOne({ owner: req.user._id });
       }
       if (!gym && req.user && req.user.role !== 'GymOwner' && req.user.role !== 'gym_owner') {
-        const ownerName = req.headers['x-user-name'] || req.user?.name || 'Gym Owner';
+        const ownerName = req.user?.name || 'Gym Owner';
         gym = await Gym.findOne({ ownerName });
       }
     }
@@ -315,7 +315,7 @@ export const createGymPlan = async (req, res) => {
         gymId: gym._id.toString(),
         memberId: member._id.toString(),
         memberName,
-        assignedBy: req.user?.name || req.headers['x-user-name'] || 'Gym Trainer',
+        assignedBy: req.user?.name || 'Gym Trainer',
         planType: planType || 'Workout',
         title,
         description: description || '',

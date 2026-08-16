@@ -82,7 +82,6 @@ const GymTrainerDashboard = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-name': trainerName,
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         },
         body: JSON.stringify({

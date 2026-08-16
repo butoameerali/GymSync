@@ -32,10 +32,10 @@ router.route('/:id/comment')
   .post(protect, addComment);
 
 router.route('/:id/comment/:commentId/reply')
-  .post(addReply);
+  .post(protect, addReply);
 
 router.route('/:id/comment/:commentId/reply/:replyId')
-  .put(editReply)
-  .delete(deleteReply);
+  .put(protect, editReply)
+  .delete(protect, deleteReply);
 
 export default router;

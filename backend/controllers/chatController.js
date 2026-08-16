@@ -2,9 +2,16 @@ import Message from '../models/Message.js';
 
 // @desc    Get conversation between two users
 // @route   GET /api/chat/:user1/:user2
-// @access  Public
+// @access  Private
 export const getConversation = async (req, res) => {
   const { user1, user2 } = req.params;
+  const currentUserName = req.user?.name;
+  const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user?.role);
+
+  if (!isAdmin && currentUserName !== user1 && currentUserName !== user2) {
+    return res.status(403).json({ message: 'Not authorized to view this private conversation' });
+  }
+
   try {
     const messages = await Message.find({
       $or: [
@@ -21,9 +28,16 @@ export const getConversation = async (req, res) => {
 
 // @desc    Get all unique conversation contacts for a user
 // @route   GET /api/chat/conversations/:userName
-// @access  Public
+// @access  Private
 export const getConversations = async (req, res) => {
   const { userName } = req.params;
+  const currentUserName = req.user?.name;
+  const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user?.role);
+
+  if (!isAdmin && currentUserName !== userName) {
+    return res.status(403).json({ message: 'Not authorized to view these conversations' });
+  }
+
   try {
     const messages = await Message.find({
       $or: [{ sender: userName }, { receiver: userName }]
@@ -44,14 +58,20 @@ export const getConversations = async (req, res) => {
 
 // @desc    Send a message
 // @route   POST /api/chat
-// @access  Public
+// @access  Private
 export const sendMessage = async (req, res) => {
-  const { sender, receiver, text } = req.body;
+  const { receiver, text } = req.body;
+  const sender = req.user?.name;
+
+  if (!receiver || !text?.trim()) {
+    return res.status(400).json({ message: 'Receiver and text message are required' });
+  }
+
   try {
     const message = await Message.create({
       sender,
       receiver,
-      text
+      text: text.trim()
     });
     res.status(201).json(message);
   } catch (error) {

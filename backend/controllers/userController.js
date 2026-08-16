@@ -96,29 +96,25 @@ export const deleteCurrentUser = async (req, res) => {
   }
 };
 
-// Helper to auto-create mock users for FYP continuity
-const ensureUser = async (name) => {
-  let user = await User.findOne({ name });
-  if (!user) {
-    user = new User({
-      name,
-      email: `${name.replace(/\s+/g, '')}${Math.floor(Math.random() * 100000)}@example.com`,
-      password: 'mockpassword123',
-      role: 'User'
-    });
-    await user.save();
-  }
-  return user;
+// Helper to find user by name cleanly without creating ghost accounts
+const findUserByName = async (name) => {
+  return await User.findOne({ name });
 };
 
 // @desc    Send Friend Request
 // @route   POST /api/users/request
-// @access  Public
+// @access  Private
 export const sendFriendRequest = async (req, res) => {
-  const { senderName, receiverName } = req.body;
+  const { receiverName } = req.body;
+  const senderName = req.user.name;
   try {
-    const sender = await ensureUser(senderName);
-    const receiver = await ensureUser(receiverName);
+    if (!receiverName) return res.status(400).json({ message: 'Target user is required' });
+    if (senderName === receiverName) return res.status(400).json({ message: 'Cannot send friend request to yourself' });
+
+    const sender = await User.findById(req.user._id);
+    const receiver = await findUserByName(receiverName);
+
+    if (!sender || !receiver) return res.status(404).json({ message: 'User account not found' });
 
     if (!sender.sentRequests.includes(receiverName)) {
       sender.sentRequests.push(receiverName);
@@ -135,12 +131,16 @@ export const sendFriendRequest = async (req, res) => {
 
 // @desc    Accept Friend Request
 // @route   POST /api/users/accept
-// @access  Public
+// @access  Private
 export const acceptFriendRequest = async (req, res) => {
-  const { senderName, receiverName, notificationId } = req.body; // receiverName is the one accepting
+  const { senderName, notificationId } = req.body;
+  const receiverName = req.user.name; // Authenticated user accepting
   try {
-    const sender = await ensureUser(senderName);
-    const receiver = await ensureUser(receiverName);
+    if (!senderName) return res.status(400).json({ message: 'Sender name is required' });
+    const sender = await findUserByName(senderName);
+    const receiver = await User.findById(req.user._id);
+
+    if (!sender || !receiver) return res.status(404).json({ message: 'User account not found' });
 
     // Remove requests
     sender.sentRequests = sender.sentRequests.filter(name => name !== receiverName);
@@ -168,12 +168,13 @@ export const acceptFriendRequest = async (req, res) => {
 
 // @desc    Unfriend
 // @route   POST /api/users/unfriend
-// @access  Public
+// @access  Private
 export const unfriend = async (req, res) => {
-  const { userName, friendName } = req.body;
+  const { friendName } = req.body;
+  const userName = req.user.name;
   try {
-    const user = await User.findOne({ name: userName });
-    const friend = await User.findOne({ name: friendName });
+    const user = await User.findById(req.user._id);
+    const friend = await findUserByName(friendName);
 
     if (!user || !friend) return res.status(404).json({ message: 'User not found' });
 
@@ -191,12 +192,18 @@ export const unfriend = async (req, res) => {
 
 // @desc    Follow a User
 // @route   POST /api/users/follow
-// @access  Public
+// @access  Private
 export const followUser = async (req, res) => {
-  const { followerName, targetName } = req.body;
+  const { targetName } = req.body;
+  const followerName = req.user.name;
   try {
-    const follower = await ensureUser(followerName);
-    const target = await ensureUser(targetName);
+    if (!targetName) return res.status(400).json({ message: 'Target user is required' });
+    if (followerName === targetName) return res.status(400).json({ message: 'Cannot follow yourself' });
+
+    const follower = await User.findById(req.user._id);
+    const target = await findUserByName(targetName);
+
+    if (!follower || !target) return res.status(404).json({ message: 'Target user not found' });
 
     if (!follower.following.includes(targetName)) {
       follower.following.push(targetName);
@@ -216,7 +223,7 @@ export const followUser = async (req, res) => {
       
       // Notify target
       await Notification.create({
-        userId: target.name,
+        userId: String(target._id),
         type: 'follow',
         message
       });
@@ -230,9 +237,10 @@ export const followUser = async (req, res) => {
 
 // @desc    Unfollow a User
 // @route   POST /api/users/unfollow
-// @access  Public
+// @access  Private
 export const unfollowUser = async (req, res) => {
-  const { followerName, targetName } = req.body;
+  const { targetName } = req.body;
+  const followerName = req.user.name;
   try {
     const follower = await User.findOne({ name: followerName });
     const target = await User.findOne({ name: targetName });

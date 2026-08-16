@@ -8,7 +8,7 @@ import { logAuditTrail } from '../middleware/securityMiddleware.js';
 
 // Helper to verify admin role
 const verifyAdminRole = (req, res, allowedRoles = ['SuperAdmin', 'Admin', 'ComplaintModerator']) => {
-  const userRole = req.user?.role || req.headers['x-user-role'] || 'User';
+  const userRole = req.user?.role || 'User';
   const normalizedRole = userRole.toLowerCase();
   const allowed = allowedRoles.map(r => r.toLowerCase());
 
@@ -92,22 +92,25 @@ export const updateUserRole = async (req, res) => {
 
     const { id } = req.params;
     const { role } = req.body;
-    const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
+
+    const validRoles = ['SuperAdmin', 'Admin', 'GymOwner', 'User', 'StoreManager', 'ComplaintModerator', 'FitnessInstructor', 'GymTrainer'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ message: 'Invalid role specified' });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.role = role;
+    await user.save();
+
+    const actorName = req.user?.name || 'Admin';
 
     logAuditTrail(actorName, req.user?.role || 'Admin', 'Assigned User Role', id, `New Role: ${role}`, req);
 
-    try {
-      const user = await User.findById(id);
-      if (user) {
-        user.role = role;
-        if (role === 'SuperAdmin') user.adminTier = 'Senior';
-        else if (role === 'Admin') user.adminTier = 'Junior';
-        await user.save();
-        return res.json({ message: `Role updated to ${role} for user ${user.name}`, user });
-      }
-    } catch (e) {}
-
-    res.json({ message: `Role updated to ${role}`, user: { _id: id, role } });
+    res.json({ message: `Role updated to ${role} for user ${user.name}`, user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -153,21 +156,19 @@ export const toggleUserBan = async (req, res) => {
 
     const { id } = req.params;
     const { isBanned, banReason } = req.body;
-    const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
+    
+    const user = await User.findById(id);
+    if (user) {
+        user.isBanned = Boolean(isBanned);
+        if (banReason !== undefined) user.banReason = banReason;
+        await user.save();
+    }
+
+    const actorName = req.user?.name || 'Admin';
 
     logAuditTrail(actorName, req.user?.role || 'Admin', 'Updated User Ban Status', id, `Banned: ${isBanned}, Reason: ${banReason || 'N/A'}`, req);
 
-    try {
-      const user = await User.findById(id);
-      if (user) {
-        user.isBanned = Boolean(isBanned);
-        user.banReason = banReason || '';
-        await user.save();
-        return res.json({ message: `User ban status set to ${user.isBanned}`, user });
-      }
-    } catch (e) {}
-
-    res.json({ message: `User ban status updated to ${isBanned}` });
+    res.json({ message: `User ban status set to ${isBanned}`, user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -196,13 +197,10 @@ export const updateGymApprovalStatus = async (req, res) => {
 
     const { id } = req.params;
     const { status } = req.body; // 'Approved' or 'Rejected'
-    const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
-
+    
     if (!['Approved', 'Rejected'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
-
-    logAuditTrail(actorName, req.user?.role || 'Admin', 'Reviewed Gym Application', id, `Status: ${status}`, req);
 
     const gym = await Gym.findById(id);
     if (!gym) {
@@ -210,8 +208,12 @@ export const updateGymApprovalStatus = async (req, res) => {
     }
 
     gym.approvalStatus = status;
-    gym.approvedBy = actorName;
+    gym.approvedAt = status === 'Approved' ? new Date() : null;
     await gym.save();
+
+    const actorName = req.user?.name || 'Admin';
+
+    logAuditTrail(actorName, req.user?.role || 'Admin', 'Reviewed Gym Application', id, `Status: ${status}`, req);
     
     if (status === 'Approved') {
       await Notification.create({
@@ -263,7 +265,7 @@ export const moderateReportedPost = async (req, res) => {
 
     const { id } = req.params;
     const { action } = req.body; // 'delete' or 'dismiss'
-    const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
+    const actorName = req.user?.name || 'Admin';
 
     logAuditTrail(actorName, req.user?.role || 'Admin', 'Moderated Reported Post', id, `Action: ${action}`, req);
 
@@ -315,8 +317,8 @@ export const createCashbackPost = async (req, res) => {
   try {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
 
-    const { content, cashbackAmount, mediaUrl } = req.body;
-    const authorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
+    const { title, content, targetRole, rewardAmount } = req.body;
+    const authorName = req.user?.name || 'Admin';
     const role = req.user?.role || 'Admin';
 
     // Junior Admin cashback posts require SuperAdmin final approval
@@ -326,10 +328,9 @@ export const createCashbackPost = async (req, res) => {
       const post = await Post.create({
         authorName,
         authorRole: role,
-        content: content || `🎁 Special Cashback Promotion: Earn $${cashbackAmount || 10} back!`,
+        content: content || `🎁 Special Cashback Promotion: Earn $${rewardAmount || 10} back!`,
         isCashback: true,
-        cashbackAmount: Number(cashbackAmount) || 10,
-        mediaUrl: mediaUrl || '',
+        cashbackAmount: Number(rewardAmount) || 10,
         approvalStatus
       });
 
@@ -342,7 +343,7 @@ export const createCashbackPost = async (req, res) => {
       authorName,
       content,
       isCashback: true,
-      cashbackAmount: Number(cashbackAmount) || 10,
+      cashbackAmount: Number(rewardAmount) || 10,
       approvalStatus
     });
   } catch (error) {
@@ -386,22 +387,20 @@ export const reviewCashbackPost = async (req, res) => {
     if (!verifyAdminRole(req, res, ['SuperAdmin'])) return;
 
     const { id } = req.params;
-    const { status } = req.body; // 'approved' or 'rejected'
-    const actorName = req.user?.name || req.headers['x-user-name'] || 'Senior Super Admin';
+    const { action } = req.body; // 'approve' or 'reject'
+    const actorName = req.user?.name || 'Senior Super Admin';
 
-    logAuditTrail(actorName, 'SuperAdmin', 'Reviewed Cashback Post', id, `Final Decision: ${status}`, req);
-
-    try {
-      const post = await Post.findById(id);
-      if (post) {
-        post.approvalStatus = status === 'approved' ? 'published' : 'rejected';
-        post.approvedBy = actorName;
+    const post = await Post.findById(id);
+    if (post) {
+        post.isApproved = action === 'approve';
+        post.reviewedBy = actorName;
+        post.approvalStatus = action === 'approve' ? 'published' : 'rejected';
         await post.save();
-        return res.json({ message: `Cashback post status set to ${post.approvalStatus}`, post });
-      }
-    } catch (e) {}
+    }
 
-    res.json({ message: `Cashback post review '${status}' recorded` });
+    logAuditTrail(actorName, 'SuperAdmin', 'Reviewed Cashback Post', id, `Final Decision: ${action}`, req);
+
+    res.json({ message: `Cashback post review '${action}' recorded` });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -484,16 +483,14 @@ export const removePostWithReason = async (req, res) => {
 
     const { id } = req.params;
     const { reason } = req.body;
-    const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
+    const actorName = req.user?.name || 'Admin';
 
     let authorName = 'Unknown User';
-    try {
-      const post = await Post.findById(id);
-      if (post) {
-        authorName = post.authorName || authorName;
-        await Post.findByIdAndDelete(id);
-      }
-    } catch (e) {}
+    const post = await Post.findById(id);
+    if (post) {
+      authorName = post.authorName || authorName;
+      await Post.findByIdAndDelete(id);
+    }
 
     logAuditTrail(actorName, req.user?.role || 'Admin', 'Removed Post with Reason', id, `Reason: ${reason || 'Community Guidelines Violation'}`, req);
 
@@ -517,11 +514,10 @@ export const requestRefundCashback = async (req, res) => {
 
     const { id } = req.params;
     const { refundAmount } = req.body;
-    const actorName = req.user?.name || req.headers['x-user-name'] || 'Admin';
+    const actorName = req.user?.name || 'Admin';
 
-    try {
-      const complaint = await Complaint.findById(id);
-      if (complaint) {
+    const complaint = await Complaint.findById(id);
+    if (complaint) {
         complaint.isRefundRequested = true;
         complaint.refundAmount = Number(refundAmount) || 29.99;
         complaint.cashbackApprovalStatus = 'pending_higher_admin';
@@ -529,8 +525,7 @@ export const requestRefundCashback = async (req, res) => {
 
         logAuditTrail(actorName, 'Admin', 'Requested Refund Cashback Approval', id, `Amount: $${complaint.refundAmount}`, req);
         return res.json({ message: 'Refund cashback request submitted to Senior Super Admin', complaint });
-      }
-    } catch (e) {}
+    }
 
     res.json({ message: 'Refund cashback request submitted to Senior Super Admin' });
   } catch (error) {
@@ -546,7 +541,7 @@ export const approveRefundCashback = async (req, res) => {
     if (!verifyAdminRole(req, res, ['SuperAdmin'])) return;
 
     const { id } = req.params;
-    const actorName = req.user?.name || req.headers['x-user-name'] || 'Senior Super Admin';
+    const actorName = req.user?.name || 'Senior Super Admin';
 
     try {
       const complaint = await Complaint.findById(id);
@@ -584,7 +579,7 @@ export const sendSubscriberBroadcast = async (req, res) => {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
 
     const { title, message, eventType } = req.body;
-    const sentBy = req.user?.name || req.headers['x-user-name'] || 'Admin';
+    const sentBy = req.user?.name || 'Admin';
 
     if (!title || !message) {
       return res.status(400).json({ message: 'Title and message content are required' });

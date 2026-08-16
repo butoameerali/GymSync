@@ -1,55 +1,45 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-// Protect routes - Verify JWT token or header identity
+// Protect routes - Strict JWT-based Authentication
 export const protect = async (req, res, next) => {
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretgymsyncjwtkey');
-
-      req.user = await User.findById(decoded.id).select('-password');
-      if (!req.user) {
-        return res.status(401).json({ message: 'User account not found' });
+      if (!token) {
+        return res.status(401).json({ message: 'Not authorized, no authentication token provided' });
       }
 
+      if (!process.env.JWT_SECRET) {
+        console.error('CRITICAL: JWT_SECRET environment variable is missing.');
+        return res.status(500).json({ message: 'Server configuration error' });
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      const user = await User.findById(decoded.id).select('-password');
+      if (!user) {
+        return res.status(401).json({ message: 'Not authorized, user not found' });
+      }
+
+      if (user.isBanned) {
+        return res.status(403).json({ message: 'Not authorized, user account is banned' });
+      }
+
+      req.user = user;
       return next();
     } catch (error) {
       console.error('JWT verification error:', error.message);
-      return res.status(401).json({ message: 'Not authorized, invalid token' });
+      return res.status(401).json({ message: 'Not authorized, invalid or expired token' });
     }
   }
 
-  // Fallback for demo header user identification if bearer token not passed
-  const headerUser = req.headers['x-user-name'];
-  if (headerUser) {
-    try {
-      const user = await User.findOne({ name: headerUser }).select('-password');
-      if (user) {
-        req.user = user;
-        return next();
-      }
-    } catch (err) {
-      console.error('Header user lookup error:', err.message);
-    }
-
-    // Default fallback for system/admin testing headers
-    let role = 'User';
-    if (headerUser.toLowerCase().includes('admin')) role = 'Admin';
-    else if (headerUser.toLowerCase().includes('owner')) role = 'GymOwner';
-    else if (headerUser.toLowerCase().includes('store')) role = 'StoreManager';
-    else if (headerUser.toLowerCase().includes('mod')) role = 'ComplaintModerator';
-
-    req.user = { name: headerUser, role, email: `${headerUser.toLowerCase()}@gymsync.com` };
-    return next();
-  }
-
-  return res.status(401).json({ message: 'Not authorized, no authentication token or user identity provided' });
+  return res.status(401).json({ message: 'Not authorized, no authentication token provided' });
 };
 
-// Authorize specific roles (RBAC)
+// Authorize specific roles (RBAC) - Strictly based on req.user.role from MongoDB
 export const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -69,3 +59,4 @@ export const authorizeRoles = (...roles) => {
     next();
   };
 };
+

@@ -60,8 +60,11 @@ const Navbar = () => {
 
   useEffect(() => {
     if (isLoggedIn) {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
+
       // Fetch notifications
-      fetch(`/api/notifications/${userName}`)
+      fetch(`/api/notifications/${userName}`, { headers: authHeader })
         .then(res => res.json())
         .then(data => setNotifications(Array.isArray(data) ? data : []))
         .catch(err => console.error("Error fetching notifications", err));
@@ -87,7 +90,7 @@ const Navbar = () => {
         .catch(err => console.error(err));
 
       const interval = setInterval(() => {
-        fetch(`/api/notifications/${userName}`)
+        fetch(`/api/notifications/${userName}`, { headers: authHeader })
           .then(res => res.json())
           .then(data => setNotifications(Array.isArray(data) ? data : []))
           .catch(err => console.error("Interval Error", err));
@@ -115,7 +118,10 @@ const Navbar = () => {
     try {
       const res = await fetch('/api/users/accept', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
         body: JSON.stringify({ senderName, receiverName: userName, notificationId })
       });
       if (!res.ok) {
