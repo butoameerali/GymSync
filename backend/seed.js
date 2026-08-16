@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import User from './models/User.js';
 import Gym from './models/Gym.js';
 import Product from './models/Product.js';
+import Exercise from './models/Exercise.js';
 
 dotenv.config();
 
@@ -104,6 +105,26 @@ const seedDatabase = async (attempt = 1) => {
         { name: "Pro-Grip Lifting Straps", category: "Accessories", price: 14.99, rating: 4.5, image: "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?q=80&w=1471&auto=format&fit=crop", status: "Approved" }
       ]);
       console.log('✅ Seeded store inventory products');
+    }
+
+    // 4. Seed Default Exercises with running_v1 GPS Detector
+    const existingRunning = await Exercise.findOne({ name: 'Outdoor Running' });
+    if (!existingRunning) {
+      await Exercise.create({
+        exerciseId: 'EX-RUNNING-V1',
+        name: 'Outdoor Running',
+        targetMuscles: ['Full Body', 'Cardio', 'Quads'],
+        equipmentRequired: 'None',
+        difficulty: 'Beginner',
+        description: 'Outdoor running with optional GPS distance tracking.',
+        isAiTrackable: true,
+        aiDetection: {
+          enabled: true,
+          detectorId: 'running_v1',
+          detectorVersion: '1.0'
+        }
+      });
+      console.log('✅ Seeded Outdoor Running exercise with aiDetection (running_v1).');
     }
 
     console.log('\n🎉 Database Seeding Completed Successfully!\n');
