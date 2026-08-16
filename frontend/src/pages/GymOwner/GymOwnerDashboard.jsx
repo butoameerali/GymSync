@@ -70,21 +70,34 @@ const GymOwnerDashboard = () => {
             monthlyFee: data.gym.monthlyFee ?? 50,
             admissionFee: data.gym.admissionFee ?? 0,
             bankDetails: data.gym.bankDetails || '',
-            description: data.gym.description || '',
-            equipmentListStr: Array.isArray(data.gym.equipmentList) ? data.gym.equipmentList.join(', ') : 'Treadmills, Dumbbells, Power Racks, Cable Crossover',
+            description: data.gym.description || 'A premium fitness facility.',
+            equipmentListStr: (data.gym.equipmentList && data.gym.equipmentList.length > 0)
+              ? data.gym.equipmentList.join(', ')
+              : 'Treadmills, Dumbbells, Power Racks, Cable Crossover, Smith Machine',
             weekdayTimings: data.gym.timings?.weekday || '6:00 AM - 10:00 PM',
             weekendTimings: data.gym.timings?.weekend || '8:00 AM - 8:00 PM'
           });
-          if (data.gym.name) {
-            fetchTrainers(data.gym.name);
-          }
+
+          // Fetch subscribed members for member dropdown
+          fetchGymMembers(data.gym.name);
+          fetchTrainers(data.gym.name);
         }
       }
     } catch (err) {
-      console.error('Error fetching Gym Owner data:', err);
+      console.error('Error fetching gym owner dashboard:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchGymMembers = async (gymName) => {
+    try {
+      const res = await fetch(`/api/users/gym-members/${encodeURIComponent(gymName)}`);
+      if (res.ok) {
+        const memberList = await res.json();
+        setMembers(Array.isArray(memberList) ? memberList : []);
+      }
+    } catch (err) { console.error('Error fetching members:', err); }
   };
 
   const fetchTrainers = async (gymName) => {
@@ -130,7 +143,7 @@ const GymOwnerDashboard = () => {
   const handleCheckInSubmit = async (e) => {
     e.preventDefault();
     if (!checkInName.trim()) {
-      toast.error('Please enter a member name');
+      toast.error('Please select or enter a member name');
       return;
     }
 
@@ -143,6 +156,7 @@ const GymOwnerDashboard = () => {
         },
         body: JSON.stringify({
           gymId: dashboardData?.gym?._id || 'gym_demo_id',
+          memberId: selectedMemberId || undefined,
           memberName: checkInName.trim(),
           notes: checkInNotes
         })
@@ -152,12 +166,16 @@ const GymOwnerDashboard = () => {
         const newLog = await res.json();
         toast.success(`Check-in recorded for ${checkInName}`);
         setCheckInName('');
+        setSelectedMemberId('');
         setCheckInNotes('');
         setDashboardData(prev => ({
           ...prev,
           todayAttendanceCount: (prev?.todayAttendanceCount || 0) + 1,
           todayAttendance: [newLog, ...(prev?.todayAttendance || [])]
         }));
+      } else {
+        const err = await res.json();
+        toast.error(err.message || 'Check-in failed');
       }
     } catch (err) {
       toast.error('Check-in error');
@@ -441,14 +459,36 @@ const GymOwnerDashboard = () => {
                 <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
                   <h3>Member Express Check-In</h3>
                   <form onSubmit={handleCheckInSubmit} style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
-                    <input 
-                      type="text"
-                      className="search-input"
-                      style={{ flex: 1, minWidth: '200px' }}
-                      placeholder="Enter Member Name..."
-                      value={checkInName}
-                      onChange={e => setCheckInName(e.target.value)}
-                    />
+                    {members.length > 0 ? (
+                      <select 
+                        className="search-input"
+                        style={{ flex: 1, minWidth: '220px' }}
+                        value={selectedMemberId}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setSelectedMemberId(val);
+                          const m = members.find(mem => String(mem._id) === val);
+                          if (m) setCheckInName(m.name);
+                        }}
+                      >
+                        <option value="">-- Select Gym Member --</option>
+                        {members.map(m => (
+                          <option key={m._id} value={m._id}>
+                            {m.name} ({m.email}) • {m.gymMembershipType || 'Monthly'} Member
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input 
+                        type="text"
+                        className="search-input"
+                        style={{ flex: 1, minWidth: '200px' }}
+                        placeholder="Enter Member Name..."
+                        value={checkInName}
+                        onChange={e => setCheckInName(e.target.value)}
+                      />
+                    )}
+
                     <input 
                       type="text"
                       className="search-input"

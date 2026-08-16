@@ -192,31 +192,43 @@ export const deleteGymProfile = async (req, res) => {
 // @access  Private / GymOwner
 export const checkInMember = async (req, res) => {
   try {
-    const { gymId, memberName, notes } = req.body;
+    const { gymId, memberId, memberName, notes } = req.body;
 
-    if (!memberName) {
-      return res.status(400).json({ message: 'Member name is required for check-in' });
+    if (!memberName && !memberId) {
+      return res.status(400).json({ message: 'Member name or ID is required for check-in' });
     }
 
-    try {
-      const attendance = await Attendance.create({
-        gymId: gymId || 'gym_demo_id',
-        memberId: `mem_${Date.now()}`,
-        memberName,
-        checkInTime: new Date(),
-        status: 'CheckedIn',
-        notes: notes || ''
-      });
-      return res.status(201).json(attendance);
-    } catch (e) {}
+    let member = null;
+    if (memberId && /^[a-f\d]{24}$/i.test(memberId)) {
+      member = await User.findById(memberId);
+    }
+    if (!member && memberName) {
+      member = await User.findOne({ name: memberName });
+    }
 
-    res.status(201).json({
-      _id: `att_${Date.now()}`,
-      gymId: gymId || 'gym_demo_id',
-      memberName,
-      checkInTime: new Date(),
+    const resolvedMemberId = member ? String(member._id) : (memberId || `mem_${Date.now()}`);
+    const resolvedMemberName = member ? member.name : memberName;
+
+    // Check if member already has an active checked-in session today
+    const existingActive = await Attendance.findOne({
+      memberName: resolvedMemberName,
       status: 'CheckedIn'
     });
+
+    if (existingActive) {
+      return res.status(400).json({ message: `${resolvedMemberName} is already checked in` });
+    }
+
+    const attendance = await Attendance.create({
+      gymId: gymId || 'gym_demo_id',
+      memberId: resolvedMemberId,
+      memberName: resolvedMemberName,
+      checkInTime: new Date(),
+      status: 'CheckedIn',
+      notes: notes || ''
+    });
+
+    return res.status(201).json(attendance);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const AuthContext = createContext();
 
@@ -28,6 +29,21 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Axios response interceptor for expired tokens
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && error.response.status === 401 && error.response.data?.message?.toLowerCase().includes('token')) {
+          logout();
+          toast.error("Your session has expired. Please log in again.");
+          if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+            window.location.href = '/';
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
     // Check if user is logged in via token or localStorage metadata
     const token = localStorage.getItem('gymsync_token');
     const role = localStorage.getItem('gymsync_role');
@@ -51,6 +67,10 @@ export const AuthProvider = ({ children }) => {
     }
 
     setLoading(false);
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
   }, []);
 
   const login = async (email, password) => {

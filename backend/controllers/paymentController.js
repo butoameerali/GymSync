@@ -170,7 +170,7 @@ export const updatePaymentConfig = async (req, res) => {
     const config = await PaymentConfig.findOneAndUpdate(
       { method },
       { accountNumber, bankDetails, notes },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
 
     return res.json(config);

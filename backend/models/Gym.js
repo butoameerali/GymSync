@@ -33,4 +33,7 @@ const gymSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+gymSchema.index({ owner: 1 });
+gymSchema.index({ name: 1 });
+
 export default mongoose.model('Gym', gymSchema);

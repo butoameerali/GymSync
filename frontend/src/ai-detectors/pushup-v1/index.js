@@ -78,9 +78,19 @@ export class PushupV1Detector {
         return false;
       }
 
-      // 2. Dynamically import TensorFlow & Pose Detection models lazy on demand
-      const tf = await import('@tensorflow/tfjs');
-      const poseDetection = await import('@tensorflow-models/pose-detection');
+      // 2. Dynamically import TensorFlow & Pose Detection models lazy on demand via CDN/runtime
+      let tf, poseDetection;
+      try {
+        tf = await import(/* @vite-ignore */ '@tensorflow/tfjs');
+        poseDetection = await import(/* @vite-ignore */ '@tensorflow-models/pose-detection');
+      } catch (importErr) {
+        if (window.tf && window.poseDetection) {
+          tf = window.tf;
+          poseDetection = window.poseDetection;
+        } else {
+          throw new Error('TensorFlow libraries not available in current browser environment.');
+        }
+      }
 
       await tf.ready();
       this.detector = await poseDetection.createDetector(
