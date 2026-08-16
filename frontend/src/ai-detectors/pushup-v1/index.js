@@ -50,17 +50,28 @@ export class PushupV1Detector {
   }
 
   loadScript(src) {
-    return new Promise((resolve, reject) => {
-      if (document.querySelector(`script[src="${src}"]`)) {
-        return resolve();
-      }
+    window._scriptLoadPromises = window._scriptLoadPromises || {};
+    if (window._scriptLoadPromises[src]) {
+      return window._scriptLoadPromises[src];
+    }
+    if (document.querySelector(`script[src="${src}"]`)) {
+      return Promise.resolve();
+    }
+
+    const promise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = src;
       script.async = true;
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error(`Failed to load AI dependency: ${src}`));
+      script.onerror = () => {
+        delete window._scriptLoadPromises[src];
+        reject(new Error(`Failed to load AI dependency: ${src}`));
+      };
       document.head.appendChild(script);
     });
+
+    window._scriptLoadPromises[src] = promise;
+    return promise;
   }
 
   // Initialize camera and pose detection model on demand
@@ -106,10 +117,14 @@ export class PushupV1Detector {
       }
 
       await tf.ready();
-      this.detector = await poseDetection.createDetector(
-        poseDetection.SupportedModels.MoveNet,
-        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
-      );
+      
+      // Reuse existing detector instance if present
+      if (!this.detector) {
+        this.detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.MoveNet,
+          { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+        );
+      }
 
       this.setState('ready');
       return true;
@@ -222,6 +237,9 @@ export class PushupV1Detector {
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
       this.stream = null;
+    }
+    if (this.detector && typeof this.detector.dispose === 'function') {
+      try { this.detector.dispose(); } catch (e) {}
     }
     this.detector = null;
   }
