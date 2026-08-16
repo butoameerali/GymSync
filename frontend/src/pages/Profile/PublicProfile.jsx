@@ -74,29 +74,37 @@ const PublicProfile = () => {
 
     // Fetch posts and filter for this user
     fetch('/api/posts')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : [])
       .then(data => {
-        if(Array.isArray(data)) {
-          setUserPosts(data.filter(p => p.authorName === userName || p.author?.name === userName));
+        if (Array.isArray(data)) {
+          setUserPosts(data.filter(p => p && (p.authorName === userName || p.author?.name === userName)));
+        } else {
+          setUserPosts([]);
         }
       })
-      .catch(err => console.error(err));
+      .catch(err => {
+        console.error(err);
+        setUserPosts([]);
+      });
 
     // Fetch MongoDB User Data for Follow System
     if (loggedInUserName !== 'Guest') {
       fetch(`/api/users/${loggedInUserName}`)
-        .then(res => res.json())
+        .then(res => res.ok ? res.json() : null)
         .then(me => {
-          if (me.following?.includes(userName)) setIsFollowing(true);
-          else setIsFollowing(false);
+          if (me && Array.isArray(me.following)) {
+            if (me.following.includes(userName)) setIsFollowing(true);
+          }
         })
-        .catch(err => console.error(err));
-        
-      fetch(`/api/users/${userName}`)
-        .then(res => res.json())
-        .then(them => setTargetUser(them))
-        .catch(err => console.error(err));
+        .catch(err => console.error("Error fetching logged in user info:", err));
     }
+
+    fetch(`/api/users/${userName}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(target => {
+        if (target && target._id) setTargetUser(target);
+      })
+      .catch(err => console.error("Error fetching target user info:", err));
 
     return () => {
       window.removeEventListener('gymsync_bio_updated', loadBio);

@@ -136,9 +136,9 @@ const Profile = () => {
     if (userName !== 'Guest User') {
       fetches.push(
         fetch(`/api/users/${userName}`)
-          .then(res => res.json())
+          .then(res => res.ok ? res.json() : null)
           .then(user => {
-            if (user) {
+            if (user && !user.message && user._id) {
               setUserData(user);
               if (user.profilePic) {
                 setProfilePic(user.profilePic);
@@ -152,13 +152,18 @@ const Profile = () => {
 
     fetches.push(
       fetch('/api/posts')
-        .then(res => res.json())
+        .then(res => res.ok ? res.json() : [])
         .then(data => {
-          if(Array.isArray(data)) {
-            setMyPosts(data.filter(p => p.authorName === userName || p.author?.name === userName));
+          if (Array.isArray(data)) {
+            setMyPosts(data.filter(p => p && (p.authorName === userName || p.author?.name === userName)));
+          } else {
+            setMyPosts([]);
           }
         })
-        .catch(err => console.error(err))
+        .catch(err => {
+          console.error(err);
+          setMyPosts([]);
+        })
     );
 
     const role = localStorage.getItem('gymsync_role');
@@ -170,9 +175,9 @@ const Profile = () => {
             'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
           }
         })
-        .then(res => res.json())
+        .then(res => res.ok ? res.json() : null)
         .then(data => {
-          if (data.gym && data.gym._id !== 'gym_demo_id') {
+          if (data && data.gym && data.gym._id !== 'gym_demo_id') {
             setMyGymGig(data.gym);
           }
         })

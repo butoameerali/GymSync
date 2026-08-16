@@ -44,7 +44,7 @@ const AITrainer = () => {
 
     // Fetch exercises from MongoDB
     fetch('/api/exercises')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : [])
       .then(data => {
         if (Array.isArray(data) && data.length > 0) setDbExercises(data);
       })
@@ -52,7 +52,7 @@ const AITrainer = () => {
 
     // Fetch Pre-Made Plans for Scenario B Fallback
     fetch('/api/plans/premade')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : [])
       .then(data => {
         if (Array.isArray(data)) setPreMadePlans(data);
       })

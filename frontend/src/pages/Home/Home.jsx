@@ -43,30 +43,38 @@ const Home = () => {
   useEffect(() => {
     if (!isGuest) {
       fetch(`/api/users/${userName}`)
-        .then(res => res.json())
-        .then(user => setCurrentUser(user))
+        .then(res => res.ok ? res.json() : null)
+        .then(user => {
+          if (user && user._id) setCurrentUser(user);
+        })
         .catch(err => console.error("Error fetching user data:", err));
     }
 
     fetch('/api/posts')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : [])
       .then(data => {
-        if(Array.isArray(data)) setPosts(data);
+        if (Array.isArray(data)) setPosts(data);
+        else setPosts([]);
       })
-      .catch(err => console.error("Error fetching posts:", err));
+      .catch(err => {
+        console.error("Error fetching posts:", err);
+        setPosts([]);
+      });
       
     // Fetch global users for synced profile pictures
     fetch('/api/users')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : [])
       .then(users => {
         const userMap = {};
-        users.forEach(u => userMap[u.name] = u.profilePic);
+        if (Array.isArray(users)) {
+          users.forEach(u => { if (u && u.name) userMap[u.name] = u.profilePic; });
+        }
         setGlobalUsers(userMap);
       })
       .catch(err => console.error(err));
 
     fetch('/api/suggestions')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : [])
       .then(data => setSuggestions(Array.isArray(data) ? data : []))
       .catch(err => console.error("Error fetching suggestions:", err));
   }, [userName, isGuest]);
