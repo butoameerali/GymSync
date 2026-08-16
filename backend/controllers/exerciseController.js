@@ -48,6 +48,7 @@ export const getExerciseById = async (req, res) => {
 // Safe registered detector allowlist
 const SAFE_DETECTORS = {
   'pushup_v1': '1.0',
+  'running_v1': '1.0',
   'squat_v1': '1.0',
   'plank_v1': '1.0',
   'jumping_jack_v1': '1.0'
