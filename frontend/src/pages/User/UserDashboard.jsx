@@ -47,7 +47,7 @@ const UserDashboard = () => {
       const complaintsRes = await fetch('/api/complaints', { headers });
       if (complaintsRes.ok) {
         const allComplaints = await complaintsRes.json();
-        setUserComplaints(allComplaints.filter(c => c.reporterName === userName));
+        setUserComplaints(Array.isArray(allComplaints) ? allComplaints.filter(c => c && c.reporterName === userName) : []);
       }
     } catch (err) {
       console.error('Error fetching user dashboard:', err);

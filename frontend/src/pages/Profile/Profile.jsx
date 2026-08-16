@@ -102,8 +102,12 @@ const Profile = () => {
     const mockStreak = localStorage.getItem(`gymsync_${userKey}_streak`) || '0';
     setStats({ points: parseInt(mockPoints), streak: parseInt(mockStreak) });
 
-    const rawHistory = JSON.parse(localStorage.getItem(`gymsync_${userKey}_history`) || '[]');
-    setHistory(rawHistory.reverse()); // Newest first
+    let rawHistory = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(`gymsync_${userKey}_history`) || '[]');
+      rawHistory = Array.isArray(parsed) ? parsed : [];
+    } catch (e) { rawHistory = []; }
+    setHistory([...rawHistory].reverse()); // Newest first
 
     // Function to load and sync bio data dynamically
     const loadBioData = () => {
@@ -314,8 +318,9 @@ const Profile = () => {
 
   // Date formatting helpers
   const todayDate = new Date().toDateString();
-  const todayHistory = history.filter(h => new Date(h.date).toDateString() === todayDate);
-  const pastHistory = history.filter(h => new Date(h.date).toDateString() !== todayDate);
+  const safeHistory = Array.isArray(history) ? history : [];
+  const todayHistory = safeHistory.filter(h => h && h.date && new Date(h.date).toDateString() === todayDate);
+  const pastHistory = safeHistory.filter(h => h && h.date && new Date(h.date).toDateString() !== todayDate);
 
   if (isAdminUser) {
     return (

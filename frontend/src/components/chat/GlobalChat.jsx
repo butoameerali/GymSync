@@ -67,9 +67,10 @@ const GlobalChat = () => {
             let trustedTrainerNames = [];
             if (user.subscribedGymName) {
               const usersRes = await fetch('/api/users');
-              const allUsers = usersRes.ok ? await usersRes.json() : [];
+              const allUsersRaw = usersRes.ok ? await usersRes.json() : [];
+              const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : [];
               const trainers = allUsers
-                .filter(person => person.role === 'GymTrainer' && person.assignedGymName === user.subscribedGymName)
+                .filter(person => person && person.role === 'GymTrainer' && person.assignedGymName === user.subscribedGymName)
                 .map(person => ({
                   id: person.name,
                   name: person.name,
@@ -87,10 +88,12 @@ const GlobalChat = () => {
             
             // Fetch all conversations to determine spam
             const convRes = await fetch(`/api/chat/conversations/${userName}`);
-            const convContacts = await convRes.json();
+            const convRaw = convRes.ok ? await convRes.json() : [];
+            const convContacts = Array.isArray(convRaw) ? convRaw : [];
             
             // Filter out friends and AI/Gym support
-            const spamNames = convContacts.filter(c => !user.friends.includes(c) && !trustedTrainerNames.includes(c) && c !== 'ai' && c !== 'gym' && c !== userName);
+            const userFriends = Array.isArray(user?.friends) ? user.friends : [];
+            const spamNames = convContacts.filter(c => c && !userFriends.includes(c) && !trustedTrainerNames.includes(c) && c !== 'ai' && c !== 'gym' && c !== userName);
             const spamWithPics = await Promise.all(spamNames.map(async (spamName) => {
               const friendRes = await fetch(`/api/users/${spamName}`);
               const friendData = await friendRes.json();

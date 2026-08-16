@@ -44,8 +44,9 @@ export const getOfflineExercises = () => {
 };
 
 export const syncWithBackend = async () => {
-  const history = getOfflineExercises();
-  const unsynced = history.filter(item => !item.synced);
+  const rawHistory = getOfflineExercises();
+  const history = Array.isArray(rawHistory) ? rawHistory : [];
+  const unsynced = history.filter(item => item && !item.synced);
   
   if (unsynced.length === 0) return;
 

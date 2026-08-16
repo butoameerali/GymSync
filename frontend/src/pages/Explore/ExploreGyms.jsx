@@ -29,7 +29,7 @@ const ExploreGyms = () => {
 
   // Filtered Gyms based on debounced search term and selected filter
   const filteredGyms = useMemo(() => {
-    return gyms.filter(gym => {
+    return (Array.isArray(gyms) ? gyms : []).filter(gym => {
       const name = (gym.name || '').toLowerCase();
       const loc = (gym.location || '').toLowerCase();
       const q = debouncedSearch.toLowerCase();

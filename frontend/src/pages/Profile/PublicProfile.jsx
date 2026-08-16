@@ -35,10 +35,11 @@ const PublicProfile = () => {
     // Optimistic UI Update
     setUserPosts(prevPosts => prevPosts.map(post => {
       if (post._id === id) {
-        const isLiked = post.likes.includes(loggedInUserName);
+        const likes = Array.isArray(post.likes) ? post.likes : [];
+        const isLiked = likes.includes(loggedInUserName);
         const newLikes = isLiked 
-          ? post.likes.filter(n => n !== loggedInUserName) 
-          : [...post.likes, loggedInUserName];
+          ? likes.filter(n => n !== loggedInUserName) 
+          : [...likes, loggedInUserName];
           
         return { ...post, likes: newLikes };
       }

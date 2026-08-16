@@ -126,10 +126,11 @@ const Home = () => {
     // Optimistic UI Update
     setPosts(prevPosts => prevPosts.map(post => {
       if (post._id === id) {
-        const isLiked = post.likes.includes(userName);
+        const likes = Array.isArray(post.likes) ? post.likes : [];
+        const isLiked = likes.includes(userName);
         const newLikes = isLiked 
-          ? post.likes.filter(n => n !== userName) 
-          : [...post.likes, userName];
+          ? likes.filter(n => n !== userName) 
+          : [...likes, userName];
           
         return { ...post, likes: newLikes };
       }
@@ -239,7 +240,7 @@ const Home = () => {
           </div>
 
           <div className="feed-posts">
-            {posts.filter(post => {
+            {(Array.isArray(posts) ? posts : []).filter(post => {
               if (feedTab === 'global') return true;
               const postAuthor = post.authorName || post.author?.name;
               return currentUser?.following?.includes(postAuthor) || postAuthor === userName;

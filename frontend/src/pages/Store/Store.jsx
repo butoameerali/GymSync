@@ -120,7 +120,7 @@ const Store = () => {
   };
 
   const filteredProducts = useMemo(() => {
-    return products.filter(product => {
+    return (Array.isArray(products) ? products : []).filter(product => {
       const matchesCategory = activeCategory === "All" || product.category === activeCategory;
       const matchesSearch = product.name.toLowerCase().includes(debouncedSearch.toLowerCase());
       return matchesCategory && matchesSearch;
