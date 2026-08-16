@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ImageIcon, Video, Send, ThumbsUp, MessageCircle, X, Edit2, AlertTriangle, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Modal from '../../components/common/Modal';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import './Home.css';
 
 const Home = () => {
@@ -41,6 +42,7 @@ const Home = () => {
 
   // Fetch dynamic DB data on mount
   useEffect(() => {
+    setLoading(true);
     if (!isGuest) {
       fetch(`/api/users/${userName}`)
         .then(res => res.ok ? res.json() : null)
@@ -59,6 +61,9 @@ const Home = () => {
       .catch(err => {
         console.error("Error fetching posts:", err);
         setPosts([]);
+      })
+      .finally(() => {
+        setLoading(false);
       });
       
     // Fetch global users for synced profile pictures
@@ -248,7 +253,13 @@ const Home = () => {
           </div>
 
           <div className="feed-posts">
-            {(Array.isArray(posts) ? posts : []).filter(post => {
+            {loading ? (
+              <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                <LoadingSpinner size="medium" message="Loading GymSync community feed..." />
+              </div>
+            ) : (
+              <>
+                {(Array.isArray(posts) ? posts : []).filter(post => {
               if (feedTab === 'global') return true;
               const postAuthor = post.authorName || post.author?.name;
               return currentUser?.following?.includes(postAuthor) || postAuthor === userName;
@@ -488,6 +499,8 @@ const Home = () => {
               </div>
             ))}
             {posts.length === 0 && <p style={{textAlign: 'center', color: 'var(--text-secondary)', marginTop: '40px'}}>No posts yet. Be the first!</p>}
+              </>
+            )}
           </div>
         </div>
 
