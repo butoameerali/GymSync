@@ -49,6 +49,20 @@ export class PushupV1Detector {
     return angle;
   }
 
+  loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) {
+        return resolve();
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error(`Failed to load AI dependency: ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+
   // Initialize camera and pose detection model on demand
   async initialize(videoEl) {
     if (videoEl) this.videoElement = videoEl;
@@ -78,18 +92,17 @@ export class PushupV1Detector {
         return false;
       }
 
-      // 2. Dynamically import TensorFlow & Pose Detection models lazy on demand via CDN/runtime
-      let tf, poseDetection;
-      try {
-        tf = await import(/* @vite-ignore */ '@tensorflow/tfjs');
-        poseDetection = await import(/* @vite-ignore */ '@tensorflow-models/pose-detection');
-      } catch (importErr) {
-        if (window.tf && window.poseDetection) {
-          tf = window.tf;
-          poseDetection = window.poseDetection;
-        } else {
-          throw new Error('TensorFlow libraries not available in current browser environment.');
-        }
+      // 2. Dynamically load TensorFlow.js & Pose Detection CDN scripts lazy on demand
+      if (!window.poseDetection) {
+        await this.loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js');
+        await this.loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js');
+      }
+
+      const tf = window.tf;
+      const poseDetection = window.poseDetection;
+
+      if (!tf || !poseDetection) {
+        throw new Error('Pose detection SDK failed to initialize in browser context.');
       }
 
       await tf.ready();
@@ -102,7 +115,7 @@ export class PushupV1Detector {
       return true;
     } catch (err) {
       console.error('[PushupV1Detector] Initialization error:', err.message);
-      this.setState('error', 'Failed to initialize AI detection model. Network or browser incompatibilities detected.');
+      this.setState('error', `AI model loading failed: ${err.message}`);
       this.onError('AI model loading failed.');
       return false;
     }
