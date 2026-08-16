@@ -86,8 +86,11 @@ const GlobalChat = () => {
               setGymTrainerContacts([]);
             }
             
-            // Fetch all conversations to determine spam
-            const convRes = await fetch(`/api/chat/conversations/${userName}`);
+            // Fetch all conversations to determine spam with Bearer token
+            const token = localStorage.getItem('gymsync_token') || '';
+            const convRes = await fetch(`/api/chat/conversations/${userName}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
             const convRaw = convRes.ok ? await convRes.json() : [];
             const convContacts = Array.isArray(convRaw) ? convRaw : [];
             
@@ -96,20 +99,20 @@ const GlobalChat = () => {
             const spamNames = convContacts.filter(c => c && !userFriends.includes(c) && !trustedTrainerNames.includes(c) && c !== 'ai' && c !== 'gym' && c !== userName);
             const spamWithPics = await Promise.all(spamNames.map(async (spamName) => {
               const friendRes = await fetch(`/api/users/${spamName}`);
-              const friendData = await friendRes.json();
+              const friendData = friendRes.ok ? await friendRes.json() : {};
               return {
                 id: spamName,
                 name: spamName,
                 role: 'Non-follower (Spam)',
                 avatar: friendData.profilePic || spamName.charAt(0).toUpperCase(),
                 isPremium: false,
-                isImage: !!friendData.profilePic
+                isImage: Boolean(friendData.profilePic)
               };
             }));
             setSpamContacts(spamWithPics);
           }
         })
-        .catch(err => console.error(err));
+        .catch(err => console.error("Error fetching user info for chat contacts:", err));
     }
 
     const handleOpenChat = (e) => {
@@ -133,14 +136,19 @@ const GlobalChat = () => {
     };
     window.addEventListener('open_chat', handleOpenChat);
     return () => window.removeEventListener('open_chat', handleOpenChat);
-  }, [isGuest, userName]);
+  }, [isGuest, userName, dynamicFriends, spamContacts]);
 
   if (isGuest) return null;
 
   const fetchConversation = async (contactId) => {
     try {
-      const res = await fetch(`/api/chat/${userName}/${contactId}`);
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch(`/api/chat/${userName}/${contactId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return;
       const data = await res.json();
+      if (!Array.isArray(data)) return;
       
       const formattedMessages = data.map(msg => ({
         id: msg._id,
@@ -161,7 +169,7 @@ const GlobalChat = () => {
     if (!messages[contact.id]) {
       setMessages(prev => ({ ...prev, [contact.id]: [] }));
     }
-    if (contact.role === 'Friend' || contact.isTrainer || contact.role?.includes('Gym Trainer') || contact.role?.includes('Spam')) {
+    if (contact.id !== 'ai' && contact.id !== 'gym') {
       fetchConversation(contact.id);
     } else if (contact.id === 'ai' && isSubscribed) {
       if(!messages[contact.id] || messages[contact.id].length === 0) {
@@ -177,7 +185,7 @@ const GlobalChat = () => {
     e.preventDefault();
     if (!input.trim() || !activeContact) return;
 
-    const messageText = input;
+    const messageText = input.trim();
     const newMsg = {
       id: Date.now(),
       text: messageText,
@@ -194,9 +202,13 @@ const GlobalChat = () => {
 
     if (activeContact.role === 'Friend' || activeContact.isTrainer || activeContact.role?.includes('Gym Trainer') || activeContact.role?.includes('Spam')) {
       try {
+        const token = localStorage.getItem('gymsync_token') || '';
         await fetch('/api/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ sender: userName, receiver: activeContact.id, text: messageText })
         });
       } catch (err) { console.error(err); }
