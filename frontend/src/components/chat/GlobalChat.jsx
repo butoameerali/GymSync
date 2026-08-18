@@ -43,13 +43,16 @@ const GlobalChat = () => {
 
   useEffect(() => {
     if (!isGuest) {
-      fetch(`/api/users/${userName}`)
-        .then(res => res.json())
+      const token = localStorage.getItem('gymsync_token') || '';
+      const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+      fetch(`/api/users/${encodeURIComponent(userName)}`, { headers: authHeader })
+        .then(res => res.ok ? res.json() : null)
         .then(async (user) => {
           if (user && user.friends) {
             const friendsWithPics = await Promise.all(user.friends.map(async (friendName) => {
-              const friendRes = await fetch(`/api/users/${friendName}`);
-              const friendData = await friendRes.json();
+              const friendRes = await fetch(`/api/users/${encodeURIComponent(friendName)}`, { headers: authHeader });
+              const friendData = friendRes.ok ? await friendRes.json() : {};
               return {
                 id: friendName,
                 name: friendName,
@@ -66,7 +69,7 @@ const GlobalChat = () => {
             // person has sent the first message.
             let trustedTrainerNames = [];
             if (user.subscribedGymName) {
-              const usersRes = await fetch('/api/users');
+              const usersRes = await fetch('/api/users', { headers: authHeader });
               const allUsersRaw = usersRes.ok ? await usersRes.json() : [];
               const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : [];
               const trainers = allUsers
@@ -87,9 +90,8 @@ const GlobalChat = () => {
             }
             
             // Fetch all conversations to determine spam with Bearer token
-            const token = localStorage.getItem('gymsync_token') || '';
-            const convRes = await fetch(`/api/chat/conversations/${userName}`, {
-              headers: { 'Authorization': `Bearer ${token}` }
+            const convRes = await fetch(`/api/chat/conversations/${encodeURIComponent(userName)}`, {
+              headers: authHeader
             });
             const convRaw = convRes.ok ? await convRes.json() : [];
             const convContacts = Array.isArray(convRaw) ? convRaw : [];
@@ -98,21 +100,22 @@ const GlobalChat = () => {
             const userFriends = Array.isArray(user?.friends) ? user.friends : [];
             const spamNames = convContacts.filter(c => c && !userFriends.includes(c) && !trustedTrainerNames.includes(c) && c !== 'ai' && c !== 'gym' && c !== userName);
             const spamWithPics = await Promise.all(spamNames.map(async (spamName) => {
-              const friendRes = await fetch(`/api/users/${spamName}`);
-              const friendData = friendRes.ok ? await friendRes.json() : {};
+              const spamRes = await fetch(`/api/users/${encodeURIComponent(spamName)}`, { headers: authHeader });
+              const spamData = spamRes.ok ? await spamRes.json() : {};
               return {
                 id: spamName,
                 name: spamName,
-                role: 'Non-follower (Spam)',
-                avatar: friendData.profilePic || spamName.charAt(0).toUpperCase(),
+                role: 'Message Request',
+                avatar: spamData.profilePic || spamName.charAt(0).toUpperCase(),
                 isPremium: false,
-                isImage: Boolean(friendData.profilePic)
+                isImage: Boolean(spamData.profilePic),
+                isSpam: true
               };
             }));
             setSpamContacts(spamWithPics);
           }
         })
-        .catch(err => console.error("Error fetching user info for chat contacts:", err));
+        .catch(err => console.error("GlobalChat fetch error:", err));
     }
 
     const handleOpenChat = (e) => {

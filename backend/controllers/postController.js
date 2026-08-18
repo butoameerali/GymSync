@@ -1,3 +1,6 @@
+import Post from '../models/Post.js';
+import Notification from '../models/Notification.js';
+import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
