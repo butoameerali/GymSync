@@ -41,7 +41,7 @@ const PostCard = ({
       {/* Post Header */}
       <div className="post-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div className="avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: 'var(--card-bg-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+          <div className="post-author-avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>
             {globalUsers[authorName] ? (
               <img src={globalUsers[authorName]} alt={authorName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (

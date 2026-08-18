@@ -221,7 +221,7 @@ const Home = () => {
           {!isGuest && (
             <div className="glass-panel create-post-card">
               <div className="post-input-container">
-                <div className="avatar">
+                <div className="user-avatar-circle">
                   {globalUsers[userName] ? (
                     <img src={globalUsers[userName]} alt={userName} className="avatar-img" />
                   ) : (
@@ -229,6 +229,7 @@ const Home = () => {
                   )}
                 </div>
                 <textarea
+                  className="create-post-textarea"
                   placeholder={`What's on your fitness mind, ${userName}?`}
                   value={newPost}
                   onChange={(e) => setNewPost(e.target.value)}
