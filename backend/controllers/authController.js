@@ -15,9 +15,6 @@ const getGoogleClient = () => {
   return _googleClient;
 };
 
-// In-memory OTP store (resets on server restart; use Redis in production)
-export const otpStore = {};
-
 // Email transporter
 const createTransporter = () => nodemailer.createTransport({
   service: 'gmail',
@@ -214,9 +211,9 @@ export const forgotPassword = async (req, res) => {
       return res.status(503).json({ message: 'We could not send the reset email. Please check the mail configuration and try again.' });
     }
 
-    otpStore[normalizedEmail] = { otp, expiresAt: Date.now() + 10 * 60 * 1000 };
     user.otpCode = otp;
     user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    user.otpVerified = false;
     await user.save();
 
     res.json({ message: 'OTP sent to your email address.' });
@@ -233,29 +230,30 @@ export const verifyOTP = async (req, res) => {
   const { email, otp } = req.body;
   const normalizedEmail = email?.trim().toLowerCase();
 
+  if (!normalizedEmail || !otp) {
+    return res.status(400).json({ message: 'Email and OTP are required.' });
+  }
+
   const user = await User.findOne({ email: normalizedEmail });
-  const memoryRecord = otpStore[normalizedEmail];
+  if (!user || !user.otpCode) return res.status(400).json({ message: 'No OTP requested for this email.' });
 
-  const dbCode = user?.otpCode;
-  const dbExpires = user?.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
+  const expiresAt = user.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
 
-  const validOtp = memoryRecord?.otp || dbCode;
-  const expiresAt = memoryRecord?.expiresAt || dbExpires;
-
-  if (!validOtp) return res.status(400).json({ message: 'No OTP requested for this email.' });
   if (Date.now() > expiresAt) {
-    delete otpStore[normalizedEmail];
-    if (user) {
-      user.otpCode = null;
-      user.otpExpiresAt = null;
-      await user.save();
-    }
+    user.otpCode = null;
+    user.otpExpiresAt = null;
+    user.otpVerified = false;
+    await user.save();
     return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
   }
-  if (validOtp !== otp) return res.status(400).json({ message: 'Incorrect OTP. Please try again.' });
 
-  // Mark as verified (allow reset step)
-  if (otpStore[normalizedEmail]) otpStore[normalizedEmail].verified = true;
+  if (user.otpCode !== otp.toString().trim()) {
+    return res.status(400).json({ message: 'Incorrect OTP. Please try again.' });
+  }
+
+  user.otpVerified = true;
+  await user.save();
+
   res.json({ message: 'OTP verified successfully.' });
 };
 
@@ -269,14 +267,10 @@ export const resetPassword = async (req, res) => {
   const user = await User.findOne({ email: normalizedEmail });
   if (!user) return res.status(404).json({ message: 'User not found.' });
 
-  const memoryRecord = otpStore[normalizedEmail];
-  const isMemoryVerified = memoryRecord?.verified;
+  const isOtpValid = user.otpVerified === true && user.otpExpiresAt && new Date(user.otpExpiresAt).getTime() > Date.now();
 
-  // DB Fallback: if user has a valid, non-expired OTP matching the flow
-  const isDbValid = user.otpCode && user.otpExpiresAt && new Date(user.otpExpiresAt).getTime() > Date.now();
-
-  if (!isMemoryVerified && !isDbValid) {
-    return res.status(400).json({ message: 'OTP not verified. Please complete verification first.' });
+  if (!isOtpValid) {
+    return res.status(400).json({ message: 'OTP not verified or has expired. Please complete OTP verification first.' });
   }
 
   if (!newPassword || newPassword.length < 6) {
@@ -287,9 +281,9 @@ export const resetPassword = async (req, res) => {
     user.password = newPassword;
     user.otpCode = null;
     user.otpExpiresAt = null;
+    user.otpVerified = false;
     await user.save();
 
-    delete otpStore[normalizedEmail];
     res.json({ message: 'Password reset successful. You may now log in.' });
   } catch (error) {
     res.status(500).json({ message: error.message });

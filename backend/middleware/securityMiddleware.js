@@ -1,7 +1,5 @@
 import AuditLog from '../models/AuditLog.js';
-
-// In-memory rate limiting store
-const rateLimitMap = new Map();
+import RateLimit from '../models/RateLimit.js';
 
 // Express Security Headers Middleware (Helmet Alternative)
 export const securityHeaders = (req, res, next) => {
@@ -13,30 +11,32 @@ export const securityHeaders = (req, res, next) => {
   next();
 };
 
-// Rate Limiter Middleware (100 requests per 15 minutes per IP)
-export const rateLimiter = (options = { windowMs: 15 * 60 * 1000, max: 100 }) => {
-  return (req, res, next) => {
-    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-    const now = Date.now();
+// Rate Limiter Middleware (MongoDB-backed for multi-instance correctness)
+export const rateLimiter = (options = { windowMs: 15 * 60 * 1000, max: 100, scope: 'global' }) => {
+  return async (req, res, next) => {
+    try {
+      const ip = req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1';
+      const key = `${options.scope || 'global'}:${ip}`;
+      const now = new Date();
+      const resetAt = new Date(now.getTime() + options.windowMs);
 
-    const record = rateLimitMap.get(ip) || { count: 0, resetTime: now + options.windowMs };
+      // Atomic findOneAndUpdate with $inc and upsert
+      const doc = await RateLimit.findOneAndUpdate(
+        { key, resetAt: { $gt: now } },
+        { $inc: { count: 1 }, $setOnInsert: { key, resetAt } },
+        { upsert: true, returnDocument: 'after' }
+      );
 
-    if (now > record.resetTime) {
-      record.count = 1;
-      record.resetTime = now + options.windowMs;
-    } else {
-      record.count += 1;
+      if (doc && doc.count > options.max) {
+        return res.status(429).json({
+          message: 'Too many requests from this IP, please try again later.'
+        });
+      }
+      next();
+    } catch (err) {
+      // In case of DB error during rate limit check, allow request through gracefully
+      next();
     }
-
-    rateLimitMap.set(ip, record);
-
-    if (record.count > options.max) {
-      return res.status(429).json({
-        message: 'Too many requests from this IP, please try again later.'
-      });
-    }
-
-    next();
   };
 };
 

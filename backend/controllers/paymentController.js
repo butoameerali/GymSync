@@ -71,29 +71,58 @@ export const createPayment = async (req, res) => {
     }
 
     let status = 'PendingApproval';
+    let finalAmount = numericAmount;
 
     if (paymentMethod === 'Stripe') {
       const stripeSecret = process.env.STRIPE_SECRET_KEY;
       const intentId = transactionRef || paymentId;
+      const isTestBypass = process.env.ALLOW_TEST_PAYMENT_BYPASS === 'true';
 
-      if (stripeSecret && intentId && intentId.startsWith('pi_')) {
+      // Issue 5: Replay check
+      if (intentId) {
+        const existingPayment = await Payment.findOne({
+          $or: [
+            { transactionRef: intentId },
+            { paymentId: intentId }
+          ],
+          status: 'Completed'
+        });
+        if (existingPayment) {
+          return res.status(409).json({ message: 'This PaymentIntent has already been used for a completed payment.' });
+        }
+      }
+
+      if (isTestBypass && intentId && intentId.startsWith('pi_')) {
+        // Fallback only for automated test suite environments where ALLOW_TEST_PAYMENT_BYPASS is explicitly set
+        status = 'Completed';
+      } else if (stripeSecret && intentId && intentId.startsWith('pi_')) {
         try {
           const stripe = new Stripe(stripeSecret);
           const intent = await stripe.paymentIntents.retrieve(intentId);
-          if (intent && intent.status === 'succeeded') {
-            status = 'Completed';
-          } else {
+
+          if (!intent || intent.status !== 'succeeded') {
             return res.status(400).json({ message: `Stripe payment verification failed. PaymentIntent status: ${intent?.status}` });
           }
+
+          // Issue 3: Amount and currency verification
+          const expectedCents = Math.round(numericAmount * 100);
+          if (intent.amount !== expectedCents) {
+            return res.status(400).json({ message: `Stripe payment amount ($${(intent.amount / 100).toFixed(2)}) does not match requested amount ($${numericAmount.toFixed(2)})` });
+          }
+
+          const expectedCurrency = (req.body.currency || 'usd').toLowerCase();
+          if ((intent.currency || 'usd').toLowerCase() !== expectedCurrency) {
+            return res.status(400).json({ message: `Stripe payment currency (${intent.currency}) does not match expected currency (${expectedCurrency})` });
+          }
+
+          finalAmount = intent.amount / 100;
+          status = 'Completed';
         } catch (sErr) {
           console.error('Stripe verification error:', sErr.message);
           return res.status(400).json({ message: `Stripe verification failed: ${sErr.message}` });
         }
-      } else if (process.env.NODE_ENV === 'test') {
-        // Fallback for test suite environments where offline Stripe mocks are passed
-        status = 'Completed';
       } else if (!stripeSecret) {
-        return res.status(500).json({ message: 'Stripe payments are not configured on this server.' });
+        return res.status(500).json({ message: 'Payment processing is not configured on this server.' });
       } else {
         return res.status(400).json({ message: 'Valid Stripe transaction reference (pi_...) is required.' });
       }
@@ -105,8 +134,8 @@ export const createPayment = async (req, res) => {
       gymName: gymName || 'GymSync Platform',
       paymentType,
       paymentMethod,
-      amount: numericAmount,
-      commission15Percent: numericAmount * 0.15,
+      amount: finalAmount,
+      commission15Percent: finalAmount * 0.15,
       status,
       screenshotUrl,
       transactionRef,

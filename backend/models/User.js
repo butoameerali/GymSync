@@ -31,6 +31,7 @@ const userSchema = new mongoose.Schema({
   isGoogleApproved: { type: Boolean, default: false },
   otpCode: { type: String, default: null },
   otpExpiresAt: { type: Date, default: null },
+  otpVerified: { type: Boolean, default: false },
   
   // Friend & Follow System
   friends: [{ type: String }],

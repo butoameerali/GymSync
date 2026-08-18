@@ -26,8 +26,9 @@ const paymentSchema = new mongoose.Schema({
   methodDetails: { type: String, default: '' },
   startNextMonth: { type: Boolean, default: false },
   membershipType: { type: String, enum: ['Monthly', 'Yearly'], default: 'Monthly' },
-  joiningDate: { type: Date, default: null },
   approvedBy: { type: String, default: '' }
 }, { timestamps: true });
+
+paymentSchema.index({ transactionRef: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model('Payment', paymentSchema);

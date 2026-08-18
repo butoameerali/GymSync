@@ -4,7 +4,6 @@ import Post from '../models/Post.js';
 import Message from '../models/Message.js';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
-import { otpStore } from './authController.js';
 
 // @desc    Get all users (for public profiles and friend search)
 // @route   GET /api/users
@@ -360,7 +359,15 @@ export const sendVerificationOTP = async (req, res) => {
       return res.status(503).json({ message: 'We could not send the OTP email. Please check the mail configuration and try again.' });
     }
 
-    otpStore[targetEmail] = { otp, expiresAt: Date.now() + 10 * 60 * 1000, userId: req.user._id.toString() };
+    if (req.user?._id) {
+      const user = await User.findById(req.user._id);
+      if (user) {
+        user.otpCode = otp;
+        user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        user.otpVerified = false;
+        await user.save();
+      }
+    }
     res.json({ message: 'Verification OTP sent to your Gmail address.' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -376,22 +383,21 @@ export const verifyEmailOTP = async (req, res) => {
 
   try {
     const targetEmail = email.trim().toLowerCase();
-    const record = otpStore[targetEmail];
 
-    if (!record) return res.status(400).json({ message: 'No verification OTP requested for this email.' });
-    if (Date.now() > record.expiresAt) {
-      delete otpStore[targetEmail];
+    const user = req.user?._id ? await User.findById(req.user._id) : await User.findOne({ email: targetEmail });
+    if (!user || !user.otpCode) return res.status(400).json({ message: 'No verification OTP requested for this email.' });
+
+    const expiresAt = user.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
+    if (Date.now() > expiresAt) {
+      user.otpCode = null;
+      user.otpExpiresAt = null;
+      user.otpVerified = false;
+      await user.save();
       return res.status(400).json({ message: 'OTP code has expired. Please request a new one.' });
     }
-    if (record.otp !== otp.trim()) {
+    if (user.otpCode !== otp.trim()) {
       return res.status(400).json({ message: 'Incorrect OTP code. Please check and try again.' });
     }
-    if (record.userId !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'This OTP was requested for another account.' });
-    }
-
-    const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: 'User profile not found.' });
 
     const emailOwner = await User.findOne({ email: targetEmail });
     if (emailOwner && !emailOwner._id.equals(user._id)) {
@@ -402,9 +408,10 @@ export const verifyEmailOTP = async (req, res) => {
     user.recoveryEmail = targetEmail;
     user.isEmailVerified = true;
     user.isGoogleApproved = true;
+    user.otpCode = null;
+    user.otpExpiresAt = null;
+    user.otpVerified = true;
     await user.save();
-
-    delete otpStore[targetEmail];
 
     if (notificationId) {
       await Notification.findByIdAndUpdate(notificationId, {

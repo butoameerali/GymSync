@@ -343,6 +343,85 @@ async function runSecurityTestSuite() {
     return res.status;
   });
 
+  // TEST 23: Password reset OTP bypass rejection (skipping verify-otp)
+  await runTest(23, 'Password reset directly calling reset-password without verify-otp is rejected', async () => {
+    const otpUserEmail = `otp_victim_${Date.now()}@gymsync.com`;
+    await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'OTP Victim', email: otpUserEmail, password: 'password123', role: 'User' })
+    });
+
+    // Step 1: Request OTP
+    await fetch(`${BASE_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: otpUserEmail })
+    });
+
+    // Step 2: Skip verify-otp and attempt reset-password immediately
+    const resetRes = await fetch(`${BASE_URL}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: otpUserEmail, newPassword: 'hackedpassword123' })
+    });
+
+    if (resetRes.status !== 400) throw new Error(`Expected 400 for unverified reset attempt, got ${resetRes.status}`);
+    return resetRes.status;
+  });
+
+  // TEST 24: Stripe PaymentIntent duplicate replay rejection
+  await runTest(24, 'Duplicate Stripe PaymentIntent replay is rejected with 409 Conflict', async () => {
+    const transactionRef = `pi_test_replay_${Date.now()}`;
+    
+    // First creation (with test bypass flag enabled)
+    const firstRes = await fetch(`${BASE_URL}/api/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userAToken}` },
+      body: JSON.stringify({
+        paymentId: `PAY_REPLAY_1_${Date.now()}`,
+        paymentMethod: 'Stripe',
+        paymentType: 'GymMembership',
+        amount: 29.99,
+        transactionRef
+      })
+    });
+
+    // Second creation using same transactionRef
+    const secondRes = await fetch(`${BASE_URL}/api/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userBToken}` },
+      body: JSON.stringify({
+        paymentId: `PAY_REPLAY_2_${Date.now()}`,
+        paymentMethod: 'Stripe',
+        paymentType: 'GymMembership',
+        amount: 29.99,
+        transactionRef
+      })
+    });
+
+    if (secondRes.status !== 409) throw new Error(`Expected 409 for duplicate PaymentIntent replay, got ${secondRes.status}`);
+    return secondRes.status;
+  });
+
+  // TEST 25: Unconfigured / invalid Stripe PaymentIntent status rejection
+  await runTest(25, 'Unconfigured/invalid Stripe PaymentIntent reference is rejected', async () => {
+    const res = await fetch(`${BASE_URL}/api/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userAToken}` },
+      body: JSON.stringify({
+        paymentId: `PAY_INVALID_STRIPE_${Date.now()}`,
+        paymentMethod: 'Stripe',
+        paymentType: 'GymMembership',
+        amount: 50.00,
+        transactionRef: `invalid_ref_non_pi_${Date.now()}`
+      })
+    });
+
+    if (res.status !== 400 && res.status !== 500) throw new Error(`Expected 400 or 500 for invalid Stripe ref, got ${res.status}`);
+    return res.status;
+  });
+
   console.log('\n====================================================');
   console.log(`📊 FINAL RESULT: ${passedTests}/${totalTests} Passed (${Math.round((passedTests/totalTests)*100)}%)`);
   console.log('====================================================\n');

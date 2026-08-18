@@ -60,7 +60,6 @@ app.use(cors({
     if (
       origin.startsWith('http://localhost') ||
       origin.startsWith('http://127.0.0.1') ||
-      origin.endsWith('.vercel.app') ||
       allowedOrigins.includes(origin)
     ) {
       return callback(null, true);
