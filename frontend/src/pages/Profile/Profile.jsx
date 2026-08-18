@@ -224,16 +224,22 @@ const Profile = () => {
     }
 
     setValidationErrors([]);
+
+    try {
+      if (profilePic) await saveProfilePic(profilePic);
+    } catch (picErr) {
+      toast.error(picErr.message || 'Unable to save profile picture.');
+      return;
+    }
+
     localStorage.setItem(`gymsync_${userKey}_bio_filled`, 'true');
     localStorage.setItem('gymsync_bio_filled', 'true');
     localStorage.setItem(`gymsync_${userKey}_bio_data`, JSON.stringify(bio));
     localStorage.setItem(`gymsync_${userKey}_bio`, JSON.stringify(bio));
-    
-    if (profilePic) await saveProfilePic(profilePic);
-    
+
     setIsEditingBio(false);
     window.dispatchEvent(new Event('gymsync_bio_updated'));
-    
+
     // Auto generate mock upcoming schedule after bio fill
     setUpcoming([
       { id: 'u1', name: 'Barbell Squats', date: 'Tomorrow, 8:00 AM' },

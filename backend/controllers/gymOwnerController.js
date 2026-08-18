@@ -26,11 +26,9 @@ export const getGymOwnerDashboard = async (req, res) => {
     let activeMembersCount = 0; // Default to 0 when no members are added
 
     try {
-      console.log(`getGymOwnerDashboard called for user: ${req.user?._id}, role: ${req.user?.role}`);
       if (req.user && (req.user.role === 'GymOwner' || req.user.role === 'gym_owner')) {
         if (req.user._id) {
           gym = await Gym.findOne({ owner: req.user._id });
-          console.log(`Gym found by owner ID:`, gym ? gym._id : 'null');
         }
       } else {
         gym = await Gym.findOne({ ownerName });

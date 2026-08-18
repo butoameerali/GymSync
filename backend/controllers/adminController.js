@@ -66,18 +66,8 @@ export const getAllUsers = async (req, res) => {
   try {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
 
-    try {
-      const users = await User.find().select('-password').sort({ createdAt: -1 });
-      if (users.length > 0) return res.json(users);
-    } catch (e) {}
-
-    res.json([
-      { _id: 'u1', name: 'Senior Super Admin', email: 'admin@gymsync.com', role: 'SuperAdmin', adminTier: 'Senior', isBanned: false },
-      { _id: 'u2', name: 'Junior Admin Alex', email: 'admin2@gymsync.com', role: 'Admin', adminTier: 'Junior', isBanned: false },
-      { _id: 'u3', name: 'Junior Admin Sarah', email: 'admin3@gymsync.com', role: 'Admin', adminTier: 'Junior', isBanned: false },
-      { _id: 'u4', name: 'Elite Gym Owner', email: 'owner@gymsync.com', role: 'GymOwner', isBanned: false },
-      { _id: 'u5', name: 'John Doe', email: 'user@gymsync.com', role: 'User', isBanned: false }
-    ]);
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
+    res.json(users || []);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

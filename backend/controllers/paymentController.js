@@ -89,9 +89,11 @@ export const createPayment = async (req, res) => {
           console.error('Stripe verification error:', sErr.message);
           return res.status(400).json({ message: `Stripe verification failed: ${sErr.message}` });
         }
-      } else if (process.env.NODE_ENV === 'test' || !stripeSecret) {
+      } else if (process.env.NODE_ENV === 'test') {
         // Fallback for test suite environments where offline Stripe mocks are passed
         status = 'Completed';
+      } else if (!stripeSecret) {
+        return res.status(500).json({ message: 'Stripe payments are not configured on this server.' });
       } else {
         return res.status(400).json({ message: 'Valid Stripe transaction reference (pi_...) is required.' });
       }

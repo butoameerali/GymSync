@@ -110,6 +110,13 @@ export const getConversations = async (req, res) => {
       $or: [{ sender: paramUserName }, { receiver: paramUserName }]
     }).sort({ createdAt: -1 });
 
+    // Calculate unread counts for all senders targeting paramUserName in a single aggregation query
+    const unreadAgg = await Message.aggregate([
+      { $match: { receiver: paramUserName, isRead: false } },
+      { $group: { _id: '$sender', count: { $sum: 1 } } }
+    ]);
+    const unreadMap = new Map((unreadAgg || []).map(u => [u._id, u.count]));
+
     const conversationMap = new Map();
 
     for (const msg of messages) {
@@ -117,11 +124,7 @@ export const getConversations = async (req, res) => {
       if (!contactName) continue;
 
       if (!conversationMap.has(contactName)) {
-        const unreadCount = await Message.countDocuments({
-          sender: contactName,
-          receiver: paramUserName,
-          isRead: false
-        });
+        const unreadCount = unreadMap.get(contactName) || 0;
 
         conversationMap.set(contactName, {
           id: contactName,

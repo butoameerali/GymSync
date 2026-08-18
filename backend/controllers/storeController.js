@@ -46,7 +46,9 @@ export const getProducts = async (req, res) => {
 // @access  Private / StoreManager, Admin
 export const createProduct = async (req, res) => {
   try {
-    const { name, category, price, stock, image, badge, createdBy } = req.body;
+    const { name, category, price, stock, image, badge } = req.body;
+    const actorName = req.user?.name || 'Store Manager';
+    const actorRole = req.user?.role || 'StoreManager';
 
     if (!name || !category || !price || !image) {
       return res.status(400).json({ message: 'Name, category, price, and image are required' });
@@ -60,10 +62,10 @@ export const createProduct = async (req, res) => {
       image,
       badge: badge || '',
       status: 'Approved',
-      createdBy: createdBy || 'Store Manager'
+      createdBy: actorName
     });
 
-    logAuditTrail(createdBy || 'Store Manager', 'StoreManager', 'Created Product', name, `Price: $${price}`, req);
+    logAuditTrail(actorName, actorRole, 'Created Product', name, `Price: $${price}`, req);
     res.status(201).json(product);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -76,7 +78,9 @@ export const createProduct = async (req, res) => {
 export const updateProductStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, managerName } = req.body;
+    const { status } = req.body;
+    const actorName = req.user?.name || 'Store Manager';
+    const actorRole = req.user?.role || 'StoreManager';
 
     const product = await Product.findById(id);
     if (!product) {
@@ -86,7 +90,7 @@ export const updateProductStatus = async (req, res) => {
     product.status = status;
     await product.save();
 
-    logAuditTrail(managerName || 'Store Manager', 'StoreManager', 'Updated Product Status', product.name, `New Status: ${status}`, req);
+    logAuditTrail(actorName, actorRole, 'Updated Product Status', product.name, `New Status: ${status}`, req);
     res.json(product);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -101,7 +105,7 @@ export const createOrder = async (req, res) => {
     const { items, totalAmount, shippingAddress, paymentId } = req.body;
     const userName = req.user?.name;
 
-    if (!userName || !items || items.length === 0 || !totalAmount || !shippingAddress || !paymentId) {
+    if (!userName || !Array.isArray(items) || items.length === 0 || typeof totalAmount !== 'number' || !shippingAddress || !paymentId) {
       return res.status(400).json({ message: 'Required order details missing' });
     }
 
@@ -124,6 +128,42 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: 'Payment record is not linked to a store order' });
     }
 
+    // Verify item prices server-side against Product database catalog
+    let verifiedTotal = 0;
+    const verifiedItems = [];
+
+    for (const item of items) {
+      const quantity = Math.max(1, Number(item.quantity) || 1);
+      const itemId = item.id || item._id;
+
+      if (!itemId) {
+        return res.status(400).json({ message: 'Invalid item payload' });
+      }
+
+      const dbProduct = await Product.findById(itemId);
+      const itemPrice = dbProduct ? dbProduct.price : Number(item.price);
+
+      if (!dbProduct && (!item.price || isNaN(item.price))) {
+        return res.status(400).json({ message: `Product ${item.name || itemId} not found` });
+      }
+
+      const lineTotal = itemPrice * quantity;
+      verifiedTotal += lineTotal;
+      verifiedItems.push({
+        id: itemId,
+        name: dbProduct ? dbProduct.name : item.name,
+        price: itemPrice,
+        image: dbProduct ? dbProduct.image : item.image,
+        quantity
+      });
+    }
+
+    // Ensure payment amount matches verified total
+    const roundedVerifiedTotal = Math.round(verifiedTotal * 100) / 100;
+    if (Math.abs(payment.amount - roundedVerifiedTotal) > 0.05) {
+      return res.status(400).json({ message: `Payment amount ($${payment.amount}) does not match catalog item total ($${roundedVerifiedTotal})` });
+    }
+
     const count = await Order.countDocuments();
     const orderId = `ORD-${10000 + count + 1}`;
 
@@ -131,8 +171,8 @@ export const createOrder = async (req, res) => {
       orderId,
       userName,
       paymentId: payment.paymentId,
-      items,
-      totalAmount: Number(totalAmount),
+      items: verifiedItems,
+      totalAmount: roundedVerifiedTotal,
       shippingAddress,
       paymentStatus: payment.status === 'Completed' ? 'Paid' : 'Pending',
       orderStatus: payment.status === 'Completed' ? 'Processing' : 'Pending'
