@@ -17,10 +17,11 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const token = localStorage.getItem('gymsync_token') || '';
   const userRole = localStorage.getItem('gymsync_role') || '';
   const normalizedRole = userRole.toLowerCase().replace('_', '');
-  const isGuest = userRole === 'guest' || !userRole;
-  const isLoggedIn = Boolean(userRole && userRole !== 'guest');
+  const isGuest = userRole === 'guest' || !userRole || !token;
+  const isLoggedIn = Boolean(userRole && userRole !== 'guest' && token);
   const isAdmin = normalizedRole === 'admin' || normalizedRole === 'superadmin' || normalizedRole === 'complaintmoderator';
   const isGymOwner = normalizedRole === 'gymowner';
   const isFitnessInstructor = normalizedRole === 'fitnessinstructor';
@@ -52,6 +53,8 @@ const Navbar = () => {
     const handleClickOutside = (event) => {
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
         setShowProfileMenu(false);
+        setShowNotifications(false);
+        setShowRequests(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -59,19 +62,18 @@ const Navbar = () => {
   }, []);
 
   useEffect(() => {
-    if (isLoggedIn) {
-      const token = localStorage.getItem('gymsync_token') || '';
-      const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
+    if (isLoggedIn && token) {
+      const authHeader = { 'Authorization': `Bearer ${token}` };
 
       // Fetch notifications
       fetch(`/api/notifications/${userName}`, { headers: authHeader })
-        .then(res => res.json())
+        .then(res => res.ok ? res.json() : [])
         .then(data => setNotifications(Array.isArray(data) ? data : []))
         .catch(err => console.error("Error fetching notifications", err));
         
       // Fetch global profile pic & friend requests
       fetch(`/api/users/${userName}`)
-        .then(res => res.json())
+        .then(res => res.ok ? res.json() : null)
         .then(user => {
            if(user && !user.message) {
              if (user.profilePic) {
@@ -91,13 +93,17 @@ const Navbar = () => {
 
       const interval = setInterval(() => {
         fetch(`/api/notifications/${userName}`, { headers: authHeader })
-          .then(res => res.json())
+          .then(res => res.ok ? res.json() : [])
           .then(data => setNotifications(Array.isArray(data) ? data : []))
           .catch(err => console.error("Interval Error", err));
           
         fetch(`/api/users/${userName}`)
-          .then(res => res.json())
+          .then(res => res.ok ? res.json() : null)
           .then(user => {
+             if(user && !user.message && user.profilePic) {
+               setProfilePic(user.profilePic);
+               localStorage.setItem(`gymsync_${userName.replace(/\s+/g, '_')}_pic`, user.profilePic);
+             }
              if(user && !user.message) {
                if (user.receivedRequests) {
                  setFriendRequests(Array.isArray(user.receivedRequests) ? user.receivedRequests : []);
