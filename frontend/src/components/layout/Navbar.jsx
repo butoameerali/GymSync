@@ -47,20 +47,28 @@ const Navbar = () => {
   
   const location = useLocation();
   const profileDropdownRef = useRef(null);
+  const notifDropdownRef = useRef(null);
+  const messageDropdownRef = useRef(null);
 
   // Close menus when route changes
   useEffect(() => {
     setIsMenuOpen(false);
     setShowProfileMenu(false);
     setShowNotifications(false);
+    setShowMessages(false);
   }, [location]);
 
   // Click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+      if (messageDropdownRef.current && !messageDropdownRef.current.contains(event.target)) {
+        setShowMessages(false);
+      }
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
         setShowProfileMenu(false);
-        setShowNotifications(false);
         setShowRequests(false);
       }
     };
@@ -191,12 +199,12 @@ const Navbar = () => {
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               
               {/* Message Center Button & Dropdown */}
-              <div className="message-nav-container" style={{ position: 'relative' }}>
+              <div className="message-nav-container" ref={messageDropdownRef} style={{ position: 'relative' }}>
                 <button 
                   className="btn btn-icon" 
                   style={{ background: 'none', border: 'none', color: 'var(--text-primary)', position: 'relative', cursor: 'pointer', padding: '6px' }}
                   onClick={() => {
-                    setShowMessages(!showMessages);
+                    setShowMessages(prev => !prev);
                     setShowNotifications(false);
                     setShowProfileMenu(false);
                   }}
@@ -222,12 +230,12 @@ const Navbar = () => {
               </div>
 
               {/* Notification Center Button & Dropdown */}
-              <div className="notification-container" style={{ position: 'relative' }}>
+              <div className="notification-container" ref={notifDropdownRef} style={{ position: 'relative' }}>
                 <button 
                   className="btn btn-icon" 
                   style={{ background: 'none', border: 'none', color: 'var(--text-primary)', position: 'relative', cursor: 'pointer', padding: '6px' }}
                   onClick={() => {
-                    setShowNotifications(!showNotifications);
+                    setShowNotifications(prev => !prev);
                     setShowMessages(false);
                     setShowProfileMenu(false);
                   }}
