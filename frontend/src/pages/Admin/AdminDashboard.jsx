@@ -3,6 +3,8 @@ import { Shield, Users, Building, ShoppingBag, AlertTriangle, CheckCircle, XCirc
 import { toast } from 'react-toastify';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
+import DashboardShell from '../../components/layout/DashboardShell';
+import StatCard from '../../components/ui/StatCard';
 import { REGISTERED_DETECTORS } from '../../ai-detectors/registry.js';
 import './AdminDashboard.css';
 
@@ -402,9 +404,17 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="admin-dashboard-page">
-      {/* Header Banner */}
-      <div className="admin-header glass-panel">
+    <DashboardShell
+      userRole={userRole}
+      userName={userName}
+      title="Admin Control Center"
+      subtitle={`${isSeniorAdmin ? 'Senior Super Admin (Highest Tier)' : 'Junior Admin'} Portal — Authenticated as ${userName}`}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+    >
+      <div className="admin-dashboard-page">
+        {/* Header Banner */}
+        <div className="admin-header glass-panel">
         <div className="container header-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div className="admin-badge-icon">
@@ -1481,6 +1491,7 @@ const AdminDashboard = () => {
         </div>
       </Modal>
     </div>
+    </DashboardShell>
   );
 };
 

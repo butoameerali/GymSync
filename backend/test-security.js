@@ -35,11 +35,11 @@ async function runSecurityTestSuite() {
   const userBEmail = `sec_userb_${Date.now()}@gymsync.com`;
   const bannedEmail = `sec_banned_${Date.now()}@gymsync.com`;
 
-  // Register users
-  const regAdmin = await fetch(`${BASE_URL}/api/auth/register`, {
+  // Register users & get genuine Admin token
+  const adminLogin = await fetch(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Security Admin', email: adminEmail, password: 'password123', role: 'Admin' })
+    body: JSON.stringify({ email: 'admin@gymsync.com', password: 'admin123' })
   }).then(r => r.json());
 
   const regUserA = await fetch(`${BASE_URL}/api/auth/register`, {
@@ -60,7 +60,7 @@ async function runSecurityTestSuite() {
     body: JSON.stringify({ name: 'Banned User', email: bannedEmail, password: 'password123', role: 'User' })
   }).then(r => r.json());
 
-  const adminToken = regAdmin.token;
+  const adminToken = adminLogin.token;
   const userAToken = regUserA.token;
   const userBToken = regUserB.token;
   const bannedToken = regBanned.token;

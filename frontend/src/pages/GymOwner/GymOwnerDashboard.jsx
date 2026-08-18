@@ -3,6 +3,8 @@ import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, 
 import { toast } from 'react-toastify';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
+import DashboardShell from '../../components/layout/DashboardShell';
+import StatCard from '../../components/ui/StatCard';
 import './GymOwnerDashboard.css';
 
 const GymOwnerDashboard = () => {
@@ -345,8 +347,16 @@ const GymOwnerDashboard = () => {
   };
 
   return (
-    <div className="gym-owner-page">
-      {/* Header */}
+    <DashboardShell
+      userRole="GymOwner"
+      userName={ownerName || 'Gym Owner'}
+      title="Gym Owner Control Panel"
+      subtitle={dashboardData?.gym?.name || 'GymSync Partner Facility'}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+    >
+      <div className="gym-owner-page">
+        {/* Header */}
       <div className="gym-owner-header glass-panel">
         <div className="container header-flex">
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -852,6 +862,7 @@ const GymOwnerDashboard = () => {
         )}
       </div>
     </div>
+    </DashboardShell>
   );
 };
 

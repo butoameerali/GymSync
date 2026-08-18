@@ -4,6 +4,8 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import ComplaintModal from '../../components/common/ComplaintModal';
+import DashboardShell from '../../components/layout/DashboardShell';
+import StatCard from '../../components/ui/StatCard';
 import './UserDashboard.css';
 
 const UserDashboard = () => {
@@ -84,8 +86,16 @@ const UserDashboard = () => {
   };
 
   return (
-    <div className="user-dashboard-page">
-      {/* Header */}
+    <DashboardShell
+      userRole="User"
+      userName={userName}
+      title="User Fitness Portal"
+      subtitle="Track your workouts, gym membership, and assigned training plans"
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+    >
+      <div className="user-dashboard-page">
+        {/* Header */}
       <div className="user-dashboard-header glass-panel">
         <div className="container header-flex">
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -370,6 +380,7 @@ const UserDashboard = () => {
         </div>
       </Modal>
     </div>
+    </DashboardShell>
   );
 };
 

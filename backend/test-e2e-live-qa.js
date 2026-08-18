@@ -100,17 +100,17 @@ async function runLiveE2EQATestSuite() {
     recordTest('GymOwner Registration', 'AUTH', true, 'Role assigned as GymOwner');
   }
 
-  // Register Admin
-  res = await fetch(`${BASE_URL}/api/auth/register`, {
+  // Obtain Genuine Admin Token via Login
+  res = await fetch(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: `Admin ${timestamp}`, email: adminEmail, password: 'password123', role: 'Admin' })
+    body: JSON.stringify({ email: 'admin@gymsync.com', password: 'admin123' })
   });
   data = await res.json();
-  if (res.status === 201) {
+  if (res.status === 200) {
     adminToken = data.token;
     adminId = data._id;
-    recordTest('Admin Registration', 'AUTH', true, 'Role assigned as Admin');
+    recordTest('Admin Login', 'AUTH', true, 'Authenticated as SuperAdmin');
   }
 
   // Test Wrong Password Login
