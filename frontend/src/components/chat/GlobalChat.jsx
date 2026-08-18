@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { MessageCircle, X, Send, Lock, Award } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-toastify';
@@ -11,6 +12,7 @@ const CONTACTS = [
 ];
 
 const GlobalChat = () => {
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [activeContact, setActiveContact] = useState(null);
   const [input, setInput] = useState('');
@@ -22,6 +24,11 @@ const GlobalChat = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(true);
   const messagesEndRef = useRef(null);
+
+  // Hide floating chat widget on full Messenger / Chat portal pages
+  if (['/messages', '/chat'].includes(location.pathname)) {
+    return null;
+  }
 
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
