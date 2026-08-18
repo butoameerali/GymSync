@@ -34,3 +34,37 @@ export const apiJson = async (url, options = {}) => {
   }
   return await res.json();
 };
+
+export const get = async (endpoint) => {
+  const url = endpoint.startsWith('/api') ? endpoint : `/api${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  return await apiJson(url, { method: 'GET' });
+};
+
+export const post = async (endpoint, data) => {
+  const url = endpoint.startsWith('/api') ? endpoint : `/api${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  return await apiJson(url, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+};
+
+export const put = async (endpoint, data) => {
+  const url = endpoint.startsWith('/api') ? endpoint : `/api${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  return await apiJson(url, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  });
+};
+
+export const patch = async (endpoint, data = {}) => {
+  const url = endpoint.startsWith('/api') ? endpoint : `/api${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  return await apiJson(url, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  });
+};
+
+export const del = async (endpoint) => {
+  const url = endpoint.startsWith('/api') ? endpoint : `/api${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  return await apiJson(url, { method: 'DELETE' });
+};

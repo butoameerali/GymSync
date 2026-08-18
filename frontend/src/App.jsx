@@ -27,6 +27,8 @@ const GymOwnerDashboard = lazy(() => import('./pages/GymOwner/GymOwnerDashboard'
 const FitnessInstructorDashboard = lazy(() => import('./pages/FitnessInstructor/FitnessInstructorDashboard'));
 const GymTrainerDashboard = lazy(() => import('./pages/GymTrainer/GymTrainerDashboard'));
 const UserDashboard = lazy(() => import('./pages/User/UserDashboard'));
+const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage'));
+const MessagesPage = lazy(() => import('./pages/Messages/MessagesPage'));
 const LegalPage = lazy(() => import('./pages/Legal/LegalPage'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
@@ -83,6 +85,9 @@ function App() {
               {/* Protected Routes with RBAC Guards */}
               <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+              <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+              <Route path="/chat" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/your-gym" element={<ProtectedRoute><YourGym /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin', 'ComplaintModerator']}><AdminDashboard /></ProtectedRoute>} />

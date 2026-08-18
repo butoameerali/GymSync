@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Activity, Bell, Sun, Moon } from 'lucide-react';
+import { Menu, X, Activity, Bell, MessageSquare, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import NotificationDropdown from '../../features/notifications/components/NotificationDropdown';
+import MessageDropdown from '../../features/messages/components/MessageDropdown';
+import { notificationService } from '../../features/notifications/services/notificationService';
+import { messageService } from '../../features/messages/services/messageService';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -29,7 +33,10 @@ const Navbar = () => {
   const userName = localStorage.getItem('gymsync_user_name') || 'User';
 
   const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [profilePic, setProfilePic] = useState('');
   const [hasGymSubscription, setHasGymSubscription] = useState(false);
@@ -65,12 +72,24 @@ const Navbar = () => {
     if (isLoggedIn && token) {
       const authHeader = { 'Authorization': `Bearer ${token}` };
 
-      // Fetch notifications
-      fetch(`/api/notifications/${userName}`, { headers: authHeader })
-        .then(res => res.ok ? res.json() : [])
-        .then(data => setNotifications(Array.isArray(data) ? data : []))
-        .catch(err => console.error("Error fetching notifications", err));
-        
+      const syncCounts = async () => {
+        try {
+          const [notifData, chatData] = await Promise.all([
+            notificationService.getNotifications(userName, 1, 10),
+            messageService.getUnreadCount()
+          ]);
+
+          const notifList = notifData?.notifications || (Array.isArray(notifData) ? notifData : []);
+          setNotifications(notifList);
+          setUnreadCount(notifData?.unreadCount ?? notifList.filter(n => n && !n.isRead).length);
+          setUnreadChatCount(chatData?.unreadCount || 0);
+        } catch (err) {
+          console.error("Error syncing unread counts:", err.message);
+        }
+      };
+
+      syncCounts();
+
       // Fetch global profile pic & friend requests
       fetch(`/api/users/${userName}`, { headers: authHeader })
         .then(res => res.ok ? res.json() : null)
@@ -92,30 +111,8 @@ const Navbar = () => {
         .catch(err => console.error(err));
 
       const interval = setInterval(() => {
-        fetch(`/api/notifications/${userName}`, { headers: authHeader })
-          .then(res => res.ok ? res.json() : [])
-          .then(data => setNotifications(Array.isArray(data) ? data : []))
-          .catch(err => console.error("Interval Error", err));
-          
-        fetch(`/api/users/${userName}`, { headers: authHeader })
-          .then(res => res.ok ? res.json() : null)
-          .then(user => {
-             if(user && !user.message && user.profilePic) {
-               setProfilePic(user.profilePic);
-               localStorage.setItem(`gymsync_${userName.replace(/\s+/g, '_')}_pic`, user.profilePic);
-             }
-             if(user && !user.message) {
-               if (user.receivedRequests) {
-                 setFriendRequests(Array.isArray(user.receivedRequests) ? user.receivedRequests : []);
-               }
-               const subscribedGym = user.subscribedGymName || '';
-               setHasGymSubscription(Boolean(subscribedGym));
-               if (subscribedGym) localStorage.setItem('gymsync_user_gym', subscribedGym);
-               else localStorage.removeItem('gymsync_user_gym');
-             }
-          })
-          .catch(err => console.error("Interval Error", err));
-      }, 10000);
+        syncCounts();
+      }, 8000);
       return () => clearInterval(interval);
     }
   }, [isLoggedIn, userName]);
@@ -189,70 +186,72 @@ const Navbar = () => {
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
-          {/* Notification Center */}
+          {/* Notification & Message Center */}
           {isLoggedIn && (
-            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               
-              {/* Notifications */}
-              <div className="notification-container" style={{ position: 'relative' }}>
+              {/* Message Center Button & Dropdown */}
+              <div className="message-nav-container" style={{ position: 'relative' }}>
                 <button 
                   className="btn btn-icon" 
-                  style={{ background: 'none', border: 'none', color: 'var(--text-primary)', position: 'relative', cursor: 'pointer' }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-primary)', position: 'relative', cursor: 'pointer', padding: '6px' }}
                   onClick={() => {
-                    setShowNotifications(!showNotifications);
-                    // Mark as read when opened
-                    if (!showNotifications && notifications.some(n => !n.isRead)) {
-                      fetch(`/api/notifications/${userName}/read`, { method: 'PUT' });
-                      setNotifications(notifications.map(n => ({...n, isRead: true})));
-                    }
+                    setShowMessages(!showMessages);
+                    setShowNotifications(false);
+                    setShowProfileMenu(false);
                   }}
+                  title="Messages"
+                  aria-label="Open messages"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                  {(Array.isArray(notifications) ? notifications : []).filter(n => n && !n.isRead).length > 0 && (
-                    <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ef4444', color: 'white', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>
-                      {(Array.isArray(notifications) ? notifications : []).filter(n => n && !n.isRead).length}
+                  <MessageSquare size={22} />
+                  {unreadChatCount > 0 && (
+                    <span style={{ position: 'absolute', top: '-2px', right: '-4px', background: '#38bdf8', color: '#0f172a', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '10px', fontWeight: 'bold' }}>
+                      {unreadChatCount}
                     </span>
                   )}
                 </button>
-              
-              {showNotifications && (
-                <div className="glass-panel notification-dropdown" style={{ position: 'absolute', top: '100%', right: '-50px', marginTop: '15px', width: '300px', padding: '0', borderRadius: '12px', zIndex: 1000, overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                  <div style={{ padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)' }}>
-                    <h4 style={{ margin: 0 }}>Notifications</h4>
-                  </div>
-                  <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                    {notifications.length > 0 ? notifications.map((n, idx) => (
-                      <div key={idx} style={{ padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', background: n.isRead ? 'transparent' : 'rgba(16, 185, 129, 0.1)', display: 'flex', gap: '10px', alignItems: 'start' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: n.isRead ? 'transparent' : '#10b981', marginTop: '6px', flexShrink: 0 }}></div>
-                        <div style={{ width: '100%' }}>
-                          <p style={{ margin: 0, fontSize: '0.9rem' }}>{n.message}</p>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{new Date(n.createdAt).toLocaleTimeString()}</span>
-                          {n.type === 'friend_request' && n.message.includes('sent you a friend request') && (
-                            <div style={{ marginTop: '10px' }}>
-                              <button 
-                                className="btn btn-primary btn-sm" 
-                                style={{ padding: '6px 12px', fontSize: '0.8rem', width: '100%' }} 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  const senderName = n.message.replace(' sent you a friend request!', '');
-                                  handleAcceptRequest(senderName, n._id); 
-                                }}
-                              >
-                                Accept Request
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )) : (
-                      <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>No notifications yet.</p>
-                    )}
-                  </div>
-                  <div style={{ padding: '10px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                    <Link to="/profile" style={{ fontSize: '0.8rem', color: 'var(--primary-accent)', textDecoration: 'none' }} onClick={() => setShowNotifications(false)}>View All Activity</Link>
-                  </div>
-                </div>
-              )}
+
+                {showMessages && (
+                  <MessageDropdown
+                    userName={userName}
+                    onClose={() => setShowMessages(false)}
+                    unreadChatCount={unreadChatCount}
+                    setUnreadChatCount={setUnreadChatCount}
+                  />
+                )}
+              </div>
+
+              {/* Notification Center Button & Dropdown */}
+              <div className="notification-container" style={{ position: 'relative' }}>
+                <button 
+                  className="btn btn-icon" 
+                  style={{ background: 'none', border: 'none', color: 'var(--text-primary)', position: 'relative', cursor: 'pointer', padding: '6px' }}
+                  onClick={() => {
+                    setShowNotifications(!showNotifications);
+                    setShowMessages(false);
+                    setShowProfileMenu(false);
+                  }}
+                  title="Notifications"
+                  aria-label="Open notifications"
+                >
+                  <Bell size={22} />
+                  {unreadCount > 0 && (
+                    <span style={{ position: 'absolute', top: '-2px', right: '-4px', background: '#ef4444', color: 'white', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '10px', fontWeight: 'bold' }}>
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <NotificationDropdown
+                    notifications={notifications}
+                    setNotifications={setNotifications}
+                    userName={userName}
+                    onClose={() => setShowNotifications(false)}
+                    unreadCount={unreadCount}
+                    setUnreadCount={setUnreadCount}
+                  />
+                )}
               </div>
             </div>
           )}
