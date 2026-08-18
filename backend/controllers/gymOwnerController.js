@@ -92,12 +92,9 @@ export const updateGymProfile = async (req, res) => {
       }
 
       if (!gym) {
-        if (req.user && req.user._id) {
-          gym = await Gym.findOne({ owner: req.user._id });
-        }
-        if (!gym && req.user && req.user.role !== 'GymOwner' && req.user.role !== 'gym_owner') {
+        if (!gym && req.user) {
           const ownerName = req.user?.name || 'Gym Owner';
-          gym = await Gym.findOne({ ownerName });
+          gym = await Gym.findOne({ $or: [{ ownerName }, { owner: req.user._id }] });
         }
       }
 
@@ -141,7 +138,7 @@ export const updateGymProfile = async (req, res) => {
       console.error('updateGymProfile error:', e.message);
     }
 
-    res.json({ _id: id, name, location, monthlyFee: Number(monthlyFee), facilities, equipmentImages });
+    res.json(gym || { _id: id, name, location, monthlyFee: Number(monthlyFee), facilities, equipmentImages });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

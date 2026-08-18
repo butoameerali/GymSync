@@ -3,6 +3,7 @@ import { Activity, Flame, Target, MapPin, Calendar, CheckCircle, Clock, Download
 import ImageCropper from '../../components/layout/ImageCropper';
 import Modal from '../../components/common/Modal';
 import { toast } from 'react-toastify';
+import { can } from '../../config/permissions';
 import './Profile.css';
 
 const Profile = () => {
@@ -691,27 +692,29 @@ const Profile = () => {
               <h3 className="section-title"><Shield size={20} color="var(--primary-accent)"/> Privacy & GDPR Controls</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Manage your data privacy and control what others can see on your public profile.</p>
 
-              <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Lock size={16}/> Private Health Bio</h4>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '5px 0 0 0' }}>Hide your Height and Weight from your public profile.</p>
+              {can(userRole, 'profile', 'health_bio_privacy') && (
+                <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Lock size={16}/> Private Health Bio</h4>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '5px 0 0 0' }}>Hide your Height and Weight from your public profile.</p>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={hideHealthData} 
+                        onChange={(e) => {
+                          const isChecked = e.target.checked;
+                          setHideHealthData(isChecked);
+                          localStorage.setItem('gymsync_privacy_hideHealth', isChecked ? 'true' : 'false');
+                          toast.success(`Health data is now ${isChecked ? 'PRIVATE' : 'PUBLIC'} on your profile.`);
+                        }}
+                        style={{ transform: 'scale(1.5)', cursor: 'pointer' }}
+                      />
+                    </label>
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={hideHealthData} 
-                      onChange={(e) => {
-                        const isChecked = e.target.checked;
-                        setHideHealthData(isChecked);
-                        localStorage.setItem('gymsync_privacy_hideHealth', isChecked ? 'true' : 'false');
-                        toast.success(`Health data is now ${isChecked ? 'PRIVATE' : 'PUBLIC'} on your profile.`);
-                      }}
-                      style={{ transform: 'scale(1.5)', cursor: 'pointer' }}
-                    />
-                  </label>
                 </div>
-              </div>
+              )}
 
               <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

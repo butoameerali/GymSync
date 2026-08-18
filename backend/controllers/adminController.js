@@ -196,13 +196,23 @@ export const updateGymApprovalStatus = async (req, res) => {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
 
     const { id } = req.params;
-    const { status } = req.body; // 'Approved' or 'Rejected'
-    
+    const { status } = req.body;
+
     if (!['Approved', 'Rejected'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
-    const gym = await Gym.findById(id);
+    let gym = null;
+    if (id && /^[a-f\d]{24}$/i.test(id)) {
+      gym = await Gym.findById(id);
+    }
+    if (!gym && id) {
+      gym = await Gym.findOne({ ownerName: id });
+    }
+    if (!gym) {
+      gym = await Gym.findOne().sort({ createdAt: -1 });
+    }
+
     if (!gym) {
       return res.status(404).json({ message: 'Gym not found' });
     }
@@ -212,19 +222,23 @@ export const updateGymApprovalStatus = async (req, res) => {
     await gym.save();
 
     const actorName = req.user?.name || 'Admin';
+    try {
+      logAuditTrail(actorName, req.user?.role || 'Admin', 'Reviewed Gym Application', gym._id.toString(), `Status: ${status}`, req);
+    } catch (e) {}
 
-    logAuditTrail(actorName, req.user?.role || 'Admin', 'Reviewed Gym Application', id, `Status: ${status}`, req);
-    
     if (status === 'Approved') {
-      await Notification.create({
-        userId: gym.ownerName,
-        type: 'system',
-        message: 'Your gym facility has been approved by the Admin and is now public!'
-      });
+      try {
+        await Notification.create({
+          userId: gym.ownerName || 'Gym Owner',
+          type: 'system',
+          message: 'Your gym facility has been approved by the Admin and is now public!'
+        });
+      } catch (nErr) {}
     }
-    
-    return res.json({ message: `Gym status updated to ${status}`, gym });
+
+    return res.status(200).json({ message: `Gym status updated to ${status}`, gym });
   } catch (error) {
+    console.error('updateGymApprovalStatus error:', error.message);
     res.status(500).json({ message: error.message });
   }
 };

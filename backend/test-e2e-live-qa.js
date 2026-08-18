@@ -217,7 +217,7 @@ async function runLiveE2EQATestSuite() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
       body: JSON.stringify({ status: 'Approved' })
     });
-    recordTest('Admin Approves Gym Facility', 'GYM', res.status === 200, `Approved gym status`);
+    recordTest('Admin Approves Gym Facility', 'GYM', res.status === 200, `Approved gym status (Status: ${res.status})`);
   }
 
   // GymOwner Check-in Member

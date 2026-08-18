@@ -5,6 +5,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import Modal from '../../components/common/Modal';
 import PaymentModal from '../../components/common/PaymentModal';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
+import { can } from '../../config/permissions';
 import './Store.css';
 
 const CATEGORIES = ["All", "Proteins", "Supplements", "Gym Wear", "Accessories", "Equipment"];
@@ -264,19 +265,21 @@ const Store = () => {
               />
             </div>
 
-            {isAdmin && (
+            {can(userRole, 'store_management', 'create_product') && (
               <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <PlusCircle size={18} /> Add Product
               </button>
             )}
-            {isAdmin && <button className="btn btn-outline" onClick={() => { fetchAdminOrders(); setIsAdminOrdersOpen(true); }}>Manage Orders</button>}
+            {can(userRole, 'store_management', 'create_product') && <button className="btn btn-outline" onClick={() => { fetchAdminOrders(); setIsAdminOrdersOpen(true); }}>Manage Orders</button>}
 
-            {authToken && <button className="btn btn-outline" onClick={() => { fetchMyOrders(); setIsOrdersOpen(true); }}>My Orders</button>}
+            {can(userRole, 'store', 'purchase') && authToken && <button className="btn btn-outline" onClick={() => { fetchMyOrders(); setIsOrdersOpen(true); }}>My Orders</button>}
             
-            <button className="cart-toggle-btn" onClick={() => setIsCartOpen(true)}>
-              <ShoppingCart size={24} />
-              {cartItemCount > 0 && <span className="cart-badge">{cartItemCount}</span>}
-            </button>
+            {can(userRole, 'store', 'purchase') && (
+              <button className="cart-toggle-btn" onClick={() => setIsCartOpen(true)}>
+                <ShoppingCart size={24} />
+                {cartItemCount > 0 && <span className="cart-badge">{cartItemCount}</span>}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -329,10 +332,12 @@ const Store = () => {
                       <div className="product-footer">
                         <span className="product-price">${product.price.toFixed(2)}</span>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button className="btn btn-primary btn-sm add-to-cart-btn" onClick={() => addToCart(product)}>
-                            Add to Cart
-                          </button>
-                          {isAdmin && (
+                          {can(userRole, 'store', 'purchase') && (
+                            <button className="btn btn-primary btn-sm add-to-cart-btn" onClick={() => addToCart(product)}>
+                              Add to Cart
+                            </button>
+                          )}
+                          {can(userRole, 'store_management', 'create_product') && (
                             <button 
                               className="btn btn-outline btn-sm" 
                               style={{ color: '#ef4444', borderColor: '#ef4444', padding: '6px' }}

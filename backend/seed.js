@@ -12,7 +12,7 @@ const seedDatabase = async (attempt = 1) => {
   try {
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/gymsync';
     console.log(`Connecting to MongoDB database for seeding (Attempt ${attempt})...`);
-    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
+    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 30000 });
     console.log('MongoDB Connected for Seeding.');
 
     // 1. Seed 3 Admin Accounts (1 SuperAdmin + 2 Junior Admins)
