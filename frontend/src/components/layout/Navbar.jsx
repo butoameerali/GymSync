@@ -72,7 +72,7 @@ const Navbar = () => {
         .catch(err => console.error("Error fetching notifications", err));
         
       // Fetch global profile pic & friend requests
-      fetch(`/api/users/${userName}`)
+      fetch(`/api/users/${userName}`, { headers: authHeader })
         .then(res => res.ok ? res.json() : null)
         .then(user => {
            if(user && !user.message) {
@@ -97,7 +97,7 @@ const Navbar = () => {
           .then(data => setNotifications(Array.isArray(data) ? data : []))
           .catch(err => console.error("Interval Error", err));
           
-        fetch(`/api/users/${userName}`)
+        fetch(`/api/users/${userName}`, { headers: authHeader })
           .then(res => res.ok ? res.json() : null)
           .then(user => {
              if(user && !user.message && user.profilePic) {
