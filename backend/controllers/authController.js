@@ -38,9 +38,11 @@ const generateToken = (id) => {
 };
 
 
-const checkDBConnection = () => {
+import connectDB from '../config/db.js';
+
+const checkDBConnection = async () => {
   if (mongoose.connection.readyState !== 1) {
-    throw new Error('Database is not connected. Please ensure internet access and check MongoDB Atlas status.');
+    await connectDB();
   }
 };
 
@@ -57,7 +59,7 @@ export const registerUser = async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters long' });
     }
-    checkDBConnection();
+    await checkDBConnection();
     const normalizedEmail = email.trim().toLowerCase();
     const userExists = await User.findOne({ email: normalizedEmail });
 
@@ -111,7 +113,7 @@ export const loginUser = async (req, res) => {
     if (!email?.trim() || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
-    checkDBConnection();
+    await checkDBConnection();
     const user = await User.findOne({ email: email.trim().toLowerCase() });
 
     if (user && (await user.matchPassword(password))) {

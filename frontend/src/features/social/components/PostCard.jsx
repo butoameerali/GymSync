@@ -94,7 +94,15 @@ const PostCard = ({
           {post.mediaUrl.match(/\.(mp4|webm|ogg)$/i) ? (
             <video src={post.mediaUrl} controls style={{ width: '100%', maxHeight: '400px', borderRadius: '8px' }} />
           ) : (
-            <img src={post.mediaUrl} alt="Post media" style={{ width: '100%', maxHeight: '400px', objectFit: 'cover', borderRadius: '8px' }} />
+            <img
+              src={post.mediaUrl}
+              alt="Post media"
+              style={{ width: '100%', maxHeight: '400px', objectFit: 'cover', borderRadius: '8px' }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none';
+              }}
+            />
           )}
         </div>
       )}
