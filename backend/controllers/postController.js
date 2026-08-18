@@ -16,12 +16,16 @@ export const getPosts = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    const sanitizedPosts = posts.map(p => {
-      if (p.mediaUrl && p.mediaUrl.startsWith('/uploads/')) {
-        const fileName = p.mediaUrl.replace('/uploads/', '');
-        const localPath = path.join(uploadsDir, fileName);
-        if (!fs.existsSync(localPath)) {
-          p.mediaUrl = ''; // Clean up non-existent local file references
+    const sanitizedPosts = (posts || []).map(p => {
+      if (p && p.mediaUrl && typeof p.mediaUrl === 'string' && p.mediaUrl.startsWith('/uploads/')) {
+        try {
+          const fileName = p.mediaUrl.replace('/uploads/', '');
+          const localPath = path.join(uploadsDir, fileName);
+          if (!fs.existsSync(localPath)) {
+            p.mediaUrl = '';
+          }
+        } catch (fsErr) {
+          p.mediaUrl = '';
         }
       }
       return p;
@@ -29,6 +33,7 @@ export const getPosts = async (req, res) => {
 
     res.json(sanitizedPosts);
   } catch (error) {
+    console.error('getPosts error:', error);
     res.status(500).json({ message: error.message });
   }
 };
