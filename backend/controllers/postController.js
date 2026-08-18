@@ -1,6 +1,10 @@
-import Post from '../models/Post.js';
-import Notification from '../models/Notification.js';
-import mongoose from 'mongoose';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, '../uploads');
 
 // @desc    Get all posts
 // @route   GET /api/posts
@@ -9,8 +13,21 @@ export const getPosts = async (req, res) => {
   try {
     const posts = await Post.find()
       .populate('author', 'name role')
-      .sort({ createdAt: -1 });
-    res.json(posts);
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const sanitizedPosts = posts.map(p => {
+      if (p.mediaUrl && p.mediaUrl.startsWith('/uploads/')) {
+        const fileName = p.mediaUrl.replace('/uploads/', '');
+        const localPath = path.join(uploadsDir, fileName);
+        if (!fs.existsSync(localPath)) {
+          p.mediaUrl = ''; // Clean up non-existent local file references
+        }
+      }
+      return p;
+    });
+
+    res.json(sanitizedPosts);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
