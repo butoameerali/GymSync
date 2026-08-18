@@ -81,8 +81,9 @@ export const getNotifications = async (req, res) => {
 // @route   POST /api/notifications
 // @access  Private
 export const createNotification = async (req, res) => {
-  const { userId, type, title, message, link, relatedId, sender, eventKey } = req.body;
+  const { userId, type, title, message, link, relatedId, eventKey } = req.body;
   const targetId = userId || String(req.user?._id);
+  const authenticatedSender = req.user?.name || 'System';
 
   try {
     const notification = new Notification({
@@ -92,7 +93,7 @@ export const createNotification = async (req, res) => {
       message,
       link: link || '',
       relatedId: relatedId || '',
-      sender: sender || req.user?.name || '',
+      sender: authenticatedSender,
       eventKey: eventKey || undefined
     });
     const saved = await notification.save();

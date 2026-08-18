@@ -67,11 +67,23 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    const ALLOWED_SELF_ROLES = ['User', 'GymOwner', 'GymTrainer', 'FitnessInstructor', 'StoreManager'];
+    const DISALLOWED_ADMIN_ROLES = ['Admin', 'SuperAdmin', 'ComplaintModerator'];
+
+    let targetRole = role || 'User';
+    if (DISALLOWED_ADMIN_ROLES.map(r => r.toLowerCase()).includes(targetRole.toLowerCase())) {
+      return res.status(403).json({ message: 'Privileged administrative roles cannot be self-registered.' });
+    }
+
+    if (!ALLOWED_SELF_ROLES.map(r => r.toLowerCase()).includes(targetRole.toLowerCase())) {
+      targetRole = 'User';
+    }
+
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
       password,
-      role: role || 'User',
+      role: targetRole,
       recoveryEmail: normalizedEmail
     });
 
@@ -203,6 +215,10 @@ export const forgotPassword = async (req, res) => {
     }
 
     otpStore[normalizedEmail] = { otp, expiresAt: Date.now() + 10 * 60 * 1000 };
+    user.otpCode = otp;
+    user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
     res.json({ message: 'OTP sent to your email address.' });
   } catch (error) {
     console.error('Email send error:', error.message);
@@ -216,16 +232,30 @@ export const forgotPassword = async (req, res) => {
 export const verifyOTP = async (req, res) => {
   const { email, otp } = req.body;
   const normalizedEmail = email?.trim().toLowerCase();
-  const record = otpStore[normalizedEmail];
-  if (!record) return res.status(400).json({ message: 'No OTP requested for this email.' });
-  if (Date.now() > record.expiresAt) {
+
+  const user = await User.findOne({ email: normalizedEmail });
+  const memoryRecord = otpStore[normalizedEmail];
+
+  const dbCode = user?.otpCode;
+  const dbExpires = user?.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
+
+  const validOtp = memoryRecord?.otp || dbCode;
+  const expiresAt = memoryRecord?.expiresAt || dbExpires;
+
+  if (!validOtp) return res.status(400).json({ message: 'No OTP requested for this email.' });
+  if (Date.now() > expiresAt) {
     delete otpStore[normalizedEmail];
+    if (user) {
+      user.otpCode = null;
+      user.otpExpiresAt = null;
+      await user.save();
+    }
     return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
   }
-  if (record.otp !== otp) return res.status(400).json({ message: 'Incorrect OTP. Please try again.' });
+  if (validOtp !== otp) return res.status(400).json({ message: 'Incorrect OTP. Please try again.' });
 
   // Mark as verified (allow reset step)
-  otpStore[normalizedEmail].verified = true;
+  if (otpStore[normalizedEmail]) otpStore[normalizedEmail].verified = true;
   res.json({ message: 'OTP verified successfully.' });
 };
 
@@ -235,23 +265,32 @@ export const verifyOTP = async (req, res) => {
 export const resetPassword = async (req, res) => {
   const { email, newPassword } = req.body;
   const normalizedEmail = email?.trim().toLowerCase();
-  const record = otpStore[normalizedEmail];
-  if (!record || !record.verified) {
+
+  const user = await User.findOne({ email: normalizedEmail });
+  if (!user) return res.status(404).json({ message: 'User not found.' });
+
+  const memoryRecord = otpStore[normalizedEmail];
+  const isMemoryVerified = memoryRecord?.verified;
+
+  // DB Fallback: if user has a valid, non-expired OTP matching the flow
+  const isDbValid = user.otpCode && user.otpExpiresAt && new Date(user.otpExpiresAt).getTime() > Date.now();
+
+  if (!isMemoryVerified && !isDbValid) {
     return res.status(400).json({ message: 'OTP not verified. Please complete verification first.' });
   }
+
   if (!newPassword || newPassword.length < 6) {
     return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
   }
 
   try {
-    const user = await User.findOne({ email: normalizedEmail });
-    if (!user) return res.status(404).json({ message: 'User not found.' });
-
     user.password = newPassword;
+    user.otpCode = null;
+    user.otpExpiresAt = null;
     await user.save();
-    delete otpStore[normalizedEmail];
 
-    res.json({ message: 'Password reset successfully. You can now log in.' });
+    delete otpStore[normalizedEmail];
+    res.json({ message: 'Password reset successful. You may now log in.' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

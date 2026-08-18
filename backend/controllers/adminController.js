@@ -209,12 +209,9 @@ export const updateGymApprovalStatus = async (req, res) => {
     if (!gym && id) {
       gym = await Gym.findOne({ ownerName: id });
     }
-    if (!gym) {
-      gym = await Gym.findOne().sort({ createdAt: -1 });
-    }
 
     if (!gym) {
-      return res.status(404).json({ message: 'Gym not found' });
+      return res.status(404).json({ message: 'Gym facility not found' });
     }
 
     gym.approvalStatus = status;

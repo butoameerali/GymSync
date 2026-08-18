@@ -25,15 +25,15 @@ async function runAIDetectionTestSuite() {
     }
   }
 
-  // Register Admin user to acquire valid token
-  const adminEmail = `ai_admin_${Date.now()}@gymsync.com`;
-  const regAdmin = await fetch(`${BASE_URL}/api/auth/register`, {
+  // Register FitnessInstructor user to acquire valid token
+  const instructorEmail = `ai_instructor_${Date.now()}@gymsync.com`;
+  const regInstructor = await fetch(`${BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'AI Admin', email: adminEmail, password: 'password123', role: 'Admin' })
+    body: JSON.stringify({ name: 'AI Instructor', email: instructorEmail, password: 'password123', role: 'FitnessInstructor' })
   }).then(r => r.json());
 
-  const adminToken = regAdmin.token;
+  const adminToken = regInstructor.token;
 
   // TEST 1: Create Exercise without AI
   let noAiExerciseId;

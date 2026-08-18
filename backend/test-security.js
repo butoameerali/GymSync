@@ -316,6 +316,32 @@ async function runSecurityTestSuite() {
     }
     return 403;
   });
+  // TEST 21: Self-registering as SuperAdmin is rejected with 403
+  await runTest(21, 'Self-registering as SuperAdmin rejected (privilege escalation protection)', async () => {
+    const res = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Hacker User',
+        email: `hacker_${Date.now()}@example.com`,
+        password: 'password123',
+        role: 'SuperAdmin'
+      })
+    });
+    if (res.status !== 403) throw new Error(`Registration with role SuperAdmin returned ${res.status} instead of 403`);
+    return 403;
+  });
+
+  // TEST 22: User B attempting to modify User A's gym profile (IDOR)
+  await runTest(22, 'User B attempting to modify User A gym profile via URL ID (IDOR protection)', async () => {
+    const res = await fetch(`${BASE_URL}/api/gym-owner/gym/60d5ecb8b5c9c824c8b45678`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userBToken}` },
+      body: JSON.stringify({ name: 'Hacked Gym Name' })
+    });
+    if (res.status !== 403 && res.status !== 404) throw new Error(`IDOR gym modification returned ${res.status} instead of 403/404`);
+    return res.status;
+  });
 
   console.log('\n====================================================');
   console.log(`📊 FINAL RESULT: ${passedTests}/${totalTests} Passed (${Math.round((passedTests/totalTests)*100)}%)`);

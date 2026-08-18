@@ -133,30 +133,41 @@ Format all responses beautifully with Markdown. Keep responses clear, encouragin
 
     let aiResponseText = '';
 
-    // 5. CALL LOCAL OLLAMA AI MODEL
-    try {
-      const response = await fetch('http://localhost:11434/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'qwen2.5:0.5b',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...formattedHistory,
-            { role: 'user', content: rawMessage }
-          ],
-          stream: false,
-        }),
-      });
+    // 5. CALL LOCAL OLLAMA AI MODEL (Opt-in via ENABLE_OLLAMA or OLLAMA_HOST env vars)
+    const enableOllama = process.env.ENABLE_OLLAMA === 'true' || Boolean(process.env.OLLAMA_HOST);
+    const ollamaUrl = process.env.OLLAMA_HOST || 'http://localhost:11434/api/chat';
 
-      if (response.ok) {
-        const data = await response.json();
-        aiResponseText = data.message?.content;
+    if (enableOllama) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+        const response = await fetch(ollamaUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: process.env.OLLAMA_MODEL || 'qwen2.5:0.5b',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...formattedHistory,
+              { role: 'user', content: rawMessage }
+            ],
+            stream: false,
+          }),
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          aiResponseText = data.message?.content;
+        }
+      } catch (ollamaErr) {
+        console.warn('[AI Ollama Skip] Local Ollama unready or timed out:', ollamaErr.message);
       }
-    } catch (ollamaErr) {
-      console.warn('Local Ollama unready, using fallback response engine.');
     }
 
     // Fallback engine if local Ollama model is starting or unready

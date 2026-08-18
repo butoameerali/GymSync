@@ -29,6 +29,8 @@ const userSchema = new mongoose.Schema({
   recoveryEmail: { type: String, default: '' },
   isEmailVerified: { type: Boolean, default: false },
   isGoogleApproved: { type: Boolean, default: false },
+  otpCode: { type: String, default: null },
+  otpExpiresAt: { type: Date, default: null },
   
   // Friend & Follow System
   friends: [{ type: String }],

@@ -74,6 +74,17 @@ export const getGymOwnerDashboard = async (req, res) => {
   }
 };
 
+const isAuthorizedGymOwner = (gym, user) => {
+  if (!gym || !user) return false;
+  const isAdmin = ['Admin', 'SuperAdmin'].includes(user.role);
+  if (isAdmin) return true;
+
+  const isOwnerIdMatch = gym.owner && String(gym.owner) === String(user._id);
+  const isOwnerNameMatch = gym.ownerName && gym.ownerName === user.name;
+
+  return Boolean(isOwnerIdMatch || isOwnerNameMatch);
+};
+
 // @desc    Update Gym Profile Facility Information
 // @route   PUT /api/gym-owner/gym/:id
 // @access  Private / GymOwner
@@ -88,17 +99,23 @@ export const updateGymProfile = async (req, res) => {
       if (id && id !== 'gym_demo_id') {
         try {
           gym = await Gym.findById(id);
+          if (gym && !isAuthorizedGymOwner(gym, req.user)) {
+            return res.status(403).json({ message: 'Not authorized to modify this gym facility' });
+          }
         } catch(err) { gym = null; }
       }
 
       if (!gym) {
-        if (!gym && req.user) {
+        if (req.user) {
           const ownerName = req.user?.name || 'Gym Owner';
           gym = await Gym.findOne({ $or: [{ ownerName }, { owner: req.user._id }] });
         }
       }
 
       if (gym) {
+        if (!isAuthorizedGymOwner(gym, req.user)) {
+          return res.status(403).json({ message: 'Not authorized to modify this gym facility' });
+        }
         if (name) gym.name = name;
         if (location) gym.location = location;
         if (typeof monthlyFee !== 'undefined') gym.monthlyFee = Number(monthlyFee);
@@ -159,7 +176,6 @@ export const deleteGymProfile = async (req, res) => {
     if (!gym) {
       if (req.user && req.user._id) {
         gym = await Gym.findOne({ owner: req.user._id });
-        console.log(`Delete: found by owner ID:`, gym ? gym._id : 'null');
       }
       if (!gym && req.user && req.user.role !== 'GymOwner' && req.user.role !== 'gym_owner') {
         const ownerName = req.user?.name || 'Gym Owner';
@@ -168,15 +184,14 @@ export const deleteGymProfile = async (req, res) => {
     }
 
     if (!gym) {
-      console.log(`Delete: gym not found`);
       return res.status(404).json({ message: 'Gym not found or already deleted' });
     }
 
+    if (!isAuthorizedGymOwner(gym, req.user)) {
+      return res.status(403).json({ message: 'Not authorized to delete this gym facility' });
+    }
+
     await Gym.findByIdAndDelete(gym._id);
-    console.log(`Delete: successfully deleted gym ${gym._id}`);
-    
-    // Optional: Could also delete related Attendance and GymPlans here if desired
-    
     return res.json({ message: 'Gym successfully deleted' });
   } catch (error) {
     console.error('deleteGymProfile error:', error.message);
@@ -286,6 +301,10 @@ export const uploadGymPhoto = async (req, res) => {
 
     if (!gym) {
       return res.status(404).json({ message: 'Gym not found for photo upload' });
+    }
+
+    if (!isAuthorizedGymOwner(gym, req.user)) {
+      return res.status(403).json({ message: 'Not authorized to upload photos to this gym' });
     }
 
     if (!Array.isArray(gym.equipmentImages)) {
