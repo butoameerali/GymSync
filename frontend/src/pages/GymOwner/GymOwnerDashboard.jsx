@@ -50,12 +50,49 @@ const GymOwnerDashboard = () => {
   const [trainerForm, setTrainerForm] = useState({ name: '', email: '', password: '' });
   const [showDeleteGymModal, setShowDeleteGymModal] = useState(false);
   const [isDeletingGym, setIsDeletingGym] = useState(false);
+  const [tourRequests, setTourRequests] = useState([]);
 
   const ownerName = localStorage.getItem('gymsync_user_name') || 'Gym Owner';
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const fetchTourRequests = async (gymId) => {
+    if (!gymId) return;
+    try {
+      const res = await fetch(`/api/gym-owner/tour-requests/${gymId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTourRequests(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch tour requests', e);
+    }
+  };
+
+  const handleUpdateTourStatus = async (tourId, newStatus) => {
+    try {
+      const res = await fetch(`/api/gym-owner/tour-requests/${tourId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        toast.success(`Tour marked as ${newStatus}`);
+        if (dashboardData?.gym?._id) {
+          fetchTourRequests(dashboardData.gym._id);
+        }
+      }
+    } catch (e) {
+      toast.error('Failed to update tour status');
+    }
+  };
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -86,6 +123,7 @@ const GymOwnerDashboard = () => {
           // Fetch subscribed members for member dropdown
           fetchGymMembers(data.gym.name);
           fetchTrainers(data.gym.name);
+          fetchTourRequests(data.gym._id);
         }
       }
     } catch (err) {
@@ -395,6 +433,12 @@ const GymOwnerDashboard = () => {
               <FileText size={16} /> Member Plans
             </button>
 
+            <button 
+              className={`tab-btn ${activeTab === 'tours' ? 'active' : ''}`}
+              onClick={() => setActiveTab('tours')}
+            >
+              <Calendar size={16} /> Tour Requests ({tourRequests.length})
+            </button>
             <button 
               className={`tab-btn ${activeTab === 'trainers' ? 'active' : ''}`}
               onClick={() => setActiveTab('trainers')}
@@ -862,6 +906,87 @@ const GymOwnerDashboard = () => {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {/* TOUR REQUESTS TAB */}
+            {activeTab === 'tours' && (
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h3 style={{ margin: 0 }}>Walkthrough Tour Inquiries</h3>
+                    <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.88rem' }}>
+                      Prospective members requesting in-person facility walkthroughs
+                    </p>
+                  </div>
+                  <span className="badge" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', padding: '6px 14px', borderRadius: '20px', fontSize: '0.82rem', fontWeight: 600 }}>
+                    {tourRequests.filter(t => t.status === 'Pending').length} Pending Inquiries
+                  </span>
+                </div>
+
+                {tourRequests.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
+                    <Calendar size={48} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
+                    <p>No tour booking inquiries received yet.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+                    {tourRequests.map(tour => (
+                      <div key={tour._id} className="glass-panel" style={{ padding: '20px', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'rgba(255,255,255,0.02)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '1.05rem' }}>{tour.userName}</h4>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{tour.userEmail}</span>
+                          </div>
+                          <span style={{ 
+                            fontSize: '0.75rem', 
+                            fontWeight: 'bold', 
+                            padding: '4px 10px', 
+                            borderRadius: '12px', 
+                            background: tour.status === 'Confirmed' ? 'rgba(16,185,129,0.15)' : tour.status === 'Declined' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
+                            color: tour.status === 'Confirmed' ? '#10b981' : tour.status === 'Declined' ? '#ef4444' : '#f59e0b'
+                          }}>
+                            {tour.status}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'grid', gap: '8px', fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '14px' }}>
+                          <div><strong>📅 Date:</strong> {new Date(tour.tourDate).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</div>
+                          <div><strong>⏰ Time Slot:</strong> {tour.timeSlot}</div>
+                          {tour.userPhone && <div><strong>📞 Phone:</strong> {tour.userPhone}</div>}
+                          {tour.notes && <div><strong>📝 Notes:</strong> <em>"{tour.notes}"</em></div>}
+                        </div>
+
+                        {tour.status === 'Pending' && (
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button 
+                              className="btn btn-primary btn-sm" 
+                              style={{ flex: 1 }}
+                              onClick={() => handleUpdateTourStatus(tour._id, 'Confirmed')}
+                            >
+                              Confirm Tour
+                            </button>
+                            <button 
+                              className="btn btn-outline btn-sm" 
+                              style={{ flex: 1, borderColor: '#ef4444', color: '#ef4444' }}
+                              onClick={() => handleUpdateTourStatus(tour._id, 'Declined')}
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
+                        {tour.status === 'Confirmed' && (
+                          <button 
+                            className="btn btn-outline btn-sm w-100" 
+                            onClick={() => handleUpdateTourStatus(tour._id, 'Completed')}
+                          >
+                            Mark Walkthrough Completed
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>

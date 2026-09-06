@@ -9,15 +9,8 @@ import DashboardShell from '../../components/layout/DashboardShell';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import { REGISTERED_DETECTORS } from '../../ai-detectors/registry';
 import './FitnessInstructorDashboard.css';
-
-const REGISTERED_DETECTORS = [
-  { id: 'pushup_v1', name: 'Push-Up Rep & Form Detector (v1.0)', version: '1.0' },
-  { id: 'running_v1', name: 'Running Cadence & Gait Detector (v1.0)', version: '1.0' },
-  { id: 'squat_v1', name: 'Squat Depth & Hip Alignment Detector (v1.0)', version: '1.0' },
-  { id: 'plank_v1', name: 'Plank Hold Duration & Posture Detector (v1.0)', version: '1.0' },
-  { id: 'jumping_jack_v1', name: 'Jumping Jack Cadence Detector (v1.0)', version: '1.0' }
-];
 
 const FitnessInstructorDashboard = () => {
   const instructorName = localStorage.getItem('gymsync_user_name') || 'Fitness Instructor';
@@ -1082,7 +1075,9 @@ const FitnessInstructorDashboard = () => {
                       }}
                     >
                       {REGISTERED_DETECTORS.map(det => (
-                        <option key={det.id} value={det.id}>{det.name}</option>
+                        <option key={det.id} value={det.id}>
+                          {det.name} ({det.status === 'production' ? 'Production' : 'Experimental'})
+                        </option>
                       ))}
                     </select>
                   </div>

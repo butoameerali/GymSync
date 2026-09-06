@@ -11,4 +11,6 @@ backend/uploads/
 *.log
 *.exe
 generate_*.py
+.netlify/
+frontend/.netlify/
 

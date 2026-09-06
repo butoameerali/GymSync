@@ -10,7 +10,9 @@ import {
   createMemberPlan,
   getGymPlans,
   createGymTrainer,
-  getGymTrainers
+  getGymTrainers,
+  getGymTourRequests,
+  updateTourRequestStatus
 } from '../controllers/gymOwnerController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -34,5 +36,7 @@ router.post('/attendance/check-in', checkInMember);
 router.put('/attendance/check-out/:id', checkOutMember);
 router.post('/trainers', createGymTrainer);
 router.get('/trainers/:gymName', getGymTrainers);
+router.get('/tour-requests/:gymId', getGymTourRequests);
+router.put('/tour-requests/:id/status', updateTourRequestStatus);
 
 export default router;

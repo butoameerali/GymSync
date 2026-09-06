@@ -653,3 +653,64 @@ export const getExerciseRecordsController = async (req, res) => {
   }
 };
 
+// @desc    Save user bio and onboarding metrics
+// @route   PUT /api/users/bio
+// @access  Private
+export const saveUserBioController = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const bio = req.body || {};
+    user.bioData = {
+      mainGoalArea: bio.mainGoalArea || user.bioData?.mainGoalArea || '',
+      goals: Array.isArray(bio.goals) ? bio.goals : user.bioData?.goals || [],
+      planDuration: bio.planDuration || user.bioData?.planDuration || '1 Month',
+      trainingDaysPerWeek: Number(bio.trainingDaysPerWeek) || user.bioData?.trainingDaysPerWeek || 3,
+      equipmentAccess: bio.equipmentAccess || user.bioData?.equipmentAccess || 'Full Gym',
+      pushupBaseline: Number(bio.pushupBaseline) || user.bioData?.pushupBaseline || 10,
+      gender: bio.gender || user.bioData?.gender || '',
+      dob: bio.dob || user.bioData?.dob || '',
+      units: bio.units || user.bioData?.units || 'metric',
+      height: Number(bio.height) || user.bioData?.height || 170,
+      weight: Number(bio.weight) || user.bioData?.weight || 70,
+      targetMuscles: Array.isArray(bio.targetMuscles) ? bio.targetMuscles : user.bioData?.targetMuscles || []
+    };
+    user.isOnboardingCompleted = true;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      bioData: user.bioData,
+      isOnboardingCompleted: user.isOnboardingCompleted
+    });
+  } catch (err) {
+    console.error('saveUserBioController Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Get user bio and onboarding status
+// @route   GET /api/users/bio
+// @access  Private
+export const getUserBioController = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('bioData isOnboardingCompleted').lean();
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      bioData: user.bioData || null,
+      isOnboardingCompleted: Boolean(user.isOnboardingCompleted)
+    });
+  } catch (err) {
+    console.error('getUserBioController Error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+

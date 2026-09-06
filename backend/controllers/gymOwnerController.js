@@ -2,28 +2,18 @@ import Gym from '../models/Gym.js';
 import Attendance from '../models/Attendance.js';
 import GymPlan from '../models/GymPlan.js';
 import User from '../models/User.js';
+import TourRequest from '../models/TourRequest.js';
 
 // @desc    Get Gym Owner Dashboard data
 // @route   GET /api/gym-owner/dashboard/:ownerName
 // @access  Private / GymOwner, Admin
 export const getGymOwnerDashboard = async (req, res) => {
   const { ownerName } = req.params;
-  
-  const fallbackGym = {
-    _id: 'gym_demo_id',
-    name: '',
-    location: '',
-    monthlyFee: 0,
-    ownerName: ownerName || 'Gym Owner',
-    rating: 0,
-    facilities: [],
-    equipmentImages: []
-  };
 
   try {
     let gym = null;
     let todayAttendance = [];
-    let activeMembersCount = 0; // Default to 0 when no members are added
+    let activeMembersCount = 0;
 
     try {
       if (req.user && (req.user.role === 'GymOwner' || req.user.role === 'gym_owner')) {
@@ -47,14 +37,12 @@ export const getGymOwnerDashboard = async (req, res) => {
       }
     } catch (e) {}
 
-    if (!gym) gym = fallbackGym;
-
-    const monthlyRevenue = activeMembersCount * (gym.monthlyFee || 50);
+    const monthlyRevenue = gym ? (activeMembersCount * (gym.monthlyFee || 0)) : 0;
 
     res.json({
       gym,
       stats: {
-        activeMembersCount, // Fix: 0 by default when no members are added
+        activeMembersCount,
         todayCheckIns: todayAttendance.length,
         monthlyRevenue,
         commission15PercentOwed: monthlyRevenue * 0.15,
@@ -432,5 +420,48 @@ export const getGymTrainers = async (req, res) => {
   } catch (error) {
     console.error('getGymTrainers error:', error.message);
     res.status(500).json({ message: 'Failed to fetch gym trainers' });
+  }
+};
+
+// @desc    Get all tour requests for a gym facility
+// @route   GET /api/gym-owner/tour-requests/:gymId
+// @access  Private / GymOwner
+export const getGymTourRequests = async (req, res) => {
+  try {
+    const { gymId } = req.params;
+    const tours = await TourRequest.find({ gym: gymId }).sort({ tourDate: 1, createdAt: -1 });
+    return res.json(tours || []);
+  } catch (error) {
+    console.error('getGymTourRequests error:', error.message);
+    res.status(500).json({ message: 'Failed to fetch tour requests' });
+  }
+};
+
+// @desc    Update status of a tour request (Confirm/Decline)
+// @route   PUT /api/gym-owner/tour-requests/:id/status
+// @access  Private / GymOwner
+export const updateTourRequestStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, ownerResponse } = req.body;
+
+    const validStatuses = ['Pending', 'Confirmed', 'Declined', 'Completed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const tour = await TourRequest.findById(id);
+    if (!tour) {
+      return res.status(404).json({ message: 'Tour request not found' });
+    }
+
+    tour.status = status;
+    if (ownerResponse) tour.ownerResponse = ownerResponse;
+    await tour.save();
+
+    return res.json({ success: true, tour });
+  } catch (error) {
+    console.error('updateTourRequestStatus error:', error.message);
+    res.status(500).json({ message: 'Failed to update tour request status' });
   }
 };

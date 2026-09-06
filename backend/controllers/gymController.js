@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import GymPlan from '../models/GymPlan.js';
 import Attendance from '../models/Attendance.js';
 import Post from '../models/Post.js';
+import TourRequest from '../models/TourRequest.js';
 
 // @desc    Get gym details for a specific user's gym (owner or member)
 // @route   GET /api/gyms/my-gym/:userId
@@ -152,4 +153,55 @@ export const completeGymPlanDay = async (req, res) => {
     await plan.save();
     res.json({ completedAt: schedule.completedAt });
   } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+// @desc    Create a tour booking request for a facility
+// @route   POST /api/gyms/:id/tour-request
+// @access  Private
+export const createTourRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tourDate, timeSlot, userPhone, notes } = req.body;
+
+    if (!tourDate || !timeSlot) {
+      return res.status(400).json({ error: 'Tour date and time slot are required' });
+    }
+
+    const gym = await Gym.findById(id);
+    if (!gym) {
+      return res.status(404).json({ error: 'Gym facility not found' });
+    }
+
+    const tour = new TourRequest({
+      gym: gym._id,
+      gymName: gym.name,
+      user: req.user._id,
+      userName: req.user.name,
+      userEmail: req.user.email,
+      userPhone: userPhone || '',
+      tourDate: new Date(tourDate),
+      timeSlot,
+      notes: notes || '',
+      status: 'Pending'
+    });
+
+    await tour.save();
+
+    res.status(201).json({ success: true, tour });
+  } catch (error) {
+    console.error('createTourRequest error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// @desc    Get current user's tour requests
+// @route   GET /api/gyms/my-tour-requests
+// @access  Private
+export const getUserTourRequests = async (req, res) => {
+  try {
+    const tours = await TourRequest.find({ user: req.user._id }).sort({ tourDate: 1, createdAt: -1 });
+    res.json(tours || []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };

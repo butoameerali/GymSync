@@ -107,7 +107,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
       : [...data.targetMuscles, muscle]);
   };
 
-  const submitOnboarding = () => {
+  const submitOnboarding = async () => {
     // Save to localStorage
     const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
     localStorage.setItem(`gymsync_${userKey}_bio_data`, JSON.stringify(data));
@@ -115,6 +115,23 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
     localStorage.setItem('gymsync_onboarding_completed', 'true');
     localStorage.setItem(`gymsync_${userKey}_bio_filled`, 'true');
     localStorage.setItem('gymsync_bio_filled', 'true');
+
+    // Server-side multi-device persistence
+    const token = localStorage.getItem('gymsync_token');
+    if (token) {
+      try {
+        await fetch('/api/users/bio', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
+      } catch (err) {
+        console.warn('Could not sync bio to server:', err);
+      }
+    }
 
     // Dispatch global event so open pages (Profile, AITrainer, etc.) update dynamically
     window.dispatchEvent(new Event('gymsync_bio_updated'));
@@ -306,8 +323,30 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
             <p className="wiz-subtitle">Enter your height and current body weight.</p>
 
             <div className="unit-switcher" style={{ marginBottom: '24px' }}>
-              <button className={data.units === 'metric' ? 'active' : ''} onClick={() => updateData('units', 'metric')}>Metric (kg/cm)</button>
-              <button className={data.units === 'imperial' ? 'active' : ''} onClick={() => updateData('units', 'imperial')}>Imperial (lbs/in)</button>
+              <button 
+                className={data.units === 'metric' ? 'active' : ''} 
+                onClick={() => {
+                  if (data.units === 'imperial') {
+                    const newH = Math.min(220, Math.max(100, Math.round(data.height * 2.54)));
+                    const newW = Math.min(150, Math.max(30, Math.round(data.weight / 2.20462)));
+                    setData(prev => ({ ...prev, units: 'metric', height: newH, weight: newW }));
+                  }
+                }}
+              >
+                Metric (kg/cm)
+              </button>
+              <button 
+                className={data.units === 'imperial' ? 'active' : ''} 
+                onClick={() => {
+                  if (data.units === 'metric') {
+                    const newH = Math.min(86, Math.max(40, Math.round(data.height / 2.54)));
+                    const newW = Math.min(330, Math.max(60, Math.round(data.weight * 2.20462)));
+                    setData(prev => ({ ...prev, units: 'imperial', height: newH, weight: newW }));
+                  }
+                }}
+              >
+                Imperial (lbs/in)
+              </button>
             </div>
             
             <div className="metrics-grid">

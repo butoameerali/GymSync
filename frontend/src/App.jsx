@@ -33,10 +33,11 @@ const NotificationsPage = lazy(() => import('./pages/Notifications/Notifications
 const MessagesPage = lazy(() => import('./pages/Messages/MessagesPage'));
 const LegalPage = lazy(() => import('./pages/Legal/LegalPage'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 
 function App() {
   const location = useLocation();
-  const isAuthPage = ['/', '/login', '/register', '/forgot-password'].includes(location.pathname);
+  const isAuthPage = ['/login', '/register', '/forgot-password'].includes(location.pathname);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
@@ -75,7 +76,7 @@ function App() {
         <main className="main-content">
           <Suspense fallback={<LoadingSpinner size="large" message="Loading GymSync module..." />}>
             <Routes>
-              <Route path="/" element={<AuthPortal />} />
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<AuthPortal />} />
               <Route path="/register" element={<AuthPortal />} />
               <Route path="/forgot-password" element={<AuthPortal />} />

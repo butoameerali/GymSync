@@ -17,11 +17,17 @@ import {
   saveWorkoutProgressController,
   getWorkoutProgressController,
   saveExerciseRecordController,
-  getExerciseRecordsController
+  getExerciseRecordsController,
+  saveUserBioController,
+  getUserBioController
 } from '../controllers/userController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+router.route('/bio')
+  .put(protect, saveUserBioController)
+  .get(protect, getUserBioController);
 
 router.route('/workout-progress')
   .post(protect, saveWorkoutProgressController)

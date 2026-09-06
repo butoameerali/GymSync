@@ -154,9 +154,13 @@ const AITrainer = () => {
       pushupBaseline: bioData.pushupBaseline || 10
     };
 
+    const token = localStorage.getItem('gymsync_token') || '';
     fetch('/api/ai/generate-plan', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
       body: JSON.stringify(payload)
     })
     .then(async res => {
@@ -521,10 +525,10 @@ const AITrainer = () => {
 
         <div className="trainer-tabs">
           <button className={`tab-btn ${activeMode === 'library' ? 'active' : ''}`} onClick={() => {setActiveMode('library'); setCurrentExercise(null);}}>
-            All Exercises
+            Exercise Library
           </button>
           <button className={`tab-btn ${activeMode === 'ai' ? 'active' : ''}`} onClick={handleAIModeClick}>
-            Your Exercises
+            My AI Plan
           </button>
           <button className={`tab-btn ${activeMode === 'assigned' ? 'active' : ''}`} onClick={() => {setActiveMode('assigned'); setCurrentExercise(null);}}>
             Trainer Assigned

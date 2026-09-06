@@ -312,3 +312,230 @@
     gap: 12px;
   }
 }
+
+/* Interactive Map & Radar Styling */
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-toggle-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.view-toggle-btn.active {
+  background: var(--primary-accent);
+  color: #fff;
+}
+
+.interactive-map-container {
+  position: relative;
+  width: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  transition: height 0.3s ease;
+  background: #090e17;
+}
+
+.grid-map-mode {
+  height: 340px;
+}
+
+.split-map-mode {
+  height: 440px;
+}
+
+.full-map-mode {
+  height: 560px;
+}
+
+.map-radar-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(circle at center, rgba(59, 130, 246, 0.08) 0%, rgba(9, 14, 23, 0.98) 75%),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
+}
+
+.radar-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px dashed rgba(59, 130, 246, 0.2);
+  pointer-events: none;
+}
+
+.ring-1 { width: 180px; height: 180px; }
+.ring-2 { width: 360px; height: 360px; border-color: rgba(59, 130, 246, 0.15); }
+.ring-3 { width: 540px; height: 540px; border-color: rgba(59, 130, 246, 0.1); }
+
+.radar-axis {
+  position: absolute;
+  background: rgba(59, 130, 246, 0.12);
+  pointer-events: none;
+}
+
+.axis-h {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+}
+
+.axis-v {
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 100%;
+}
+
+.map-user-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.user-pin-dot {
+  width: 12px;
+  height: 12px;
+  background: #3b82f6;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 12px #3b82f6;
+}
+
+.user-pin-pulse {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.3);
+  animation: pulse-ring 2s infinite ease-out;
+}
+
+.user-pin-label {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #93c5fd;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  white-space: nowrap;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.gym-map-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.gym-map-pin:hover,
+.gym-map-pin.selected {
+  transform: translate(-50%, -50%) scale(1.15);
+  z-index: 20;
+}
+
+.pin-marker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #1e293b;
+  border: 1px solid #3b82f6;
+  padding: 4px 8px;
+  border-radius: 16px;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: bold;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+}
+
+.gym-map-pin.selected .pin-marker {
+  background: #3b82f6;
+  border-color: #fff;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.7);
+}
+
+.pin-name-tag {
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: rgba(15, 23, 42, 0.85);
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.map-header-bar {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.map-floating-card {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  max-width: 480px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  z-index: 25;
+  backdrop-filter: blur(12px);
+  animation: slide-up 0.25s ease-out;
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.map-card-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}

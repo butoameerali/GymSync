@@ -38,7 +38,24 @@ const userSchema = new mongoose.Schema({
   sentRequests: [{ type: String }],
   receivedRequests: [{ type: String }],
   followers: [{ type: String }],
-  following: [{ type: String }]
+  following: [{ type: String }],
+
+  // Bio & Onboarding System
+  bioData: {
+    mainGoalArea: { type: String, default: '' },
+    goals: [{ type: String }],
+    planDuration: { type: String, default: '1 Month' },
+    trainingDaysPerWeek: { type: Number, default: 3 },
+    equipmentAccess: { type: String, default: 'Full Gym' },
+    pushupBaseline: { type: Number, default: 10 },
+    gender: { type: String, default: '' },
+    dob: { type: String, default: '' },
+    units: { type: String, enum: ['metric', 'imperial'], default: 'metric' },
+    height: { type: Number, default: 170 },
+    weight: { type: Number, default: 70 },
+    targetMuscles: [{ type: String }]
+  },
+  isOnboardingCompleted: { type: Boolean, default: false }
 }, {
   timestamps: true
 });

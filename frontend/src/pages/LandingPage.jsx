@@ -79,7 +79,7 @@ const LandingPage = () => {
                 <Activity size={28} />
               </div>
               <h3>AI Fitness Coach</h3>
-              <p>Real-time form correction using your device camera. Tracks up to 100 exercises offline with perfect accuracy.</p>
+              <p>Real-time form correction using your device camera. AI-powered rep counting for supported exercises with instant feedback and offline sync.</p>
             </div>
 
             <div className="feature-card glass-panel">

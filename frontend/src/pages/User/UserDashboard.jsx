@@ -11,6 +11,7 @@ import './UserDashboard.css';
 const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'plans', 'complaints'
   const [userData, setUserData] = useState(null);
+  const [workoutProgress, setWorkoutProgress] = useState(null);
   const [gymData, setGymData] = useState(null);
   const [userComplaints, setUserComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,13 @@ const UserDashboard = () => {
       if (res.ok) {
         const data = await res.json();
         setUserData(data);
+      }
+
+      // Fetch server authoritative workout progress
+      const progressRes = await fetch('/api/users/workout-progress', { headers });
+      if (progressRes.ok) {
+        const pData = await progressRes.json();
+        setWorkoutProgress(pData);
       }
 
       // Fetch user gym membership data & assigned plans
@@ -159,65 +167,158 @@ const UserDashboard = () => {
         ) : (
           <>
             {/* OVERVIEW TAB */}
-            {activeTab === 'overview' && (
-              <div className="overview-container">
-                {/* Stats Grid */}
-                <div className="stats-grid">
-                  <div className="stat-card glass-panel">
-                    <div className="stat-icon blue"><Dumbbell size={24} /></div>
-                    <div>
-                      <span className="stat-label">Total Workouts</span>
-                      <h3 className="stat-value">{userData?.stats?.totalWorkouts || 18}</h3>
-                    </div>
-                  </div>
+            {activeTab === 'overview' && (() => {
+              const totalWorkouts = workoutProgress?.completedDays?.length ?? userData?.stats?.totalWorkouts ?? 0;
+              const caloriesBurned = userData?.stats?.caloriesBurned ?? (totalWorkouts * 240);
+              const runningDistance = userData?.stats?.runningDistanceKm ?? 0;
+              const streak = workoutProgress?.streak ?? userData?.stats?.currentStreakDays ?? 0;
+              
+              const cachedPlan = (() => {
+                try {
+                  const userKey = userName.replace(/\s+/g, '_');
+                  return JSON.parse(localStorage.getItem(`gymsync_${userKey}_ai_plan`) || 'null');
+                } catch (e) {
+                  return null;
+                }
+              })();
+              const todayDayItem = cachedPlan?.interactive_calendar?.[0];
 
-                  <div className="stat-card glass-panel">
-                    <div className="stat-icon amber"><Flame size={24} /></div>
-                    <div>
-                      <span className="stat-label">Est. Calories Burned</span>
-                      <h3 className="stat-value">{userData?.stats?.caloriesBurned || 3450} kcal</h3>
-                    </div>
-                  </div>
-
-                  <div className="stat-card glass-panel">
-                    <div className="stat-icon green"><Activity size={24} /></div>
-                    <div>
-                      <span className="stat-label">Outdoor Run Distance</span>
-                      <h3 className="stat-value">{userData?.stats?.runningDistanceKm || 24.5} km</h3>
-                    </div>
-                  </div>
-
-                  <div className="stat-card glass-panel">
-                    <div className="stat-icon purple"><Award size={24} /></div>
-                    <div>
-                      <span className="stat-label">Current Active Streak</span>
-                      <h3 className="stat-value">{userData?.stats?.currentStreakDays || 5} Days 🔥</h3>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Gym Membership Card */}
-                <div className="glass-panel" style={{ padding: '24px', marginTop: '30px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <Building size={28} color="var(--primary-accent)" />
+              return (
+                <div className="overview-container">
+                  {/* Stats Grid */}
+                  <div className="stats-grid">
+                    <div className="stat-card glass-panel">
+                      <div className="stat-icon blue"><Dumbbell size={24} /></div>
                       <div>
-                        <h3 style={{ margin: 0 }}>Active Gym Membership</h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Elite Fitness Studio • Active Pass</p>
+                        <span className="stat-label">Total Workouts</span>
+                        <h3 className="stat-value">{totalWorkouts}</h3>
                       </div>
                     </div>
-                    <button className="btn btn-outline btn-sm" onClick={() => navigate('/your-gym')}>
-                      View Gym Facilities <ChevronRight size={16} />
-                    </button>
+
+                    <div className="stat-card glass-panel">
+                      <div className="stat-icon amber"><Flame size={24} /></div>
+                      <div>
+                        <span className="stat-label">Est. Calories Burned</span>
+                        <h3 className="stat-value">{caloriesBurned} kcal</h3>
+                      </div>
+                    </div>
+
+                    <div className="stat-card glass-panel">
+                      <div className="stat-icon green"><Activity size={24} /></div>
+                      <div>
+                        <span className="stat-label">Outdoor Run Distance</span>
+                        <h3 className="stat-value">{runningDistance} km</h3>
+                      </div>
+                    </div>
+
+                    <div className="stat-card glass-panel">
+                      <div className="stat-icon purple"><Award size={24} /></div>
+                      <div>
+                        <span className="stat-label">Current Active Streak</span>
+                        <h3 className="stat-value">{streak} Days 🔥</h3>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px' }}>
-                    <p style={{ color: 'var(--text-primary)', margin: 0 }}>
-                      <strong>Today's Facility Tip:</strong> Dynamic warm-up required before heavy squats. 24-hour equipment access enabled.
-                    </p>
+
+                  {/* Today's Workout Command Center Card */}
+                  <div className="glass-panel" style={{ padding: '24px', marginTop: '24px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <span className="badge" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                            TODAY'S MISSION
+                          </span>
+                        </div>
+                        <h3 style={{ margin: '0 0 6px 0', fontSize: '1.25rem' }}>
+                          {todayDayItem?.workout_title || "Full Body Readiness & Hypertrophy"}
+                        </h3>
+                        <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.88rem' }}>
+                          {workoutProgress?.completedDays?.includes(1)
+                            ? "✅ Today's workout completed! Great job on your consistency."
+                            : `${todayDayItem?.exercises?.length || 4} Exercises scheduled • AI form verification & sequential tracking enabled.`}
+                        </p>
+                      </div>
+                      <button 
+                        className="btn btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.95rem' }}
+                        onClick={() => navigate('/ai-trainer')}
+                      >
+                        <Dumbbell size={18} />
+                        {workoutProgress?.completedDays?.includes(1) ? "Review Today's Workout" : "Start Today's Workout"}
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Quick Action Hub */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginTop: '20px' }}>
+                    <div className="glass-panel" onClick={() => navigate('/ai-trainer')} style={{ cursor: 'pointer', padding: '16px', textAlign: 'center', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+                      <Dumbbell size={24} color="#3b82f6" style={{ margin: '0 auto 8px' }} />
+                      <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Workout Hub</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>AI & Manual Sets</div>
+                    </div>
+                    <div className="glass-panel" onClick={() => navigate('/running')} style={{ cursor: 'pointer', padding: '16px', textAlign: 'center', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+                      <Activity size={24} color="#10b981" style={{ margin: '0 auto 8px' }} />
+                      <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Outdoor Run</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Live GPS Tracker</div>
+                    </div>
+                    <div className="glass-panel" onClick={() => navigate('/explore')} style={{ cursor: 'pointer', padding: '16px', textAlign: 'center', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+                      <MapPin size={24} color="#f59e0b" style={{ margin: '0 auto 8px' }} />
+                      <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Find Gyms</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Discovery & Tours</div>
+                    </div>
+                    <div className="glass-panel" onClick={() => setActiveTab('plans')} style={{ cursor: 'pointer', padding: '16px', textAlign: 'center', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+                      <FileText size={24} color="#a855f7" style={{ margin: '0 auto 8px' }} />
+                      <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>My Routines</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Assigned Programs</div>
+                    </div>
+                  </div>
+
+                  {/* Gym Membership Card */}
+                  {gymData?.gym?.name || userData?.user?.subscribedGymName ? (
+                    <div className="glass-panel" style={{ padding: '24px', marginTop: '24px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <Building size={28} color="var(--primary-accent)" />
+                          <div>
+                            <h3 style={{ margin: 0 }}>{gymData?.gym?.name || userData?.user?.subscribedGymName}</h3>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                              {gymData?.membershipType || userData?.user?.gymMembershipType || 'Active Pass'} • Subscribed
+                            </p>
+                          </div>
+                        </div>
+                        <button className="btn btn-outline btn-sm" onClick={() => navigate('/your-gym')}>
+                          View Gym Facilities <ChevronRight size={16} />
+                        </button>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px' }}>
+                        <p style={{ color: 'var(--text-primary)', margin: 0 }}>
+                          <strong>Today's Facility Tip:</strong> {gymData?.gym?.todayTrainingTip?.today || "Dynamic warm-up recommended before heavy lifting. Keep hydrated."}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="glass-panel" style={{ padding: '24px', marginTop: '24px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                          <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)' }}>
+                            <Building size={28} color="var(--text-secondary)" />
+                          </div>
+                          <div>
+                            <h3 style={{ margin: '0 0 4px 0' }}>No Active Gym Membership</h3>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                              Find certified fitness centers, schedule physical facility tours, and train with professional trainers.
+                            </p>
+                          </div>
+                        </div>
+                        <button className="btn btn-primary btn-sm" onClick={() => navigate('/explore')}>
+                          <MapPin size={16} /> Explore Nearby Gyms
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* ASSIGNED PLANS TAB */}
             {activeTab === 'plans' && (
