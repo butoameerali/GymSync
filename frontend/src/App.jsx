@@ -66,7 +66,7 @@ function App() {
   };
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary key={location.key}>
       <div className="app-container">
         <ToastContainer position="top-right" autoClose={3000} theme="dark" />
         {!isAuthPage && <Navbar />}

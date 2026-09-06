@@ -25,19 +25,22 @@ const GlobalChat = () => {
   const [isSubscribed, setIsSubscribed] = useState(true);
   const messagesEndRef = useRef(null);
 
-  // Hide floating chat widget on full Messenger / Chat portal pages
-  if (['/messages', '/chat'].includes(location.pathname)) {
-    return null;
-  }
-
+  // Derived values — computed every render, before any early return, no hooks involved
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest';
+
+  // FIX: All useEffect hooks must come BEFORE any conditional return.
+  // Previously a `return null` at line 29 sat between useState calls (above)
+  // and useEffect calls (below), violating React's Rules of Hooks.
+  // This caused "Rendered fewer hooks than expected" on route transitions,
+  // which the ErrorBoundary caught and displayed as "Oops! Something went wrong".
 
   useEffect(() => {
     localStorage.setItem('gymsync_subscribed', 'true');
     setIsSubscribed(true);
   }, [userRole]);
+
   const proPrice = localStorage.getItem('gymsync_pro_plan_price') || '9.99';
 
   const scrollToBottom = () => {
@@ -48,6 +51,53 @@ const GlobalChat = () => {
     scrollToBottom();
   }, [messages, activeContact]);
 
+  // FIX: handleContactClick and fetchConversation are defined here — BEFORE the
+  // useEffect that references handleContactClick — so the closure captures the
+  // real function rather than undefined.
+  const fetchConversation = async (contactId) => {
+    try {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch(`/api/chat/${userName}/${contactId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+
+      const formattedMessages = data.map(msg => ({
+        id: msg._id,
+        text: msg.text,
+        sender: msg.sender === userName ? 'user' : 'other',
+        timestamp: msg.createdAt
+      }));
+
+      setMessages(prev => ({
+        ...prev,
+        [contactId]: formattedMessages
+      }));
+    } catch (err) { console.error(err); }
+  };
+
+  const handleContactClick = (contact) => {
+    setActiveContact(contact);
+    if (!messages[contact.id]) {
+      setMessages(prev => ({ ...prev, [contact.id]: [] }));
+    }
+    if (contact.id !== 'ai' && contact.id !== 'gym') {
+      fetchConversation(contact.id);
+    } else if (contact.id === 'ai' && isSubscribed) {
+      if (!messages[contact.id] || messages[contact.id].length === 0) {
+        setMessages(prev => ({
+          ...prev,
+          [contact.id]: [{ id: 1, text: `Hello! I'm your AI Fitness Coach. How can I help you today?`, sender: 'other' }]
+        }));
+      }
+    }
+  };
+
+  // Data-fetching effect: runs only when login state or userName changes.
+  // Must NOT include dynamicFriends/spamContacts in deps — those are set
+  // inside this effect, which would create an infinite request loop.
   useEffect(() => {
     if (!isGuest) {
       const token = localStorage.getItem('gymsync_token') || '';
@@ -95,17 +145,19 @@ const GlobalChat = () => {
             } else {
               setGymTrainerContacts([]);
             }
-            
+
             // Fetch all conversations to determine spam with Bearer token
             const convRes = await fetch(`/api/chat/conversations/${encodeURIComponent(userName)}`, {
               headers: authHeader
             });
             const convRaw = convRes.ok ? await convRes.json() : [];
             const convContacts = Array.isArray(convRaw) ? convRaw : [];
-            
+            // Backend returns conversation objects {id, name, lastMessage, ...} — extract the name string
+            const convContactNames = convContacts.map(c => (c && typeof c === 'object' ? (c.name || c.id) : c)).filter(Boolean);
+
             // Filter out friends and AI/Gym support
             const userFriends = Array.isArray(user?.friends) ? user.friends : [];
-            const spamNames = convContacts.filter(c => c && !userFriends.includes(c) && !trustedTrainerNames.includes(c) && c !== 'ai' && c !== 'gym' && c !== userName);
+            const spamNames = convContactNames.filter(c => !userFriends.includes(c) && !trustedTrainerNames.includes(c) && c !== 'ai' && c !== 'gym' && c !== userName);
             const spamWithPics = await Promise.all(spamNames.map(async (spamName) => {
               const spamRes = await fetch(`/api/users/${encodeURIComponent(spamName)}`, { headers: authHeader });
               const spamData = spamRes.ok ? await spamRes.json() : {};
@@ -124,7 +176,11 @@ const GlobalChat = () => {
         })
         .catch(err => console.error("GlobalChat fetch error:", err));
     }
+  }, [isGuest, userName]);
 
+  // Separate effect for open_chat event listener so it can always see the
+  // latest dynamicFriends / spamContacts without re-triggering the data fetch.
+  useEffect(() => {
     const handleOpenChat = (e) => {
       setIsOpen(true);
       const contactName = e.detail.userName;
@@ -146,50 +202,15 @@ const GlobalChat = () => {
     };
     window.addEventListener('open_chat', handleOpenChat);
     return () => window.removeEventListener('open_chat', handleOpenChat);
-  }, [isGuest, userName, dynamicFriends, spamContacts]);
+  }, [dynamicFriends, spamContacts]);
+
+  // FIX: Both route-guard early returns are now AFTER all hooks.
+  // This ensures React always calls the same number of hooks on every render.
+  if (['/messages', '/chat'].includes(location.pathname)) {
+    return null;
+  }
 
   if (isGuest) return null;
-
-  const fetchConversation = async (contactId) => {
-    try {
-      const token = localStorage.getItem('gymsync_token') || '';
-      const res = await fetch(`/api/chat/${userName}/${contactId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (!Array.isArray(data)) return;
-      
-      const formattedMessages = data.map(msg => ({
-        id: msg._id,
-        text: msg.text,
-        sender: msg.sender === userName ? 'user' : 'other',
-        timestamp: msg.createdAt
-      }));
-      
-      setMessages(prev => ({
-        ...prev,
-        [contactId]: formattedMessages
-      }));
-    } catch (err) { console.error(err); }
-  };
-
-  const handleContactClick = (contact) => {
-    setActiveContact(contact);
-    if (!messages[contact.id]) {
-      setMessages(prev => ({ ...prev, [contact.id]: [] }));
-    }
-    if (contact.id !== 'ai' && contact.id !== 'gym') {
-      fetchConversation(contact.id);
-    } else if (contact.id === 'ai' && isSubscribed) {
-      if(!messages[contact.id] || messages[contact.id].length === 0) {
-        setMessages(prev => ({
-          ...prev,
-          [contact.id]: [{ id: 1, text: `Hello! I'm your AI Fitness Coach. How can I help you today?`, sender: 'other' }]
-        }));
-      }
-    }
-  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -222,7 +243,7 @@ const GlobalChat = () => {
           body: JSON.stringify({ sender: userName, receiver: activeContact.id, text: messageText })
         });
       } catch (err) { console.error(err); }
-    } 
+    }
     else if (activeContact.id === 'ai') {
       const userContext = {
         primaryGoal: localStorage.getItem('gymsync_onboarding_primaryGoal') || 'General Fitness',
@@ -241,13 +262,13 @@ const GlobalChat = () => {
         });
         const data = await response.json();
         let replyText = data.content;
-        
+
         const planMatch = replyText.match(/<PLAN>(.*?)<\/PLAN>/i);
         if (planMatch) {
           const exercisesString = planMatch[1];
           const exercisesArray = exercisesString.split(',').map(e => e.trim());
           localStorage.setItem('gymsync_ai_plan', JSON.stringify(exercisesArray));
-          
+
           replyText = replyText.replace(planMatch[0], "\n\n🏋️‍♂️ **Workout Plan Generated!**\nYour new plan has been loaded into the AI Trainer. [Click here to open AI Trainer](/ai-trainer)");
           toast.success("New AI Workout Plan Generated!");
         }
@@ -275,7 +296,7 @@ const GlobalChat = () => {
           [activeContact.id]: [...(prev[activeContact.id] || []), errReply]
         }));
       }
-    } 
+    }
     else {
       setTimeout(() => {
         const reply = {
@@ -314,11 +335,11 @@ const GlobalChat = () => {
 
         {!activeContact ? (
           <div className="contact-list" style={{flex: 1, overflowY: 'auto'}}>
-            
+
             {/* SPAM FOLDER (MESSAGE REQUESTS) */}
             {spamContacts.length > 0 && (
               <div style={{ marginBottom: '10px' }}>
-                <div 
+                <div
                   onClick={() => setShowSpam(!showSpam)}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', background: 'rgba(239, 68, 68, 0.1)', borderBottom: '1px solid rgba(239, 68, 68, 0.2)', cursor: 'pointer', color: '#ef4444', fontWeight: 'bold' }}
                 >
@@ -327,10 +348,10 @@ const GlobalChat = () => {
                   </div>
                   <span>{showSpam ? '▼' : '▶'}</span>
                 </div>
-                
+
                 {showSpam && spamContacts.map(contact => (
-                  <div 
-                    key={contact.id} 
+                  <div
+                    key={contact.id}
                     onClick={() => handleContactClick(contact)}
                     style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s', opacity: 0.8 }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
@@ -353,8 +374,8 @@ const GlobalChat = () => {
             )}
 
             {[...CONTACTS, ...gymTrainerContacts, ...dynamicFriends].map(contact => (
-              <div 
-                key={contact.id} 
+              <div
+                key={contact.id}
                 onClick={() => handleContactClick(contact)}
                 style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}

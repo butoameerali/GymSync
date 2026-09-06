@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { X, ChevronRight, ChevronLeft, Target, Briefcase, Activity, Heart, User, Dumbbell, MapPin, Search } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Target, Briefcase, Activity, Heart, User, Dumbbell, Clock, CheckCircle, Sliders } from 'lucide-react';
 import Body from 'react-muscle-highlighter';
 import './OnboardingWizard.css';
 
 const GOALS_DATA = [
   {
     category: "Career & Professional Training",
-    icon: <Briefcase size={24} />,
+    icon: <Briefcase size={22} />,
     subs: [
       "Military & Armed Forces Prep",
       "Law Enforcement & Police Academy",
@@ -16,7 +16,7 @@ const GOALS_DATA = [
   },
   {
     category: "Body Transformation",
-    icon: <Dumbbell size={24} />,
+    icon: <Dumbbell size={22} />,
     subs: [
       "Weight Loss & Fat Burn",
       "Muscle Building (Hypertrophy)",
@@ -27,7 +27,7 @@ const GOALS_DATA = [
   },
   {
     category: "General Fitness & Physical Capability",
-    icon: <Activity size={24} />,
+    icon: <Activity size={22} />,
     subs: [
       "Stamina & Endurance Boost",
       "Raw Strength & Power",
@@ -38,7 +38,7 @@ const GOALS_DATA = [
   },
   {
     category: "Lifestyle & Wellness",
-    icon: <Heart size={24} />,
+    icon: <Heart size={22} />,
     subs: [
       "Sedentary to Active",
       "Stress Relief & Mental Wellness",
@@ -47,19 +47,8 @@ const GOALS_DATA = [
     ]
   },
   {
-    category: "Medical, Rehab & Special Conditions",
-    icon: <Target size={24} />,
-    subs: [
-      "Post-Injury Rehabilitation",
-      "Chronic Pain Management",
-      "Diabetes & Blood Sugar Control",
-      "Hypertension & Heart Care",
-      "Pre & Post-Natal Fitness"
-    ]
-  },
-  {
     category: "Age-Specific Milestones",
-    icon: <User size={24} />,
+    icon: <User size={22} />,
     subs: [
       "Youth & Teenage Growth",
       "Healthy Aging (Seniors)"
@@ -67,56 +56,34 @@ const GOALS_DATA = [
   }
 ];
 
-const SHAPES_MEN = [
-  { id: 'm1', name: 'Ectomorph', desc: 'Skinny, narrow shoulders, fast metabolism' },
-  { id: 'm2', name: 'Mesomorph', desc: 'Athletic, naturally lean, broader shoulders' },
-  { id: 'm3', name: 'Endomorph', desc: 'Stocky, carries more body fat, wider waist' },
-  { id: 'm4', name: 'Skinny Fat', desc: 'Thin limbs but carries weight in the belly' }
+const PLAN_DURATIONS = [
+  { id: '1 Month', label: '1 Month', sub: '30 Days Quick Start' },
+  { id: '3 Months', label: '3 Months', sub: '90 Days (Recommended)', recommended: true },
+  { id: '6 Months', label: '6 Months', sub: '180 Days Overload' },
+  { id: '1 Year', label: '1 Year', sub: '12 Months Full Transformation' }
 ];
-
-const SHAPES_WOMEN = [
-  { id: 'w1', name: 'Hourglass', desc: 'Balanced top and bottom, defined waist' },
-  { id: 'w2', name: 'Pear Shape', desc: 'Narrow shoulders, wider hips and thighs' },
-  { id: 'w3', name: 'Apple Shape', desc: 'Weight around midsection and chest, thinner legs' },
-  { id: 'w4', name: 'Rectangle', desc: 'Straight silhouette, shoulders/hips same width' }
-];
-
-const CONDITIONS = [
-  "Asthma / Respiratory issues",
-  "High Blood Pressure (Hypertension)",
-  "Heart Condition / Cardiovascular issues",
-  "Type 1 / Type 2 Diabetes",
-  "Vertigo / Frequent Dizziness",
-  "None of the above"
-];
-
-const JOINTS = ["Neck", "Shoulders", "Lower Back", "Knees", "Ankles"];
 
 const OnboardingWizard = ({ onComplete, onSkip }) => {
   const [step, setStep] = useState(1);
-  const totalSteps = 7;
+  const totalSteps = 6;
 
-  // Data State
+  // Form Data State
   const [data, setData] = useState({
     mainGoalArea: '',
     goals: [],
+    planDuration: '1 Month',
+    trainingDaysPerWeek: 3,
+    equipmentAccess: 'Full Gym',
+    pushupBaseline: 10,
     gender: '',
     dob: '',
     units: 'metric',
     height: 170,
     weight: 70,
-    targetWeight: 65,
-    bodyFatVolume: 30, // 0 to 100 volume slider
-    targetMuscles: [],
-    injuries: [],
-    medicalConditions: [],
-    otherConditionText: '',
-    activityLevel: '',
-    experience: '',
-    location: ''
+    targetMuscles: []
   });
 
-  const [expandedCategory, setExpandedCategory] = useState(null);
+  const [expandedCategory, setExpandedCategory] = useState(0);
 
   const updateData = (key, val) => setData(prev => ({ ...prev, [key]: val }));
 
@@ -140,37 +107,56 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
       : [...data.targetMuscles, muscle]);
   };
 
-  const handleConditionToggle = (cond) => {
-    if (cond === "None of the above") {
-      updateData('medicalConditions', ["None of the above"]);
-      updateData('otherConditionText', '');
-      return;
-    }
-    const newConds = data.medicalConditions.filter(c => c !== "None of the above");
-    updateData('medicalConditions', newConds.includes(cond) 
-      ? newConds.filter(c => c !== cond) 
-      : [...newConds, cond]);
-  };
-
-  const handleInjuryToggle = (joint) => {
-    updateData('injuries', data.injuries.includes(joint)
-      ? data.injuries.filter(j => j !== joint)
-      : [...data.injuries, joint]);
-  };
-
   const submitOnboarding = () => {
     // Save to localStorage
     const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
     localStorage.setItem(`gymsync_${userKey}_bio_data`, JSON.stringify(data));
     localStorage.setItem(`gymsync_${userKey}_bio`, JSON.stringify(data));
     localStorage.setItem('gymsync_onboarding_completed', 'true');
-    localStorage.setItem(`gymsync_${userKey}_bio_filled`, 'true'); // For Profile.jsx compat
-    localStorage.setItem('gymsync_bio_filled', 'true'); // For AITrainer.jsx compat
+    localStorage.setItem(`gymsync_${userKey}_bio_filled`, 'true');
+    localStorage.setItem('gymsync_bio_filled', 'true');
 
-    // Dispatch global event so open pages (Profile, AITrainer, etc.) update dynamically without needing a refresh
+    // Dispatch global event so open pages (Profile, AITrainer, etc.) update dynamically
     window.dispatchEvent(new Event('gymsync_bio_updated'));
 
     onComplete();
+  };
+
+  const userMuscles = [
+    'Head', 'Neck', 'Shoulders', 'Chest', 'Arms', 'Forearms', 'Hands', 
+    'Abs', 'Hips', 'Thighs', 'Knees', 'Calves', 'Feet', 
+    'Back', 'Lower Back', 'Glutes'
+  ];
+
+  const muscleMapping = {
+    'Head': ['head'], 'Neck': ['neck'], 'Shoulders': ['deltoids'],
+    'Chest': ['chest'], 'Arms': ['biceps', 'triceps'], 'Forearms': ['forearm'], 'Hands': ['hands'],
+    'Abs': ['abs', 'obliques'], 'Hips': ['adductors'], 'Thighs': ['quadriceps', 'hamstring'],
+    'Knees': ['knees'], 'Calves': ['calves', 'tibialis'], 'Feet': ['feet'],
+    'Back': ['upper-back', 'trapezius'], 'Lower Back': ['lower-back'], 'Glutes': ['gluteal']
+  };
+
+  const activeHighlighterMuscles = [];
+  data.targetMuscles.forEach(m => {
+    if (muscleMapping[m]) {
+       activeHighlighterMuscles.push(...muscleMapping[m]);
+    }
+  });
+
+  const bodyData = activeHighlighterMuscles.map(slug => ({
+    slug: slug,
+    color: '#10b981'
+  }));
+
+  const isFullBody = data.targetMuscles.length === userMuscles.length;
+  const toggleFullBody = () => updateData('targetMuscles', isFullBody ? [] : [...userMuscles]);
+
+  const handleModelClick = (part) => {
+    let foundUserMuscle = null;
+    Object.entries(muscleMapping).forEach(([key, values]) => {
+       if (values.includes(part.slug)) foundUserMuscle = key;
+    });
+    if (foundUserMuscle) handleMuscleToggle(foundUserMuscle);
   };
 
   const renderStepContent = () => {
@@ -178,13 +164,13 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
       case 1:
         return (
           <div className="wiz-step">
-            <h2>What is your primary fitness path?</h2>
-            <p className="wiz-subtitle">Select ONE main area, and choose your specific goals.</p>
+            <h2>Primary Fitness Path</h2>
+            <p className="wiz-subtitle">Select ONE primary training path and your specific goals.</p>
             
             {data.mainGoalArea && (
-              <div className="goal-summary-banner">
+              <div className="goal-summary-banner" style={{ marginBottom: '15px' }}>
                 <Target size={16} color="var(--primary-accent)" />
-                <span><strong>Path:</strong> {data.mainGoalArea} ({data.goals.length} goals selected)</span>
+                <span><strong>Selected Path:</strong> {data.mainGoalArea} ({data.goals.length} goals selected)</span>
               </div>
             )}
 
@@ -216,63 +202,75 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
       case 2:
         return (
           <div className="wiz-step">
-            <h2>Biological Profile</h2>
-            <p className="wiz-subtitle">Help us tailor your physiological baseline.</p>
-            
-            <label className="wiz-label">Gender</label>
-            <div className="gender-cards">
-              {['Male', 'Female', 'Prefer not to say'].map(g => (
-                <div key={g} className={`gender-card ${data.gender === g ? 'selected' : ''}`} onClick={() => updateData('gender', g)}>
-                  {g}
+            <h2>Exercise Plan Duration</h2>
+            <p className="wiz-subtitle">How long of a customized workout plan do you require?</p>
+
+            <div className="duration-grid" style={{ marginTop: '20px' }}>
+              {PLAN_DURATIONS.map(dur => (
+                <div 
+                  key={dur.id} 
+                  className={`duration-card ${data.planDuration === dur.id ? 'selected' : ''}`}
+                  onClick={() => updateData('planDuration', dur.id)}
+                  style={{ padding: '24px 16px' }}
+                >
+                  <Clock size={28} color={data.planDuration === dur.id ? 'var(--primary-accent)' : 'var(--text-secondary)'} style={{ marginBottom: '8px' }} />
+                  <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{dur.label}</span>
+                  <span style={{ fontSize: '0.8rem', opacity: 0.85, marginTop: '4px' }}>{dur.sub}</span>
+                  {dur.recommended && (
+                    <span className="category-badge" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', fontSize: '0.75rem', marginTop: '8px', padding: '3px 10px', borderRadius: '12px' }}>
+                      ⭐ Best Value
+                    </span>
+                  )}
                 </div>
               ))}
-            </div>
-
-            <label className="wiz-label" style={{ marginTop: '30px' }}>Date of Birth</label>
-            <div className="wiz-input-wrapper">
-              <input type="date" className="wiz-input" value={data.dob} onChange={(e) => updateData('dob', e.target.value)} />
-              <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '8px'}}>Tap the calendar icon to easily select your year and month.</p>
             </div>
           </div>
         );
 
       case 3:
-        const wDiff = (data.targetWeight - data.weight).toFixed(1);
-        const wUnit = data.units === 'metric' ? 'kg' : 'lbs';
-        const dynamicGoalText = wDiff > 0 ? `Gain ${Math.abs(wDiff)} ${wUnit}` : wDiff < 0 ? `Lose ${Math.abs(wDiff)} ${wUnit}` : 'Maintain Weight';
-
         return (
           <div className="wiz-step">
-            <h2>Physical Metrics</h2>
-            <div className="unit-switcher">
-              <button className={data.units === 'metric' ? 'active' : ''} onClick={() => updateData('units', 'metric')}>Metric (kg/cm)</button>
-              <button className={data.units === 'imperial' ? 'active' : ''} onClick={() => updateData('units', 'imperial')}>Imperial (lbs/in)</button>
-            </div>
+            <h2>Smart Intake & Stamina Calibration</h2>
+            <p className="wiz-subtitle">Calibrate your weekly frequency, equipment, and stamina baseline for AI exercise generation.</p>
             
-            <div className="metrics-grid">
-              <div className="metric-box">
-                <label>Current Height ({data.units === 'metric' ? 'cm' : 'in'})</label>
-                <div className="slider-container">
-                  <input type="range" min={data.units==='metric'?100:40} max={data.units==='metric'?220:86} value={data.height} onChange={(e) => updateData('height', e.target.value)} />
-                  <span className="slider-val">{data.height}</span>
-                </div>
-              </div>
-              <div className="metric-box">
-                <label>Current Weight ({wUnit})</label>
-                <div className="slider-container">
-                  <input type="range" min={data.units==='metric'?30:60} max={data.units==='metric'?150:330} value={data.weight} onChange={(e) => updateData('weight', e.target.value)} />
-                  <span className="slider-val">{data.weight}</span>
-                </div>
-              </div>
-              <div className="metric-box full">
-                <label>Target Goal Weight ({wUnit})</label>
-                <div className="slider-container">
-                  <input type="range" min={data.units==='metric'?30:60} max={data.units==='metric'?150:330} value={data.targetWeight} onChange={(e) => updateData('targetWeight', e.target.value)} />
-                  <span className="slider-val highlight">{data.targetWeight}</span>
-                </div>
-                <div className="dynamic-goal-badge">
-                   <Target size={16} /> Strategy: <strong>{dynamicGoalText}</strong>
-                </div>
+            <div className="wiz-section" style={{ background: 'var(--card-bg)', marginTop: '20px' }}>
+              <label className="wiz-label">Weekly Training Frequency</label>
+              <select 
+                className="wiz-select" 
+                value={data.trainingDaysPerWeek} 
+                onChange={e => updateData('trainingDaysPerWeek', parseInt(e.target.value))}
+                style={{ marginBottom: '20px' }}
+              >
+                <option value={2}>2 Days / Week</option>
+                <option value={3}>3 Days / Week (Recommended)</option>
+                <option value={4}>4 Days / Week</option>
+                <option value={5}>5 Days / Week</option>
+                <option value={6}>6 Days / Week</option>
+              </select>
+
+              <label className="wiz-label">Available Equipment</label>
+              <select 
+                className="wiz-select" 
+                value={data.equipmentAccess} 
+                onChange={e => updateData('equipmentAccess', e.target.value)}
+                style={{ marginBottom: '20px' }}
+              >
+                <option value="Full Gym">Full Gym Setup</option>
+                <option value="Dumbbells">Dumbbells & Bench</option>
+                <option value="Resistance Bands">Resistance Bands</option>
+                <option value="Bodyweight only">Bodyweight only (No Equipment)</option>
+              </select>
+
+              <label className="wiz-label">Anchor Push-up Baseline ({data.pushupBaseline} Reps)</label>
+              <div className="slider-container">
+                <input 
+                  type="range" 
+                  min="3" 
+                  max="30" 
+                  value={data.pushupBaseline} 
+                  onChange={e => updateData('pushupBaseline', parseInt(e.target.value))} 
+                />
+                <span className="slider-val highlight">{data.pushupBaseline} Reps</span>
               </div>
             </div>
           </div>
@@ -281,89 +279,72 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
       case 4:
         return (
           <div className="wiz-step">
-            <h2>Visual Body Configuration</h2>
-            <p className="wiz-subtitle">Use the volume slider to match your current body composition.</p>
+            <h2>Biological Profile</h2>
+            <p className="wiz-subtitle">Help us tailor your physiological baseline.</p>
             
-            <div className="dynamic-body-container">
-              <svg viewBox="0 0 100 200" className="body-svg">
-                {/* Minimalist Dynamic Silhouette */}
-                <circle cx="50" cy="20" r="12" fill="var(--primary-accent)" />
-                {/* Shoulders & Chest */}
-                <ellipse cx="50" cy="50" rx={18 + (data.bodyFatVolume/20)} ry="10" fill="var(--primary-accent)" />
-                {/* Torso & Belly (Widens dynamically with slider) */}
-                <path d={`M ${32 - (data.bodyFatVolume/20)} 50 Q ${25 - (data.bodyFatVolume/4)} 100 ${35 - (data.bodyFatVolume/12)} 130 L ${65 + (data.bodyFatVolume/12)} 130 Q ${75 + (data.bodyFatVolume/4)} 100 ${68 + (data.bodyFatVolume/20)} 50 Z`} fill="var(--primary-accent)" />
-                {/* Legs */}
-                <path d={`M ${35 - (data.bodyFatVolume/12)} 130 L 42 190 L 50 140 L 58 190 L ${65 + (data.bodyFatVolume/12)} 130 Z`} fill="var(--primary-accent)" />
-              </svg>
+            <label className="wiz-label">Gender</label>
+            <div className="gender-cards" style={{ marginBottom: '30px' }}>
+              {['Male', 'Female', 'Prefer not to say'].map(g => (
+                <div key={g} className={`gender-card ${data.gender === g ? 'selected' : ''}`} onClick={() => updateData('gender', g)}>
+                  {g}
+                </div>
+              ))}
             </div>
-            
-            <div className="metric-box full" style={{marginTop: '20px'}}>
-              <label style={{textAlign: 'center', display: 'block', marginBottom: '15px'}}>Adjust Body Volume</label>
-              <div className="slider-container">
-                <span style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>Slim</span>
-                <input type="range" min="0" max="100" value={data.bodyFatVolume} onChange={(e) => updateData('bodyFatVolume', parseInt(e.target.value))} />
-                <span style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>Heavy</span>
-              </div>
+
+            <label className="wiz-label">Date of Birth</label>
+            <div className="wiz-input-wrapper">
+              <input type="date" className="wiz-input" value={data.dob} onChange={(e) => updateData('dob', e.target.value)} />
+              <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '8px'}}>Select your year and month from the calendar picker.</p>
             </div>
           </div>
         );
 
       case 5:
-        const userMuscles = [
-          'Head', 'Neck', 'Shoulders', 'Chest', 'Arms', 'Forearms', 'Hands', 
-          'Abs', 'Hips', 'Thighs', 'Knees', 'Calves', 'Feet', 
-          'Back', 'Lower Back', 'Glutes'
-        ];
-
-        // Mapping to react-muscle-highlighter Slugs
-        const muscleMapping = {
-          'Head': ['head'], 'Neck': ['neck'], 'Shoulders': ['deltoids'],
-          'Chest': ['chest'], 'Arms': ['biceps', 'triceps'], 'Forearms': ['forearm'], 'Hands': ['hands'],
-          'Abs': ['abs', 'obliques'], 'Hips': ['adductors'], 'Thighs': ['quadriceps', 'hamstring'],
-          'Knees': ['knees'], 'Calves': ['calves', 'tibialis'], 'Feet': ['feet'],
-          'Back': ['upper-back', 'trapezius'], 'Lower Back': ['lower-back'], 'Glutes': ['gluteal']
-        };
-
-        const activeHighlighterMuscles = [];
-        data.targetMuscles.forEach(m => {
-          if (muscleMapping[m]) {
-             activeHighlighterMuscles.push(...muscleMapping[m]);
-          }
-        });
-
-        // Format data for the Body component
-        const bodyData = activeHighlighterMuscles.map(slug => ({
-          slug: slug,
-          color: '#10b981'
-        }));
-
-        const isFullBody = data.targetMuscles.length === userMuscles.length;
-        const toggleFullBody = () => updateData('targetMuscles', isFullBody ? [] : [...userMuscles]);
-
-        const handleModelClick = (part) => {
-          let foundUserMuscle = null;
-          Object.entries(muscleMapping).forEach(([key, values]) => {
-             if (values.includes(part.slug)) foundUserMuscle = key;
-          });
-          if (foundUserMuscle) handleMuscleToggle(foundUserMuscle);
-        };
-
         return (
           <div className="wiz-step">
-            <h2>Interactive Full Body</h2>
-            <p className="wiz-subtitle">Tap any muscle or joint (including hands, knees, and feet) to target it.</p>
+            <h2>Physical Metrics</h2>
+            <p className="wiz-subtitle">Enter your height and current body weight.</p>
+
+            <div className="unit-switcher" style={{ marginBottom: '24px' }}>
+              <button className={data.units === 'metric' ? 'active' : ''} onClick={() => updateData('units', 'metric')}>Metric (kg/cm)</button>
+              <button className={data.units === 'imperial' ? 'active' : ''} onClick={() => updateData('units', 'imperial')}>Imperial (lbs/in)</button>
+            </div>
             
-            <div className="muscle-focus-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '20px 0', background: 'transparent', border: 'none' }}>
-              
-              {/* Full Body Side-by-Side View using react-muscle-highlighter */}
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '30px', height: '350px' }}>
+            <div className="metrics-grid">
+              <div className="metric-box">
+                <label>Current Height ({data.units === 'metric' ? 'cm' : 'in'})</label>
+                <div className="slider-container">
+                  <input type="range" min={data.units==='metric'?100:40} max={data.units==='metric'?220:86} value={data.height} onChange={(e) => updateData('height', parseInt(e.target.value))} />
+                  <span className="slider-val">{data.height}</span>
+                </div>
+              </div>
+
+              <div className="metric-box">
+                <label>Current Weight ({data.units === 'metric' ? 'kg' : 'lbs'})</label>
+                <div className="slider-container">
+                  <input type="range" min={data.units==='metric'?30:60} max={data.units==='metric'?150:330} value={data.weight} onChange={(e) => updateData('weight', parseInt(e.target.value))} />
+                  <span className="slider-val">{data.weight}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 6:
+        return (
+          <div className="wiz-step">
+            <h2>Target Muscle Focus</h2>
+            <p className="wiz-subtitle">Tap any muscle group on the model or use the quick buttons below.</p>
+
+            <div className="muscle-focus-container" style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '10px 0', background: 'transparent', border: 'none' }}>
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '20px', height: '320px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '1px' }}>Front View</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Front View</span>
                   <Body
                     data={bodyData}
                     side="front"
-                    gender={data.gender === 'female' ? 'female' : 'male'}
-                    scale={1.2}
+                    gender={data.gender === 'Female' ? 'female' : 'male'}
+                    scale={1.1}
                     defaultFill="rgba(255,255,255,0.05)"
                     border="rgba(255,255,255,0.2)"
                     onBodyPartPress={handleModelClick}
@@ -371,12 +352,12 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '1px' }}>Back View</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Back View</span>
                   <Body
                     data={bodyData}
                     side="back"
-                    gender={data.gender === 'female' ? 'female' : 'male'}
-                    scale={1.2}
+                    gender={data.gender === 'Female' ? 'female' : 'male'}
+                    scale={1.1}
                     defaultFill="rgba(255,255,255,0.05)"
                     border="rgba(255,255,255,0.2)"
                     onBodyPartPress={handleModelClick}
@@ -384,9 +365,9 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
                 </div>
               </div>
 
-              <div style={{display: 'flex', justifyContent: 'center', marginTop: '15px'}}>
+              <div style={{display: 'flex', justifyContent: 'center', marginTop: '10px'}}>
                 <button className={`btn btn-sm ${isFullBody ? 'btn-primary' : 'btn-outline'}`} onClick={toggleFullBody} style={{borderRadius: '20px'}}>
-                  {isFullBody ? 'Deselect All' : 'Select Full Body'}
+                  {isFullBody ? 'Deselect All' : 'Select Full Body Focus'}
                 </button>
               </div>
 
@@ -406,89 +387,19 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
           </div>
         );
 
-      case 6:
-        return (
-          <div className="wiz-step">
-            <h2>Medical & Safety Check</h2>
-            <p className="wiz-subtitle">Critical for AI Coaching safety algorithms.</p>
-            
-            <label className="wiz-label">Joint & Muscle Pain</label>
-            <div className="joints-grid">
-              {JOINTS.map(j => (
-                <button key={j} className={`joint-btn ${data.injuries.includes(j) ? 'pain' : ''}`} onClick={() => handleInjuryToggle(j)}>
-                  {j}
-                </button>
-              ))}
-            </div>
-
-            <label className="wiz-label" style={{ marginTop: '20px' }}>Medical Conditions</label>
-            <div className="conditions-list">
-              {CONDITIONS.map(c => (
-                <div key={c} className={`condition-item ${data.medicalConditions.includes(c) ? 'selected' : ''}`} onClick={() => handleConditionToggle(c)}>
-                  {c}
-                </div>
-              ))}
-              <div className={`condition-item ${data.medicalConditions.includes('Other') ? 'selected' : ''}`} onClick={() => handleConditionToggle('Other')}>
-                Other (Please specify)
-              </div>
-              {data.medicalConditions.includes('Other') && (
-                <input 
-                  type="text" 
-                  className="wiz-input" 
-                  placeholder="Type condition here..." 
-                  value={data.otherConditionText} 
-                  onChange={e => updateData('otherConditionText', e.target.value)} 
-                  style={{marginTop: '10px'}}
-                />
-              )}
-            </div>
-          </div>
-        );
-
-      case 7:
-        return (
-          <div className="wiz-step">
-            <h2>Lifestyle & Discovery</h2>
-            <p className="wiz-subtitle">Help us tailor your gym recommendations and community matches.</p>
-            
-            <label className="wiz-label">Daily Activity Level</label>
-            <select className="search-input" value={data.activityLevel} onChange={e => updateData('activityLevel', e.target.value)}>
-              <option value="" disabled>Select Level...</option>
-              <option value="sedentary">Sedentary (Desk job, under 4000 steps)</option>
-              <option value="light">Lightly Active (Teacher, walking during day)</option>
-              <option value="moderate">Moderately Active (Constantly on feet)</option>
-              <option value="active">Very Active (Heavy labor, training 2x/day)</option>
-            </select>
-
-            <label className="wiz-label" style={{ marginTop: '20px' }}>Fitness Experience</label>
-            <select className="search-input" value={data.experience} onChange={e => updateData('experience', e.target.value)}>
-              <option value="" disabled>Select Experience...</option>
-              <option value="beginner">Beginner (Never trained consistently)</option>
-              <option value="intermediate">Intermediate (Know basics, trained months/years)</option>
-              <option value="advanced">Advanced (Train regularly, heavy weights, perfect form)</option>
-            </select>
-
-            <label className="wiz-label" style={{ marginTop: '20px' }}>Training Location (Optional)</label>
-            <div className="wiz-input-wrapper" style={{ position: 'relative' }}>
-              <MapPin className="input-icon" size={20} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-              <input type="text" className="wiz-input with-icon" style={{ paddingLeft: '45px' }} placeholder="e.g. New York, USA or Zip Code" value={data.location} onChange={e => updateData('location', e.target.value)} />
-            </div>
-          </div>
-        );
-      
       default: return null;
     }
   };
 
   return (
     <div className="onboarding-overlay">
-      <div className="onboarding-modal">
+      <div className="onboarding-modal" style={{ maxWidth: '640px' }}>
         <button className="skip-btn" onClick={onSkip}>Skip for now <X size={16} /></button>
         
         <div className="progress-bar-container">
           <div className="progress-bar" style={{ width: `${(step / totalSteps) * 100}%` }}></div>
         </div>
-        <div className="step-indicator">Step {step} of {totalSteps}</div>
+        <div className="step-indicator">Step {step} of {totalSteps} • Health & Fitness Bio</div>
 
         <div className="onboarding-content">
           {renderStepContent()}
@@ -502,7 +413,9 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
           {step < totalSteps ? (
             <button className="btn btn-primary" onClick={nextStep}>Next <ChevronRight size={20} /></button>
           ) : (
-            <button className="btn btn-primary" onClick={submitOnboarding}>Complete Setup</button>
+            <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={submitOnboarding}>
+              <CheckCircle size={18} /> Save & Complete Bio
+            </button>
           )}
         </div>
       </div>

@@ -493,6 +493,55 @@
   padding-left: 45px;
 }
 
+/* Single Step Form Sections & Duration Cards */
+.wiz-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.wiz-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.duration-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.duration-card {
+  padding: 16px 12px;
+  background: var(--card-bg);
+  border: 2px solid transparent;
+  border-radius: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.duration-card:hover {
+  background: var(--card-border);
+}
+
+.duration-card.selected {
+  border-color: var(--primary-accent);
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--primary-accent);
+}
+
 /* Footer */
 .onboarding-footer {
   padding: 20px 40px;
@@ -507,4 +556,6 @@
   .gender-cards { flex-direction: column; }
   .shapes-grid { grid-template-columns: 1fr; }
   .metrics-grid { grid-template-columns: 1fr; }
+  .duration-grid { grid-template-columns: 1fr 1fr; }
 }
+

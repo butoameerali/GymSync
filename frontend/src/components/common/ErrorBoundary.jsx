@@ -1,5 +1,16 @@
 import React from 'react';
 
+/**
+ * ErrorBoundary — wraps the entire app to catch render errors.
+ *
+ * IMPORTANT: This component is keyed by `location.key` in App.jsx so that
+ * every client-side navigation unmounts and remounts a fresh boundary with
+ * hasError: false. Without this, a single caught error permanently locks the
+ * UI until the user does a full browser refresh.
+ *
+ * The boundary intentionally logs the original error + component stack in
+ * development so the real exception is always visible in the console.
+ */
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -11,7 +22,9 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Uncaught error caught by ErrorBoundary:", error, errorInfo);
+    // Always log the real exception — do NOT suppress this.
+    console.error('[ErrorBoundary] Caught a render error:', error);
+    console.error('[ErrorBoundary] Component stack:', errorInfo?.componentStack);
   }
 
   handleReload = () => {
@@ -36,7 +49,7 @@ class ErrorBoundary extends React.Component {
             <p style={{ color: 'var(--text-secondary, #94a3b8)', marginBottom: '24px' }}>
               An unexpected error occurred in this application module. Don't worry, your data is safe.
             </p>
-            <button 
+            <button
               className="btn btn-primary"
               onClick={this.handleReload}
               style={{

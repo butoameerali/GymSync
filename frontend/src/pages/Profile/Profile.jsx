@@ -5,6 +5,7 @@ import Modal from '../../components/common/Modal';
 import { toast } from 'react-toastify';
 import { can } from '../../config/permissions';
 import './Profile.css';
+import WorkoutCalendar from '../../components/common/WorkoutCalendar';
 
 const Profile = () => {
   const userRole = localStorage.getItem('gymsync_role') || 'User';
@@ -563,20 +564,10 @@ const Profile = () => {
                 )}
               </div>
 
-              {/* Past History */}
+              {/* Past Workouts Calendar */}
               <div className="glass-panel section-panel" style={{gridColumn: '1/-1'}}>
-                <h3 className="section-title">Past Workouts</h3>
-                <div className="past-history-list">
-                  {pastHistory.map((h, i) => (
-                    <div key={i} className="history-item">
-                      <div>
-                        <h4>{h.name}</h4>
-                        <span className="time">{new Date(h.date).toLocaleDateString()} • +{h.pointsEarned} Pts</span>
-                      </div>
-                    </div>
-                  ))}
-                  {pastHistory.length === 0 && <p className="empty-text">No past workouts found.</p>}
-                </div>
+                <h3 className="section-title"><Calendar size={20}/> Past Workouts</h3>
+                <WorkoutCalendar history={safeHistory} />
               </div>
             </div>
           )}
@@ -646,21 +637,8 @@ const Profile = () => {
                 </div>
               ) : (
                 <div className="bio-summary-grid">
-                  {/* Visual Body Progress Card */}
-                  <div className="bio-stat-card full" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <h4 style={{ alignSelf: 'flex-start' }}>Saved Body Baseline</h4>
-                    <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '16px', border: '1px solid var(--card-border)', marginTop: '10px' }}>
-                      <svg viewBox="0 0 100 200" style={{ height: '200px' }}>
-                        <circle cx="50" cy="20" r="12" fill="var(--primary-accent)" />
-                        <ellipse cx="50" cy="50" rx={18 + ((bio.bodyFatVolume || 30)/20)} ry="10" fill="var(--primary-accent)" />
-                        <path d={`M ${32 - ((bio.bodyFatVolume || 30)/20)} 50 Q ${25 - ((bio.bodyFatVolume || 30)/4)} 100 ${35 - ((bio.bodyFatVolume || 30)/12)} 130 L ${65 + ((bio.bodyFatVolume || 30)/12)} 130 Q ${75 + ((bio.bodyFatVolume || 30)/4)} 100 ${68 + ((bio.bodyFatVolume || 30)/20)} 50 Z`} fill="var(--primary-accent)" />
-                        <path d={`M ${35 - ((bio.bodyFatVolume || 30)/12)} 130 L 42 190 L 50 140 L 58 190 L ${65 + ((bio.bodyFatVolume || 30)/12)} 130 Z`} fill="var(--primary-accent)" />
-                      </svg>
-                    </div>
-                  </div>
-
                   <div className="bio-stat-card full">
-                    <h4>Primary Path</h4>
+                    <h4>Primary Fitness Path</h4>
                     <p>{bio.mainGoalArea || 'Not Set'}</p>
                   </div>
                   <div className="bio-stat-card">
@@ -668,24 +646,36 @@ const Profile = () => {
                     <p>{bio.goals?.length > 0 ? bio.goals.join(', ') : 'Not Set'}</p>
                   </div>
                   <div className="bio-stat-card">
-                    <h4>Muscle Focus</h4>
+                    <h4>Plan Duration</h4>
+                    <p style={{ color: 'var(--primary-accent)', fontWeight: 'bold' }}>{bio.planDuration || '1 Month'}</p>
+                  </div>
+                  <div className="bio-stat-card">
+                    <h4>Weekly Frequency</h4>
+                    <p>{bio.trainingDaysPerWeek || 3} Days / Week</p>
+                  </div>
+                  <div className="bio-stat-card">
+                    <h4>Available Equipment</h4>
+                    <p>{bio.equipmentAccess || 'Full Gym'}</p>
+                  </div>
+                  <div className="bio-stat-card">
+                    <h4>Stamina Push-up Baseline</h4>
+                    <p style={{ color: '#10b981', fontWeight: 'bold' }}>{bio.pushupBaseline || 10} Reps</p>
+                  </div>
+                  <div className="bio-stat-card">
+                    <h4>Target Muscle Focus</h4>
                     <p>{bio.targetMuscles?.length > 0 ? bio.targetMuscles.join(', ') : 'Full Body'}</p>
                   </div>
                   <div className="bio-stat-card">
-                    <h4>Current Weight</h4>
-                    <p>{bio.weight} {bio.units === 'metric' ? 'kg' : 'lbs'}</p>
+                    <h4>Gender</h4>
+                    <p>{bio.gender || 'Not Set'}</p>
                   </div>
                   <div className="bio-stat-card">
-                    <h4>Target Weight</h4>
-                    <p>{bio.targetWeight} {bio.units === 'metric' ? 'kg' : 'lbs'}</p>
+                    <h4>Current Height</h4>
+                    <p>{bio.height ? `${bio.height} ${bio.units === 'imperial' ? 'in' : 'cm'}` : 'Not Set'}</p>
                   </div>
-                  <div className="bio-stat-card full">
-                    <h4>Medical Conditions</h4>
-                    <p>{bio.medicalConditions?.length > 0 ? bio.medicalConditions.join(', ') : 'None Reported'}</p>
-                  </div>
-                  <div className="bio-stat-card full">
-                    <h4>Joint & Muscle Issues</h4>
-                    <p>{bio.injuries?.length > 0 ? bio.injuries.join(', ') : 'None Reported'}</p>
+                  <div className="bio-stat-card">
+                    <h4>Current Weight</h4>
+                    <p>{bio.weight ? `${bio.weight} ${bio.units === 'imperial' ? 'lbs' : 'kg'}` : 'Not Set'}</p>
                   </div>
                 </div>
               )}
