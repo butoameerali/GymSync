@@ -10,7 +10,7 @@ router.route('/')
   .get(protect, getAllComplaints);
 
 router.route('/:id')
-  .put(protect, authorizeRoles('Admin', 'ComplaintModerator'), updateComplaintStatus);
+  .put(protect, authorizeRoles('Admin', 'SuperAdmin', 'ComplaintModerator'), updateComplaintStatus);
 
 router.route('/:id/chat')
   .post(protect, addComplaintChat);

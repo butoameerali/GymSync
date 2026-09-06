@@ -19,7 +19,7 @@ import {
   saveExerciseRecordController,
   getExerciseRecordsController
 } from '../controllers/userController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -40,13 +40,13 @@ router.route('/verify-email-otp')
   .put(protect, verifyEmailOTP);
 
 router.route('/')
-  .get(getUsers);
+  .get(protect, getUsers);
 
 router.route('/dashboard/:name')
-  .get(getUserDashboardData);
+  .get(protect, getUserDashboardData);
 
 router.route('/gym-members/:gymName')
-  .get(getGymMembers);
+  .get(protect, authorizeRoles('GymOwner', 'gym_owner', 'GymTrainer', 'Admin', 'SuperAdmin'), getGymMembers);
 
 router.route('/profile-pic')
   .put(protect, updateProfilePic);

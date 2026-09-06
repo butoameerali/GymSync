@@ -15,9 +15,11 @@ const AITrainer = () => {
   const [favorites, setFavorites] = useState([]);
   const [aiModeChoice, setAiModeChoice] = useState(null); // null | 'with_ai' | 'without_ai'
   
-  // Exercise states
+  // Exercise and set progression states
   const [currentExercise, setCurrentExercise] = useState(null);
   const [reps, setReps] = useState(10);
+  const [currentSet, setCurrentSet] = useState(1);
+  const [setLogs, setSetLogs] = useState([]);
 
   const navigate = useNavigate();
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
@@ -38,6 +40,40 @@ const AITrainer = () => {
     setWorkoutProgress(storedProgress);
     const storedPlan = JSON.parse(localStorage.getItem(`gymsync_${userKey}_ai_plan`) || 'null');
     setAiPlan(storedPlan);
+
+    // Fetch authoritative workout progress from MongoDB
+    if (!isGuest) {
+      fetch('/api/users/workout-progress', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        }
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(serverProgress => {
+          if (serverProgress && serverProgress.completedDays) {
+            setWorkoutProgress(prev => ({
+              ...prev,
+              ...serverProgress,
+              completedDays: serverProgress.completedDays || []
+            }));
+            localStorage.setItem(`gymsync_${userKey}_workout_progress`, JSON.stringify({
+              ...storedProgress,
+              ...serverProgress
+            }));
+          } else if (storedProgress && storedProgress.completedDays?.length) {
+            // One-time fallback sync to server if server is empty
+            fetch('/api/users/workout-progress', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+              },
+              body: JSON.stringify(storedProgress)
+            }).catch(e => console.warn('Sync local progress notice:', e));
+          }
+        })
+        .catch(err => console.error('Fetch server workout progress error:', err));
+    }
 
     localStorage.setItem('gymsync_subscribed', 'true');
     setIsSubscribedState(true);
@@ -207,12 +243,86 @@ const AITrainer = () => {
 
   const startExercise = (exercise) => {
     setCurrentExercise(exercise);
-    setReps(exercise.reps || 10);
-    setAiModeChoice(null);
+    setReps(exercise.reps || exercise.defaultReps || 10);
+    setCurrentSet(1);
+    setSetLogs([]);
+    const isAiAvailable = Boolean(exercise.aiDetection?.enabled || exercise.isAiTrackable);
+    if (!isAiAvailable) {
+      setAiModeChoice('without_ai');
+    } else {
+      setAiModeChoice(null); // Present clean DO WITH AI vs DO WITHOUT AI choice
+    }
+  };
+
+  // Progressive Set Logging Pipeline
+  const handleLogSet = async ({ completedReps = null, mode = 'manual', aiResult = null } = {}) => {
+    if (!currentExercise) return;
+
+    const totalSets = currentExercise.sets || currentExercise.defaultSets || 3;
+    const targetReps = currentExercise.reps || currentExercise.defaultReps || 10;
+    const userReps = mode === 'ai'
+      ? (typeof completedReps === 'number' ? completedReps : 0)
+      : (typeof completedReps === 'number' ? completedReps : (reps || targetReps));
+
+    if (userReps < targetReps) {
+      toast.warning(mode === 'ai'
+        ? `AI tracked ${userReps} of ${targetReps} required reps for Set ${currentSet}. Target not met, but logged!`
+        : `Target was ${targetReps} reps for Set ${currentSet}. You logged ${userReps} reps.`
+      );
+    }
+
+    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+    const dayNum = selectedCalendarDay?.dayNumber || activeWorkoutDay || 1;
+
+    // Send Set Completion to MongoDB /api/users/exercise-record
+    if (!isGuest) {
+      try {
+        await fetch('/api/users/exercise-record', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+          },
+          body: JSON.stringify({
+            exerciseId: currentExercise.id || currentExercise._id || currentExercise.exerciseId || 'EX-GEN',
+            exerciseName: currentExercise.name,
+            dayNumber: dayNum,
+            planId: aiPlan?.planId || null,
+            setNumber: currentSet,
+            totalSets,
+            repsCompleted: userReps,
+            targetReps,
+            pointsEarned: currentExercise.points || 1,
+            mode,
+            aiConfidence: aiResult?.confidence || null,
+            aiResult: aiResult || {}
+          })
+        });
+      } catch (err) {
+        console.warn('Failed to record set on server:', err);
+      }
+    }
+
+    const updatedLogs = [...setLogs, { setNumber: currentSet, repsCompleted: userReps, mode }];
+    setSetLogs(updatedLogs);
+
+    if (currentSet < totalSets) {
+      const nextSet = currentSet + 1;
+      setCurrentSet(nextSet);
+      toast.success(`Set ${currentSet} of ${totalSets} logged (${userReps} reps)! Rest up for Set ${nextSet}.`);
+    } else {
+      // All sets complete! Trigger full exercise completion
+      completeExercise({
+        exercise: currentExercise,
+        mode,
+        completedReps: userReps,
+        aiResult
+      });
+    }
   };
 
   // Unified Exercise Completion Pipeline
-  const completeExercise = ({ exercise = currentExercise, mode = 'manual', completedReps = null, aiResult = null }) => {
+  const completeExercise = async ({ exercise = currentExercise, mode = 'manual', completedReps = null, aiResult = null }) => {
     const exToComplete = exercise || currentExercise;
     if (!exToComplete) return;
 
@@ -222,21 +332,12 @@ const AITrainer = () => {
       return;
     }
 
-    const targetReps = exToComplete.reps || 10;
-    const userReps = mode === 'ai'
-      ? (typeof completedReps === 'number' ? completedReps : 0)
-      : (typeof completedReps === 'number' ? completedReps : (reps || targetReps));
-
-    if (userReps < targetReps) {
-      toast.warning(mode === 'ai' 
-        ? `AI tracked ${userReps} of ${targetReps} required reps. Please complete all target reps to finish this exercise!`
-        : `Target is ${targetReps} reps. You entered ${userReps} reps. Please complete all required reps!`
-      );
-      return;
-    }
+    const totalSets = exToComplete.sets || exToComplete.defaultSets || 3;
+    const targetReps = exToComplete.reps || exToComplete.defaultReps || 10;
+    const userReps = typeof completedReps === 'number' ? completedReps : (reps || targetReps);
 
     const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
-    const pointsEarned = exToComplete.points || 1;
+    const pointsEarned = (exToComplete.points || 1) * totalSets;
     const isAssignedWorkoutEx = exToComplete.aiWorkoutIndex !== undefined;
 
     // 1. History Record
@@ -248,7 +349,8 @@ const AITrainer = () => {
       pointsEarned,
       trackedViaAI: mode === 'ai',
       aiResult,
-      completedReps: userReps
+      completedReps: userReps,
+      totalSets
     });
     localStorage.setItem(storageKey, JSON.stringify(history));
 
@@ -269,6 +371,7 @@ const AITrainer = () => {
         exerciseId: exToComplete.id || exToComplete._id || `ex_${exIndex}`,
         exerciseIndex: exIndex,
         completedReps: userReps,
+        totalSets,
         targetReps,
         completedAt: new Date().toISOString(),
         mode
@@ -287,18 +390,42 @@ const AITrainer = () => {
 
       setWorkoutProgress(newProgress);
       localStorage.setItem(`gymsync_${userKey}_workout_progress`, JSON.stringify(newProgress));
+
+      // Persist to server /api/users/workout-progress
+      if (!isGuest) {
+        try {
+          await fetch('/api/users/workout-progress', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+            },
+            body: JSON.stringify({
+              planId: aiPlan.planId,
+              completedDays: newProgress.completedDays || [],
+              lastWorkoutCompletionTime: newProgress.lastWorkoutCompletionTime,
+              streak: parseInt(localStorage.getItem(`gymsync_${userKey}_streak`) || '0'),
+              totalPoints: parseInt(localStorage.getItem(`gymsync_${userKey}_points`) || '0')
+            })
+          });
+        } catch (saveErr) {
+          console.warn('Sync workout progress notice:', saveErr);
+        }
+      }
     }
 
     toast.success(mode === 'ai' 
-      ? `AI Pose Tracked! Logged ${userReps} reps with ${Math.round((aiResult?.confidence || 0.85) * 100)}% accuracy. +${pointsEarned} pt.`
-      : `Exercise Completed! Logged ${userReps} reps. +${pointsEarned} pt.`
+      ? `AI Pose Tracked! All ${totalSets} sets finished with ${Math.round((aiResult?.confidence || 0.85) * 100)}% accuracy. +${pointsEarned} pt.`
+      : `Exercise Finished! All ${totalSets} sets completed. +${pointsEarned} pt.`
     );
 
     setCurrentExercise(null);
     setAiModeChoice(null);
+    setCurrentSet(1);
+    setSetLogs([]);
   };
 
-  const completeActiveWorkout = () => {
+  const completeActiveWorkout = async () => {
     if (!activeWorkoutDay || !selectedCalendarDay) return;
 
     const { status } = getDayScheduleInfo(selectedCalendarDay);
@@ -327,16 +454,6 @@ const AITrainer = () => {
     const newCompletedDays = [...(workoutProgress.completedDays || []), activeWorkoutDay];
     const timestamp = new Date().toISOString();
     
-    const newProgress = {
-      ...workoutProgress,
-      planId: aiPlan?.planId,
-      completedDays: newCompletedDays,
-      lastWorkoutCompletionTime: timestamp
-    };
-    
-    setWorkoutProgress(newProgress);
-    localStorage.setItem(`gymsync_${userKey}_workout_progress`, JSON.stringify(newProgress));
-    
     // Streak logic (once per calendar day)
     const lastStreakDate = localStorage.getItem(`gymsync_${userKey}_last_streak_date`);
     const todayStr = new Date().toDateString();
@@ -349,8 +466,42 @@ const AITrainer = () => {
     }
 
     // Award +50 XP
-    const currentPoints = parseInt(localStorage.getItem(`gymsync_${userKey}_points`) || '0');
-    localStorage.setItem(`gymsync_${userKey}_points`, (currentPoints + 50).toString());
+    const currentPoints = parseInt(localStorage.getItem(`gymsync_${userKey}_points`) || '0') + 50;
+    localStorage.setItem(`gymsync_${userKey}_points`, currentPoints.toString());
+
+    const newProgress = {
+      ...workoutProgress,
+      planId: aiPlan?.planId,
+      completedDays: newCompletedDays,
+      lastWorkoutCompletionTime: timestamp,
+      streak: currentStreak,
+      totalPoints: currentPoints
+    };
+    
+    setWorkoutProgress(newProgress);
+    localStorage.setItem(`gymsync_${userKey}_workout_progress`, JSON.stringify(newProgress));
+
+    // Authoritative Server Persistence
+    if (!isGuest) {
+      try {
+        await fetch('/api/users/workout-progress', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+          },
+          body: JSON.stringify({
+            planId: aiPlan?.planId,
+            completedDays: newCompletedDays,
+            lastWorkoutCompletionTime: timestamp,
+            streak: currentStreak,
+            totalPoints: currentPoints
+          })
+        });
+      } catch (err) {
+        console.warn('Server workout-progress save error:', err);
+      }
+    }
     
     setActiveWorkoutDay(null);
     toast.success(`🎉 Workout Day ${activeWorkoutDay} Completed! You earned +50 XP & extended your streak!`);
@@ -383,16 +534,113 @@ const AITrainer = () => {
         {/* EXERCISE DETAIL VIEW WITH VIDEO / GIF DEMONSTRATION & STEP-BY-STEP INSTRUCTIONS */}
         {currentExercise && (() => {
           const isAiEnabled = Boolean(currentExercise.aiDetection?.enabled || currentExercise.isAiTrackable);
+          const isAssigned = currentExercise.aiWorkoutIndex !== undefined;
+          const totalSets = currentExercise.sets || currentExercise.defaultSets || 3;
+          const targetReps = currentExercise.reps || currentExercise.defaultReps || 10;
 
+          // Choice View: For AI-trackable assigned exercises when no choice made yet
+          if (isAssigned && isAiEnabled && aiModeChoice === null) {
+            return (
+              <div className="active-exercise-view glass-panel" style={{border: '1px solid #3b82f6', boxShadow: '0 8px 30px rgba(59,130,246,0.2)'}}>
+                <div className="view-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+                  <div>
+                    <h2 style={{ fontSize: '1.6rem', color: 'var(--text-primary)', margin: 0 }}>{currentExercise.name}</h2>
+                    <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                      Target: <strong>{totalSets} Sets × {targetReps} Reps</strong>
+                    </p>
+                  </div>
+                  <button className="btn btn-outline btn-sm" onClick={() => setCurrentExercise(null)}>✕ Close</button>
+                </div>
+
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '32px 24px', borderRadius: '16px', border: '1px solid var(--card-border)', textAlign: 'center' }}>
+                  <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-primary)' }}>Choose Exercise Execution Mode</h3>
+                  <p style={{ margin: '0 auto 26px auto', color: 'var(--text-secondary)', fontSize: '0.92rem', maxWidth: '520px' }}>
+                    This exercise has certified computer vision AI pose detection available. Choose how you would like to complete today's workout:
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', maxWidth: '640px', margin: '0 auto' }}>
+                    <button 
+                      className="btn btn-primary" 
+                      style={{ padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', borderRadius: '14px', textAlign: 'center' }}
+                      onClick={() => setAiModeChoice('with_ai')}
+                    >
+                      <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Camera size={28} />
+                      </div>
+                      <strong style={{ fontSize: '1.2rem' }}>DO WITH AI</strong>
+                      <span style={{ fontSize: '0.82rem', opacity: 0.9, lineHeight: 1.4 }}>
+                        Live camera pose tracking, automatic landmark checking & rep counting
+                      </span>
+                    </button>
+
+                    <button 
+                      className="btn btn-outline" 
+                      style={{ padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', borderRadius: '14px', textAlign: 'center' }}
+                      onClick={() => setAiModeChoice('without_ai')}
+                    >
+                      <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <FileText size={28} />
+                      </div>
+                      <strong style={{ fontSize: '1.2rem' }}>DO WITHOUT AI</strong>
+                      <span style={{ fontSize: '0.82rem', opacity: 0.85, lineHeight: 1.4 }}>
+                        Self-paced sets, manual set tracking per set, and direct logging
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // AI Tracking Mode
           if (isAiEnabled && aiModeChoice === 'with_ai') {
             return (
               <div className="active-exercise-view glass-panel" style={{border: '1px solid #3b82f6', boxShadow: '0 8px 30px rgba(59,130,246,0.2)'}}>
                 <div className="view-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
                   <div>
-                    <h2>{currentExercise.name} (AI Tracking Mode)</h2>
+                    <h2 style={{ margin: 0 }}>{currentExercise.name} (AI Tracking Mode)</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                      <span className="category-badge" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', fontWeight: 600 }}>
+                        Set {currentSet} of {totalSets}
+                      </span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Target: {targetReps} reps per set
+                      </span>
+                    </div>
                   </div>
-                  <button className="btn btn-outline btn-sm" onClick={() => setCurrentExercise(null)}>✕ Close</button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => setAiModeChoice('without_ai')}>
+                      Switch to Manual Mode
+                    </button>
+                    <button className="btn btn-outline btn-sm" onClick={() => setCurrentExercise(null)}>✕ Close</button>
+                  </div>
                 </div>
+
+                {/* Progressive Set Indicator Pills */}
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '16px' }}>
+                  {Array.from({ length: totalSets }).map((_, idx) => {
+                    const sNum = idx + 1;
+                    const isDone = sNum < currentSet;
+                    const isCurrent = sNum === currentSet;
+                    return (
+                      <div 
+                        key={sNum}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '20px',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          background: isDone ? 'rgba(16, 185, 129, 0.2)' : isCurrent ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255,255,255,0.05)',
+                          color: isDone ? '#10b981' : isCurrent ? '#60a5fa' : 'var(--text-secondary)',
+                          border: isCurrent ? '1px solid #3b82f6' : '1px solid transparent'
+                        }}
+                      >
+                        {isDone ? '✓ ' : ''}Set {sNum} of {totalSets}
+                      </div>
+                    );
+                  })}
+                </div>
+
                 <AIDetectorContainer
                   detectorId={currentExercise.aiDetection?.detectorId || 'pushup_v1'}
                   exerciseName={currentExercise.name}
@@ -400,7 +648,7 @@ const AITrainer = () => {
                     const detectedReps = typeof result?.reps === 'number'
                       ? result.reps
                       : (typeof result?.repCount === 'number' ? result.repCount : (typeof result?.count === 'number' ? result.count : 0));
-                    completeExercise({ mode: 'ai', completedReps: detectedReps, aiResult: result });
+                    handleLogSet({ mode: 'ai', completedReps: detectedReps, aiResult: result });
                   }}
                   onFallbackToManual={() => setAiModeChoice('without_ai')}
                 />
@@ -408,7 +656,7 @@ const AITrainer = () => {
             );
           }
 
-          const isAssigned = currentExercise.aiWorkoutIndex !== undefined;
+          // Manual Mode / Library Detail View
           const rawMedia = currentExercise.mediaUrl || currentExercise.gifUrl || currentExercise.videoUrl || (currentExercise.video !== 'none' ? currentExercise.video : null);
           const hasMedia = rawMedia && rawMedia !== 'none';
           const isVideoMedia = hasMedia && (rawMedia.endsWith('.mp4') || rawMedia.endsWith('.webm') || rawMedia.endsWith('.ogg') || rawMedia.includes('youtube.com') || rawMedia.includes('youtu.be'));
@@ -417,7 +665,7 @@ const AITrainer = () => {
             <div className="active-exercise-view glass-panel" style={{border: '1px solid #3b82f6', boxShadow: '0 8px 30px rgba(59,130,246,0.2)'}}>
               <div className="view-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                 <div>
-                  <h2 style={{ fontSize: '1.6rem', color: 'var(--text-primary)' }}>{currentExercise.name}</h2>
+                  <h2 style={{ fontSize: '1.6rem', color: 'var(--text-primary)', margin: 0 }}>{currentExercise.name}</h2>
                   <div style={{display: 'flex', gap: '10px', marginTop: '8px', flexWrap: 'wrap'}}>
                     <span className="category-badge" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa' }}>
                       Target: {Array.isArray(currentExercise.targetMuscles) ? currentExercise.targetMuscles.join(', ') : (currentExercise.category || 'General')}
@@ -498,23 +746,78 @@ const AITrainer = () => {
                     <strong style={{ fontSize: '0.9rem', color: '#f59e0b' }}>{currentExercise.equipmentRequired || currentExercise.equipment || 'Bodyweight'}</strong>
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid var(--card-border)' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>{isAssigned ? 'Reward' : 'Mode'}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>{isAssigned ? 'Target Split' : 'Mode'}</span>
                     <strong style={{ fontSize: '0.9rem', color: isAssigned ? '#10b981' : '#60a5fa' }}>
-                      {isAssigned ? `+${currentExercise.points || 1} XP / Point` : 'Educational Guide'}
+                      {isAssigned ? `${totalSets} Sets × ${targetReps} Reps` : 'Educational Guide'}
                     </strong>
                   </div>
                 </div>
 
+                {/* PROGRESSIVE SETS LOGGING SECTION */}
                 {isAssigned && (
-                  <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginTop: '24px'}}>
-                    <label style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>Target Completed Reps (Target: {currentExercise.reps || 10})</label>
-                    <input 
-                      type="number" 
-                      min="1" 
-                      value={reps} 
-                      onChange={e => setReps(parseInt(e.target.value) || 0)}
-                      style={{fontSize: '2rem', fontWeight: 'bold', width: '130px', textAlign: 'center', background: 'rgba(0,0,0,0.4)', color: '#10b981', border: '2px solid #10b981', padding: '8px', borderRadius: '12px'}}
-                    />
+                  <div style={{ marginTop: '24px', background: 'rgba(0,0,0,0.25)', padding: '20px', borderRadius: '12px', border: '1px solid var(--card-border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        Progressive Sets ({currentSet} of {totalSets})
+                      </span>
+                      {setLogs.length > 0 && (
+                        <span style={{ fontSize: '0.8rem', color: '#10b981' }}>
+                          ✓ {setLogs.length} set(s) completed
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Set Progress Badges */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                      {Array.from({ length: totalSets }).map((_, idx) => {
+                        const sNum = idx + 1;
+                        const isDone = sNum < currentSet;
+                        const isCurrent = sNum === currentSet;
+                        const log = setLogs.find(l => l.setNumber === sNum);
+                        return (
+                          <div 
+                            key={sNum}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: '8px',
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              background: isDone ? 'rgba(16, 185, 129, 0.2)' : isCurrent ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.03)',
+                              color: isDone ? '#10b981' : isCurrent ? '#60a5fa' : 'var(--text-secondary)',
+                              border: isCurrent ? '1px solid #3b82f6' : '1px solid var(--card-border)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            {isDone ? <CheckCircle size={14} /> : null} Set {sNum} {log ? `(${log.repsCompleted}r)` : `(${targetReps}r)`}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                          Reps for Set {currentSet}
+                        </label>
+                        <input 
+                          type="number" 
+                          min="1" 
+                          value={reps} 
+                          onChange={e => setReps(parseInt(e.target.value) || 0)}
+                          style={{ fontSize: '1.4rem', fontWeight: 'bold', width: '100px', textAlign: 'center', background: 'rgba(0,0,0,0.4)', color: '#10b981', border: '2px solid #10b981', padding: '6px', borderRadius: '10px' }}
+                        />
+                      </div>
+
+                      <button 
+                        className="btn btn-primary" 
+                        style={{ flex: 1, minWidth: '220px', height: '48px', marginTop: '20px' }}
+                        onClick={() => handleLogSet({ completedReps: reps, mode: 'manual' })}
+                      >
+                        <CheckCircle size={18} /> {currentSet === totalSets ? `Log Final Set & Finish Exercise` : `Log Set ${currentSet} of ${totalSets}`}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -527,15 +830,12 @@ const AITrainer = () => {
                   </button>
                 ) : (
                   <>
-                    <button className="btn btn-success" style={{ flex: 1, minWidth: '200px' }} onClick={() => completeExercise({ mode: 'manual', completedReps: reps })}>
-                      <CheckCircle size={20}/> Log Reps & Complete
-                    </button>
                     {isAiEnabled && (
-                      <button className="btn btn-primary" style={{ flex: 1, minWidth: '200px' }} onClick={() => setAiModeChoice('with_ai')}>
-                        <Camera size={20} /> Start AI Camera Tracking
+                      <button className="btn btn-outline" style={{ flex: 1, minWidth: '180px' }} onClick={() => setAiModeChoice('with_ai')}>
+                        <Camera size={18} /> Switch to AI Camera
                       </button>
                     )}
-                    <button className="btn btn-outline" style={{ minWidth: '120px' }} onClick={() => setCurrentExercise(null)}>
+                    <button className="btn btn-outline" style={{ minWidth: '100px' }} onClick={() => setCurrentExercise(null)}>
                       Close
                     </button>
                   </>

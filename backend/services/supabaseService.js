@@ -212,7 +212,7 @@ export const removePost = async (postId, userName, isModerator) => {
 // 2. EXERCISES SERVICE
 // ==============================================================================
 
-export const fetchAllExercises = async ({ search, category, equipment } = {}) => {
+export const fetchAllExercises = async ({ search, category, equipment, status, includeArchived } = {}) => {
   if (isSupabaseConfigured() && supabase) {
     try {
       let query = supabase.from('exercises').select('*');
@@ -228,6 +228,11 @@ export const fetchAllExercises = async ({ search, category, equipment } = {}) =>
           query = query.ilike('equipment_required', '%bodyweight%');
         }
       }
+      if (status) {
+        query = query.eq('status', status);
+      } else if (!includeArchived) {
+        query = query.neq('status', 'archived');
+      }
 
       const { data, error } = await query.order('name', { ascending: true }).limit(800);
 
@@ -237,14 +242,20 @@ export const fetchAllExercises = async ({ search, category, equipment } = {}) =>
           id: e.id,
           exerciseId: e.exercise_id,
           name: e.name,
+          category: e.category || 'Chest',
           targetMuscles: e.target_muscles || [],
           equipmentRequired: e.equipment_required,
           difficulty: e.difficulty,
+          defaultSets: e.default_sets || 3,
+          defaultReps: e.default_reps || 10,
+          defaultDuration: e.default_duration || 0,
+          instructions: e.instructions || '',
           fitnessPaths: e.fitness_paths || [],
           medicalAvoidIf: e.medical_avoid_if || [],
           jointPainAvoidIf: e.joint_pain_avoid_if || [],
           mediaUrl: e.media_url,
           description: e.description,
+          status: e.status || 'active',
           isAiTrackable: e.is_ai_trackable,
           aiDetection: e.ai_detection || { enabled: false }
         }));
@@ -271,6 +282,11 @@ export const fetchAllExercises = async ({ search, category, equipment } = {}) =>
       mongoQuery.equipmentRequired = { $regex: 'bodyweight|none', $options: 'i' };
     }
   }
+  if (status) {
+    mongoQuery.status = status;
+  } else if (!includeArchived) {
+    mongoQuery.status = { $ne: 'archived' };
+  }
 
   return await Exercise.find(mongoQuery).sort({ name: 1 }).limit(800);
 };
@@ -281,20 +297,35 @@ export const insertExercise = async (exerciseData) => {
       const row = {
         exercise_id: exerciseData.exerciseId || `EX-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
         name: exerciseData.name,
+        category: exerciseData.category || 'Chest',
         target_muscles: exerciseData.targetMuscles || [],
         equipment_required: exerciseData.equipmentRequired || 'Bodyweight',
         difficulty: exerciseData.difficulty || 'Beginner',
+        default_sets: exerciseData.defaultSets || 3,
+        default_reps: exerciseData.defaultReps || 10,
+        default_duration: exerciseData.defaultDuration || 0,
+        instructions: exerciseData.instructions || '',
         fitness_paths: exerciseData.fitnessPaths || [],
         medical_avoid_if: exerciseData.medicalAvoidIf || [],
         joint_pain_avoid_if: exerciseData.jointPainAvoidIf || [],
         media_url: exerciseData.mediaUrl || '',
         description: exerciseData.description || '',
+        status: exerciseData.status || 'active',
         is_ai_trackable: Boolean(exerciseData.aiDetection?.enabled),
         ai_detection: exerciseData.aiDetection || { enabled: false }
       };
 
       const { data, error } = await supabase.from('exercises').insert([row]).select().single();
       if (!error && data) {
+        try {
+          const mongoDoc = await Exercise.create({
+            ...exerciseData,
+            exerciseId: row.exercise_id
+          });
+          return mongoDoc;
+        } catch (mErr) {
+          console.warn('[MongoDB insertExercise sync error]:', mErr.message);
+        }
         return {
           _id: data.id,
           id: data.id,

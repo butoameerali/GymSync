@@ -27,6 +27,7 @@ const GymOwnerDashboard = lazy(() => import('./pages/GymOwner/GymOwnerDashboard'
 const FitnessInstructorDashboard = lazy(() => import('./pages/FitnessInstructor/FitnessInstructorDashboard'));
 const GymTrainerDashboard = lazy(() => import('./pages/GymTrainer/GymTrainerDashboard'));
 const StoreManagerDashboard = lazy(() => import('./pages/StoreManager/StoreManagerDashboard'));
+const ComplaintModeratorDashboard = lazy(() => import('./pages/ComplaintModerator/ComplaintModeratorDashboard'));
 const UserDashboard = lazy(() => import('./pages/User/UserDashboard'));
 const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage'));
 const MessagesPage = lazy(() => import('./pages/Messages/MessagesPage'));
@@ -78,8 +79,11 @@ function App() {
               <Route path="/login" element={<AuthPortal />} />
               <Route path="/register" element={<AuthPortal />} />
               <Route path="/forgot-password" element={<AuthPortal />} />
-              <Route path="/ai-trainer" element={<AITrainer />} />
-              <Route path="/running" element={<RunningTracker />} />
+              
+              {/* Trainee Workout Routes guarded from Guest access */}
+              <Route path="/ai-trainer" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin', 'GymTrainer', 'FitnessInstructor']}><AITrainer /></ProtectedRoute>} />
+              <Route path="/running" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin']}><RunningTracker /></ProtectedRoute>} />
+              
               <Route path="/explore" element={<ExploreGyms />} />
               <Route path="/gym/:id" element={<GymDetails />} />
               
@@ -91,7 +95,8 @@ function App() {
               <Route path="/chat" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/your-gym" element={<ProtectedRoute><YourGym /></ProtectedRoute>} />
-              <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin', 'ComplaintModerator']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/moderator" element={<ProtectedRoute allowedRoles={['ComplaintModerator', 'Admin', 'SuperAdmin']}><ComplaintModeratorDashboard /></ProtectedRoute>} />
               <Route path="/gym-owner" element={<ProtectedRoute allowedRoles={['GymOwner', 'gym_owner']}><GymOwnerDashboard /></ProtectedRoute>} />
               <Route path="/fitness-instructor" element={<ProtectedRoute allowedRoles={['FitnessInstructor', 'Admin', 'SuperAdmin']}><FitnessInstructorDashboard /></ProtectedRoute>} />
               <Route path="/gym-trainer" element={<ProtectedRoute allowedRoles={['GymTrainer', 'GymOwner', 'gym_owner']}><GymTrainerDashboard /></ProtectedRoute>} />

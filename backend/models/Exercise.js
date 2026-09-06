@@ -11,6 +11,11 @@ const exerciseSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  category: {
+    type: String,
+    enum: ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Cardio', 'Full Body', 'Other'],
+    default: 'Chest'
+  },
   targetMuscles: [{
     type: String
   }],
@@ -22,6 +27,22 @@ const exerciseSchema = new mongoose.Schema({
     type: String,
     enum: ['Beginner', 'Intermediate', 'Advanced'],
     default: 'Beginner'
+  },
+  defaultSets: {
+    type: Number,
+    default: 3
+  },
+  defaultReps: {
+    type: Number,
+    default: 10
+  },
+  defaultDuration: {
+    type: Number,
+    default: 0
+  },
+  instructions: {
+    type: String,
+    default: ''
   },
   fitnessPaths: [{
     type: String
@@ -40,6 +61,12 @@ const exerciseSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  status: {
+    type: String,
+    enum: ['active', 'archived'],
+    default: 'active',
+    index: true
+  },
   isAiTrackable: {
     type: Boolean,
     default: false
@@ -48,6 +75,14 @@ const exerciseSchema = new mongoose.Schema({
     enabled: { type: Boolean, default: false },
     detectorId: { type: String, default: null },
     detectorVersion: { type: String, default: null }
+  },
+  createdBy: {
+    type: String,
+    default: 'System'
+  },
+  updatedBy: {
+    type: String,
+    default: 'System'
   }
 }, { timestamps: true });
 

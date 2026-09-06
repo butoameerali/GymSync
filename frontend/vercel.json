@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://gym-sync-hazel.vercel.app/api/:path*"
+      "destination": "https://gymsync-40e8b.web.app/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://gym-sync-hazel.vercel.app/uploads/:path*"
+      "destination": "https://gymsync-40e8b.web.app/uploads/:path*"
     },
     {
       "source": "/(.*)",

@@ -4,6 +4,7 @@ dotenv.config({ path: path.resolve(process.cwd(), 'backend/.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 import express from 'express';
 import cors from 'cors';
+import { onRequest } from 'firebase-functions/v2/https';
 import connectDB from './config/db.js';
 import { securityHeaders, rateLimiter } from './middleware/securityMiddleware.js';
 
@@ -62,6 +63,8 @@ app.use(cors({
     if (
       origin.startsWith('http://localhost') ||
       origin.startsWith('http://127.0.0.1') ||
+      origin.endsWith('.netlify.app') ||
+      origin.endsWith('.vercel.app') ||
       allowedOrigins.includes(origin)
     ) {
       return callback(null, true);
@@ -73,6 +76,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-name', 'x-user-role']
 }));
 app.use(express.json());
+
+// Normalization: Ensure requests without /api (e.g. direct Cloud Function invocations) route to /api
+app.use((req, res, next) => {
+  if (!req.url.startsWith('/api') && req.url !== '/' && !req.url.startsWith('/uploads')) {
+    req.url = '/api' + req.url;
+  }
+  next();
+});
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Apply rate limiter to auth & AI endpoints
@@ -104,11 +116,23 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-if (process.env.NODE_ENV !== 'test') {
+// Guard local server listen so it only runs in standalone local node environments
+if (process.env.NODE_ENV !== 'test' && !process.env.FUNCTION_TARGET && !process.env.K_SERVICE) {
   app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
   });
 }
+
+// Export Firebase Cloud Functions v2 HTTPS handler
+export const api = onRequest(
+  {
+    cors: true,
+    maxInstances: 10,
+    timeoutSeconds: 60,
+    memory: '512MiB'
+  },
+  app
+);
 
 export default app;
 

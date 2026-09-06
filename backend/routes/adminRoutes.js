@@ -35,7 +35,7 @@ router.get('/users', authorizeRoles('SuperAdmin', 'Admin'), getAllUsers);
 router.put('/users/:id/role', authorizeRoles('SuperAdmin', 'Admin'), updateUserRole);
 router.put('/users/:id', authorizeRoles('SuperAdmin', 'Admin'), updateUserDetails);
 router.delete('/users/:id', authorizeRoles('SuperAdmin', 'Admin'), deleteUserByAdmin);
-router.put('/users/:id/ban', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), toggleUserBan);
+router.put('/users/:id/ban', authorizeRoles('SuperAdmin', 'Admin'), toggleUserBan);
 
 // Gym Approvals
 router.get('/gyms/pending', authorizeRoles('SuperAdmin', 'Admin'), getPendingGymApprovals);

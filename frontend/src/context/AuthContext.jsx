@@ -9,8 +9,11 @@ export const useAuth = () => useContext(AuthContext);
 export const getRoleRedirectPath = (role) => {
   if (!role) return '/home';
   const normalized = role.toLowerCase().replace(/[_\s]/g, '');
-  if (normalized === 'admin' || normalized === 'superadmin' || normalized === 'complaintmoderator') {
+  if (normalized === 'admin' || normalized === 'superadmin') {
     return '/admin';
+  }
+  if (normalized === 'complaintmoderator') {
+    return '/moderator';
   }
   if (normalized === 'gymowner') {
     return '/gym-owner';

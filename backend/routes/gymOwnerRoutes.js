@@ -21,10 +21,10 @@ router.use(protect);
 
 // Trainers may assign and view plans, but cannot modify a gym or owner-managed accounts.
 router.route('/plans')
-  .get(authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'GymTrainer'), getGymPlans)
-  .post(authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'GymTrainer'), createMemberPlan);
+  .get(authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin', 'GymTrainer'), getGymPlans)
+  .post(authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin', 'GymTrainer'), createMemberPlan);
 
-router.use(authorizeRoles('GymOwner', 'gym_owner', 'Admin'));
+router.use(authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin'));
 
 router.get('/dashboard/:ownerName', getGymOwnerDashboard);
 router.put('/gym/:id', updateGymProfile);

@@ -21,7 +21,8 @@ const MOCK_COMPLAINTS = [
 // @access  Private / User
 export const createComplaint = async (req, res) => {
   try {
-    const { reporterName, reportedEntityType, reportedEntityId, reportedEntityTitle, reason, description } = req.body;
+    const { reportedEntityType, reportedEntityId, reportedEntityTitle, reason, description } = req.body;
+    const reporterName = req.user?.name || req.body.reporterName;
     let evidenceUrls = [];
     if (req.file) {
       if (req.file.buffer) {

@@ -151,6 +151,23 @@ const Profile = () => {
           setWorkoutProgress(JSON.parse(storedProgress));
         } catch (e) {}
       }
+
+      // Fetch authoritative workout progress from server
+      if (userName !== 'Guest User') {
+        fetch('/api/users/workout-progress', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+          }
+        })
+          .then(res => res.ok ? res.json() : null)
+          .then(srvProg => {
+            if (srvProg && srvProg.completedDays) {
+              setWorkoutProgress(srvProg);
+              localStorage.setItem(`gymsync_${userKey}_workout_progress`, JSON.stringify(srvProg));
+            }
+          })
+          .catch(err => console.warn("Error fetching workout progress from server:", err));
+      }
     };
 
     loadBioData();

@@ -1,3 +1,84 @@
+.fitness-instructor-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.exercise-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.exercise-card {
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.exercise-card:hover {
+  border-color: var(--primary-accent, #6366f1);
+  transform: translateY(-2px);
+}
+
+.exercise-card.archived {
+  opacity: 0.8;
+  border-style: dashed;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.ex-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  gap: 10px;
+}
+
+.ex-card-header h4 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--primary-accent, #6366f1);
+}
+
+.category-badge.archived-badge {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.category-badge.active-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.category-badge.ai-badge {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a855f7;
+}
+
+.ex-instructions {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
 .instructor-dashboard-page {
   min-height: 85vh;
 }

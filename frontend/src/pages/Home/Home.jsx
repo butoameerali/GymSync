@@ -49,7 +49,8 @@ const Home = () => {
       .then(data => setPosts(data))
       .finally(() => setLoading(false));
       
-    fetch('/api/users')
+    const token = localStorage.getItem('gymsync_token');
+    fetch('/api/users', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       .then(res => res.ok ? res.json() : [])
       .then(users => {
         const userMap = {};

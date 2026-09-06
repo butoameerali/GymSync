@@ -1,0 +1,23 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Proxy backend API requests to Firebase Hosting domain
+[[redirects]]
+  from = "/api/*"
+  to = "https://gymsync-40e8b.web.app/api/:splat"
+  status = 200
+  force = true
+
+# Proxy static uploads if applicable
+[[redirects]]
+  from = "/uploads/*"
+  to = "https://gymsync-40e8b.web.app/uploads/:splat"
+  status = 200
+  force = true
+
+# Single Page Application (SPA) client-side routing fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

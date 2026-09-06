@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Dumbbell, Plus, Edit2, Trash2, Calendar, Utensils, 
-  MessageSquare, CheckCircle, Search, FileText, Activity, AlertCircle, RefreshCw 
+  MessageSquare, CheckCircle, Search, FileText, Activity, AlertCircle, RefreshCw,
+  Archive, RotateCcw, Cpu, ShieldCheck
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import DashboardShell from '../../components/layout/DashboardShell';
@@ -9,6 +10,14 @@ import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import './FitnessInstructorDashboard.css';
+
+const REGISTERED_DETECTORS = [
+  { id: 'pushup_v1', name: 'Push-Up Rep & Form Detector (v1.0)', version: '1.0' },
+  { id: 'running_v1', name: 'Running Cadence & Gait Detector (v1.0)', version: '1.0' },
+  { id: 'squat_v1', name: 'Squat Depth & Hip Alignment Detector (v1.0)', version: '1.0' },
+  { id: 'plank_v1', name: 'Plank Hold Duration & Posture Detector (v1.0)', version: '1.0' },
+  { id: 'jumping_jack_v1', name: 'Jumping Jack Cadence Detector (v1.0)', version: '1.0' }
+];
 
 const FitnessInstructorDashboard = () => {
   const instructorName = localStorage.getItem('gymsync_user_name') || 'Fitness Instructor';
@@ -29,6 +38,7 @@ const FitnessInstructorDashboard = () => {
   // Search & Filter
   const [search, setSearch] = useState('');
   const [exerciseCategory, setExerciseCategory] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'archived' | 'all'
 
   // Exercise Form Modal
   const [editingEx, setEditingEx] = useState(null);
@@ -37,10 +47,19 @@ const FitnessInstructorDashboard = () => {
     name: '',
     category: 'Chest',
     targetMuscles: 'Chest, Triceps',
-    equipmentRequired: 'Dumbbells',
-    difficulty: 'Intermediate',
+    equipmentRequired: 'Bodyweight',
+    difficulty: 'Beginner',
+    defaultSets: 3,
+    defaultReps: 10,
+    defaultDuration: 0,
     instructions: '',
-    mediaUrl: ''
+    description: '',
+    mediaUrl: '',
+    aiDetection: {
+      enabled: false,
+      detectorId: 'pushup_v1',
+      detectorVersion: '1.0'
+    }
   });
 
   // Program Form Modal
@@ -93,7 +112,7 @@ const FitnessInstructorDashboard = () => {
     setError(null);
     try {
       const [exRes, progRes, dietRes, artRes, reqRes] = await Promise.all([
-        fetch('/api/exercises'),
+        fetch('/api/exercises?includeArchived=true'),
         fetch('/api/plans/premade?type=Workout'),
         fetch('/api/plans/premade?type=Diet'),
         fetch('/api/articles'),
@@ -118,7 +137,7 @@ const FitnessInstructorDashboard = () => {
   }, [fetchData]);
 
   // ==========================================
-  // EXERCISES CRUD
+  // EXERCISES CRUD & ARCHIVE MANAGEMENT
   // ==========================================
   const handleOpenExModal = (ex = null) => {
     if (ex) {
@@ -127,10 +146,19 @@ const FitnessInstructorDashboard = () => {
         name: ex.name || '',
         category: ex.category || (Array.isArray(ex.targetMuscles) ? ex.targetMuscles[0] : 'Chest'),
         targetMuscles: Array.isArray(ex.targetMuscles) ? ex.targetMuscles.join(', ') : (ex.targetMuscles || ''),
-        equipmentRequired: ex.equipmentRequired || 'Dumbbells',
-        difficulty: ex.difficulty || 'Intermediate',
+        equipmentRequired: ex.equipmentRequired || 'Bodyweight',
+        difficulty: ex.difficulty || 'Beginner',
+        defaultSets: ex.defaultSets || 3,
+        defaultReps: ex.defaultReps || 10,
+        defaultDuration: ex.defaultDuration || 0,
         instructions: ex.instructions || ex.description || '',
-        mediaUrl: ex.mediaUrl || ''
+        description: ex.description || '',
+        mediaUrl: ex.mediaUrl || '',
+        aiDetection: {
+          enabled: Boolean(ex.aiDetection?.enabled || ex.isAiTrackable),
+          detectorId: ex.aiDetection?.detectorId || 'pushup_v1',
+          detectorVersion: ex.aiDetection?.detectorVersion || '1.0'
+        }
       });
     } else {
       setEditingEx(null);
@@ -138,10 +166,19 @@ const FitnessInstructorDashboard = () => {
         name: '',
         category: 'Chest',
         targetMuscles: 'Chest, Triceps',
-        equipmentRequired: 'Dumbbells',
-        difficulty: 'Intermediate',
+        equipmentRequired: 'Bodyweight',
+        difficulty: 'Beginner',
+        defaultSets: 3,
+        defaultReps: 10,
+        defaultDuration: 0,
         instructions: '',
-        mediaUrl: ''
+        description: '',
+        mediaUrl: '',
+        aiDetection: {
+          enabled: false,
+          detectorId: 'pushup_v1',
+          detectorVersion: '1.0'
+        }
       });
     }
     setShowExForm(true);
@@ -156,11 +193,25 @@ const FitnessInstructorDashboard = () => {
     try {
       const payload = {
         name: exForm.name.trim(),
+        category: exForm.category,
         targetMuscles: exForm.targetMuscles.split(',').map(m => m.trim()).filter(Boolean),
         equipmentRequired: exForm.equipmentRequired,
         difficulty: exForm.difficulty,
-        description: exForm.instructions,
-        mediaUrl: exForm.mediaUrl
+        defaultSets: Number(exForm.defaultSets) || 3,
+        defaultReps: Number(exForm.defaultReps) || 10,
+        defaultDuration: Number(exForm.defaultDuration) || 0,
+        instructions: exForm.instructions,
+        description: exForm.description || exForm.instructions,
+        mediaUrl: exForm.mediaUrl,
+        aiDetection: exForm.aiDetection.enabled ? {
+          enabled: true,
+          detectorId: exForm.aiDetection.detectorId,
+          detectorVersion: exForm.aiDetection.detectorVersion || '1.0'
+        } : {
+          enabled: false,
+          detectorId: null,
+          detectorVersion: null
+        }
       };
 
       const url = editingEx ? `/api/exercises/${editingEx._id || editingEx.id}` : '/api/exercises';
@@ -174,7 +225,7 @@ const FitnessInstructorDashboard = () => {
 
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.message || 'Failed to save exercise');
+        throw new Error(d.error || d.message || 'Failed to save exercise');
       }
 
       toast.success(editingEx ? 'Exercise updated!' : 'Exercise published to library!');
@@ -183,6 +234,28 @@ const FitnessInstructorDashboard = () => {
       fetchData();
     } catch (err) {
       toast.error(err.message || 'Failed to save exercise');
+    }
+  };
+
+  const handleToggleArchive = async (ex) => {
+    try {
+      const isArchived = ex.status === 'archived';
+      const targetStatus = isArchived ? 'active' : 'archived';
+      const res = await fetch(`/api/exercises/${ex._id || ex.id}/archive`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ status: targetStatus })
+      });
+
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.message || 'Failed to update exercise status');
+      }
+
+      toast.success(`Exercise "${ex.name}" ${isArchived ? 'restored to active library' : 'moved to archive'}!`);
+      fetchData();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update status');
     }
   };
 
@@ -431,11 +504,18 @@ const FitnessInstructorDashboard = () => {
     }
   };
 
+  const activeExCount = exercises.filter(e => e.status !== 'archived').length;
+  const archivedExCount = exercises.filter(e => e.status === 'archived').length;
+
   const filteredExercises = exercises.filter(ex => {
-    const matchesSearch = (ex.name || '').toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (ex.name || '').toLowerCase().includes(search.toLowerCase()) ||
+                          (ex.category || '').toLowerCase().includes(search.toLowerCase());
     const matchesCategory = exerciseCategory === 'All' || 
-                            (Array.isArray(ex.targetMuscles) ? ex.targetMuscles.includes(exerciseCategory) : ex.category === exerciseCategory);
-    return matchesSearch && matchesCategory;
+                            ex.category === exerciseCategory ||
+                            (Array.isArray(ex.targetMuscles) && ex.targetMuscles.includes(exerciseCategory));
+    const exStatus = ex.status === 'archived' ? 'archived' : 'active';
+    const matchesStatus = statusFilter === 'all' || exStatus === statusFilter;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
   return (
@@ -443,7 +523,7 @@ const FitnessInstructorDashboard = () => {
       userRole={userRole}
       userName={instructorName}
       title="Fitness Instructor Portal"
-      subtitle="Curate exercises, workout routines, diet templates, and educational guides"
+      subtitle="Authoritative Exercise Library, AI Detector Configuration, and Training Programs"
       activeTab={activeTab}
       onTabChange={setActiveTab}
     >
@@ -466,11 +546,14 @@ const FitnessInstructorDashboard = () => {
             {activeTab === 'overview' && (
               <div>
                 <div className="stats-grid">
-                  <div className="stat-card glass-panel" onClick={() => setActiveTab('exercises')} style={{ cursor: 'pointer' }}>
+                  <div className="stat-card glass-panel" onClick={() => { setActiveTab('exercises'); setStatusFilter('all'); }} style={{ cursor: 'pointer' }}>
                     <div className="stat-icon blue"><Dumbbell size={24} /></div>
                     <div>
                       <span className="stat-label">Exercise Library</span>
                       <h3 className="stat-value">{exercises.length}</h3>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        {activeExCount} Active • {archivedExCount} Archived
+                      </span>
                     </div>
                   </div>
 
@@ -523,14 +606,14 @@ const FitnessInstructorDashboard = () => {
 
                   <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
                     <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Activity size={18} color="#10b981" /> Quick Creation Shortcuts
+                      <Activity size={18} color="#10b981" /> Fitness Authority Actions
                     </h4>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6, margin: '0 0 16px 0' }}>
-                      Publish new training content to the GymSync network. All created routines and nutrition guides persist directly to the database.
+                      As Fitness Instructor, you define the authoritative movement library and assign approved computer-vision AI detectors used across GymSync.
                     </p>
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                       <button className="btn btn-primary btn-sm" onClick={() => handleOpenExModal()}>
-                        <Plus size={14} /> New Exercise
+                        <Plus size={14} /> New Exercise Definition
                       </button>
                       <button className="btn btn-outline btn-sm" onClick={() => handleOpenProgModal()}>
                         <Plus size={14} /> New Program
@@ -539,7 +622,7 @@ const FitnessInstructorDashboard = () => {
                         <Plus size={14} /> New Diet Plan
                       </button>
                       <button className="btn btn-outline btn-sm" onClick={() => handleOpenArticleModal()}>
-                        <Plus size={14} /> New Article
+                        <Plus size={14} /> New Guide
                       </button>
                     </div>
                   </div>
@@ -547,23 +630,48 @@ const FitnessInstructorDashboard = () => {
               </div>
             )}
 
-            {/* TAB 2: EXERCISES */}
+            {/* TAB 2: EXERCISES (FITNESS AUTHORITY CORE) */}
             {activeTab === 'exercises' && (
               <div className="glass-panel" style={{ padding: '25px', borderRadius: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
                   <div>
-                    <h3 style={{ margin: 0 }}>Exercise Library Management</h3>
-                    <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>Curate movement instructions, target muscles, and video demonstrations</p>
+                    <h3 style={{ margin: 0 }}>Exercise Library & AI Vision Configuration</h3>
+                    <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>
+                      Authoritative movement standards, coaching cues, defaults, and certified AI detectors
+                    </p>
                   </div>
                   <button className="btn btn-primary" onClick={() => handleOpenExModal()}>
-                    <Plus size={18} /> Add New Exercise
+                    <Plus size={18} /> Add Exercise to Library
                   </button>
                 </div>
 
+                {/* Status Toggle Bar */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                  <button 
+                    className={`btn btn-sm ${statusFilter === 'active' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setStatusFilter('active')}
+                  >
+                    Active Exercises ({activeExCount})
+                  </button>
+                  <button 
+                    className={`btn btn-sm ${statusFilter === 'archived' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setStatusFilter('archived')}
+                  >
+                    Archived Library ({archivedExCount})
+                  </button>
+                  <button 
+                    className={`btn btn-sm ${statusFilter === 'all' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setStatusFilter('all')}
+                  >
+                    All Exercises ({exercises.length})
+                  </button>
+                </div>
+
+                {/* Search & Category Filter */}
                 <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
                   <div className="search-bar" style={{ flex: 1, minWidth: '220px' }}>
                     <Search size={18} color="var(--text-secondary)" />
-                    <input type="text" placeholder="Search exercises..." value={search} onChange={e => setSearch(e.target.value)} />
+                    <input type="text" placeholder="Search exercises by name or category..." value={search} onChange={e => setSearch(e.target.value)} />
                   </div>
                   <select 
                     className="search-input" 
@@ -571,47 +679,68 @@ const FitnessInstructorDashboard = () => {
                     value={exerciseCategory} 
                     onChange={e => setExerciseCategory(e.target.value)}
                   >
-                    <option value="All">All Categories</option>
+                    <option value="All">All Muscle Categories</option>
                     <option value="Chest">Chest</option>
                     <option value="Back">Back</option>
                     <option value="Legs">Legs</option>
                     <option value="Shoulders">Shoulders</option>
                     <option value="Arms">Arms</option>
                     <option value="Core">Core</option>
+                    <option value="Cardio">Cardio</option>
+                    <option value="Full Body">Full Body</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
                 {filteredExercises.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                     <Dumbbell size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
-                    <p>No exercises match your search filters.</p>
+                    <p>No exercises found matching your filter selection ({statusFilter} / {exerciseCategory}).</p>
                   </div>
                 ) : (
                   <div className="exercise-grid">
                     {filteredExercises.map((ex) => (
-                      <div key={ex._id || ex.id} className="exercise-card">
+                      <div key={ex._id || ex.id} className={`exercise-card ${ex.status === 'archived' ? 'archived' : ''}`}>
                         <div className="ex-card-header">
-                          <h4>{ex.name}</h4>
+                          <h4 style={{ color: 'var(--text-primary)' }}>{ex.name}</h4>
                           <div style={{ display: 'flex', gap: '6px' }}>
-                            <button className="btn btn-icon btn-sm" onClick={() => handleOpenExModal(ex)} title="Edit Exercise">
+                            <button className="btn btn-icon btn-sm" onClick={() => handleOpenExModal(ex)} title="Edit Exercise Details & Detector">
                               <Edit2 size={15} color="var(--primary-accent)" />
                             </button>
                             <button 
                               className="btn btn-icon btn-sm" 
-                              onClick={() => setItemToDelete({ id: ex._id || ex.id, type: 'exercise', label: ex.name })}
-                              title="Delete Exercise"
+                              onClick={() => handleToggleArchive(ex)}
+                              title={ex.status === 'archived' ? 'Restore Exercise to Active Library' : 'Archive Exercise'}
+                              style={{ color: ex.status === 'archived' ? '#10b981' : '#f59e0b' }}
                             >
-                              <Trash2 size={15} color="#ef4444" />
+                              {ex.status === 'archived' ? <RotateCcw size={15} /> : <Archive size={15} />}
                             </button>
                           </div>
                         </div>
+
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                          <span className="category-badge">{Array.isArray(ex.targetMuscles) ? ex.targetMuscles[0] : (ex.category || 'General')}</span>
-                          <span className="category-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b' }}>{ex.difficulty || 'Intermediate'}</span>
+                          <span className={`category-badge ${ex.status === 'archived' ? 'archived-badge' : 'active-badge'}`}>
+                            {ex.status === 'archived' ? 'Archived' : 'Active'}
+                          </span>
+                          <span className="category-badge">{ex.category || (Array.isArray(ex.targetMuscles) ? ex.targetMuscles[0] : 'Chest')}</span>
+                          <span className="category-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b' }}>
+                            {ex.difficulty || 'Beginner'}
+                          </span>
+                          {(ex.aiDetection?.enabled || ex.isAiTrackable) && (
+                            <span className="category-badge ai-badge" title={`Approved Detector: ${ex.aiDetection?.detectorId || 'AI'}`}>
+                              <Cpu size={12} /> AI Trackable
+                            </span>
+                          )}
                         </div>
-                        <p className="ex-instructions"><strong>Equipment:</strong> {ex.equipmentRequired || 'Bodyweight'}</p>
-                        <p className="ex-instructions" style={{ fontSize: '0.85rem' }}>
-                          {(ex.description || ex.instructions || 'No detailed instructions provided.').substring(0, 85)}...
+
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div><strong>Target Muscles:</strong> {Array.isArray(ex.targetMuscles) ? ex.targetMuscles.join(', ') : (ex.targetMuscles || 'Full Body')}</div>
+                          <div><strong>Equipment:</strong> {ex.equipmentRequired || 'Bodyweight'}</div>
+                          <div><strong>Default Target:</strong> {ex.defaultSets || 3} sets × {ex.defaultReps || 10} reps {ex.defaultDuration > 0 ? `(${ex.defaultDuration}s)` : ''}</div>
+                        </div>
+
+                        <p className="ex-instructions" style={{ fontSize: '0.83rem', color: 'var(--text-secondary)' }}>
+                          {(ex.instructions || ex.description || 'No coaching cues specified.').substring(0, 95)}...
                         </p>
                       </div>
                     ))}
@@ -829,41 +958,144 @@ const FitnessInstructorDashboard = () => {
         )}
 
         {/* MODAL: EXERCISE CREATE / EDIT */}
-        <Modal isOpen={showExForm} onClose={() => setShowExForm(false)} title={editingEx ? 'Update Exercise' : 'Add New Exercise to Library'}>
+        <Modal isOpen={showExForm} onClose={() => setShowExForm(false)} title={editingEx ? 'Update Exercise Definition' : 'Add Exercise to Platform Library'}>
           <form onSubmit={handleSaveExercise} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Exercise Name</label>
+              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Exercise Name *</label>
               <input type="text" className="search-input" required value={exForm.name} onChange={e => setExForm({ ...exForm, name: e.target.value })} placeholder="e.g. Incline Dumbbell Press" />
             </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Difficulty</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Muscle Category</label>
+                <select className="search-input" value={exForm.category} onChange={e => setExForm({ ...exForm, category: e.target.value })}>
+                  <option value="Chest">Chest</option>
+                  <option value="Back">Back</option>
+                  <option value="Legs">Legs</option>
+                  <option value="Shoulders">Shoulders</option>
+                  <option value="Arms">Arms</option>
+                  <option value="Core">Core</option>
+                  <option value="Cardio">Cardio</option>
+                  <option value="Full Body">Full Body</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Difficulty Level</label>
                 <select className="search-input" value={exForm.difficulty} onChange={e => setExForm({ ...exForm, difficulty: e.target.value })}>
                   <option value="Beginner">Beginner</option>
                   <option value="Intermediate">Intermediate</option>
                   <option value="Advanced">Advanced</option>
                 </select>
               </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Equipment</label>
-                <input type="text" className="search-input" value={exForm.equipmentRequired} onChange={e => setExForm({ ...exForm, equipmentRequired: e.target.value })} placeholder="Dumbbells, Bench" />
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Equipment Required</label>
+                <input type="text" className="search-input" value={exForm.equipmentRequired} onChange={e => setExForm({ ...exForm, equipmentRequired: e.target.value })} placeholder="Bodyweight, Dumbbells, Barbell" />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Target Muscles (comma separated)</label>
+                <input type="text" className="search-input" value={exForm.targetMuscles} onChange={e => setExForm({ ...exForm, targetMuscles: e.target.value })} placeholder="Pectoralis Major, Anterior Deltoid" />
               </div>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Target Muscles (comma separated)</label>
-              <input type="text" className="search-input" value={exForm.targetMuscles} onChange={e => setExForm({ ...exForm, targetMuscles: e.target.value })} placeholder="Chest, Triceps, Deltoids" />
+
+            {/* Prescribed Exercise Defaults */}
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '10px', border: '1px solid var(--card-border)' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                Default Progression Baseline
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '4px' }}>Default Sets</label>
+                  <input type="number" min="1" max="10" className="search-input" value={exForm.defaultSets} onChange={e => setExForm({ ...exForm, defaultSets: parseInt(e.target.value) || 1 })} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '4px' }}>Default Reps</label>
+                  <input type="number" min="1" max="100" className="search-input" value={exForm.defaultReps} onChange={e => setExForm({ ...exForm, defaultReps: parseInt(e.target.value) || 1 })} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '4px' }}>Duration (s, if hold)</label>
+                  <input type="number" min="0" max="600" className="search-input" value={exForm.defaultDuration} onChange={e => setExForm({ ...exForm, defaultDuration: parseInt(e.target.value) || 0 })} />
+                </div>
+              </div>
             </div>
+
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Media URL (Video / GIF)</label>
-              <input type="text" className="search-input" value={exForm.mediaUrl} onChange={e => setExForm({ ...exForm, mediaUrl: e.target.value })} placeholder="https://example.com/demo.mp4" />
+              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Execution Coaching Cues & Instructions</label>
+              <textarea rows="3" className="search-input" value={exForm.instructions} onChange={e => setExForm({ ...exForm, instructions: e.target.value })} placeholder="Step-by-step form cues, joint angle guidelines, breathing pattern..." />
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Execution Instructions</label>
-              <textarea rows="3" className="search-input" value={exForm.instructions} onChange={e => setExForm({ ...exForm, instructions: e.target.value })} placeholder="Step-by-step form cues..." />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Media URL (Video / GIF)</label>
+                <input type="text" className="search-input" value={exForm.mediaUrl} onChange={e => setExForm({ ...exForm, mediaUrl: e.target.value })} placeholder="https://example.com/demo.mp4" />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Exercise Description</label>
+                <input type="text" className="search-input" value={exForm.description} onChange={e => setExForm({ ...exForm, description: e.target.value })} placeholder="Movement description and biomechanics..." />
+              </div>
             </div>
+
+            {/* AI Vision Detector Configuration */}
+            <div style={{ background: 'rgba(99, 102, 241, 0.05)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={exForm.aiDetection.enabled} 
+                    onChange={e => setExForm({
+                      ...exForm,
+                      aiDetection: {
+                        ...exForm.aiDetection,
+                        enabled: e.target.checked
+                      }
+                    })} 
+                  />
+                  <Cpu size={16} color="var(--primary-accent)" /> Enable AI Computer Vision Detection
+                </label>
+                {exForm.aiDetection.enabled && (
+                  <span className="category-badge ai-badge" style={{ fontSize: '0.72rem' }}>
+                    <ShieldCheck size={12} /> Certified Algorithm
+                  </span>
+                )}
+              </div>
+
+              {exForm.aiDetection.enabled && (
+                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Select Approved Platform Detector</label>
+                    <select 
+                      className="search-input" 
+                      value={exForm.aiDetection.detectorId} 
+                      onChange={e => {
+                        const selected = REGISTERED_DETECTORS.find(d => d.id === e.target.value);
+                        setExForm({
+                          ...exForm,
+                          aiDetection: {
+                            ...exForm.aiDetection,
+                            detectorId: e.target.value,
+                            detectorVersion: selected ? selected.version : '1.0'
+                          }
+                        });
+                      }}
+                    >
+                      {REGISTERED_DETECTORS.map(det => (
+                        <option key={det.id} value={det.id}>{det.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    🔒 <strong>Security Policy:</strong> Only certified detectors with audited landmark models can be attached. Arbitrary executable script injection is blocked on the server.
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
               <button type="button" className="btn btn-outline" onClick={() => setShowExForm(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary">{editingEx ? 'Save Changes' : 'Publish Exercise'}</button>
+              <button type="submit" className="btn btn-primary">{editingEx ? 'Save Exercise Changes' : 'Publish Exercise'}</button>
             </div>
           </form>
         </Modal>

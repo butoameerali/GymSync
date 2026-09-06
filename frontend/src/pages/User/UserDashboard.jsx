@@ -32,7 +32,7 @@ const UserDashboard = () => {
 
     try {
       // Fetch user dashboard analytics
-      const res = await fetch(`/api/users/dashboard/${userName}`);
+      const res = await fetch(`/api/users/dashboard/${userName}`, { headers });
       if (res.ok) {
         const data = await res.json();
         setUserData(data);

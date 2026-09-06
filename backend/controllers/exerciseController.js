@@ -4,8 +4,14 @@ import { fetchAllExercises, insertExercise } from '../services/supabaseService.j
 // GET /api/exercises - Public / User fetch with search and filters (Supabase + MongoDB fallback)
 export const getAllExercises = async (req, res) => {
   try {
-    const { search, category, equipment } = req.query;
-    const exercises = await fetchAllExercises({ search, category, equipment });
+    const { search, category, equipment, status, includeArchived } = req.query;
+    const exercises = await fetchAllExercises({
+      search,
+      category,
+      equipment,
+      status,
+      includeArchived: includeArchived === 'true' || includeArchived === true
+    });
     res.status(200).json(exercises);
   } catch (error) {
     console.error('getAllExercises Error:', error);
@@ -33,10 +39,28 @@ const SAFE_DETECTORS = {
   'jumping_jack_v1': '1.0'
 };
 
-// POST /api/exercises (Admin)
+// POST /api/exercises (FitnessInstructor, Admin, SuperAdmin)
 export const createExercise = async (req, res) => {
   try {
-    const { exerciseId, name, targetMuscles, equipmentRequired, difficulty, fitnessPaths, medicalAvoidIf, jointPainAvoidIf, mediaUrl, description, aiDetection } = req.body;
+    const {
+      exerciseId,
+      name,
+      category,
+      targetMuscles,
+      equipmentRequired,
+      difficulty,
+      defaultSets,
+      defaultReps,
+      defaultDuration,
+      instructions,
+      fitnessPaths,
+      medicalAvoidIf,
+      jointPainAvoidIf,
+      mediaUrl,
+      description,
+      status,
+      aiDetection
+    } = req.body;
 
     if (!name) return res.status(400).json({ error: 'Exercise name is required' });
 
@@ -54,20 +78,29 @@ export const createExercise = async (req, res) => {
     }
 
     const newId = exerciseId || `EX-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+    const userIdentifier = req.user?.name || req.user?.email || 'FitnessInstructor';
 
     const exercisePayload = {
       exerciseId: newId,
       name,
+      category: category || 'Chest',
       targetMuscles: Array.isArray(targetMuscles) ? targetMuscles : (targetMuscles || '').split(',').map(s => s.trim()).filter(Boolean),
       equipmentRequired: equipmentRequired || 'Bodyweight',
       difficulty: difficulty || 'Beginner',
+      defaultSets: Number(defaultSets) || 3,
+      defaultReps: Number(defaultReps) || 10,
+      defaultDuration: Number(defaultDuration) || 0,
+      instructions: instructions || '',
       fitnessPaths: Array.isArray(fitnessPaths) ? fitnessPaths : (fitnessPaths || '').split(',').map(s => s.trim()).filter(Boolean),
       medicalAvoidIf: Array.isArray(medicalAvoidIf) ? medicalAvoidIf : (medicalAvoidIf || '').split(',').map(s => s.trim()).filter(Boolean),
       jointPainAvoidIf: Array.isArray(jointPainAvoidIf) ? jointPainAvoidIf : (jointPainAvoidIf || '').split(',').map(s => s.trim()).filter(Boolean),
       mediaUrl: mediaUrl || '',
       description: description || '',
+      status: status === 'archived' ? 'archived' : 'active',
       aiDetection: parsedAiDetection,
-      isAiTrackable: parsedAiDetection.enabled
+      isAiTrackable: parsedAiDetection.enabled,
+      createdBy: userIdentifier,
+      updatedBy: userIdentifier
     };
 
     const exercise = await insertExercise(exercisePayload);
@@ -78,17 +111,40 @@ export const createExercise = async (req, res) => {
   }
 };
 
-// PUT /api/exercises/:id (Admin)
+// PUT /api/exercises/:id (FitnessInstructor, Admin, SuperAdmin)
 export const updateExercise = async (req, res) => {
   try {
-    const { name, targetMuscles, equipmentRequired, difficulty, fitnessPaths, medicalAvoidIf, jointPainAvoidIf, mediaUrl, description, aiDetection } = req.body;
+    const {
+      name,
+      category,
+      targetMuscles,
+      equipmentRequired,
+      difficulty,
+      defaultSets,
+      defaultReps,
+      defaultDuration,
+      instructions,
+      fitnessPaths,
+      medicalAvoidIf,
+      jointPainAvoidIf,
+      mediaUrl,
+      description,
+      status,
+      aiDetection
+    } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
+    if (category !== undefined) updateData.category = category;
     if (equipmentRequired !== undefined) updateData.equipmentRequired = equipmentRequired;
     if (difficulty !== undefined) updateData.difficulty = difficulty;
+    if (defaultSets !== undefined) updateData.defaultSets = Number(defaultSets) || 3;
+    if (defaultReps !== undefined) updateData.defaultReps = Number(defaultReps) || 10;
+    if (defaultDuration !== undefined) updateData.defaultDuration = Number(defaultDuration) || 0;
+    if (instructions !== undefined) updateData.instructions = instructions;
     if (mediaUrl !== undefined) updateData.mediaUrl = mediaUrl;
     if (description !== undefined) updateData.description = description;
+    if (status !== undefined) updateData.status = status;
 
     if (targetMuscles !== undefined) {
       updateData.targetMuscles = Array.isArray(targetMuscles) ? targetMuscles : String(targetMuscles).split(',').map(s => s.trim()).filter(Boolean);
@@ -121,6 +177,8 @@ export const updateExercise = async (req, res) => {
       }
     }
 
+    updateData.updatedBy = req.user?.name || req.user?.email || 'System';
+
     const updated = await Exercise.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!updated) return res.status(404).json({ error: 'Exercise not found' });
 
@@ -131,7 +189,28 @@ export const updateExercise = async (req, res) => {
   }
 };
 
-// DELETE /api/exercises/:id (Admin)
+// PUT /api/exercises/:id/archive (FitnessInstructor, Admin, SuperAdmin)
+export const archiveExercise = async (req, res) => {
+  try {
+    const exercise = await Exercise.findById(req.params.id);
+    if (!exercise) return res.status(404).json({ error: 'Exercise not found' });
+
+    const newStatus = req.body.status || (exercise.status === 'archived' ? 'active' : 'archived');
+    exercise.status = newStatus;
+    exercise.updatedBy = req.user?.name || req.user?.email || 'System';
+    await exercise.save();
+
+    res.status(200).json({
+      message: `Exercise successfully ${newStatus === 'archived' ? 'archived' : 'restored'}`,
+      exercise
+    });
+  } catch (error) {
+    console.error('archiveExercise Error:', error);
+    res.status(500).json({ error: 'Failed to archive/restore exercise', message: error.message });
+  }
+};
+
+// DELETE /api/exercises/:id (Admin, SuperAdmin only)
 export const deleteExercise = async (req, res) => {
   try {
     const deleted = await Exercise.findByIdAndDelete(req.params.id);

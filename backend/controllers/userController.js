@@ -1,7 +1,10 @@
 import User from '../models/User.js';
+import Gym from '../models/Gym.js';
 import Notification from '../models/Notification.js';
 import Post from '../models/Post.js';
 import Message from '../models/Message.js';
+import WorkoutProgress from '../models/WorkoutProgress.js';
+import ExerciseRecord from '../models/ExerciseRecord.js';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { 
@@ -13,22 +16,43 @@ import {
 } from '../services/supabaseService.js';
 import { uploadToSupabaseStorage } from '../config/supabase.js';
 
-// @desc    Get all users (for public profiles and friend search)
+// @desc    Get all users (for friend search and member directory)
 // @route   GET /api/users
-// @access  Public
+// @access  Private
 export const getUsers = async (req, res) => {
   try {
-    const users = await User.find({}).select('-password');
+    const users = await User.find({}).select('_id name profilePic role subscribedGymName friends followers');
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
+// @desc    Get members subscribed to a gym facility
+// @route   GET /api/users/gym-members/:gymName
+// @access  Private / GymOwner, GymTrainer, Admin, SuperAdmin
 export const getGymMembers = async (req, res) => {
   try {
     const { gymName } = req.params;
-    const members = await User.find({ subscribedGymName: gymName }).select('-password');
+    const userRole = req.user?.role || 'User';
+    const isGlobalAdmin = ['Admin', 'SuperAdmin'].includes(userRole);
+
+    if (!isGlobalAdmin) {
+      const isAssignedTrainer = userRole === 'GymTrainer' && (req.user.assignedGymName === gymName || req.user.subscribedGymName === gymName);
+      const isOwnerRole = ['GymOwner', 'gym_owner'].includes(userRole);
+
+      if (isOwnerRole) {
+        const gym = await Gym.findOne({ name: gymName });
+        const ownsGym = gym && (String(gym.owner) === String(req.user._id) || gym.ownerName === req.user.name);
+        if (!ownsGym) {
+          return res.status(403).json({ message: 'Not authorized to view members for this gym facility' });
+        }
+      } else if (!isAssignedTrainer) {
+        return res.status(403).json({ message: 'Not authorized to view members for this gym facility' });
+      }
+    }
+
+    const members = await User.find({ subscribedGymName: gymName }).select('_id name email profilePic subscribedGymName gymMembershipType gymJoiningDate gymMembershipExpiresAt');
     res.json(members);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -303,14 +327,23 @@ export const unfollowUser = async (req, res) => {
 
 // @desc    Get user dashboard summary metrics & assigned gym plans
 // @route   GET /api/users/dashboard/:name
-// @access  Public / User
+// @access  Private / User, Assigned Trainer, Admin, SuperAdmin
 export const getUserDashboardData = async (req, res) => {
   try {
     const { name } = req.params;
-    const user = await User.findOne({ name }).select('-password');
+    const user = await User.findOne({ name }).select('-password -otpCode -otpExpiresAt');
     
     if (!user) {
       return res.status(404).json({ message: 'User profile not found' });
+    }
+
+    const caller = req.user;
+    const isSelf = caller && (String(caller._id) === String(user._id) || caller.name === user.name);
+    const isAdmin = caller && ['Admin', 'SuperAdmin'].includes(caller.role);
+    const isAssignedTrainer = caller && caller.role === 'GymTrainer' && caller.assignedGymName && caller.assignedGymName === user.subscribedGymName;
+
+    if (!isSelf && !isAdmin && !isAssignedTrainer) {
+      return res.status(403).json({ message: 'Not authorized to view private dashboard data for this user' });
     }
 
     res.json({
@@ -467,56 +500,155 @@ export const verifyEmailOTP = async (req, res) => {
   }
 };
 
-// @desc    Save workout progress (completed days, streak, points) to Supabase
+// @desc    Save workout progress (completed days, streak, points) to MongoDB with Supabase dual-sync
 // @route   POST /api/users/workout-progress
 // @access  Private
 export const saveWorkoutProgressController = async (req, res) => {
   try {
-    const userId = req.user._id || req.user.name;
-    const progressData = req.body;
-    const result = await upsertWorkoutProgress(userId, progressData);
-    res.status(200).json({ success: true, progress: result || progressData });
+    const userId = String(req.user._id || req.user.name);
+    const { planId, completedDays, streak, totalPoints, lastWorkoutCompletionTime } = req.body;
+
+    // 1. Authoritative primary save to MongoDB
+    const updatedMongo = await WorkoutProgress.findOneAndUpdate(
+      { userId },
+      {
+        userId,
+        planId: planId || null,
+        completedDays: completedDays || [],
+        streak: Number(streak) || 0,
+        totalPoints: Number(totalPoints) || 0,
+        lastWorkoutCompletionTime: lastWorkoutCompletionTime ? new Date(lastWorkoutCompletionTime) : new Date()
+      },
+      { new: true, upsert: true }
+    );
+
+    // 2. Dual-sync to Supabase if configured
+    try {
+      await upsertWorkoutProgress(userId, req.body);
+    } catch (supaErr) {
+      console.warn('[Supabase upsertWorkoutProgress Dual-Sync Notice]:', supaErr.message);
+    }
+
+    res.status(200).json({ success: true, progress: updatedMongo });
   } catch (err) {
+    console.error('saveWorkoutProgressController Error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// @desc    Get user workout progress from Supabase
+// @desc    Get user workout progress from MongoDB with Supabase fallback
 // @route   GET /api/users/workout-progress
 // @access  Private
 export const getWorkoutProgressController = async (req, res) => {
   try {
-    const userId = req.user._id || req.user.name;
-    const progress = await fetchWorkoutProgress(userId);
-    res.status(200).json(progress || { completedDays: [], streak: 0, totalPoints: 0 });
+    const userId = String(req.user._id || req.user.name);
+
+    // 1. Authoritative fetch from MongoDB
+    let progress = await WorkoutProgress.findOne({ userId }).lean();
+
+    // 2. Fallback to Supabase if MongoDB empty (e.g. migration sync)
+    if (!progress) {
+      try {
+        const supaProgress = await fetchWorkoutProgress(userId);
+        if (supaProgress && supaProgress.completedDays?.length) {
+          progress = await WorkoutProgress.create({
+            userId,
+            planId: supaProgress.planId,
+            completedDays: supaProgress.completedDays,
+            streak: supaProgress.streak || 0,
+            totalPoints: supaProgress.totalPoints || 0,
+            lastWorkoutCompletionTime: supaProgress.lastWorkoutCompletionTime
+          });
+        }
+      } catch (supaErr) {
+        console.warn('[Supabase fetchWorkoutProgress Notice]:', supaErr.message);
+      }
+    }
+
+    res.status(200).json(progress || { completedDays: [], streak: 0, totalPoints: 0, planId: null });
   } catch (err) {
+    console.error('getWorkoutProgressController Error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// @desc    Save individual exercise record to Supabase
+// @desc    Save individual exercise record to MongoDB with Supabase dual-sync
 // @route   POST /api/users/exercise-record
 // @access  Private
 export const saveExerciseRecordController = async (req, res) => {
   try {
-    const userId = req.user._id || req.user.name;
-    const record = { ...req.body, userId };
-    const saved = await saveUserExerciseRecord(record);
-    res.status(201).json({ success: true, record: saved || record });
+    const userId = String(req.user._id || req.user.name);
+    const {
+      exerciseId,
+      exerciseName,
+      dayNumber,
+      planId,
+      setNumber,
+      totalSets,
+      repsCompleted,
+      targetReps,
+      pointsEarned,
+      mode,
+      aiConfidence,
+      aiResult
+    } = req.body;
+
+    // 1. Authoritative primary save to MongoDB
+    const mongoRecord = await ExerciseRecord.create({
+      userId,
+      exerciseId: exerciseId || 'EX-GEN',
+      exerciseName: exerciseName || 'Exercise',
+      dayNumber: Number(dayNumber) || 1,
+      planId: planId || null,
+      setNumber: Number(setNumber) || 1,
+      totalSets: Number(totalSets) || 1,
+      repsCompleted: Number(repsCompleted) || 0,
+      targetReps: Number(targetReps) || 10,
+      pointsEarned: Number(pointsEarned) || 1,
+      mode: mode === 'ai' ? 'ai' : 'manual',
+      aiConfidence: aiConfidence || null,
+      aiResult: aiResult || {}
+    });
+
+    // 2. Dual-sync to Supabase if configured
+    try {
+      await saveUserExerciseRecord({ ...req.body, userId });
+    } catch (supaErr) {
+      console.warn('[Supabase saveUserExerciseRecord Dual-Sync Notice]:', supaErr.message);
+    }
+
+    res.status(201).json({ success: true, record: mongoRecord });
   } catch (err) {
+    console.error('saveExerciseRecordController Error:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// @desc    Get user exercise history records from Supabase
+// @desc    Get user exercise history records from MongoDB with Supabase fallback
 // @route   GET /api/users/exercise-records
 // @access  Private
 export const getExerciseRecordsController = async (req, res) => {
   try {
-    const userId = req.user._id || req.user.name;
-    const records = await fetchUserExerciseRecords(userId);
+    const userId = String(req.user._id || req.user.name);
+
+    // 1. Authoritative fetch from MongoDB
+    const records = await ExerciseRecord.find({ userId }).sort({ createdAt: -1 }).lean();
+
+    // 2. Fallback to Supabase if MongoDB empty
+    if (!records || records.length === 0) {
+      try {
+        const supaRecords = await fetchUserExerciseRecords(userId);
+        if (supaRecords && supaRecords.length > 0) {
+          return res.status(200).json(supaRecords);
+        }
+      } catch (supaErr) {
+        console.warn('[Supabase fetchUserExerciseRecords Notice]:', supaErr.message);
+      }
+    }
+
     res.status(200).json(records || []);
   } catch (err) {
+    console.error('getExerciseRecordsController Error:', err);
     res.status(500).json({ message: err.message });
   }
 };
