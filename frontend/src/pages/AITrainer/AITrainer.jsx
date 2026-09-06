@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles, Eye, Video, FileText, Info } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles, Eye, Video, FileText, Info, Clock, Moon } from 'lucide-react';
 import { toast } from 'react-toastify';
 import PaymentModal from '../../components/common/PaymentModal';
 import { EXERCISE_LIBRARY, EXERCISE_CATEGORIES } from '../../data/exercises';
@@ -34,7 +34,7 @@ const AITrainer = () => {
     const favs = JSON.parse(localStorage.getItem(`gymsync_${userKey}_favorites`) || '[]');
     setFavorites(favs);
 
-    const storedProgress = JSON.parse(localStorage.getItem(`gymsync_${userKey}_workout_progress`) || '{"completedDays":[], "lastWorkoutCompletionTime":null}');
+    const storedProgress = JSON.parse(localStorage.getItem(`gymsync_${userKey}_workout_progress`) || '{"completedDays":[], "completedExercises":[], "lastWorkoutCompletionTime":null}');
     setWorkoutProgress(storedProgress);
     const storedPlan = JSON.parse(localStorage.getItem(`gymsync_${userKey}_ai_plan`) || 'null');
     setAiPlan(storedPlan);
@@ -84,14 +84,26 @@ const AITrainer = () => {
   const [aiPlan, setAiPlan] = useState(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
-  const [intakeDays, setIntakeDays] = useState(3);
-  const [intakeEquipment, setIntakeEquipment] = useState('Full Gym');
-  const [intakePushups, setIntakePushups] = useState(10);
-  
+
+  // Normalize Plan Metadata (planId & planStartDate)
+  useEffect(() => {
+    if (aiPlan) {
+      if (!aiPlan.planId || !aiPlan.planStartDate) {
+        const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+        const updatedPlan = {
+          ...aiPlan,
+          planId: aiPlan.planId || `PLAN_${Date.now()}`,
+          planStartDate: aiPlan.planStartDate || new Date().toISOString()
+        };
+        setAiPlan(updatedPlan);
+        localStorage.setItem(`gymsync_${userKey}_ai_plan`, JSON.stringify(updatedPlan));
+      }
+    }
+  }, [aiPlan]);
+
   // Interactive Workout Tracker States
-  const [workoutProgress, setWorkoutProgress] = useState({ completedDays: [], lastWorkoutCompletionTime: null });
-  const [activeWorkoutDay, setActiveWorkoutDay] = useState(null); // The day currently being tracked
-  const [checkedExercises, setCheckedExercises] = useState([]); // Array of indexes
+  const [workoutProgress, setWorkoutProgress] = useState({ completedDays: [], completedExercises: [], lastWorkoutCompletionTime: null });
+  const [activeWorkoutDay, setActiveWorkoutDay] = useState(null);
   const [timeUntilNext, setTimeUntilNext] = useState(null);
 
   const fetchPlanWithBenchmarks = () => {
@@ -117,11 +129,16 @@ const AITrainer = () => {
       return data;
     })
     .then(data => {
-      setAiPlan(data);
-      localStorage.setItem(`gymsync_${userKey}_ai_plan`, JSON.stringify(data));
+      const formattedPlan = {
+        ...data,
+        planId: `PLAN_${Date.now()}`,
+        planStartDate: new Date().toISOString()
+      };
+      setAiPlan(formattedPlan);
+      localStorage.setItem(`gymsync_${userKey}_ai_plan`, JSON.stringify(formattedPlan));
       setIsGeneratingPlan(false);
-      if (data.interactive_calendar && data.interactive_calendar.length > 0) {
-        setSelectedCalendarDay(data.interactive_calendar[0]);
+      if (formattedPlan.interactive_calendar && formattedPlan.interactive_calendar.length > 0) {
+        setSelectedCalendarDay(formattedPlan.interactive_calendar[0]);
       }
     })
     .catch(err => {
@@ -137,41 +154,56 @@ const AITrainer = () => {
     }
   }, [activeMode, aiPlan, isGeneratingPlan, isBioFilled]);
 
-  // Countdown Timer Logic
-  useEffect(() => {
-    let intervalId;
-    if (workoutProgress.lastWorkoutCompletionTime) {
-      const checkTimer = () => {
-        const lastTime = new Date(workoutProgress.lastWorkoutCompletionTime);
-        const midnight = new Date(lastTime);
-        midnight.setHours(24, 0, 0, 0); // Next midnight
-        
-        const now = new Date();
-        const diff = midnight - now;
+  // Schedule & Lock Helper
+  const getDayScheduleInfo = (dayItem) => {
+    if (!aiPlan || !dayItem) return { status: 'LOCKED', scheduledDate: new Date(), isToday: false, isPast: false, isFuture: false, isCompleted: false };
 
-        if (diff > 0) {
-          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-          
-          setTimeUntilNext(
-            `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-          );
-        } else {
-          setTimeUntilNext(null);
-        }
-      };
-      
-      checkTimer();
-      intervalId = setInterval(checkTimer, 1000);
+    const planStart = new Date(aiPlan.planStartDate || Date.now());
+    planStart.setHours(0, 0, 0, 0);
+
+    const scheduledDate = new Date(planStart);
+    scheduledDate.setDate(planStart.getDate() + (dayItem.dayNumber - 1));
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const isToday = scheduledDate.getTime() === today.getTime();
+    const isPast = scheduledDate.getTime() < today.getTime();
+    const isFuture = scheduledDate.getTime() > today.getTime();
+
+    const isCompleted = (workoutProgress.completedDays || []).includes(dayItem.dayNumber);
+
+    let status = 'LOCKED';
+    if (isCompleted) {
+      status = 'COMPLETED';
+    } else if (!dayItem.isWorkoutDay) {
+      status = 'REST';
+    } else if (isPast) {
+      status = 'MISSED';
+    } else if (isToday) {
+      status = 'AVAILABLE';
     } else {
-      setTimeUntilNext(null);
+      status = 'LOCKED';
     }
-    
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [workoutProgress.lastWorkoutCompletionTime]);
+
+    return { status, scheduledDate, isToday, isPast, isFuture, isCompleted };
+  };
+
+  const isExerciseCompletedInState = (dayNum, exIndex) => {
+    if (!aiPlan) return false;
+    return (workoutProgress.completedExercises || []).some(
+      e => e.planId === aiPlan.planId && e.dayNumber === dayNum && e.exerciseIndex === exIndex
+    );
+  };
+
+  const isExerciseUnlockedInState = (dayNum, exIndex) => {
+    if (!selectedCalendarDay) return false;
+    const { status } = getDayScheduleInfo(selectedCalendarDay);
+    if (status === 'COMPLETED') return true;
+    if (activeWorkoutDay !== dayNum) return false;
+    if (exIndex === 0) return true;
+    return isExerciseCompletedInState(dayNum, exIndex - 1);
+  };
 
   const startExercise = (exercise) => {
     setCurrentExercise(exercise);
@@ -179,19 +211,103 @@ const AITrainer = () => {
     setAiModeChoice(null);
   };
 
-  const handleCheckExercise = (idx) => {
-    setCheckedExercises(prev => 
-      prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+  // Unified Exercise Completion Pipeline
+  const completeExercise = ({ exercise = currentExercise, mode = 'manual', completedReps = 0, aiResult = null }) => {
+    const exToComplete = exercise || currentExercise;
+    if (!exToComplete) return;
+
+    const targetReps = exToComplete.reps || 10;
+    const userReps = completedReps || reps || targetReps;
+
+    if (userReps < targetReps) {
+      toast.warning(`Target is ${targetReps} reps. You entered ${userReps} reps. Please complete all required reps!`);
+      return;
+    }
+
+    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+    const pointsEarned = exToComplete.points || 1;
+    const isAssignedWorkoutEx = exToComplete.aiWorkoutIndex !== undefined;
+
+    // 1. History Record
+    const storageKey = isGuest ? 'gymsync_Guest_User_history' : `gymsync_${userKey}_history`;
+    const history = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    history.push({
+      ...exToComplete,
+      date: new Date().toISOString(),
+      pointsEarned,
+      trackedViaAI: mode === 'ai',
+      aiResult,
+      completedReps: userReps
+    });
+    localStorage.setItem(storageKey, JSON.stringify(history));
+
+    // 2. User Points
+    if (!isGuest) {
+      const currentPoints = parseInt(localStorage.getItem(`gymsync_${userKey}_points`) || '0');
+      localStorage.setItem(`gymsync_${userKey}_points`, (currentPoints + pointsEarned).toString());
+    }
+
+    // 3. Persistent Exercise Completion Tracking
+    if (isAssignedWorkoutEx && aiPlan) {
+      const dayNum = selectedCalendarDay?.dayNumber || activeWorkoutDay || 1;
+      const exIndex = exToComplete.aiWorkoutIndex;
+
+      const newRecord = {
+        planId: aiPlan.planId,
+        dayNumber: dayNum,
+        exerciseId: exToComplete.id || exToComplete._id || `ex_${exIndex}`,
+        exerciseIndex: exIndex,
+        completedReps: userReps,
+        targetReps,
+        completedAt: new Date().toISOString(),
+        mode
+      };
+
+      const updatedExercises = [
+        ...(workoutProgress.completedExercises || []).filter(e => !(e.planId === aiPlan.planId && e.dayNumber === dayNum && e.exerciseIndex === exIndex)),
+        newRecord
+      ];
+
+      const newProgress = {
+        ...workoutProgress,
+        planId: aiPlan.planId,
+        completedExercises: updatedExercises
+      };
+
+      setWorkoutProgress(newProgress);
+      localStorage.setItem(`gymsync_${userKey}_workout_progress`, JSON.stringify(newProgress));
+    }
+
+    toast.success(mode === 'ai' 
+      ? `AI Pose Tracked! Logged ${userReps} reps with ${Math.round((aiResult?.confidence || 0.85) * 100)}% accuracy. +${pointsEarned} pt.`
+      : `Exercise Completed! Logged ${userReps} reps. +${pointsEarned} pt.`
     );
+
+    setCurrentExercise(null);
+    setAiModeChoice(null);
   };
 
   const completeActiveWorkout = () => {
-    if (!activeWorkoutDay || workoutProgress.completedDays.includes(activeWorkoutDay)) return;
+    if (!activeWorkoutDay || !selectedCalendarDay) return;
+    
+    const daySplit = selectedCalendarDay.workoutSplit || [];
+    if (Array.isArray(daySplit) && daySplit.length > 0) {
+      const completedForDay = (workoutProgress.completedExercises || []).filter(
+        e => e.planId === aiPlan?.planId && e.dayNumber === selectedCalendarDay.dayNumber
+      );
+      if (completedForDay.length < daySplit.length) {
+        toast.warning(`Please complete all ${daySplit.length} exercises in today's split before completing the workout!`);
+        return;
+      }
+    }
+
     const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
-    const newCompletedDays = [...workoutProgress.completedDays, activeWorkoutDay];
+    const newCompletedDays = [...(workoutProgress.completedDays || []), activeWorkoutDay];
     const timestamp = new Date().toISOString();
     
     const newProgress = {
+      ...workoutProgress,
+      planId: aiPlan?.planId,
       completedDays: newCompletedDays,
       lastWorkoutCompletionTime: timestamp
     };
@@ -199,84 +315,23 @@ const AITrainer = () => {
     setWorkoutProgress(newProgress);
     localStorage.setItem(`gymsync_${userKey}_workout_progress`, JSON.stringify(newProgress));
     
+    // Streak logic (once per calendar day)
+    const lastStreakDate = localStorage.getItem(`gymsync_${userKey}_last_streak_date`);
+    const todayStr = new Date().toDateString();
+    let currentStreak = parseInt(localStorage.getItem(`gymsync_${userKey}_streak`) || '0');
+    
+    if (lastStreakDate !== todayStr) {
+      currentStreak += 1;
+      localStorage.setItem(`gymsync_${userKey}_streak`, currentStreak.toString());
+      localStorage.setItem(`gymsync_${userKey}_last_streak_date`, todayStr);
+    }
+
+    // Award +50 XP
+    const currentPoints = parseInt(localStorage.getItem(`gymsync_${userKey}_points`) || '0');
+    localStorage.setItem(`gymsync_${userKey}_points`, (currentPoints + 50).toString());
+    
     setActiveWorkoutDay(null);
-    setCheckedExercises([]);
-    
-    toast.success(`Workout Day ${activeWorkoutDay} Completed! You earned +50 XP. Rest well!`);
-  };
-
-  const handleComplete = () => {
-    const pointsEarned = currentExercise?.points || 1;
-    
-    // Save to history (Temporary cache for guests, Persistent for users)
-    const storageKey = isGuest ? 'gymsync_Guest_User_history' : `gymsync_${localStorage.getItem('gymsync_user_name')?.replace(/\s+/g, '_')}_history`;
-    const history = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    history.push({
-      ...currentExercise,
-      date: new Date().toISOString(),
-      pointsEarned,
-      trackedViaAI: false
-    });
-    localStorage.setItem(storageKey, JSON.stringify(history));
-
-    if (!isGuest) {
-      // Add points
-      const userKey = localStorage.getItem('gymsync_user_name')?.replace(/\s+/g, '_');
-      const currentPoints = parseInt(localStorage.getItem(`gymsync_${userKey}_points`) || '0');
-      const currentStreak = parseInt(localStorage.getItem(`gymsync_${userKey}_streak`) || '0');
-      
-      localStorage.setItem(`gymsync_${userKey}_points`, currentPoints + pointsEarned);
-      localStorage.setItem(`gymsync_${userKey}_streak`, currentStreak === 0 ? 1 : currentStreak);
-    }
-
-    if (currentExercise.aiWorkoutIndex !== undefined) {
-      setCheckedExercises(prev => {
-        if (!prev.includes(currentExercise.aiWorkoutIndex)) {
-          return [...prev, currentExercise.aiWorkoutIndex];
-        }
-        return prev;
-      });
-    }
-
-    toast.success(isGuest ? `Exercise Cached Temporarily! Log in to save to your Profile.` : `Exercise Completed! +${pointsEarned} Point added to your Profile.`);
-    setCurrentExercise(null);
-    setAiModeChoice(null);
-  };
-
-  const handleAIComplete = (resultContract) => {
-    const pointsEarned = currentExercise?.points || 1;
-    const storageKey = isGuest ? 'gymsync_Guest_User_history' : `gymsync_${localStorage.getItem('gymsync_user_name')?.replace(/\s+/g, '_')}_history`;
-    const history = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    history.push({
-      ...currentExercise,
-      date: new Date().toISOString(),
-      pointsEarned,
-      trackedViaAI: true,
-      aiResult: resultContract
-    });
-    localStorage.setItem(storageKey, JSON.stringify(history));
-
-    if (!isGuest) {
-      const userKey = localStorage.getItem('gymsync_user_name')?.replace(/\s+/g, '_');
-      const currentPoints = parseInt(localStorage.getItem(`gymsync_${userKey}_points`) || '0');
-      const currentStreak = parseInt(localStorage.getItem(`gymsync_${userKey}_streak`) || '0');
-      
-      localStorage.setItem(`gymsync_${userKey}_points`, currentPoints + pointsEarned);
-      localStorage.setItem(`gymsync_${userKey}_streak`, currentStreak === 0 ? 1 : currentStreak);
-    }
-
-    if (currentExercise.aiWorkoutIndex !== undefined) {
-      setCheckedExercises(prev => {
-        if (!prev.includes(currentExercise.aiWorkoutIndex)) {
-          return [...prev, currentExercise.aiWorkoutIndex];
-        }
-        return prev;
-      });
-    }
-
-    toast.success(`AI Session Complete! Tracked ${resultContract.reps || 0} reps with ${Math.round((resultContract.confidence || 0.85) * 100)}% confidence.`);
-    setCurrentExercise(null);
-    setAiModeChoice(null);
+    toast.success(`🎉 Workout Day ${activeWorkoutDay} Completed! You earned +50 XP & extended your streak!`);
   };
 
   const handleAIModeClick = () => {
@@ -307,7 +362,6 @@ const AITrainer = () => {
         {currentExercise && (() => {
           const isAiEnabled = Boolean(currentExercise.aiDetection?.enabled || currentExercise.isAiTrackable);
 
-          // If user chose AI camera mode -> Render AIDetectorContainer
           if (isAiEnabled && aiModeChoice === 'with_ai') {
             return (
               <div className="active-exercise-view glass-panel" style={{border: '1px solid #3b82f6', boxShadow: '0 8px 30px rgba(59,130,246,0.2)'}}>
@@ -320,14 +374,13 @@ const AITrainer = () => {
                 <AIDetectorContainer
                   detectorId={currentExercise.aiDetection?.detectorId || 'pushup_v1'}
                   exerciseName={currentExercise.name}
-                  onCompleteSession={handleAIComplete}
+                  onCompleteSession={(result) => completeExercise({ mode: 'ai', aiResult: result })}
                   onFallbackToManual={() => setAiModeChoice('without_ai')}
                 />
               </div>
             );
           }
 
-          // Exercise Detail & Video / GIF View
           const rawMedia = currentExercise.mediaUrl || currentExercise.gifUrl || currentExercise.videoUrl || (currentExercise.video !== 'none' ? currentExercise.video : null);
           const hasMedia = rawMedia && rawMedia !== 'none';
           const isVideoMedia = hasMedia && (rawMedia.endsWith('.mp4') || rawMedia.endsWith('.webm') || rawMedia.endsWith('.ogg') || rawMedia.includes('youtube.com') || rawMedia.includes('youtu.be'));
@@ -418,7 +471,7 @@ const AITrainer = () => {
                 </div>
 
                 <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginTop: '24px'}}>
-                  <label style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>Target Completed Reps</label>
+                  <label style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>Target Completed Reps (Target: {currentExercise.reps || 10})</label>
                   <input 
                     type="number" 
                     min="1" 
@@ -431,7 +484,7 @@ const AITrainer = () => {
 
               {/* ACTION FOOTER */}
               <div className="exercise-footer" style={{marginTop: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap'}}>
-                <button className="btn btn-success" style={{ flex: 1, minWidth: '200px' }} onClick={handleComplete}>
+                <button className="btn btn-success" style={{ flex: 1, minWidth: '200px' }} onClick={() => completeExercise({ mode: 'manual', completedReps: reps })}>
                   <CheckCircle size={20}/> Log Reps & Complete
                 </button>
                 {isAiEnabled && (
@@ -446,7 +499,6 @@ const AITrainer = () => {
             </div>
           );
         })()}
-
 
         {/* ALL EXERCISES LIBRARY VIEW */}
         {activeMode === 'library' && !currentExercise && (
@@ -555,7 +607,7 @@ const AITrainer = () => {
                   To generate your personalized AI workout calendar and 100% natural nutrition plan, please complete your bio details in your Profile.
                 </p>
                 <button className="btn btn-primary" style={{ padding: '12px 24px', fontSize: '1rem' }} onClick={() => navigate('/profile')}>
-                  Complete Profile Bio
+                  Complete Profile Bio Assessment Now
                 </button>
               </div>
             ) : (
@@ -564,26 +616,26 @@ const AITrainer = () => {
                   <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                     <Bot size={40} color="#3b82f6"/>
                     <div>
-                      <h2>Dynamic AI Calendar & Intake Engine</h2>
-                      <p style={{color: 'var(--text-secondary)'}}>100% Natural Diet & Microcycle Progressive Overload Matrix</p>
+                      <h2>Dynamic AI Calendar & Workout Engine</h2>
+                      <p style={{color: 'var(--text-secondary)'}}>Sequential progressive overload & schedule-aware workout state machine</p>
                     </div>
                   </div>
                   <span className="category-badge" style={{background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '6px 12px', borderRadius: '20px', fontSize: '0.85rem'}}>
-                    Status: {aiPlan?.intake_status || 'COMPLETE'}
+                    Plan Active: {aiPlan?.planDuration || 'Custom'}
                   </span>
                 </div>
 
                 {isGeneratingPlan ? (
                   <div style={{textAlign: 'center', padding: '40px 0'}}>
                     <div style={{width: '40px', height: '40px', borderRadius: '50%', border: '4px solid #3b82f6', borderTopColor: 'transparent', animation: 'spin 1s linear infinite', margin: '0 auto 20px auto'}}></div>
-                    <p style={{color: 'var(--text-secondary)'}}>Ingesting GymSync Datasets & Building 30-Day Dynamic Overload Calendar...</p>
+                    <p style={{color: 'var(--text-secondary)'}}>Ingesting GymSync Datasets & Building Dynamic Overload Calendar...</p>
                   </div>
                 ) : aiPlan ? (
                   <div className="ai-structured-plan">
                     {/* PHASE 2: MEDICAL SAFETY HARD FILTERS */}
                     {aiPlan.medical_warnings && aiPlan.medical_warnings.length > 0 && (
                       <div style={{background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '15px', borderRadius: '12px', marginBottom: '20px'}}>
-                        <h3 style={{color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px'}}><ShieldAlert size={20}/> Phase 2: Medical Safety Hard-Filters Active</h3>
+                        <h3 style={{color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px'}}><ShieldAlert size={20}/> Medical Safety Hard-Filters Active</h3>
                         <ul style={{marginTop: '10px', paddingLeft: '20px'}}>
                           {aiPlan.medical_warnings.map((warn, i) => (
                             <li key={i} style={{color: 'var(--text-secondary)', marginBottom: '5px', fontSize: '0.9rem'}}>{warn}</li>
@@ -592,12 +644,12 @@ const AITrainer = () => {
                       </div>
                     )}
 
-                    {/* PHASE 3: INTERACTIVE CALENDAR & SIDE-DRAWER UI */}
+                    {/* INTERACTIVE CALENDAR & SIDE-DRAWER UI */}
                     <h3 style={{marginBottom: '15px', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                      📅 Phase 3: Interactive 28-Day Calendar Dashboard
+                      📅 Interactive Workout Schedule Dashboard
                     </h3>
                     <p style={{fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '15px'}}>
-                      Click on any date to inspect that day's whole food diet protocol and specific microcycle exercise overload.
+                      Workouts unlock on their scheduled dates. Complete required exercises sequentially to unlock daily achievements.
                     </p>
 
                     <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px'}}>
@@ -610,193 +662,218 @@ const AITrainer = () => {
 
                           {(aiPlan.interactive_calendar || []).map(dayItem => {
                             const isSelected = selectedCalendarDay?.dayNumber === dayItem.dayNumber;
-                            const isWorkout = dayItem.isWorkoutDay;
+                            const { status, scheduledDate } = getDayScheduleInfo(dayItem);
+
+                            let bg = 'rgba(255, 255, 255, 0.04)';
+                            let border = '1px solid transparent';
+                            let textColor = 'var(--text-secondary)';
+
+                            if (status === 'COMPLETED') {
+                              bg = 'rgba(16, 185, 129, 0.25)';
+                              border = '1px solid #10b981';
+                              textColor = '#10b981';
+                            } else if (status === 'AVAILABLE') {
+                              bg = 'rgba(59, 130, 246, 0.25)';
+                              border = '1px solid #3b82f6';
+                              textColor = '#60a5fa';
+                            } else if (status === 'MISSED') {
+                              bg = 'rgba(239, 68, 68, 0.2)';
+                              border = '1px solid #ef4444';
+                              textColor = '#ef4444';
+                            } else if (status === 'REST') {
+                              bg = 'rgba(255, 255, 255, 0.05)';
+                              border = '1px dashed rgba(255,255,255,0.15)';
+                              textColor = 'var(--text-secondary)';
+                            }
+
+                            if (isSelected) {
+                              border = '2px solid white';
+                            }
 
                             return (
                               <div 
                                 key={dayItem.dayNumber}
                                 onClick={() => setSelectedCalendarDay(dayItem)}
+                                title={`Day ${dayItem.dayNumber} - ${status} (${scheduledDate.toLocaleDateString()})`}
                                 style={{
                                   padding: '10px 4px',
                                   borderRadius: '8px',
                                   cursor: 'pointer',
                                   textAlign: 'center',
-                                  background: isSelected 
-                                    ? '#3b82f6' 
-                                    : isWorkout 
-                                      ? 'rgba(16, 185, 129, 0.25)' 
-                                      : 'rgba(255, 255, 255, 0.05)',
-                                  border: isSelected 
-                                    ? '2px solid white' 
-                                    : isWorkout 
-                                      ? '1px solid rgba(16, 185, 129, 0.5)' 
-                                      : '1px solid transparent',
+                                  background: bg,
+                                  border: border,
+                                  position: 'relative',
                                   transition: 'all 0.2s ease'
                                 }}
                               >
-                                <span style={{fontWeight: 'bold', fontSize: '0.95rem', display: 'block', color: isSelected ? 'white' : isWorkout ? '#10b981' : 'var(--text-secondary)'}}>
+                                <span style={{fontWeight: 'bold', fontSize: '0.95rem', display: 'block', color: isSelected ? 'white' : textColor}}>
                                   {dayItem.dayNumber}
                                 </span>
-                                <span style={{fontSize: '0.65rem', display: 'block', marginTop: '2px', color: isSelected ? 'white' : 'var(--text-secondary)'}}>
-                                  Wk {dayItem.weekNumber}
+                                <span style={{fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px', marginTop: '2px', color: isSelected ? 'white' : 'var(--text-secondary)'}}>
+                                  {status === 'LOCKED' ? <Lock size={9} /> : status === 'COMPLETED' ? <CheckCircle size={9} color="#10b981" /> : `Wk ${dayItem.weekNumber}`}
                                 </span>
                               </div>
                             );
                           })}
                         </div>
 
-                        <div style={{display: 'flex', gap: '15px', marginTop: '15px', fontSize: '0.8rem', justifyContent: 'center'}}>
-                          <span style={{display: 'flex', alignItems: 'center', gap: '5px'}}><span style={{width: '10px', height: '10px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.8)'}}></span> Active Workout</span>
-                          <span style={{display: 'flex', alignItems: 'center', gap: '5px'}}><span style={{width: '10px', height: '10px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)'}}></span> Rest / Recovery</span>
-                          <span style={{display: 'flex', alignItems: 'center', gap: '5px'}}><span style={{width: '10px', height: '10px', borderRadius: '50%', background: '#3b82f6'}}></span> Selected</span>
+                        <div style={{display: 'flex', gap: '12px', marginTop: '15px', fontSize: '0.75rem', justifyContent: 'center', flexWrap: 'wrap'}}>
+                          <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}><span style={{width: '8px', height: '8px', borderRadius: '50%', background: '#10b981'}}></span> Completed</span>
+                          <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}><span style={{width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6'}}></span> Available Today</span>
+                          <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}><span style={{width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444'}}></span> Missed</span>
+                          <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}><span style={{width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.3)'}}></span> Rest</span>
                         </div>
                       </div>
 
                       {/* SIDE-DRAWER / DETAIL PANEL */}
-                      {selectedCalendarDay && (
-                        <div style={{background: 'var(--panel-bg)', padding: '20px', borderRadius: '16px', border: '1px solid #3b82f6', boxShadow: '0 8px 30px rgba(0,0,0,0.5)'}}>
-                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', borderBottom: '1px solid var(--card-border)', paddingBottom: '12px', marginBottom: '15px'}}>
-                            <div>
-                              <h3 style={{fontSize: '1.2rem', color: 'var(--text-primary)'}}>Day {selectedCalendarDay.dayNumber} Details</h3>
-                              <p style={{fontSize: '0.85rem', color: '#3b82f6'}}>{selectedCalendarDay.phaseName}</p>
+                      {selectedCalendarDay && (() => {
+                        const { status, scheduledDate } = getDayScheduleInfo(selectedCalendarDay);
+                        const isToday = status === 'AVAILABLE';
+
+                        return (
+                          <div style={{background: 'var(--panel-bg)', padding: '20px', borderRadius: '16px', border: '1px solid #3b82f6', boxShadow: '0 8px 30px rgba(0,0,0,0.5)'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', borderBottom: '1px solid var(--card-border)', paddingBottom: '12px', marginBottom: '15px'}}>
+                              <div>
+                                <h3 style={{fontSize: '1.2rem', color: 'var(--text-primary)'}}>Day {selectedCalendarDay.dayNumber} Details</h3>
+                                <p style={{fontSize: '0.85rem', color: '#3b82f6'}}>{selectedCalendarDay.phaseName || 'Routine'} • {scheduledDate.toLocaleDateString()}</p>
+                              </div>
+                              <span className="category-badge" style={{
+                                background: status === 'COMPLETED' ? 'rgba(16, 185, 129, 0.2)' : status === 'AVAILABLE' ? 'rgba(59, 130, 246, 0.2)' : status === 'MISSED' ? 'rgba(239, 68, 68, 0.2)' : 'var(--card-border)',
+                                color: status === 'COMPLETED' ? '#10b981' : status === 'AVAILABLE' ? '#60a5fa' : status === 'MISSED' ? '#ef4444' : 'var(--text-secondary)',
+                                padding: '4px 10px',
+                                borderRadius: '12px',
+                                fontSize: '0.8rem'
+                              }}>
+                                {status === 'COMPLETED' ? '✅ Completed' : status === 'AVAILABLE' ? '▶️ Available Today' : status === 'MISSED' ? '🔴 Missed' : status === 'REST' ? '😴 Rest & Recovery' : '🔒 Locked'}
+                              </span>
                             </div>
-                            <span className="category-badge" style={{
-                              background: selectedCalendarDay.isWorkoutDay ? 'rgba(16, 185, 129, 0.2)' : 'var(--card-border)',
-                              color: selectedCalendarDay.isWorkoutDay ? '#10b981' : 'var(--text-secondary)',
-                              padding: '4px 10px',
-                              borderRadius: '12px',
-                              fontSize: '0.8rem'
-                            }}>
-                              {selectedCalendarDay.isWorkoutDay ? selectedCalendarDay.focusArea : 'Rest & Recovery'}
-                            </span>
-                          </div>
 
-                          {/* WORKOUT SPLIT FOR SELECTED DAY */}
-                          <h4 style={{fontSize: '0.95rem', color: '#3b82f6', marginBottom: '10px'}}>🏋️ Workout Split</h4>
-                          {typeof selectedCalendarDay.workoutSplit === 'string' ? (
-                            <p style={{color: 'var(--text-secondary)', fontSize: '0.9rem', background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', marginBottom: '20px'}}>
-                              {selectedCalendarDay.workoutSplit}
-                            </p>
-                          ) : (
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', maxHeight: '240px', overflowY: 'auto'}}>
-                              {selectedCalendarDay.workoutSplit.map((ex, idx) => {
-                                const targetEx = EXERCISE_LIBRARY.find(e => e.id === ex.id) || { ...ex, category: 'AI Custom', instructions: 'Follow AI targets', points: 1 };
-                                const isActiveWorkout = activeWorkoutDay === selectedCalendarDay.dayNumber;
-                                const isChecked = checkedExercises.includes(idx);
-                                
-                                return (
-                                  <div 
-                                    key={idx} 
-                                    onClick={() => startExercise({ ...targetEx, ...ex, aiWorkoutIndex: idx })}
-                                    className="ai-exercise-card"
-                                    style={{
-                                      background: isChecked ? 'rgba(16, 185, 129, 0.2)' : 'var(--card-bg)', 
-                                      padding: '10px 12px', 
-                                      borderRadius: '8px', 
-                                      border: isChecked ? '1px solid #10b981' : '1px solid var(--card-border)', 
-                                      display: 'flex', 
-                                      justifyContent: 'space-between', 
-                                      alignItems: 'center',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.2s',
-                                      transform: 'scale(1)'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.transform = 'scale(1.02)';
-                                      e.currentTarget.style.borderColor = isChecked ? '#10b981' : 'var(--primary-accent)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.transform = 'scale(1)';
-                                      e.currentTarget.style.borderColor = isChecked ? '#10b981' : 'var(--card-border)';
-                                    }}
-                                  >
-                                    <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                                      {isActiveWorkout && (
-                                        <div 
-                                          style={{width: '24px', height: '24px', borderRadius: '50%', border: '2px solid', borderColor: isChecked ? '#10b981' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'}}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleCheckExercise(idx);
-                                          }}
-                                        >
-                                          {isChecked && <CheckCircle size={16} color="#10b981" />}
-                                        </div>
-                                      )}
-                                      <div>
-                                        <h5 style={{fontSize: '0.9rem', margin: 0, color: isChecked ? '#10b981' : 'var(--text-primary)', textDecoration: isChecked ? 'line-through' : 'none'}}>{ex.name}</h5>
-                                        <span style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>{ex.target} • {ex.equipment}</span>
-                                      </div>
-                                    </div>
-                                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                      <div style={{textAlign: 'right'}}>
-                                        <span style={{fontSize: '0.8rem', fontWeight: 'bold', color: isChecked ? '#10b981' : 'var(--primary-accent)', display: 'block'}}>{ex.sets} Sets × {ex.reps} Reps</span>
-                                        <span style={{fontSize: '0.7rem', color: '#f59e0b'}}>{ex.rpe}</span>
-                                      </div>
-                                      <button 
-                                        className="btn btn-outline btn-sm" 
-                                        style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          startExercise({ ...targetEx, ...ex, aiWorkoutIndex: idx });
-                                        }}
-                                      >
-                                        <Eye size={14} /> View
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* DIET PLAN FOR SELECTED DAY */}
-                          <h4 style={{fontSize: '0.95rem', color: '#10b981', marginBottom: '10px'}}>🥗 Natural Whole Food Diet</h4>
-                          <div style={{display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto'}}>
-                            {(aiPlan.daily_diet_plan || []).map((diet, dIdx) => (
-                              <div key={dIdx} style={{background: 'var(--card-bg)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem'}}>
-                                <strong style={{color: 'var(--primary-accent)'}}>{diet.meal}: </strong>
-                                <span style={{color: 'var(--text-secondary)'}}>{diet.food}</span>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* WORKOUT CONTROLS */}
-                          <div style={{marginTop: '20px', borderTop: '1px solid var(--card-border)', paddingTop: '15px'}}>
-                            {workoutProgress.completedDays.includes(selectedCalendarDay.dayNumber) ? (
-                              <div style={{textAlign: 'center', padding: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', borderRadius: '8px'}}>
-                                <CheckCircle size={24} style={{marginBottom: '5px'}}/>
-                                <div style={{fontWeight: 'bold'}}>Workout Completed</div>
-                              </div>
-                            ) : activeWorkoutDay === selectedCalendarDay.dayNumber ? (
-                              <button 
-                                className="btn btn-primary" 
-                                style={{width: '100%', background: '#10b981'}}
-                                disabled={checkedExercises.length !== (selectedCalendarDay.workoutSplit?.length || 0)}
-                                onClick={completeActiveWorkout}
-                              >
-                                Complete Workout
-                              </button>
-                            ) : timeUntilNext && selectedCalendarDay.isWorkoutDay ? (
-                              <div style={{textAlign: 'center', padding: '15px', background: 'rgba(0,0,0,0.5)', borderRadius: '8px', border: '1px solid var(--card-border)'}}>
-                                <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)'}}>Next workout unlocks in</div>
-                                <div style={{fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-primary)', fontFamily: 'monospace'}}>{timeUntilNext}</div>
-                              </div>
-                            ) : selectedCalendarDay.isWorkoutDay ? (
-                              <button 
-                                className="btn btn-primary" 
-                                style={{width: '100%'}}
-                                onClick={() => setActiveWorkoutDay(selectedCalendarDay.dayNumber)}
-                              >
-                                Start Today's Workout
-                              </button>
+                            {/* WORKOUT SPLIT FOR SELECTED DAY */}
+                            <h4 style={{fontSize: '0.95rem', color: '#3b82f6', marginBottom: '10px'}}>🏋️ Workout Split</h4>
+                            {typeof selectedCalendarDay.workoutSplit === 'string' ? (
+                              <p style={{color: 'var(--text-secondary)', fontSize: '0.9rem', background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', marginBottom: '20px'}}>
+                                {selectedCalendarDay.workoutSplit}
+                              </p>
                             ) : (
-                              <div style={{textAlign: 'center', padding: '10px', color: 'var(--text-secondary)'}}>
-                                Enjoy your rest day!
+                              <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', maxHeight: '250px', overflowY: 'auto'}}>
+                                {selectedCalendarDay.workoutSplit.map((ex, idx) => {
+                                  const targetEx = EXERCISE_LIBRARY.find(e => e.id === ex.id) || { ...ex, category: 'AI Custom', instructions: 'Follow AI targets', points: 1 };
+                                  const isExDone = isExerciseCompletedInState(selectedCalendarDay.dayNumber, idx);
+                                  const isUnlocked = isExerciseUnlockedInState(selectedCalendarDay.dayNumber, idx);
+
+                                  return (
+                                    <div 
+                                      key={idx} 
+                                      onClick={() => {
+                                        if (status === 'LOCKED') {
+                                          toast.info(`Workout Day ${selectedCalendarDay.dayNumber} is locked until ${scheduledDate.toLocaleDateString()}`);
+                                          return;
+                                        }
+                                        if (status === 'REST') {
+                                          toast.info(`Day ${selectedCalendarDay.dayNumber} is a scheduled Rest & Recovery Day.`);
+                                          return;
+                                        }
+                                        if (!isUnlocked && status !== 'COMPLETED') {
+                                          toast.warning(`Please complete previous exercises in order first!`);
+                                          return;
+                                        }
+                                        startExercise({ ...targetEx, ...ex, aiWorkoutIndex: idx });
+                                      }}
+                                      className="ai-exercise-card"
+                                      style={{
+                                        background: isExDone ? 'rgba(16, 185, 129, 0.15)' : !isUnlocked && status !== 'COMPLETED' ? 'rgba(0,0,0,0.3)' : 'var(--card-bg)', 
+                                        padding: '10px 12px', 
+                                        borderRadius: '8px', 
+                                        border: isExDone ? '1px solid #10b981' : isUnlocked ? '1px solid #3b82f6' : '1px solid var(--card-border)', 
+                                        display: 'flex', 
+                                        justifyContent: 'space-between', 
+                                        alignItems: 'center',
+                                        cursor: (isUnlocked || status === 'COMPLETED') ? 'pointer' : 'not-allowed',
+                                        opacity: (!isUnlocked && status !== 'COMPLETED') ? 0.6 : 1,
+                                        transition: 'all 0.2s'
+                                      }}
+                                    >
+                                      <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                                        <div style={{width: '24px', height: '24px', borderRadius: '50%', border: '2px solid', borderColor: isExDone ? '#10b981' : isUnlocked ? '#3b82f6' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                          {isExDone ? <CheckCircle size={16} color="#10b981" /> : !isUnlocked && status !== 'COMPLETED' ? <Lock size={12} color="var(--text-secondary)" /> : <span style={{ fontSize: '0.75rem', color: '#3b82f6' }}>{idx + 1}</span>}
+                                        </div>
+                                        <div>
+                                          <h5 style={{fontSize: '0.9rem', margin: 0, color: isExDone ? '#10b981' : 'var(--text-primary)', textDecoration: isExDone ? 'line-through' : 'none'}}>{ex.name}</h5>
+                                          <span style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>{ex.target} • {ex.equipment}</span>
+                                        </div>
+                                      </div>
+                                      <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                        <div style={{textAlign: 'right'}}>
+                                          <span style={{fontSize: '0.8rem', fontWeight: 'bold', color: isExDone ? '#10b981' : 'var(--primary-accent)', display: 'block'}}>{ex.sets} Sets × {ex.reps} Reps</span>
+                                          <span style={{fontSize: '0.7rem', color: '#f59e0b'}}>{ex.rpe}</span>
+                                        </div>
+                                        <button 
+                                          className="btn btn-outline btn-sm" 
+                                          style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                          disabled={!isUnlocked && status !== 'COMPLETED'}
+                                        >
+                                          {!isUnlocked && status !== 'COMPLETED' ? <Lock size={12}/> : <Eye size={14} />} View
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
+
+                            {/* DIET PLAN FOR SELECTED DAY */}
+                            <h4 style={{fontSize: '0.95rem', color: '#10b981', marginBottom: '10px'}}>🥗 Natural Whole Food Diet</h4>
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto'}}>
+                              {(aiPlan.daily_diet_plan || []).map((diet, dIdx) => (
+                                <div key={dIdx} style={{background: 'var(--card-bg)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem'}}>
+                                  <strong style={{color: 'var(--primary-accent)'}}>{diet.meal}: </strong>
+                                  <span style={{color: 'var(--text-secondary)'}}>{diet.food}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* WORKOUT CONTROLS */}
+                            <div style={{marginTop: '20px', borderTop: '1px solid var(--card-border)', paddingTop: '15px'}}>
+                              {status === 'COMPLETED' ? (
+                                <div style={{textAlign: 'center', padding: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', borderRadius: '8px'}}>
+                                  <CheckCircle size={24} style={{marginBottom: '5px'}}/>
+                                  <div style={{fontWeight: 'bold'}}>Workout Completed</div>
+                                </div>
+                              ) : status === 'REST' ? (
+                                <div style={{textAlign: 'center', padding: '12px', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)', borderRadius: '8px'}}>
+                                  <Moon size={22} style={{ marginBottom: '4px' }} />
+                                  <div style={{ fontWeight: 'bold' }}>Scheduled Rest & Recovery Day</div>
+                                </div>
+                              ) : status === 'LOCKED' ? (
+                                <div style={{textAlign: 'center', padding: '12px', background: 'rgba(0,0,0,0.4)', color: 'var(--text-secondary)', borderRadius: '8px', border: '1px solid var(--card-border)'}}>
+                                  <Lock size={20} style={{ marginBottom: '4px' }} />
+                                  <div>Workout Locked</div>
+                                  <div style={{ fontSize: '0.78rem' }}>Unlocks on {scheduledDate.toLocaleDateString()}</div>
+                                </div>
+                              ) : activeWorkoutDay === selectedCalendarDay.dayNumber ? (
+                                <button 
+                                  className="btn btn-primary" 
+                                  style={{width: '100%', background: '#10b981'}}
+                                  onClick={completeActiveWorkout}
+                                >
+                                  <CheckCircle size={18}/> Complete Today's Workout (+50 XP)
+                                </button>
+                              ) : (
+                                <button 
+                                  className="btn btn-primary" 
+                                  style={{width: '100%'}}
+                                  onClick={() => {
+                                    setActiveWorkoutDay(selectedCalendarDay.dayNumber);
+                                    toast.info(`Started Day ${selectedCalendarDay.dayNumber} workout! Complete exercises in order.`);
+                                  }}
+                                >
+                                  ▶️ Start Today's Workout
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                 ) : null}

@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, X, Dumbbell, Zap, Clock, CheckCircle, ClipboardList } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Dumbbell, Zap, Clock, CheckCircle, ClipboardList, Moon } from 'lucide-react';
 
 /**
- * WorkoutCalendar — replaces the plain "Past Workouts" list in Profile.
+ * WorkoutCalendar — renders exercise history & AI Workout Plan calendar status in Profile.
  *
  * Props:
- *  - history: array of exercise entries  { name, date (ISO), pointsEarned, trackedViaAI,
- *                                          category, equipment, instructions, ... }
+ *  - history: array of exercise entries  { name, date (ISO), pointsEarned, trackedViaAI, ... }
+ *  - aiPlan : active AI plan with interactive_calendar & planStartDate
  *
  * Color logic:
- *  - GREEN  : any past day (before today) that has ≥1 completed exercise
+ *  - GREEN  : any past/today day with completed exercise
  *  - YELLOW : today's date
- *  - RED    : any past weekday (Mon-Fri) with 0 exercises, only when user has ≥1 history entry
- *  - Click  : opens an inline detail panel for the selected date
+ *  - RED    : past scheduled workout day with 0 completed exercises
+ *  - REST   : scheduled rest day
+ *  - Click  : opens inline detail panel for the selected date
  */
-const WorkoutCalendar = ({ history = [] }) => {
+const WorkoutCalendar = ({ history = [], aiPlan = null }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -68,10 +69,27 @@ const WorkoutCalendar = ({ history = [] }) => {
     const past = date < today;
     const future = date > today;
 
+    if (completedMap[key]?.length > 0) return 'completed';
     if (isToday) return 'today';
     if (future)  return 'future';
-    if (completedMap[key]?.length > 0) return 'completed';
-    if (hasAnyHistory && past && isoDay(date) < 5) return 'missed';
+
+    if (past) {
+      if (aiPlan && aiPlan.interactive_calendar) {
+        const planStart = aiPlan.planStartDate ? new Date(aiPlan.planStartDate) : null;
+        if (planStart) {
+          planStart.setHours(0, 0, 0, 0);
+          const diffTime = date.getTime() - planStart.getTime();
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays >= 0 && diffDays < (aiPlan.interactive_calendar?.length || 28)) {
+            const calDay = aiPlan.interactive_calendar[diffDays];
+            if (calDay && calDay.isWorkoutDay) return 'missed';
+            return 'rest';
+          }
+        }
+      }
+      if (hasAnyHistory && isoDay(date) < 5) return 'missed';
+    }
+
     return 'default';
   };
 
@@ -79,6 +97,7 @@ const WorkoutCalendar = ({ history = [] }) => {
     completed : { bg: 'rgba(16, 185, 129, 0.2)',  border: '#10b981', dot: '#10b981', text: '#10b981' },
     today     : { bg: 'rgba(234, 179, 8, 0.18)',  border: '#eab308', dot: '#eab308', text: '#eab308' },
     missed    : { bg: 'rgba(239, 68, 68, 0.14)',  border: '#ef4444', dot: '#ef4444', text: '#ef4444' },
+    rest      : { bg: 'rgba(255, 255, 255, 0.03)', border: 'rgba(255, 255, 255, 0.1)', dot: null, text: 'var(--text-secondary)' },
     future    : { bg: 'transparent', border: 'transparent', dot: null, text: 'var(--text-secondary)' },
     default   : { bg: 'transparent', border: 'transparent', dot: null, text: 'var(--text-secondary)' },
     empty     : {},
@@ -111,9 +130,10 @@ const WorkoutCalendar = ({ history = [] }) => {
   const Legend = () => (
     <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
       {[
-        { color: '#10b981', label: 'Completed' },
+        { color: '#10b981', label: 'Completed Workout' },
         { color: '#eab308', label: 'Today' },
-        { color: '#ef4444', label: 'Missed' },
+        { color: '#ef4444', label: 'Missed Workout' },
+        { color: 'rgba(255,255,255,0.3)', label: 'Rest / Recovery' },
       ].map(({ color, label }) => (
         <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
           <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block' }} />
@@ -160,11 +180,14 @@ const WorkoutCalendar = ({ history = [] }) => {
               <span style={{ fontSize: '0.72rem', background: 'rgba(234,179,8,0.14)', color: '#eab308', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 20, padding: '2px 10px', fontWeight: 600 }}>Today</span>
             )}
             {classifySelected === 'missed' && (
-              <span style={{ fontSize: '0.72rem', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.35)', borderRadius: 20, padding: '2px 10px', fontWeight: 600 }}>Missed</span>
+              <span style={{ fontSize: '0.72rem', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.35)', borderRadius: 20, padding: '2px 10px', fontWeight: 600 }}>Missed Workout</span>
+            )}
+            {classifySelected === 'rest' && (
+              <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.08)', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 20, padding: '2px 10px', fontWeight: 600 }}>Rest & Recovery</span>
             )}
             {classifySelected === 'completed' && (
               <span style={{ fontSize: '0.72rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 20, padding: '2px 10px', fontWeight: 600 }}>
-                {selectedExercises.length} exercise{selectedExercises.length !== 1 ? 's' : ''}
+                {selectedExercises.length} exercise{selectedExercises.length !== 1 ? 's' : ''} completed
               </span>
             )}
           </div>
@@ -209,26 +232,30 @@ const WorkoutCalendar = ({ history = [] }) => {
                         <Zap size={11} color="#f59e0b" /> {ex.equipment}
                       </span>
                     )}
+                    {ex.completedReps && (
+                      <span style={{ fontSize: '0.77rem', color: '#10b981', fontWeight: 'bold' }}>
+                        Logged: {ex.completedReps} Reps
+                      </span>
+                    )}
                     {ex.date && (
                       <span style={{ fontSize: '0.77rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Clock size={11} /> {new Date(ex.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     )}
                   </div>
-
-                  {/* instructions */}
-                  {ex.instructions && (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '8px 0 0', lineHeight: 1.55 }}>
-                      {ex.instructions}
-                    </p>
-                  )}
                 </div>
               ))}
             </div>
+          ) : classifySelected === 'rest' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px 0', color: 'var(--text-secondary)', gap: '8px' }}>
+              <Moon size={34} style={{ opacity: 0.5, color: '#3b82f6' }} />
+              <span style={{ fontSize: '0.92rem', color: 'var(--text-primary)', fontWeight: 'bold' }}>Scheduled Rest & Recovery Day</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Rest, hydrate, and allow muscle fibers to repair.</span>
+            </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 0', color: 'var(--text-secondary)', gap: '12px' }}>
-              <ClipboardList size={38} style={{ opacity: 0.3 }} />
-              <span style={{ fontSize: '0.92rem' }}>No workout done.</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px 0', color: 'var(--text-secondary)', gap: '8px' }}>
+              <ClipboardList size={34} style={{ opacity: 0.3 }} />
+              <span style={{ fontSize: '0.92rem' }}>No workout logged for this date.</span>
             </div>
           )}
         </div>
@@ -281,7 +308,8 @@ const WorkoutCalendar = ({ history = [] }) => {
                 title={
                   status === 'completed' ? `${exercises.length} exercise${exercises.length !== 1 ? 's' : ''} completed` :
                   status === 'today'     ? 'Today' :
-                  status === 'missed'    ? 'Missed workout day' : undefined
+                  status === 'missed'    ? 'Missed workout day' :
+                  status === 'rest'      ? 'Rest & Recovery Day' : undefined
                 }
                 style={{
                   background: isSelected ? (s.bg || 'rgba(255,255,255,0.08)') : (s.bg || 'transparent'),

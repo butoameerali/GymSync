@@ -37,6 +37,8 @@ const Profile = () => {
   const fileInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [aiPlan, setAiPlan] = useState(null);
+
   // Email Verification Modal State
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
   const [verifyEmailInput, setVerifyEmailInput] = useState('');
@@ -119,14 +121,26 @@ const Profile = () => {
         if (storedBio) {
           try {
             setBio(JSON.parse(storedBio));
-            setUpcoming([
-              { id: 'u1', name: 'Barbell Squats', date: 'Tomorrow, 8:00 AM' },
-              { id: 'u2', name: 'Romanian Deadlifts', date: 'Tomorrow, 8:30 AM' }
-            ]);
           } catch (e) {
             console.error("Error parsing bio data", e);
           }
         }
+      }
+
+      const storedPlan = localStorage.getItem(`gymsync_${userKey}_ai_plan`);
+      if (storedPlan) {
+        try {
+          const parsedPlan = JSON.parse(storedPlan);
+          setAiPlan(parsedPlan);
+          if (parsedPlan && parsedPlan.interactive_calendar) {
+            const nextWorkout = parsedPlan.interactive_calendar.find(d => d.isWorkoutDay);
+            if (nextWorkout) {
+              setUpcoming([
+                { id: 'u1', name: `Day ${nextWorkout.dayNumber}: ${nextWorkout.focusArea || 'Workout Session'}`, date: 'Scheduled Workout' }
+              ]);
+            }
+          }
+        } catch (e) {}
       }
     };
 
@@ -567,7 +581,7 @@ const Profile = () => {
               {/* Past Workouts Calendar */}
               <div className="glass-panel section-panel" style={{gridColumn: '1/-1'}}>
                 <h3 className="section-title"><Calendar size={20}/> Past Workouts</h3>
-                <WorkoutCalendar history={safeHistory} />
+                <WorkoutCalendar history={safeHistory} aiPlan={aiPlan} />
               </div>
             </div>
           )}
