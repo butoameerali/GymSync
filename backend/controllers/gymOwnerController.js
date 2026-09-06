@@ -359,6 +359,32 @@ export const createGymPlan = async (req, res) => {
 
 export const createMemberPlan = createGymPlan;
 
+// @desc    Get Gym Plans (Workouts & Diets)
+// @route   GET /api/gym-owner/plans
+// @access  Private / GymOwner, GymTrainer, Admin
+export const getGymPlans = async (req, res) => {
+  try {
+    const { gymId, memberName, planType } = req.query;
+    let query = {};
+    if (gymId) query.gymId = gymId;
+    if (memberName) query.memberName = memberName;
+    if (planType) query.planType = planType;
+
+    if (req.user?.role === 'GymTrainer') {
+      const trainerGym = req.user.assignedGymName || req.user.subscribedGymName;
+      query.$or = [
+        { assignedBy: req.user.name },
+        ...(trainerGym ? [{ gymId: trainerGym }] : [])
+      ];
+    }
+
+    const plans = await GymPlan.find(query).sort({ createdAt: -1 });
+    res.json(plans);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Create Gym Trainer Account
 // @route   POST /api/gym-owner/trainers
 // @access  Private / GymOwner

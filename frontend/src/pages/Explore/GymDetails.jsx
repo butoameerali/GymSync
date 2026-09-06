@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapPin, Star, ArrowLeft, CheckCircle } from 'lucide-react';
 import PaymentModal from '../../components/common/PaymentModal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import { toast } from 'react-toastify';
 import './GymDetails.css';
 
 const GymDetails = () => {
@@ -56,20 +58,19 @@ const GymDetails = () => {
     loadUser();
   }, [id, isGuest, userName]);
 
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+
   const handleJoinClick = () => {
     if (isGuest) {
-      alert('Please log in or create an account to join this gym.');
+      toast.info('Please log in or create an account to subscribe to this facility.');
       navigate('/');
       return;
     }
     if (currentUser?.subscribedGymName && currentUser.subscribedGymName !== gym.name) {
-      const startNext = window.confirm(
-        `You are already registered in ${currentUser.subscribedGymName}. Do you want to subscribe to ${gym.name} from next month when your current month completes?\n\nClick OK to schedule for next month, or Cancel to subscribe immediately (overriding current gym).`
-      );
-      setStartNextMonth(startNext);
-    } else {
-      setStartNextMonth(false);
+      setShowSwitchConfirm(true);
+      return;
     }
+    setStartNextMonth(false);
     setIsPaymentModalOpen(true);
   };
 
@@ -172,9 +173,29 @@ const GymDetails = () => {
           >
             {isGuest ? 'Log In to Join' : 'Join Now & Pay'}
           </button>
-          <button className="btn btn-outline w-100 mt-10" onClick={() => alert('Contact the gym directly to book a tour.')}>Book a Tour</button>
+          <button 
+            className="btn btn-outline w-100 mt-10" 
+            onClick={() => toast.info('Please visit the facility in person or reach out directly to schedule a walkthrough tour.')}
+          >
+            Book a Tour
+          </button>
         </div>
       </div>
+
+      {/* Facility Switch Confirmation */}
+      <ConfirmDialog
+        isOpen={showSwitchConfirm}
+        onClose={() => setShowSwitchConfirm(false)}
+        onConfirm={() => {
+          setStartNextMonth(true);
+          setShowSwitchConfirm(false);
+          setIsPaymentModalOpen(true);
+        }}
+        title="Schedule Facility Transfer"
+        message={`You are currently subscribed to ${currentUser?.subscribedGymName}. Would you like to schedule your membership to ${gym.name} to activate next month after your current cycle finishes?`}
+        confirmText="Schedule Next Month"
+        cancelText="Cancel"
+      />
 
       <PaymentModal
         isOpen={isPaymentModalOpen}

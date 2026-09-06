@@ -1,0 +1,11 @@
+.store-manager-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .store-manager-page {
+    gap: 16px;
+  }
+}

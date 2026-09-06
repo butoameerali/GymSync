@@ -21,6 +21,9 @@ export const getRoleRedirectPath = (role) => {
   if (normalized === 'gymtrainer') {
     return '/gym-trainer';
   }
+  if (normalized === 'storemanager') {
+    return '/store-manager';
+  }
   return '/home'; // Standard user redirects to Homepage feed
 };
 

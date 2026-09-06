@@ -3,6 +3,7 @@ import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, 
 import { toast } from 'react-toastify';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import DashboardShell from '../../components/layout/DashboardShell';
 import StatCard from '../../components/ui/StatCard';
 import './GymOwnerDashboard.css';
@@ -47,6 +48,8 @@ const GymOwnerDashboard = () => {
   const [trainers, setTrainers] = useState([]);
   const [showTrainerModal, setShowTrainerModal] = useState(false);
   const [trainerForm, setTrainerForm] = useState({ name: '', email: '', password: '' });
+  const [showDeleteGymModal, setShowDeleteGymModal] = useState(false);
+  const [isDeletingGym, setIsDeletingGym] = useState(false);
 
   const ownerName = localStorage.getItem('gymsync_user_name') || 'Gym Owner';
 
@@ -270,7 +273,7 @@ const GymOwnerDashboard = () => {
   };
 
   const handleDeleteGym = async () => {
-    if (!window.confirm('Are you sure you want to delete your Gym Gig? This cannot be undone.')) return;
+    setIsDeletingGym(true);
     try {
       const gymId = dashboardData?.gym?._id;
       if (!gymId || gymId === 'gym_demo_id') return;
@@ -294,11 +297,14 @@ const GymOwnerDashboard = () => {
           bankDetails: '',
           description: ''
         });
+        setShowDeleteGymModal(false);
       } else {
         toast.error('Failed to delete gym');
       }
     } catch (err) {
       toast.error('Error deleting gym');
+    } finally {
+      setIsDeletingGym(false);
     }
   };
 
@@ -670,7 +676,7 @@ const GymOwnerDashboard = () => {
                       </div>
                     )}
                     <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                      <button className="btn" style={{ background: '#ef4444', color: 'white' }} onClick={handleDeleteGym}>
+                      <button className="btn" style={{ background: '#ef4444', color: 'white' }} onClick={() => setShowDeleteGymModal(true)}>
                         Delete Gym Gig
                       </button>
                     </div>
@@ -862,6 +868,17 @@ const GymOwnerDashboard = () => {
         )}
       </div>
     </div>
+      <ConfirmDialog
+        isOpen={showDeleteGymModal}
+        title="Delete Gym Gig"
+        message="Are you sure you want to delete your Gym Gig? This will permanently remove your gym profile, subscription offerings, and associated data. This action cannot be undone."
+        confirmText="Delete Gym"
+        confirmVariant="danger"
+        typedConfirmation="DELETE"
+        loading={isDeletingGym}
+        onConfirm={handleDeleteGym}
+        onCancel={() => setShowDeleteGymModal(false)}
+      />
     </DashboardShell>
   );
 };

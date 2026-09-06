@@ -139,7 +139,7 @@ const PaymentModal = ({
           Transfer <strong>${amount}</strong> to <strong>{selectedConfig.method}</strong>:
         </p>
         <div style={{ display: 'grid', gap: '6px', fontSize: '0.92rem' }}>
-          <div><strong>Number:</strong> <code>{selectedConfig.accountNumber || '03272450136'}</code></div>
+          <div><strong>Number:</strong> <code>{selectedConfig.accountNumber || 'Pending Configuration'}</code></div>
           <div><strong>Bank / Wallet:</strong> {selectedConfig.bankDetails || selectedConfig.method}</div>
           <div><strong>Notes:</strong> {selectedConfig.notes || 'Upload a payment screenshot for admin approval.'}</div>
         </div>

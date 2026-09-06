@@ -39,14 +39,18 @@ export const getNavigationForRole = (role) => {
         { id: 'overview', label: 'Trainer Overview', icon: 'Activity' },
         { id: 'members', label: 'Assigned Trainees', icon: 'Users' },
         { id: 'plans', label: 'Workout Plan Assignment', icon: 'Dumbbell' },
-        { id: 'diets', label: 'Diet Plan Assignment', icon: 'Utensils' }
+        { id: 'diets', label: 'Diet Plan Assignment', icon: 'Utensils' },
+        { id: 'chat', label: 'Trainee Messages', icon: 'MessageSquare' }
       ];
 
     case 'fitnessinstructor':
       return [
         { id: 'overview', label: 'Instructor Overview', icon: 'Activity' },
         { id: 'exercises', label: 'Exercise Library Management', icon: 'Dumbbell' },
-        { id: 'plans', label: 'Pre-made Workout Plans', icon: 'Calendar' }
+        { id: 'programs', label: 'Workout Programs', icon: 'Calendar' },
+        { id: 'diet', label: 'Diet Plans', icon: 'Utensils' },
+        { id: 'articles', label: 'Educational Articles', icon: 'FileText' },
+        { id: 'requests', label: 'Admin Requests', icon: 'MessageSquare' }
       ];
 
     case 'storemanager':

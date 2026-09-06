@@ -44,6 +44,10 @@ export const ROLE_PERMISSIONS = {
   FitnessInstructor: {
     dashboard: ['view_instructor'],
     exercises: ['create', 'edit', 'delete', 'manage_ai_detectors'],
+    workout_programs: ['create', 'edit', 'delete'],
+    diet_plans: ['create', 'edit', 'delete'],
+    articles: ['create', 'edit', 'delete'],
+    requests: ['view', 'respond'],
     profile: ['view_own', 'edit_own']
   },
 

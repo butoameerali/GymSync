@@ -8,6 +8,7 @@ import {
   checkInMember, 
   checkOutMember, 
   createMemberPlan,
+  getGymPlans,
   createGymTrainer,
   getGymTrainers
 } from '../controllers/gymOwnerController.js';
@@ -18,8 +19,11 @@ const router = express.Router();
 // Apply protection to all gym owner endpoints
 router.use(protect);
 
-// Trainers may assign plans, but cannot modify a gym or owner-managed accounts.
-router.post('/plans', authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'GymTrainer'), createMemberPlan);
+// Trainers may assign and view plans, but cannot modify a gym or owner-managed accounts.
+router.route('/plans')
+  .get(authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'GymTrainer'), getGymPlans)
+  .post(authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'GymTrainer'), createMemberPlan);
+
 router.use(authorizeRoles('GymOwner', 'gym_owner', 'Admin'));
 
 router.get('/dashboard/:ownerName', getGymOwnerDashboard);

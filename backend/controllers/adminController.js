@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Gym from '../models/Gym.js';
 import Complaint from '../models/Complaint.js';
 import Post from '../models/Post.js';
+import Payment from '../models/Payment.js';
 import AuditLog from '../models/AuditLog.js';
 import Notification from '../models/Notification.js';
 import { logAuditTrail } from '../middleware/securityMiddleware.js';
@@ -28,30 +29,69 @@ export const getAdminStats = async (req, res) => {
   try {
     if (!verifyAdminRole(req, res)) return;
 
-    let totalUsers = 120;
-    let totalGymOwners = 15;
-    let totalGyms = 18;
-    let pendingGymApprovals = 1;
-    let pendingComplaints = 2;
-    let totalPosts = 340;
-    let totalRevenue = 12450;
+    const userRole = req.user?.role || 'User';
+    const isModerator = userRole.toLowerCase() === 'complaintmoderator';
+
+    let pendingComplaints = 0;
+    let resolvedComplaints = 0;
+    let totalComplaints = 0;
+    let reportedPosts = 0;
+    let totalPosts = 0;
+    let bannedUsers = 0;
 
     try {
-      totalUsers = await User.countDocuments({ role: 'User' }) || totalUsers;
-      totalGymOwners = await User.countDocuments({ role: 'GymOwner' }) || totalGymOwners;
-      totalGyms = await Gym.countDocuments({ approvalStatus: 'Approved' }) || totalGyms;
-      pendingGymApprovals = await Gym.countDocuments({ approvalStatus: 'Pending' }) || pendingGymApprovals;
-      pendingComplaints = await Complaint.countDocuments({ status: 'Pending' }) || pendingComplaints;
-      totalPosts = await Post.countDocuments() || totalPosts;
+      pendingComplaints = await Complaint.countDocuments({ status: 'Pending' });
+      resolvedComplaints = await Complaint.countDocuments({ status: { $in: ['Resolved', 'Closed'] } });
+      totalComplaints = await Complaint.countDocuments();
+      reportedPosts = await Post.countDocuments({ reportCount: { $gt: 0 } });
+      totalPosts = await Post.countDocuments();
+      bannedUsers = await User.countDocuments({ isBanned: true });
+    } catch (e) {}
+
+    if (isModerator) {
+      return res.json({
+        isModeratorView: true,
+        pendingComplaints,
+        resolvedComplaints,
+        totalComplaints,
+        reportedPosts,
+        totalPosts,
+        bannedUsers
+      });
+    }
+
+    // Admin and SuperAdmin Full Metrics
+    let totalUsers = 0;
+    let totalGymOwners = 0;
+    let totalGyms = 0;
+    let pendingGymApprovals = 0;
+    let totalRevenue = 0;
+
+    try {
+      totalUsers = await User.countDocuments({ role: 'User' });
+      totalGymOwners = await User.countDocuments({ role: { $in: ['GymOwner', 'gym_owner'] } });
+      totalGyms = await Gym.countDocuments({ approvalStatus: 'Approved' });
+      pendingGymApprovals = await Gym.countDocuments({ approvalStatus: 'Pending' });
+
+      // Real Revenue aggregation from completed payments
+      const revAgg = await Payment.aggregate([
+        { $match: { status: 'Completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]);
+      totalRevenue = revAgg.length > 0 ? revAgg[0].total : 0;
     } catch (e) {}
 
     res.json({
+      isModeratorView: false,
       totalUsers,
       totalGymOwners,
       totalGyms,
       pendingGymApprovals,
       pendingComplaints,
+      resolvedComplaints,
       totalPosts,
+      reportedPosts,
+      bannedUsers,
       totalRevenue
     });
   } catch (error) {

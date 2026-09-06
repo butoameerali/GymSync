@@ -6,6 +6,7 @@ import NotificationDropdown from '../../features/notifications/components/Notifi
 import MessageDropdown from '../../features/messages/components/MessageDropdown';
 import { notificationService } from '../../features/notifications/services/notificationService';
 import { messageService } from '../../features/messages/services/messageService';
+import { toast } from 'react-toastify';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -30,6 +31,7 @@ const Navbar = () => {
   const isGymOwner = normalizedRole === 'gymowner';
   const isFitnessInstructor = normalizedRole === 'fitnessinstructor';
   const isGymTrainer = normalizedRole === 'gymtrainer';
+  const isStoreManager = normalizedRole === 'storemanager';
   const userName = localStorage.getItem('gymsync_user_name') || 'User';
 
   const [notifications, setNotifications] = useState([]);
@@ -138,7 +140,7 @@ const Navbar = () => {
       if (!res.ok) {
         const err = await res.json();
         console.error("Backend failed:", err.message);
-        alert(`Failed to accept: ${err.message}`);
+        toast.error(`Failed to accept: ${err.message}`);
         return;
       }
       // Update notification text directly
@@ -173,6 +175,7 @@ const Navbar = () => {
           {isLoggedIn && isGymOwner && <Link to="/gym-owner" className="nav-link" style={{ color: '#8b5cf6', fontWeight: 600 }}>Gym Panel</Link>}
           {isLoggedIn && isFitnessInstructor && <Link to="/fitness-instructor" className="nav-link" style={{ color: '#10b981', fontWeight: 600 }}>Instructor Panel</Link>}
           {isLoggedIn && isGymTrainer && <Link to="/gym-trainer" className="nav-link" style={{ color: '#3b82f6', fontWeight: 600 }}>Trainer Panel</Link>}
+          {isLoggedIn && isStoreManager && <Link to="/store-manager" className="nav-link" style={{ color: '#f59e0b', fontWeight: 600 }}>Store Panel</Link>}
           
           <div className="nav-auth-mobile">
             {!isLoggedIn ? (

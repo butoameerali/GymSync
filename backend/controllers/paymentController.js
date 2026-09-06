@@ -13,13 +13,13 @@ const getStripe = () => {
 const getDefaultConfigs = () => ([
   {
     method: 'Easypaisa',
-    accountNumber: '03272450136',
+    accountNumber: process.env.PAYMENT_ACCOUNT_NUMBER || '03272450136',
     bankDetails: 'Easypaisa Account - GymSync Payments',
     notes: 'Send proof screenshot after transfer. Admin approval is required.'
   },
   {
     method: 'JazzCash',
-    accountNumber: '03272450136',
+    accountNumber: process.env.PAYMENT_ACCOUNT_NUMBER || '03272450136',
     bankDetails: 'JazzCash Account - GymSync Payments',
     notes: 'Send proof screenshot after transfer. Admin approval is required.'
   }

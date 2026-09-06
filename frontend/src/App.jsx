@@ -26,6 +26,7 @@ const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const GymOwnerDashboard = lazy(() => import('./pages/GymOwner/GymOwnerDashboard'));
 const FitnessInstructorDashboard = lazy(() => import('./pages/FitnessInstructor/FitnessInstructorDashboard'));
 const GymTrainerDashboard = lazy(() => import('./pages/GymTrainer/GymTrainerDashboard'));
+const StoreManagerDashboard = lazy(() => import('./pages/StoreManager/StoreManagerDashboard'));
 const UserDashboard = lazy(() => import('./pages/User/UserDashboard'));
 const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage'));
 const MessagesPage = lazy(() => import('./pages/Messages/MessagesPage'));
@@ -94,6 +95,7 @@ function App() {
               <Route path="/gym-owner" element={<ProtectedRoute allowedRoles={['GymOwner', 'gym_owner']}><GymOwnerDashboard /></ProtectedRoute>} />
               <Route path="/fitness-instructor" element={<ProtectedRoute allowedRoles={['FitnessInstructor', 'Admin', 'SuperAdmin']}><FitnessInstructorDashboard /></ProtectedRoute>} />
               <Route path="/gym-trainer" element={<ProtectedRoute allowedRoles={['GymTrainer', 'GymOwner', 'gym_owner']}><GymTrainerDashboard /></ProtectedRoute>} />
+              <Route path="/store-manager" element={<ProtectedRoute allowedRoles={['StoreManager', 'Admin', 'SuperAdmin']}><StoreManagerDashboard /></ProtectedRoute>} />
               <Route path="/privacy" element={<LegalPage type="privacy" />} />
               <Route path="/terms" element={<LegalPage type="terms" />} />
               <Route path="/regulations" element={<LegalPage type="regulations" />} />

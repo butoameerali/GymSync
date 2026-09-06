@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useDebounce } from '../../hooks/useDebounce';
 import Modal from '../../components/common/Modal';
 import PaymentModal from '../../components/common/PaymentModal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import { can } from '../../config/permissions';
 import './Store.css';
@@ -27,6 +28,21 @@ const Store = () => {
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [adminOrders, setAdminOrders] = useState([]);
   const [isAdminOrdersOpen, setIsAdminOrdersOpen] = useState(false);
+
+  // Modal Dialog States (replacing window.prompt / window.confirm)
+  const [orderToManage, setOrderToManage] = useState(null);
+  const [manageForm, setManageForm] = useState({ orderStatus: 'Pending', courierName: '', trackingNumber: '', estimatedDeliveryDate: '' });
+  const [isSavingManageOrder, setIsSavingManageOrder] = useState(false);
+
+  const [orderToCancel, setOrderToCancel] = useState(null);
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
+
+  const [orderToRefund, setOrderToRefund] = useState(null);
+  const [refundReason, setRefundReason] = useState('');
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
   // Admin / Store Manager Controls
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -58,51 +74,105 @@ const Store = () => {
     } catch (err) { console.error('Unable to load store orders', err); }
   };
 
-  const manageOrder = async (order) => {
-    const orderStatus = window.prompt('Order status: Pending, Processing, Shipped, Delivered, Cancelled', order.orderStatus);
-    if (orderStatus === null) return;
-    const courierName = window.prompt('Courier name', order.courierName || '');
-    if (courierName === null) return;
-    const trackingNumber = window.prompt('Tracking number', order.trackingNumber || '');
-    if (trackingNumber === null) return;
-    const estimatedDeliveryDate = window.prompt('Estimated delivery date (YYYY-MM-DD)', order.estimatedDeliveryDate ? order.estimatedDeliveryDate.slice(0, 10) : '');
-    if (estimatedDeliveryDate === null) return;
+  const openManageOrderModal = (order) => {
+    setOrderToManage(order);
+    setManageForm({
+      orderStatus: order.orderStatus || 'Pending',
+      courierName: order.courierName || '',
+      trackingNumber: order.trackingNumber || '',
+      estimatedDeliveryDate: order.estimatedDeliveryDate ? order.estimatedDeliveryDate.slice(0, 10) : ''
+    });
+  };
+
+  const handleSaveManageOrder = async (e) => {
+    e?.preventDefault();
+    if (!orderToManage) return;
+    setIsSavingManageOrder(true);
     try {
-      const res = await fetch(`/api/store/orders/${order._id}/status`, { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ orderStatus, courierName, trackingNumber, estimatedDeliveryDate, handledBy: userName }) });
-      const data = await res.json(); if (!res.ok) throw new Error(data.message);
-      toast.success('Delivery details updated'); fetchAdminOrders();
-    } catch (error) { toast.error(error.message || 'Could not update order'); }
+      const res = await fetch(`/api/store/orders/${orderToManage._id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          orderStatus: manageForm.orderStatus,
+          courierName: manageForm.courierName,
+          trackingNumber: manageForm.trackingNumber,
+          estimatedDeliveryDate: manageForm.estimatedDeliveryDate,
+          handledBy: userName
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      toast.success('Delivery details updated');
+      setOrderToManage(null);
+      fetchAdminOrders();
+    } catch (error) {
+      toast.error(error.message || 'Could not update order');
+    } finally {
+      setIsSavingManageOrder(false);
+    }
   };
 
   const reviewRefund = async (order, refundStatus) => {
     try {
-      const res = await fetch(`/api/store/orders/${order._id}/status`, { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ orderStatus: order.orderStatus, refundStatus, handledBy: userName }) });
-      const data = await res.json(); if (!res.ok) throw new Error(data.message);
-      toast.success(`Refund ${refundStatus.toLowerCase()}`); fetchAdminOrders();
-    } catch (error) { toast.error(error.message || 'Could not review refund'); }
+      const res = await fetch(`/api/store/orders/${order._id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ orderStatus: order.orderStatus, refundStatus, handledBy: userName })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      toast.success(`Refund ${refundStatus.toLowerCase()}`);
+      fetchAdminOrders();
+    } catch (error) {
+      toast.error(error.message || 'Could not review refund');
+    }
   };
 
-  const cancelOrder = async (order) => {
-    if (!window.confirm(`Cancel order ${order.orderId}?`)) return;
+  const handleConfirmCancelOrder = async () => {
+    if (!orderToCancel) return;
+    setIsCancellingOrder(true);
     try {
-      const res = await fetch(`/api/store/orders/${order._id}/cancel`, { method: 'PUT', headers: { Authorization: `Bearer ${authToken}` } });
+      const res = await fetch(`/api/store/orders/${orderToCancel._id}/cancel`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       toast.success('Order cancelled');
+      setOrderToCancel(null);
       fetchMyOrders();
-    } catch (error) { toast.error(error.message || 'Could not cancel order'); }
+    } catch (error) {
+      toast.error(error.message || 'Could not cancel order');
+    } finally {
+      setIsCancellingOrder(false);
+    }
   };
 
-  const requestRefund = async (order) => {
-    const reason = window.prompt('Why are you requesting a refund?');
-    if (reason === null) return;
+  const handleSubmitRefund = async (e) => {
+    e?.preventDefault();
+    if (!orderToRefund) return;
+    if (!refundReason.trim()) {
+      toast.error('Please enter a reason for the refund.');
+      return;
+    }
+    setIsSubmittingRefund(true);
     try {
-      const res = await fetch(`/api/store/orders/${order._id}/refund`, { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ reason }) });
+      const res = await fetch(`/api/store/orders/${orderToRefund._id}/refund`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ reason: refundReason.trim() })
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       toast.success('Refund request submitted');
+      setOrderToRefund(null);
+      setRefundReason('');
       fetchMyOrders();
-    } catch (error) { toast.error(error.message || 'Could not request refund'); }
+    } catch (error) {
+      toast.error(error.message || 'Could not request refund');
+    } finally {
+      setIsSubmittingRefund(false);
+    }
   };
 
   const fetchProducts = async () => {
@@ -229,19 +299,26 @@ const Store = () => {
   };
 
   // Admin Remove Product Handler
-  const handleRemoveProduct = async (productId, productName) => {
-    if (!window.confirm(`Are you sure you want to remove ${productName} from the store?`)) return;
+  const handleConfirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    setIsDeletingProduct(true);
     try {
-      const res = await fetch(`/api/store/products/${productId}`, {
+      const res = await fetch(`/api/store/products/${productToDelete.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${authToken || ''}` }
       });
       if (res.ok) {
-        setProducts(prev => prev.filter(p => (p._id || p.id) !== productId));
-        toast.info(`${productName} removed from Store.`);
+        setProducts(prev => prev.filter(p => (p._id || p.id) !== productToDelete.id));
+        toast.info(`${productToDelete.name} removed from Store.`);
+        setProductToDelete(null);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to remove product');
       }
     } catch (err) {
-      toast.error('Failed to remove product');
+      toast.error(err.message || 'Failed to remove product');
+    } finally {
+      setIsDeletingProduct(false);
     }
   };
 
@@ -342,7 +419,7 @@ const Store = () => {
                               className="btn btn-outline btn-sm" 
                               style={{ color: '#ef4444', borderColor: '#ef4444', padding: '6px' }}
                               title="Remove Product (Admin)"
-                              onClick={() => handleRemoveProduct(productId, product.name)}
+                              onClick={() => setProductToDelete({ id: productId, name: product.name })}
                             >
                               <Trash2 size={16} />
                             </button>
@@ -402,7 +479,7 @@ const Store = () => {
         <div style={{ display: 'grid', gap: '12px', maxHeight: '500px', overflowY: 'auto' }}>
           {adminOrders.map(order => <div key={order._id} className="glass-panel" style={{ padding: '14px' }}>
             <strong>{order.orderId} · {order.userName}</strong><p style={{ margin: '6px 0', fontSize: '.85rem' }}>{order.orderStatus} · {order.refundStatus === 'Requested' ? `Refund requested: ${order.refundReason || 'No reason given'}` : `Refund: ${order.refundStatus}`}</p>
-            <button className="btn btn-outline btn-sm" onClick={() => manageOrder(order)}>Delivery / Status</button>
+            <button className="btn btn-outline btn-sm" onClick={() => openManageOrderModal(order)}>Delivery / Status</button>
             {order.refundStatus === 'Requested' && <span style={{ marginLeft: '8px' }}><button className="btn btn-primary btn-sm" onClick={() => reviewRefund(order, 'Approved')}>Approve refund</button> <button className="btn btn-outline btn-sm" onClick={() => reviewRefund(order, 'Rejected')}>Reject</button></span>}
           </div>)}
           {adminOrders.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>No orders.</p>}
@@ -418,8 +495,8 @@ const Store = () => {
               <small>Payment: {order.paymentStatus} · {new Date(order.createdAt).toLocaleDateString()}</small>
               {(order.courierName || order.trackingNumber || order.estimatedDeliveryDate) && <p style={{ margin: '8px 0 0', fontSize: '.85rem' }}>Delivery: {order.courierName || 'Courier pending'}{order.trackingNumber && ` · Tracking: ${order.trackingNumber}`}{order.estimatedDeliveryDate && ` · ETA: ${new Date(order.estimatedDeliveryDate).toLocaleDateString()}`}</p>}
               {order.refundStatus !== 'None' && <p style={{ margin: '8px 0 0', fontSize: '.85rem' }}>Refund: {order.refundStatus}</p>}
-              {['Pending', 'Processing'].includes(order.orderStatus) && <button className="btn btn-outline btn-sm" style={{ display: 'block', marginTop: '10px', color: '#ef4444' }} onClick={() => cancelOrder(order)}>Cancel Order</button>}
-              {order.refundStatus === 'None' && order.orderStatus !== 'Cancelled' && <button className="btn btn-outline btn-sm" style={{ display: 'block', marginTop: '8px' }} onClick={() => requestRefund(order)}>Request Refund</button>}
+              {['Pending', 'Processing'].includes(order.orderStatus) && <button className="btn btn-outline btn-sm" style={{ display: 'block', marginTop: '10px', color: '#ef4444' }} onClick={() => setOrderToCancel(order)}>Cancel Order</button>}
+              {order.refundStatus === 'None' && order.orderStatus !== 'Cancelled' && <button className="btn btn-outline btn-sm" style={{ display: 'block', marginTop: '8px' }} onClick={() => { setOrderToRefund(order); setRefundReason(''); }}>Request Refund</button>}
             </div>)}
           </div>
         )}
@@ -519,6 +596,113 @@ const Store = () => {
           </button>
         </div>
       </Modal>
+
+      {/* Manage Order Modal */}
+      <Modal isOpen={!!orderToManage} onClose={() => setOrderToManage(null)} title={`Manage Order - ${orderToManage?.orderId}`}>
+        <form onSubmit={handleSaveManageOrder} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Order Status</label>
+            <select
+              className="search-input"
+              value={manageForm.orderStatus}
+              onChange={e => setManageForm({ ...manageForm, orderStatus: e.target.value })}
+            >
+              <option value="Pending">Pending</option>
+              <option value="Processing">Processing</option>
+              <option value="Shipped">Shipped</option>
+              <option value="Delivered">Delivered</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Courier Name</label>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="e.g. TCS, Leopards, DHL"
+              value={manageForm.courierName}
+              onChange={e => setManageForm({ ...manageForm, courierName: e.target.value })}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Tracking Number</label>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="e.g. TRK987654321"
+              value={manageForm.trackingNumber}
+              onChange={e => setManageForm({ ...manageForm, trackingNumber: e.target.value })}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Estimated Delivery Date</label>
+            <input
+              type="date"
+              className="search-input"
+              value={manageForm.estimatedDeliveryDate}
+              onChange={e => setManageForm({ ...manageForm, estimatedDeliveryDate: e.target.value })}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => setOrderToManage(null)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={isSavingManageOrder}>
+              {isSavingManageOrder ? 'Saving...' : 'Save Details'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Refund Request Modal */}
+      <Modal isOpen={!!orderToRefund} onClose={() => setOrderToRefund(null)} title={`Request Refund - ${orderToRefund?.orderId}`}>
+        <form onSubmit={handleSubmitRefund} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', fontWeight: 600 }}>Reason for Refund</label>
+            <textarea
+              rows={4}
+              required
+              className="search-input"
+              style={{ width: '100%', padding: '10px', resize: 'vertical' }}
+              placeholder="Please describe why you are requesting a refund for this order..."
+              value={refundReason}
+              onChange={e => setRefundReason(e.target.value)}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => setOrderToRefund(null)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={isSubmittingRefund}>
+              {isSubmittingRefund ? 'Submitting...' : 'Submit Request'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Cancel Order ConfirmDialog */}
+      <ConfirmDialog
+        isOpen={!!orderToCancel}
+        title="Cancel Order"
+        message={`Are you sure you want to cancel order ${orderToCancel?.orderId}? This action cannot be reversed.`}
+        confirmText="Cancel Order"
+        confirmVariant="danger"
+        loading={isCancellingOrder}
+        onConfirm={handleConfirmCancelOrder}
+        onCancel={() => setOrderToCancel(null)}
+      />
+
+      {/* Delete Product ConfirmDialog */}
+      <ConfirmDialog
+        isOpen={!!productToDelete}
+        title="Remove Product"
+        message={`Are you sure you want to remove "${productToDelete?.name}" from the store inventory?`}
+        confirmText="Remove Product"
+        confirmVariant="danger"
+        loading={isDeletingProduct}
+        onConfirm={handleConfirmDeleteProduct}
+        onCancel={() => setProductToDelete(null)}
+      />
     </div>
   );
 };

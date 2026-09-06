@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Activity, Flame, Target, MapPin, Calendar, CheckCircle, Clock, DownloadCloud, Trash2, Shield, Lock, Camera, Building } from 'lucide-react';
 import ImageCropper from '../../components/layout/ImageCropper';
 import Modal from '../../components/common/Modal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { toast } from 'react-toastify';
 import { can } from '../../config/permissions';
 import './Profile.css';
@@ -229,6 +230,32 @@ const Profile = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMessage, setPasswordMessage] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const response = await fetch('/api/users/me', {
+        method: 'DELETE',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Unable to delete account.');
+      }
+      localStorage.removeItem('userInfo');
+      localStorage.removeItem('gymsync_token');
+      localStorage.removeItem('gymsync_role');
+      localStorage.removeItem('gymsync_user_name');
+      setShowDeleteAccountModal(false);
+      window.location.href = '/';
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete account');
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
 
   const handleSaveBio = async (e) => {
     e.preventDefault();
@@ -431,27 +458,7 @@ const Profile = () => {
               <button
                 className="btn"
                 style={{ background: '#ef4444', color: 'var(--text-primary)', minWidth: '180px' }}
-                onClick={async () => {
-                  if (window.confirm('Are you ABSOLUTELY sure you want to permanently delete your account? This cannot be undone!')) {
-                    try {
-                      const response = await fetch('/api/users/me', {
-                        method: 'DELETE',
-                        headers: {
-                          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
-                        }
-                      });
-                      if (!response.ok) throw new Error('Unable to delete account.');
-                    } catch (err) {
-                      toast.error(err.message || 'Unable to delete account.');
-                      return;
-                    }
-                    localStorage.removeItem('userInfo');
-                    localStorage.removeItem('gymsync_token');
-                    localStorage.removeItem('gymsync_role');
-                    localStorage.removeItem('gymsync_user_name');
-                    window.location.href = '/';
-                  }
-                }}
+                onClick={() => setShowDeleteAccountModal(true)}
               >
                 Delete Account
               </button>
@@ -770,24 +777,7 @@ const Profile = () => {
                   <button 
                     className="btn"
                     style={{ background: '#ef4444', color: 'var(--text-primary)' }}
-                    onClick={async () => {
-                      if(window.confirm('Are you ABSOLUTELY sure you want to permanently delete your account? This cannot be undone!')) {
-                        try {
-                          const response = await fetch('/api/users/me', {
-                            method: 'DELETE',
-                            headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
-                          });
-                          if (!response.ok) throw new Error('Unable to delete account.');
-                          localStorage.removeItem('userInfo');
-                          localStorage.removeItem('gymsync_token');
-                          localStorage.removeItem('gymsync_role');
-                          localStorage.removeItem('gymsync_user_name');
-                          window.location.href = '/';
-                        } catch (err) {
-                          toast.error(err.message || 'Failed to delete account');
-                        }
-                      }
-                    }}
+                    onClick={() => setShowDeleteAccountModal(true)}
                   >
                     Delete Account
                   </button>
@@ -898,6 +888,18 @@ const Profile = () => {
           </form>
         )}
       </Modal>
+
+      <ConfirmDialog
+        isOpen={showDeleteAccountModal}
+        title="Delete Account"
+        message="Are you ABSOLUTELY sure you want to permanently delete your account? This action cannot be undone and will permanently remove all your data."
+        confirmText="Delete Account"
+        confirmVariant="danger"
+        typedConfirmation="DELETE"
+        loading={isDeletingAccount}
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setShowDeleteAccountModal(false)}
+      />
     </div>
   );
 };

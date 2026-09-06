@@ -167,3 +167,12 @@
   outline: none;
   border-color: #3b82f6;
 }
+
+@media (max-width: 768px) {
+  .admin-dashboard-page {
+    padding-top: 70px;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

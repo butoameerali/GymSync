@@ -7,7 +7,7 @@ const preMadePlanSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['Exercise', 'Diet'],
+    enum: ['Exercise', 'Diet', 'Workout'],
     required: true
   },
   category: {

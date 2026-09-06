@@ -97,6 +97,59 @@ export const updateProductStatus = async (req, res) => {
   }
 };
 
+// @desc    Update product details (price, stock, name, category, etc.)
+// @route   PUT /api/store/products/:id
+// @access  Private / StoreManager, Admin
+export const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, category, price, stock, image, badge, status } = req.body;
+    const actorName = req.user?.name || 'Store Manager';
+    const actorRole = req.user?.role || 'StoreManager';
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    if (name) product.name = name;
+    if (category) product.category = category;
+    if (price !== undefined) product.price = Number(price);
+    if (stock !== undefined) product.stock = Number(stock);
+    if (image) product.image = image;
+    if (badge !== undefined) product.badge = badge;
+    if (status) product.status = status;
+
+    await product.save();
+    logAuditTrail(actorName, actorRole, 'Updated Product Details', product.name, `Stock: ${product.stock}, Price: $${product.price}`, req);
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete product
+// @route   DELETE /api/store/products/:id
+// @access  Private / StoreManager, Admin
+export const deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const actorName = req.user?.name || 'Store Manager';
+    const actorRole = req.user?.role || 'StoreManager';
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    await Product.findByIdAndDelete(id);
+    logAuditTrail(actorName, actorRole, 'Deleted Product', product.name, `ID: ${id}`, req);
+    res.json({ message: 'Product deleted successfully', id });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Create Order
 // @route   POST /api/store/orders
 // @access  Public / User

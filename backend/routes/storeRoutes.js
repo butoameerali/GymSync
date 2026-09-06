@@ -3,6 +3,8 @@ import {
   getProducts, 
   createProduct, 
   updateProductStatus, 
+  updateProduct,
+  deleteProduct,
   createOrder, 
   getOrders, 
   updateOrderStatus,
@@ -17,6 +19,10 @@ const router = express.Router();
 router.route('/products')
   .get(getProducts)
   .post(protect, authorizeRoles('StoreManager', 'Admin'), createProduct);
+
+router.route('/products/:id')
+  .put(protect, authorizeRoles('StoreManager', 'Admin'), updateProduct)
+  .delete(protect, authorizeRoles('StoreManager', 'Admin'), deleteProduct);
 
 router.route('/products/:id/status')
   .put(protect, authorizeRoles('StoreManager', 'Admin'), updateProductStatus);
