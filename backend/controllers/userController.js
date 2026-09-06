@@ -4,6 +4,14 @@ import Post from '../models/Post.js';
 import Message from '../models/Message.js';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { 
+  upsertProfileToSupabase, 
+  saveUserExerciseRecord, 
+  fetchUserExerciseRecords, 
+  upsertWorkoutProgress, 
+  fetchWorkoutProgress 
+} from '../services/supabaseService.js';
+import { uploadToSupabaseStorage } from '../config/supabase.js';
 
 // @desc    Get all users (for public profiles and friend search)
 // @route   GET /api/users
@@ -52,8 +60,41 @@ export const updateProfilePic = async (req, res) => {
     if (typeof profilePic !== 'string' || profilePic.length > 5 * 1024 * 1024) {
       return res.status(400).json({ message: 'Please provide a valid profile image under 5 MB.' });
     }
-    req.user.profilePic = profilePic;
+
+    let finalPicUrl = profilePic;
+    if (profilePic.startsWith('data:image/')) {
+      try {
+        const mimeMatch = profilePic.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+        if (mimeMatch) {
+          const mimeType = mimeMatch[1];
+          const buffer = Buffer.from(mimeMatch[2], 'base64');
+          const supaUrl = await uploadToSupabaseStorage({
+            buffer,
+            mimeType,
+            originalName: `${req.user.name || 'avatar'}.png`,
+            folder: 'avatars'
+          });
+          if (supaUrl) {
+            finalPicUrl = supaUrl;
+          }
+        }
+      } catch (e) {
+        console.warn('[Supabase Avatar Upload Error]:', e.message);
+      }
+    }
+
+    req.user.profilePic = finalPicUrl;
     await req.user.save();
+
+    // Mirror to Supabase User Profile
+    await upsertProfileToSupabase({
+      userId: req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role,
+      profilePic: finalPicUrl
+    }).catch(() => {});
+
     res.json({ message: 'Profile picture updated', profilePic: req.user.profilePic });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -425,3 +466,58 @@ export const verifyEmailOTP = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Save workout progress (completed days, streak, points) to Supabase
+// @route   POST /api/users/workout-progress
+// @access  Private
+export const saveWorkoutProgressController = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.name;
+    const progressData = req.body;
+    const result = await upsertWorkoutProgress(userId, progressData);
+    res.status(200).json({ success: true, progress: result || progressData });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Get user workout progress from Supabase
+// @route   GET /api/users/workout-progress
+// @access  Private
+export const getWorkoutProgressController = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.name;
+    const progress = await fetchWorkoutProgress(userId);
+    res.status(200).json(progress || { completedDays: [], streak: 0, totalPoints: 0 });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Save individual exercise record to Supabase
+// @route   POST /api/users/exercise-record
+// @access  Private
+export const saveExerciseRecordController = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.name;
+    const record = { ...req.body, userId };
+    const saved = await saveUserExerciseRecord(record);
+    res.status(201).json({ success: true, record: saved || record });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Get user exercise history records from Supabase
+// @route   GET /api/users/exercise-records
+// @access  Private
+export const getExerciseRecordsController = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.name;
+    const records = await fetchUserExerciseRecords(userId);
+    res.status(200).json(records || []);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+

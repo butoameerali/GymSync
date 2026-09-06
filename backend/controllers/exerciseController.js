@@ -1,32 +1,11 @@
 import Exercise from '../models/Exercise.js';
+import { fetchAllExercises, insertExercise } from '../services/supabaseService.js';
 
-// GET /api/exercises - Public / User fetch with search and filters
+// GET /api/exercises - Public / User fetch with search and filters (Supabase + MongoDB fallback)
 export const getAllExercises = async (req, res) => {
   try {
     const { search, category, equipment } = req.query;
-    let query = {};
-
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { targetMuscles: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    if (category && category !== 'All' && category !== 'Favorites') {
-      query.targetMuscles = { $regex: category, $options: 'i' };
-    }
-
-    if (equipment && equipment !== 'All') {
-      if (equipment === 'No Equipment') {
-        query.equipmentRequired = { $regex: 'bodyweight|none', $options: 'i' };
-      } else if (equipment === 'With Equipment') {
-        query.equipmentRequired = { $not: { $regex: 'bodyweight|none', $options: 'i' } };
-      }
-    }
-
-    const exercises = await Exercise.find(query).sort({ name: 1 }).limit(800);
+    const exercises = await fetchAllExercises({ search, category, equipment });
     res.status(200).json(exercises);
   } catch (error) {
     console.error('getAllExercises Error:', error);
@@ -76,7 +55,7 @@ export const createExercise = async (req, res) => {
 
     const newId = exerciseId || `EX-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
-    const exercise = await Exercise.create({
+    const exercisePayload = {
       exerciseId: newId,
       name,
       targetMuscles: Array.isArray(targetMuscles) ? targetMuscles : (targetMuscles || '').split(',').map(s => s.trim()).filter(Boolean),
@@ -89,8 +68,9 @@ export const createExercise = async (req, res) => {
       description: description || '',
       aiDetection: parsedAiDetection,
       isAiTrackable: parsedAiDetection.enabled
-    });
+    };
 
+    const exercise = await insertExercise(exercisePayload);
     res.status(201).json(exercise);
   } catch (error) {
     console.error('createExercise Error:', error);

@@ -13,11 +13,25 @@ import {
   getGymMembers,
   deleteCurrentUser,
   sendVerificationOTP,
-  verifyEmailOTP
+  verifyEmailOTP,
+  saveWorkoutProgressController,
+  getWorkoutProgressController,
+  saveExerciseRecordController,
+  getExerciseRecordsController
 } from '../controllers/userController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+router.route('/workout-progress')
+  .post(protect, saveWorkoutProgressController)
+  .get(protect, getWorkoutProgressController);
+
+router.route('/exercise-record')
+  .post(protect, saveExerciseRecordController);
+
+router.route('/exercise-records')
+  .get(protect, getExerciseRecordsController);
 
 router.route('/send-verification-otp')
   .post(protect, sendVerificationOTP);

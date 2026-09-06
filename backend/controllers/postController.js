@@ -4,6 +4,8 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { fetchAllPosts, insertPost, updatePostLikes, appendPostComment, removePost } from '../services/supabaseService.js';
+import { uploadToSupabaseStorage } from '../config/supabase.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,10 +16,7 @@ const uploadsDir = path.join(__dirname, '../uploads');
 // @access  Public
 export const getPosts = async (req, res) => {
   try {
-    const posts = await Post.find()
-      .populate('author', 'name role')
-      .sort({ createdAt: -1 })
-      .lean();
+    const posts = await fetchAllPosts();
 
     const sanitizedPosts = (posts || []).map(p => {
       if (p && p.mediaUrl && typeof p.mediaUrl === 'string' && p.mediaUrl.startsWith('/uploads/')) {
@@ -49,7 +48,27 @@ export const createPost = async (req, res) => {
   let mediaUrl = '';
   
   if (req.file) {
+    let supaUrl = null;
     if (req.file.buffer) {
+      supaUrl = await uploadToSupabaseStorage({
+        buffer: req.file.buffer,
+        mimeType: req.file.mimetype,
+        originalName: req.file.originalname,
+        folder: 'posts'
+      });
+    } else if (req.file.path && fs.existsSync(req.file.path)) {
+      const buffer = fs.readFileSync(req.file.path);
+      supaUrl = await uploadToSupabaseStorage({
+        buffer,
+        mimeType: req.file.mimetype,
+        originalName: req.file.originalname || req.file.filename,
+        folder: 'posts'
+      });
+    }
+
+    if (supaUrl) {
+      mediaUrl = supaUrl;
+    } else if (req.file.buffer) {
       mediaUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     } else {
       mediaUrl = `/uploads/${req.file.filename}`;
@@ -64,18 +83,17 @@ export const createPost = async (req, res) => {
     }
 
     const authorId = req.user?._id || new mongoose.Types.ObjectId();
+    const authorName = req.user?.name || 'User';
+    const authorRole = req.user?.role || 'User';
 
-    const post = new Post({
-      author: authorId,
-      authorName: req.user?.name || 'User',
-      authorRole: req.user?.role || 'User',
+    const createdPost = await insertPost({
+      authorId,
+      authorName,
+      authorRole,
       content: content?.trim() || '',
-      mediaUrl,
-      likes: [],
-      comments: []
+      mediaUrl
     });
 
-    const createdPost = await post.save();
     res.status(201).json(createdPost);
   } catch (error) {
     console.error('Error creating post:', error);
@@ -90,20 +108,15 @@ export const toggleLike = async (req, res) => {
   const userId = req.user.name;
   
   try {
-    const post = await Post.findById(req.params.id);
-    if (!post) {
+    const result = await updatePostLikes(req.params.id, userId);
+    if (!result) {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    const isLiked = post.likes.includes(userId);
+    const isLiked = (result.likes || []).includes(userId);
     if (isLiked) {
-      post.likes = post.likes.filter(id => id !== userId);
-      // A removed like should not leave an old alert behind, nor create another
-      // one if the member likes the post again later.
-      await Notification.deleteMany({ eventKey: `post-like:${post._id}:${userId}` });
-    } else {
-      post.likes.push(userId);
-      if (post.authorName && post.authorName !== userId) {
+      const post = await Post.findById(req.params.id).lean().catch(() => null);
+      if (post && post.authorName && post.authorName !== userId) {
         await Notification.findOneAndUpdate(
           { eventKey: `post-like:${post._id}:${userId}` },
           {
@@ -117,12 +130,13 @@ export const toggleLike = async (req, res) => {
             $setOnInsert: { eventKey: `post-like:${post._id}:${userId}` }
           },
           { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
-        );
+        ).catch(() => {});
       }
+    } else {
+      await Notification.deleteMany({ eventKey: `post-like:${req.params.id}:${userId}` }).catch(() => {});
     }
 
-    await post.save();
-    res.json({ likes: post.likes });
+    res.json({ likes: result.likes });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -135,14 +149,11 @@ export const addComment = async (req, res) => {
   const { text } = req.body;
   try {
     if (!text?.trim()) return res.status(400).json({ message: 'Comment cannot be empty.' });
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-
     const newComment = { text: text.trim(), author: req.user.name, date: new Date(), replies: [] };
-    post.comments.push(newComment);
-    await post.save();
+    const comments = await appendPostComment(req.params.id, newComment);
+    if (!comments) return res.status(404).json({ message: 'Post not found' });
 
-    res.json(post.comments);
+    res.json(comments);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -265,17 +276,16 @@ export const reportPost = async (req, res) => {
 // @access  Private
 export const deletePost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
-    if (!post) {
+    const isModerator = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user.role);
+    const removed = await removePost(req.params.id, req.user.name, isModerator);
+    if (!removed) {
       return res.status(404).json({ message: 'Post not found' });
     }
-    const isModerator = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user.role);
-    if (post.authorName !== req.user.name && !isModerator) {
-      return res.status(403).json({ message: 'You can only delete your own posts.' });
-    }
-    await post.deleteOne();
     res.json({ message: 'Post removed' });
   } catch (error) {
+    if (error.message === 'Unauthorized') {
+      return res.status(403).json({ message: 'You can only delete your own posts.' });
+    }
     res.status(500).json({ message: error.message });
   }
 };
