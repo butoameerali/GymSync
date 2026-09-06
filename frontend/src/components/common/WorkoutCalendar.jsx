@@ -15,7 +15,7 @@ import { ChevronLeft, ChevronRight, X, Dumbbell, Zap, Clock, CheckCircle, Clipbo
  *  - REST   : scheduled rest day
  *  - Click  : opens inline detail panel for the selected date
  */
-const WorkoutCalendar = ({ history = [], aiPlan = null }) => {
+const WorkoutCalendar = ({ history = [], aiPlan = null, workoutProgress = null }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -40,6 +40,26 @@ const WorkoutCalendar = ({ history = [], aiPlan = null }) => {
   });
 
   const hasAnyHistory = history.length > 0;
+
+  const getDayPlanInfo = (date) => {
+    if (!aiPlan || !aiPlan.interactive_calendar) return null;
+    const planStart = aiPlan.planStartDate ? new Date(aiPlan.planStartDate) : null;
+    if (!planStart) return null;
+    planStart.setHours(0, 0, 0, 0);
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const diffTime = d.getTime() - planStart.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays >= 0 && diffDays < (aiPlan.interactive_calendar?.length || 28)) {
+      const calDay = aiPlan.interactive_calendar[diffDays];
+      return {
+        calDay,
+        dayNumber: calDay?.dayNumber || (diffDays + 1),
+        isWorkoutDay: Boolean(calDay?.isWorkoutDay)
+      };
+    }
+    return null;
+  };
 
   // ── calendar grid ─────────────────────────────────────────────────────────
   const firstDay = new Date(viewYear, viewMonth, 1);
@@ -69,23 +89,27 @@ const WorkoutCalendar = ({ history = [], aiPlan = null }) => {
     const past = date < today;
     const future = date > today;
 
-    if (completedMap[key]?.length > 0) return 'completed';
-    if (isToday) return 'today';
-    if (future)  return 'future';
+    const planInfo = getDayPlanInfo(date);
+    const isDayCompletedInProg = planInfo?.dayNumber && (workoutProgress?.completedDays || []).includes(planInfo.dayNumber);
+    const hasHistory = completedMap[key]?.length > 0;
 
+    // 1. Completed: authoritative workoutProgress or logged exercise history
+    if (isDayCompletedInProg || hasHistory) return 'completed';
+
+    // 2. Today: yellow
+    if (isToday) return 'today';
+
+    // 3. Future
+    if (future) {
+      if (planInfo && !planInfo.isWorkoutDay) return 'rest';
+      return 'future';
+    }
+
+    // 4. Past: red missed if scheduled workout day was not completed
     if (past) {
-      if (aiPlan && aiPlan.interactive_calendar) {
-        const planStart = aiPlan.planStartDate ? new Date(aiPlan.planStartDate) : null;
-        if (planStart) {
-          planStart.setHours(0, 0, 0, 0);
-          const diffTime = date.getTime() - planStart.getTime();
-          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          if (diffDays >= 0 && diffDays < (aiPlan.interactive_calendar?.length || 28)) {
-            const calDay = aiPlan.interactive_calendar[diffDays];
-            if (calDay && calDay.isWorkoutDay) return 'missed';
-            return 'rest';
-          }
-        }
+      if (planInfo) {
+        if (planInfo.isWorkoutDay) return 'missed';
+        return 'rest';
       }
       if (hasAnyHistory && isoDay(date) < 5) return 'missed';
     }
@@ -121,6 +145,11 @@ const WorkoutCalendar = ({ history = [], aiPlan = null }) => {
   const selectedKey       = selectedDate ? toKey(selectedDate) : null;
   const selectedExercises = selectedKey ? (completedMap[selectedKey] || []) : [];
   const classifySelected  = selectedDate ? classify(selectedDate) : 'default';
+  const selectedPlanInfo  = selectedDate ? getDayPlanInfo(selectedDate) : null;
+  const isSelectedDayInProg = selectedPlanInfo?.dayNumber && (workoutProgress?.completedDays || []).includes(selectedPlanInfo.dayNumber);
+  const selectedPlanSplit = selectedPlanInfo?.calDay?.workoutSplit && Array.isArray(selectedPlanInfo.calDay.workoutSplit)
+    ? selectedPlanInfo.calDay.workoutSplit
+    : [];
 
   const formatDateLabel = (date) => {
     if (!date) return '';
@@ -187,7 +216,7 @@ const WorkoutCalendar = ({ history = [], aiPlan = null }) => {
             )}
             {classifySelected === 'completed' && (
               <span style={{ fontSize: '0.72rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 20, padding: '2px 10px', fontWeight: 600 }}>
-                {selectedExercises.length} exercise{selectedExercises.length !== 1 ? 's' : ''} completed
+                {selectedExercises.length > 0 ? `${selectedExercises.length} exercise${selectedExercises.length !== 1 ? 's' : ''} logged` : `Day ${selectedPlanInfo?.dayNumber || ''} Workout Completed`}
               </span>
             )}
           </div>
@@ -245,6 +274,32 @@ const WorkoutCalendar = ({ history = [], aiPlan = null }) => {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : (classifySelected === 'completed' && selectedPlanSplit.length > 0) ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ padding: '12px 14px', background: 'rgba(16,185,129,0.12)', borderRadius: '10px', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontSize: '0.88rem', fontWeight: 600 }}>
+                🎉 Day {selectedPlanInfo?.dayNumber} ({selectedPlanInfo?.calDay?.focusArea || 'Workout Routine'}) Completed • +50 XP
+              </div>
+              {selectedPlanSplit.map((ex, i) => (
+                <div key={i} style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.18)', borderRadius: '12px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <CheckCircle size={16} color="#10b981" />
+                    <div>
+                      <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>{ex.name}</span>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{ex.target} • {ex.equipment}</div>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>{ex.sets} sets × {ex.reps} reps</span>
+                </div>
+              ))}
+            </div>
+          ) : classifySelected === 'missed' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px 0', color: '#ef4444', gap: '8px' }}>
+              <span style={{ fontSize: '1.8rem' }}>🔴</span>
+              <span style={{ fontSize: '0.95rem', fontWeight: 'bold' }}>Workout Missed</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                {selectedPlanInfo?.dayNumber ? `Day ${selectedPlanInfo.dayNumber} workout was scheduled for this date.` : 'Scheduled workout was missed.'}
+              </span>
             </div>
           ) : classifySelected === 'rest' ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px 0', color: 'var(--text-secondary)', gap: '8px' }}>

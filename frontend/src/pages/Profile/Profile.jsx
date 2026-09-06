@@ -38,6 +38,7 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const [aiPlan, setAiPlan] = useState(null);
+  const [workoutProgress, setWorkoutProgress] = useState({ completedDays: [], completedExercises: [] });
 
   // Email Verification Modal State
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
@@ -140,6 +141,13 @@ const Profile = () => {
               ]);
             }
           }
+        } catch (e) {}
+      }
+
+      const storedProgress = localStorage.getItem(`gymsync_${userKey}_workout_progress`);
+      if (storedProgress) {
+        try {
+          setWorkoutProgress(JSON.parse(storedProgress));
         } catch (e) {}
       }
     };
@@ -581,7 +589,7 @@ const Profile = () => {
               {/* Past Workouts Calendar */}
               <div className="glass-panel section-panel" style={{gridColumn: '1/-1'}}>
                 <h3 className="section-title"><Calendar size={20}/> Past Workouts</h3>
-                <WorkoutCalendar history={safeHistory} aiPlan={aiPlan} />
+                <WorkoutCalendar history={safeHistory} aiPlan={aiPlan} workoutProgress={workoutProgress} />
               </div>
             </div>
           )}

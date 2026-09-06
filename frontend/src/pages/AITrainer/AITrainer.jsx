@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles, Eye, Video, FileText, Info, Clock, Moon } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles, Eye, Video, FileText, Info, Clock, Moon, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import PaymentModal from '../../components/common/PaymentModal';
 import { EXERCISE_LIBRARY, EXERCISE_CATEGORIES } from '../../data/exercises';
@@ -212,15 +212,26 @@ const AITrainer = () => {
   };
 
   // Unified Exercise Completion Pipeline
-  const completeExercise = ({ exercise = currentExercise, mode = 'manual', completedReps = 0, aiResult = null }) => {
+  const completeExercise = ({ exercise = currentExercise, mode = 'manual', completedReps = null, aiResult = null }) => {
     const exToComplete = exercise || currentExercise;
     if (!exToComplete) return;
 
+    // Library exercises are educational only - cannot earn points or fake assigned completion
+    if (exToComplete.aiWorkoutIndex === undefined) {
+      toast.info("Educational library exercises are for reference and demonstration only.");
+      return;
+    }
+
     const targetReps = exToComplete.reps || 10;
-    const userReps = completedReps || reps || targetReps;
+    const userReps = mode === 'ai'
+      ? (typeof completedReps === 'number' ? completedReps : 0)
+      : (typeof completedReps === 'number' ? completedReps : (reps || targetReps));
 
     if (userReps < targetReps) {
-      toast.warning(`Target is ${targetReps} reps. You entered ${userReps} reps. Please complete all required reps!`);
+      toast.warning(mode === 'ai' 
+        ? `AI tracked ${userReps} of ${targetReps} required reps. Please complete all target reps to finish this exercise!`
+        : `Target is ${targetReps} reps. You entered ${userReps} reps. Please complete all required reps!`
+      );
       return;
     }
 
@@ -289,6 +300,17 @@ const AITrainer = () => {
 
   const completeActiveWorkout = () => {
     if (!activeWorkoutDay || !selectedCalendarDay) return;
+
+    const { status } = getDayScheduleInfo(selectedCalendarDay);
+    if (status !== 'AVAILABLE' || activeWorkoutDay !== selectedCalendarDay.dayNumber) {
+      toast.error("Only today's scheduled workout can be completed.");
+      return;
+    }
+
+    if ((workoutProgress.completedDays || []).includes(activeWorkoutDay)) {
+      toast.info("This workout day has already been completed.");
+      return;
+    }
     
     const daySplit = selectedCalendarDay.workoutSplit || [];
     if (Array.isArray(daySplit) && daySplit.length > 0) {
@@ -374,13 +396,19 @@ const AITrainer = () => {
                 <AIDetectorContainer
                   detectorId={currentExercise.aiDetection?.detectorId || 'pushup_v1'}
                   exerciseName={currentExercise.name}
-                  onCompleteSession={(result) => completeExercise({ mode: 'ai', aiResult: result })}
+                  onCompleteSession={(result) => {
+                    const detectedReps = typeof result?.reps === 'number'
+                      ? result.reps
+                      : (typeof result?.repCount === 'number' ? result.repCount : (typeof result?.count === 'number' ? result.count : 0));
+                    completeExercise({ mode: 'ai', completedReps: detectedReps, aiResult: result });
+                  }}
                   onFallbackToManual={() => setAiModeChoice('without_ai')}
                 />
               </div>
             );
           }
 
+          const isAssigned = currentExercise.aiWorkoutIndex !== undefined;
           const rawMedia = currentExercise.mediaUrl || currentExercise.gifUrl || currentExercise.videoUrl || (currentExercise.video !== 'none' ? currentExercise.video : null);
           const hasMedia = rawMedia && rawMedia !== 'none';
           const isVideoMedia = hasMedia && (rawMedia.endsWith('.mp4') || rawMedia.endsWith('.webm') || rawMedia.endsWith('.ogg') || rawMedia.includes('youtube.com') || rawMedia.includes('youtu.be'));
@@ -402,9 +430,14 @@ const AITrainer = () => {
                         {currentExercise.difficulty}
                       </span>
                     )}
-                    {isAiEnabled && (
+                    {isAiEnabled && isAssigned && (
                       <span className="category-badge" style={{background: 'rgba(16, 185, 129, 0.2)', color: '#34d399'}}>
                         ⚡ AI Pose Detection Available
+                      </span>
+                    )}
+                    {!isAssigned && (
+                      <span className="category-badge" style={{background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd'}}>
+                        📖 Library Guide
                       </span>
                     )}
                   </div>
@@ -465,36 +498,48 @@ const AITrainer = () => {
                     <strong style={{ fontSize: '0.9rem', color: '#f59e0b' }}>{currentExercise.equipmentRequired || currentExercise.equipment || 'Bodyweight'}</strong>
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid var(--card-border)' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>Reward</span>
-                    <strong style={{ fontSize: '0.9rem', color: '#10b981' }}>+{currentExercise.points || 1} XP / Point</strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>{isAssigned ? 'Reward' : 'Mode'}</span>
+                    <strong style={{ fontSize: '0.9rem', color: isAssigned ? '#10b981' : '#60a5fa' }}>
+                      {isAssigned ? `+${currentExercise.points || 1} XP / Point` : 'Educational Guide'}
+                    </strong>
                   </div>
                 </div>
 
-                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginTop: '24px'}}>
-                  <label style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>Target Completed Reps (Target: {currentExercise.reps || 10})</label>
-                  <input 
-                    type="number" 
-                    min="1" 
-                    value={reps} 
-                    onChange={e => setReps(parseInt(e.target.value) || 0)}
-                    style={{fontSize: '2rem', fontWeight: 'bold', width: '130px', textAlign: 'center', background: 'rgba(0,0,0,0.4)', color: '#10b981', border: '2px solid #10b981', padding: '8px', borderRadius: '12px'}}
-                  />
-                </div>
+                {isAssigned && (
+                  <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', marginTop: '24px'}}>
+                    <label style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>Target Completed Reps (Target: {currentExercise.reps || 10})</label>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      value={reps} 
+                      onChange={e => setReps(parseInt(e.target.value) || 0)}
+                      style={{fontSize: '2rem', fontWeight: 'bold', width: '130px', textAlign: 'center', background: 'rgba(0,0,0,0.4)', color: '#10b981', border: '2px solid #10b981', padding: '8px', borderRadius: '12px'}}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* ACTION FOOTER */}
-              <div className="exercise-footer" style={{marginTop: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap'}}>
-                <button className="btn btn-success" style={{ flex: 1, minWidth: '200px' }} onClick={() => completeExercise({ mode: 'manual', completedReps: reps })}>
-                  <CheckCircle size={20}/> Log Reps & Complete
-                </button>
-                {isAiEnabled && (
-                  <button className="btn btn-primary" style={{ flex: 1, minWidth: '200px' }} onClick={() => setAiModeChoice('with_ai')}>
-                    <Camera size={20} /> Start AI Camera Tracking
+              <div className="exercise-footer" style={{marginTop: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap', justifyContent: !isAssigned ? 'flex-end' : 'flex-start'}}>
+                {!isAssigned ? (
+                  <button className="btn btn-primary" style={{ minWidth: '150px' }} onClick={() => setCurrentExercise(null)}>
+                    Close Guide
                   </button>
+                ) : (
+                  <>
+                    <button className="btn btn-success" style={{ flex: 1, minWidth: '200px' }} onClick={() => completeExercise({ mode: 'manual', completedReps: reps })}>
+                      <CheckCircle size={20}/> Log Reps & Complete
+                    </button>
+                    {isAiEnabled && (
+                      <button className="btn btn-primary" style={{ flex: 1, minWidth: '200px' }} onClick={() => setAiModeChoice('with_ai')}>
+                        <Camera size={20} /> Start AI Camera Tracking
+                      </button>
+                    )}
+                    <button className="btn btn-outline" style={{ minWidth: '120px' }} onClick={() => setCurrentExercise(null)}>
+                      Close
+                    </button>
+                  </>
                 )}
-                <button className="btn btn-outline" style={{ minWidth: '120px' }} onClick={() => setCurrentExercise(null)}>
-                  Close
-                </button>
               </div>
             </div>
           );
@@ -750,7 +795,15 @@ const AITrainer = () => {
 
                             {/* WORKOUT SPLIT FOR SELECTED DAY */}
                             <h4 style={{fontSize: '0.95rem', color: '#3b82f6', marginBottom: '10px'}}>🏋️ Workout Split</h4>
-                            {typeof selectedCalendarDay.workoutSplit === 'string' ? (
+                            {status === 'LOCKED' ? (
+                              <div style={{ textAlign: 'center', padding: '30px 20px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px dashed var(--card-border)', marginBottom: '20px' }}>
+                                <Lock size={32} color="var(--text-secondary)" style={{ marginBottom: '8px' }} />
+                                <h4 style={{ color: 'var(--text-primary)', marginBottom: '6px', fontSize: '1rem' }}>Workout Locked</h4>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                                  This workout split unlocks on <strong>{scheduledDate.toLocaleDateString()}</strong>.
+                                </p>
+                              </div>
+                            ) : typeof selectedCalendarDay.workoutSplit === 'string' ? (
                               <p style={{color: 'var(--text-secondary)', fontSize: '0.9rem', background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', marginBottom: '20px'}}>
                                 {selectedCalendarDay.workoutSplit}
                               </p>
@@ -773,6 +826,10 @@ const AITrainer = () => {
                                           toast.info(`Day ${selectedCalendarDay.dayNumber} is a scheduled Rest & Recovery Day.`);
                                           return;
                                         }
+                                        if (status === 'MISSED') {
+                                          toast.error(`Workout Day ${selectedCalendarDay.dayNumber} was missed and cannot be started.`);
+                                          return;
+                                        }
                                         if (!isUnlocked && status !== 'COMPLETED') {
                                           toast.warning(`Please complete previous exercises in order first!`);
                                           return;
@@ -788,8 +845,8 @@ const AITrainer = () => {
                                         display: 'flex', 
                                         justifyContent: 'space-between', 
                                         alignItems: 'center',
-                                        cursor: (isUnlocked || status === 'COMPLETED') ? 'pointer' : 'not-allowed',
-                                        opacity: (!isUnlocked && status !== 'COMPLETED') ? 0.6 : 1,
+                                        cursor: (status !== 'MISSED' && status !== 'REST' && (isUnlocked || status === 'COMPLETED')) ? 'pointer' : 'not-allowed',
+                                        opacity: (status === 'MISSED' || status === 'REST' || (!isUnlocked && status !== 'COMPLETED')) ? 0.6 : 1,
                                         transition: 'all 0.2s'
                                       }}
                                     >
@@ -810,9 +867,9 @@ const AITrainer = () => {
                                         <button 
                                           className="btn btn-outline btn-sm" 
                                           style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                          disabled={!isUnlocked && status !== 'COMPLETED'}
+                                          disabled={status === 'MISSED' || (!isUnlocked && status !== 'COMPLETED')}
                                         >
-                                          {!isUnlocked && status !== 'COMPLETED' ? <Lock size={12}/> : <Eye size={14} />} View
+                                          {status === 'MISSED' ? <AlertTriangle size={12} color="#ef4444" /> : !isUnlocked && status !== 'COMPLETED' ? <Lock size={12}/> : <Eye size={14} />} {status === 'MISSED' ? 'Missed' : 'View'}
                                         </button>
                                       </div>
                                     </div>
@@ -835,14 +892,20 @@ const AITrainer = () => {
                             {/* WORKOUT CONTROLS */}
                             <div style={{marginTop: '20px', borderTop: '1px solid var(--card-border)', paddingTop: '15px'}}>
                               {status === 'COMPLETED' ? (
-                                <div style={{textAlign: 'center', padding: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', borderRadius: '8px'}}>
+                                <div style={{textAlign: 'center', padding: '12px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)'}}>
                                   <CheckCircle size={24} style={{marginBottom: '5px'}}/>
                                   <div style={{fontWeight: 'bold'}}>Workout Completed</div>
                                 </div>
                               ) : status === 'REST' ? (
-                                <div style={{textAlign: 'center', padding: '12px', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)', borderRadius: '8px'}}>
+                                <div style={{textAlign: 'center', padding: '12px', background: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)', borderRadius: '8px', border: '1px solid var(--card-border)'}}>
                                   <Moon size={22} style={{ marginBottom: '4px' }} />
                                   <div style={{ fontWeight: 'bold' }}>Scheduled Rest & Recovery Day</div>
+                                </div>
+                              ) : status === 'MISSED' ? (
+                                <div style={{textAlign: 'center', padding: '12px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)'}}>
+                                  <AlertTriangle size={22} style={{ marginBottom: '4px' }} />
+                                  <div style={{ fontWeight: 'bold' }}>🔴 Workout Missed</div>
+                                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Scheduled for {scheduledDate.toLocaleDateString()}</div>
                                 </div>
                               ) : status === 'LOCKED' ? (
                                 <div style={{textAlign: 'center', padding: '12px', background: 'rgba(0,0,0,0.4)', color: 'var(--text-secondary)', borderRadius: '8px', border: '1px solid var(--card-border)'}}>
