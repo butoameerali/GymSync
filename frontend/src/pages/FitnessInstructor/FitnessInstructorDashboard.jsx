@@ -1091,13 +1091,18 @@ const FitnessInstructorDashboard = () => {
         )}
 
         {/* MODAL: EXERCISE CREATE / EDIT */}
-        <Modal isOpen={showExForm} onClose={() => setShowExForm(false)} title={editingEx ? `Edit Exercise: ${editingEx.name}` : 'Exercise Authoring Studio & Knowledge Base'}>
-          <form onSubmit={handleSaveExercise} style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '75vh', overflowY: 'auto', paddingRight: '4px' }}>
+        <Modal 
+          isOpen={showExForm} 
+          onClose={() => setShowExForm(false)} 
+          title={editingEx ? `Edit Exercise: ${editingEx.name}` : 'Exercise Authoring Studio & Knowledge Base'}
+          maxWidth="840px"
+        >
+          <form onSubmit={handleSaveExercise} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
             {/* Top Row: Name + AI Assist Trigger */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
               <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Exercise Name *</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', fontWeight: 600 }}>Exercise Name *</label>
                 <input 
                   type="text" 
                   className="search-input" 
@@ -1117,10 +1122,12 @@ const FitnessInstructorDashboard = () => {
                   background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '8px',
                   whiteSpace: 'nowrap',
-                  padding: '0 14px',
-                  opacity: isAnalyzingEx ? 0.7 : 1
+                  padding: '0 16px',
+                  opacity: isAnalyzingEx ? 0.7 : 1,
+                  fontSize: '0.85rem',
+                  fontWeight: 600
                 }}
                 title="Use Qwen AI sports science brain to draft biomechanics, cues, and safety"
               >
@@ -1129,16 +1136,36 @@ const FitnessInstructorDashboard = () => {
               </button>
             </div>
 
-            {/* AI Generated Draft Banner */}
-            {exForm.aiGeneratedMetadata && (
-              <div style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid #3b82f6', borderRadius: '8px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#93c5fd' }}>
-                <Sparkles size={15} />
-                <span><strong>Qwen AI Draft:</strong> Biomechanics, cues, and safety metadata pre-filled. Please review and refine each tab before publishing.</span>
-              </div>
-            )}
+            {/* Manual Authoring & AI Assist Helper Banner */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              background: exForm.aiGeneratedMetadata ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.03)', 
+              border: exForm.aiGeneratedMetadata ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid var(--card-border)', 
+              borderRadius: '10px', 
+              padding: '8px 14px', 
+              fontSize: '0.8rem', 
+              color: exForm.aiGeneratedMetadata ? '#93c5fd' : 'var(--text-secondary)' 
+            }}>
+              <span>
+                ✍️ <strong>Instructor Control:</strong> You have 100% control to type, edit, or adjust any field manually. Qwen AI is an optional assistant to draft initial metadata.
+              </span>
+              {exForm.aiGeneratedMetadata && (
+                <span style={{ color: '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                  <Sparkles size={14} /> AI Draft (Review Mode)
+                </span>
+              )}
+            </div>
 
-            {/* Tab Navigation */}
-            <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid var(--card-border)', paddingBottom: '6px', overflowX: 'auto' }}>
+            {/* Tab Navigation (Pills format without scrollbar) */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '8px', 
+              borderBottom: '1px solid var(--card-border)', 
+              paddingBottom: '10px', 
+              flexWrap: 'wrap' 
+            }}>
               {[
                 { id: 'basic', label: '🏷️ Identity & Basics' },
                 { id: 'biomechanics', label: '🧬 Biomechanics & Muscles' },
@@ -1152,15 +1179,15 @@ const FitnessInstructorDashboard = () => {
                   type="button"
                   onClick={() => setExModalTab(t.id)}
                   style={{
-                    background: exModalTab === t.id ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-                    border: exModalTab === t.id ? '1px solid #3b82f6' : '1px solid transparent',
+                    background: exModalTab === t.id ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                    border: exModalTab === t.id ? '1px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
                     color: exModalTab === t.id ? '#93c5fd' : 'var(--text-secondary)',
-                    borderRadius: '8px',
-                    padding: '6px 10px',
-                    fontSize: '0.75rem',
+                    borderRadius: '10px',
+                    padding: '7px 14px',
+                    fontSize: '0.8rem',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap'
+                    transition: 'all 0.15s ease'
                   }}
                 >
                   {t.label}
