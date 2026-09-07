@@ -111,6 +111,7 @@ export const intentClassifier = {
     } else {
       // Retain from history across conversational turns
       for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].sender === 'other' || history[i].role === 'ai' || history[i].role === 'assistant') continue;
         const msg = (history[i].content || history[i].text || '').toLowerCase();
         if (msg.includes('dumbbell only') || msg.includes('only dumbbells') || msg.includes('just dumbbells') || msg.includes('with dumbbells') || msg.includes('only have dumbbells')) {
           entities.equipmentChange = 'Dumbbells';
@@ -134,6 +135,7 @@ export const intentClassifier = {
     } else {
       // Retain from history across conversational turns
       for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].sender === 'other' || history[i].role === 'ai' || history[i].role === 'assistant') continue;
         const msg = (history[i].content || history[i].text || '').toLowerCase();
         const mMatch = msg.match(/(\d+)\s*(mins?|minutes?)/i);
         if (mMatch) {
@@ -289,10 +291,8 @@ export const intentClassifier = {
     // Weight loss statement with or without weight
     if (entities.weightMentioned || (text.includes('lose') && (text.includes('weight') || text.includes('fat') || text.includes('it'))) ||
         (text.includes('weight') && (text.includes('kam') || text.includes('ghatana') || text.includes('reduce')))) {
-      if (text.includes('100 kg') || text.includes('100kg') || entities.weightMentioned || text.includes('kam karna')) {
-        intent = INTENTS.WEIGHT_MANAGEMENT;
-        return { intent, entities, clarificationNeeded: false, missingContext: null };
-      }
+      intent = INTENTS.WEIGHT_MANAGEMENT;
+      return { intent, entities, clarificationNeeded: false, missingContext: null };
     }
 
     // External Event Workload (Cricket, Football, 5K race, Army, Academy Selection, Construction, etc.)

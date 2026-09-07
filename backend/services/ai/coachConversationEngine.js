@@ -860,6 +860,12 @@ ${session.cooldown.cooldownExercises.map(c => `• **${c.name}** — ${c.duratio
     // =====================================================================
     // STEP K: GENERAL CONVERSATION & FITNESS GUIDANCE
     // =====================================================================
+    if (history.length > 0 && !text.includes('hi') && !text.includes('hello')) {
+      responseContent = `I'm here to help! Tell me if you need a workout, a diet plan, or if you need to adjust your training based on your schedule, equipment, or recovery.`;
+      structuredAction.explanation = 'Short fallback response.';
+      return { role: 'assistant', content: responseContent, structuredAction };
+    }
+
     responseContent = `Hello! I am your **GymSync AI Lead Coach & Personal Trainer**.
 
 I have your complete profile loaded (${effectiveProfile.fitnessLevel || 'Beginner'} level, ${effectiveProfile.equipmentAccess || 'Full Gym'}, goal: ${effectiveProfile.mainGoalArea || 'Fitness'}).
