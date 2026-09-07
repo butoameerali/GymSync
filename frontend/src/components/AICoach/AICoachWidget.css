@@ -235,6 +235,153 @@
   color: #10b981;
 }
 
+/* Action Card Styles */
+.ai-action-card {
+  margin-top: 12px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.ai-action-card.diet-card {
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.ai-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 6px;
+}
+
+.ai-card-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-card-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.ai-card-badge.green {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.ai-card-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.ai-card-exercise-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 0.78rem;
+}
+
+.ai-card-exercise-name {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.ai-card-exercise-meta {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.ai-card-macros {
+  display: grid;
+  grid-templateColumns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.ai-macro-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ai-macro-pill span {
+  display: block;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ai-macro-pill strong {
+  font-size: 0.82rem;
+  color: #f8fafc;
+}
+
+.ai-action-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.ai-btn-action {
+  flex: 1;
+  min-width: 90px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.ai-btn-action.primary {
+  background: #10b981;
+  color: white;
+}
+
+.ai-btn-action.primary:hover {
+  background: #059669;
+}
+
+.ai-btn-action.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+}
+
+.ai-btn-action.secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+}
+
 @media (max-width: 480px) {
   .ai-chat-window {
     width: calc(100vw - 40px);

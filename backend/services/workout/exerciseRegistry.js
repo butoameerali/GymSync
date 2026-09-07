@@ -894,18 +894,47 @@ export async function syncDatabaseExercises() {
     initRegistry();
     if (!Exercise) return registry.length;
     const dbItems = await Exercise.find({ status: 'active' }).lean().catch(() => []);
-    if (!dbItems || dbItems.length === 0) return registry.length;
+    if (!dbItems) return registry.length;
+
+    const activeDbIds = new Set(dbItems.map(item => item.exerciseId || String(item._id)));
+
+    // Prune custom DB exercises that are no longer active or have been deleted
+    registry = registry.filter(ex => {
+      if (ex.source === 'custom_db') {
+        if (!activeDbIds.has(ex.exerciseId)) {
+          registryMap.delete(ex.exerciseId);
+          return false;
+        }
+      }
+      return true;
+    });
 
     let added = 0;
+    let updated = 0;
     for (const item of dbItems) {
       const id = item.exerciseId || String(item._id);
-      if (registryMap.has(id)) continue;
-
       const name = item.name || 'Custom Exercise';
       const target = Array.isArray(item.targetMuscles) ? item.targetMuscles.join(', ') : (item.targetMuscles || '');
       const rawEquip = item.equipmentRequired || 'Bodyweight';
-      const pattern = inferMovementPattern(name, target, rawEquip);
-      const { primaryMuscles, secondaryMuscles } = parseMuscles(target, pattern);
+
+      // 1. Movement pattern: prioritize explicit author choice, otherwise heuristic
+      let pattern = '';
+      if (Array.isArray(item.movementPatterns) && item.movementPatterns.length > 0 && item.movementPatterns[0]) {
+        pattern = item.movementPatterns[0].toLowerCase();
+      } else if (item.movementPattern) {
+        pattern = String(item.movementPattern).toLowerCase();
+      } else {
+        pattern = inferMovementPattern(name, target, rawEquip);
+      }
+
+      // 2. Muscles: prioritize explicit targetMuscles / secondaryMuscles
+      const parsed = parseMuscles(target, pattern);
+      const primaryMuscles = (Array.isArray(item.targetMuscles) && item.targetMuscles.length > 0)
+        ? item.targetMuscles
+        : parsed.primaryMuscles;
+      const secondaryMuscles = (Array.isArray(item.secondaryMuscles) && item.secondaryMuscles.length > 0)
+        ? item.secondaryMuscles
+        : parsed.secondaryMuscles;
 
       let equipment = 'Bodyweight';
       const eqLower = rawEquip.toLowerCase();
@@ -927,18 +956,35 @@ export async function syncDatabaseExercises() {
       if (Array.isArray(item.medicalAvoidIf)) {
         item.medicalAvoidIf.forEach(m => injuryExclusions.push(m.toLowerCase().replace(/\s+/g, '')));
       }
+      if (Array.isArray(item.contraindications)) {
+        item.contraindications.forEach(c => injuryExclusions.push(c.toLowerCase().replace(/\s+/g, '')));
+      }
 
       const jointStress = inferJointStress(pattern, name, target);
+
+      // 3. Sport relevance: prioritize instructor sportTags
+      let sportRelevance = ['general'];
+      if (Array.isArray(item.sportTags) && item.sportTags.length > 0) {
+        sportRelevance = Array.from(new Set(['general', ...item.sportTags.map(s => s.toLowerCase())]));
+      } else {
+        sportRelevance = inferSportRelevance(pattern, name, primaryMuscles);
+      }
+
+      const metVal = item.calorieEstimation?.metValue || (pattern === 'sprinting' ? 9.0 : pattern === 'squat' || pattern === 'hinge' ? 6.0 : 4.5);
 
       const enriched = {
         exerciseId: id,
         name,
+        aliases: item.aliases || [],
+        tags: item.tags || [],
         movementPattern: pattern,
+        movementPatterns: item.movementPatterns || [pattern],
         primaryMuscles,
         secondaryMuscles,
-        trainingQualities: [pattern === 'sprinting' || pattern === 'jumping' ? 'power' : isWarmupRehab ? 'mobility' : 'hypertrophy'],
-        fitnessLevels: [difficulty],
-        sportRelevance: inferSportRelevance(pattern, name, primaryMuscles),
+        trainingGoals: item.trainingGoals || [],
+        trainingQualities: item.trainingQualities || [pattern === 'sprinting' || pattern === 'jumping' ? 'power' : isWarmupRehab ? 'mobility' : 'hypertrophy'],
+        fitnessLevels: item.experienceLevels || [difficulty],
+        sportRelevance,
         equipment,
         equipmentCategory: rawEquip,
         difficulty,
@@ -947,8 +993,21 @@ export async function syncDatabaseExercises() {
         fatigueCost: inferFatigueCost(pattern, rawEquip, difficulty),
         injuryExclusions,
         jointStress,
-        progressionOptions: [],
-        regressionOptions: [],
+        primaryPurpose: item.primaryPurpose || '',
+        secondaryPurpose: item.secondaryPurpose || '',
+        recommendedFor: item.recommendedFor || [],
+        notRecommendedFor: item.notRecommendedFor || [],
+        precautions: item.precautions || [],
+        commonMistakes: item.commonMistakes || [],
+        coachingCues: item.coachingCues || (item.instructions ? [item.instructions] : []),
+        progressionOptions: item.progressions || [],
+        regressionOptions: item.regressions || [],
+        programming: item.programming || null,
+        calorieEstimation: {
+          metValue: metVal,
+          intensity: item.calorieEstimation?.intensity || 'moderate',
+          estimatedKcalPerMinute: item.calorieEstimation?.estimatedKcalPerMinute || 6.0
+        },
         warmUpSuitability: isWarmupRehab || pattern === 'mobility' || pattern === 'activation',
         mainWorkSuitability: !isWarmupRehab && pattern !== 'mobility',
         accessorySuitability: pattern === 'rotation' || pattern === 'anti-rotation' || pattern === 'anti-extension' || isWarmupRehab,
@@ -957,22 +1016,55 @@ export async function syncDatabaseExercises() {
         aiDetection: item.aiDetection || { enabled: false },
         estimatedSecPerRep: pattern === 'locomotion' || pattern === 'anti-extension' ? 1 : 3.5,
         defaultRestSec: isWarmupRehab ? 15 : difficulty === 'Advanced' ? 90 : 60,
+        mediaUrl: item.mediaUrl || '',
+        thumbnailUrl: item.thumbnailUrl || '',
+        videoUrl: item.videoUrl || '',
+        gifUrl: item.gifUrl || '',
         source: 'custom_db'
       };
 
+      const existingIndex = registry.findIndex(e => e.exerciseId === id);
+      if (existingIndex >= 0) {
+        registry[existingIndex] = enriched;
+        updated++;
+      } else {
+        registry.push(enriched);
+        added++;
+      }
       registryMap.set(id, enriched);
-      registry.push(enriched);
-      added++;
     }
 
-    if (added > 0) {
-      console.log(`[ExerciseRegistry] Successfully ingested ${added} custom exercises from database into AI registry.`);
+    if (added > 0 || updated > 0) {
+      console.log(`[ExerciseRegistry] Ingested ${added} new and updated ${updated} custom exercises from database into AI registry.`);
     }
     return registry.length;
   } catch (err) {
     console.warn('[ExerciseRegistry] DB sync skipped:', err.message);
     return registry.length;
   }
+}
+
+/**
+ * Standard ACSM formula for exercise calorie expenditure:
+ * kcal = (MET * 3.5 * weightInKg / 200) * durationInMinutes
+ */
+export function estimateExerciseCalories(exerciseIdOrName, durationMinutes = 30, bodyweightKg = 70) {
+  initRegistry();
+  const ex = typeof exerciseIdOrName === 'string' 
+    ? (registryMap.get(exerciseIdOrName) || exerciseRegistry.findByName(exerciseIdOrName))
+    : exerciseIdOrName;
+  
+  let met = ex?.calorieEstimation?.metValue;
+  if (!met) {
+    const pattern = (ex?.movementPattern || (typeof exerciseIdOrName === 'string' ? exerciseIdOrName : '')).toLowerCase();
+    if (pattern.includes('sprint') || pattern === 'conditioning' || pattern.includes('hiit')) met = 9.0;
+    else if (pattern.includes('jump') || pattern.includes('run') || pattern === 'locomotion') met = 7.5;
+    else if (pattern.includes('squat') || pattern.includes('hinge') || pattern.includes('lunge') || pattern.includes('deadlift')) met = 6.0;
+    else if (pattern.includes('mobility') || pattern.includes('stretch') || pattern === 'activation') met = 2.8;
+    else met = 5.0;
+  }
+  const kcal = (met * 3.5 * (bodyweightKg || 70) / 200) * (durationMinutes || 30);
+  return Math.round(kcal);
 }
 
 // Initial boot
@@ -1014,6 +1106,7 @@ export const exerciseRegistry = {
     return exercises; // Full Gym allows all
   },
 
+  estimateExerciseCalories,
   syncDatabaseExercises
 };
 

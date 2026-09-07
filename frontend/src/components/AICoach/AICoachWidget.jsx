@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send, Sparkles, Dumbbell, ShieldAlert, CheckCircle, ExternalLink } from 'lucide-react';
+import { MessageSquare, X, Send, Sparkles, Dumbbell, ShieldAlert, CheckCircle, ExternalLink, Utensils, HelpCircle, RefreshCw, Flame } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -153,6 +153,13 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
     navigate('/ai-trainer');
   };
 
+  const handleSaveDiet = (diet) => {
+    if (!diet) return;
+    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+    localStorage.setItem(`gymsync_${userKey}_diet_plan`, JSON.stringify(diet));
+    toast.success('Diet target saved to active profile!');
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -189,6 +196,8 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
                 {msg.role === 'assistant' ? (
                   <>
                     <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    
+                    {/* Single-Question Clarification Chips */}
                     {msg.structuredAction?.missingContext && (
                       <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {getContextSuggestions(msg.structuredAction.missingContext).map((suggestion, si) => (
@@ -212,26 +221,103 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
                         ))}
                       </div>
                     )}
+
+                    {/* Structured Workout Action Card */}
                     {msg.structuredAction?.workout && (
-                      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                        <button
-                          onClick={() => handleApplyWorkout(msg.structuredAction.workout)}
-                          style={{
-                            background: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '6px 12px',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                          }}
-                        >
-                          <Dumbbell size={14} /> Apply to AI Trainer
-                        </button>
+                      <div className="ai-action-card">
+                        <div className="ai-card-header">
+                          <div className="ai-card-title">
+                            <Dumbbell size={15} color="#3b82f6" />
+                            <span>{msg.structuredAction.workout.sessionObjective || 'Target Workout'}</span>
+                          </div>
+                          <span className="ai-card-badge">
+                            {msg.structuredAction.workout.timeBudget || 45}m {msg.structuredAction.workout.estimatedTotalCalories ? `• ~${msg.structuredAction.workout.estimatedTotalCalories} kcal` : ''}
+                          </span>
+                        </div>
+
+                        {/* Exercises Pill List */}
+                        <div className="ai-card-exercises">
+                          {(msg.structuredAction.workout.mainWorkout || []).slice(0, 4).map((ex, ei) => (
+                            <div key={ei} className="ai-card-exercise-item">
+                              <span className="ai-card-exercise-name">{ex.name}</span>
+                              <span className="ai-card-exercise-meta">
+                                {ex.sets || 3} sets × {ex.reps || 10} {ex.estimatedCalories ? `(${ex.estimatedCalories} kcal)` : ''}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="ai-action-buttons">
+                          <button 
+                            type="button" 
+                            className="ai-btn-action primary"
+                            onClick={() => handleApplyWorkout(msg.structuredAction.workout)}
+                          >
+                            <Dumbbell size={13} /> Apply Workout
+                          </button>
+                          <button 
+                            type="button" 
+                            className="ai-btn-action secondary"
+                            onClick={() => handleSend("Why did you prescribe this specific plan for me?")}
+                          >
+                            <HelpCircle size={13} /> Why this plan?
+                          </button>
+                          <button 
+                            type="button" 
+                            className="ai-btn-action secondary"
+                            onClick={() => handleSend("Can you adapt or suggest an alternative variation of this workout?")}
+                          >
+                            <RefreshCw size={13} /> Change Plan
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Structured Diet Action Card */}
+                    {msg.structuredAction?.diet && (
+                      <div className="ai-action-card diet-card">
+                        <div className="ai-card-header">
+                          <div className="ai-card-title">
+                            <Utensils size={15} color="#10b981" />
+                            <span>Prescribed Daily Nutrition</span>
+                          </div>
+                          <span className="ai-card-badge green">
+                            {msg.structuredAction.diet.targetCalories} kcal
+                          </span>
+                        </div>
+
+                        <div className="ai-card-macros">
+                          <div className="ai-macro-pill">
+                            <span>Protein</span>
+                            <strong>{msg.structuredAction.diet.macronutrients?.proteinGrams || 120}g</strong>
+                          </div>
+                          <div className="ai-macro-pill">
+                            <span>Carbs</span>
+                            <strong>{msg.structuredAction.diet.macronutrients?.carbsGrams || 180}g</strong>
+                          </div>
+                          <div className="ai-macro-pill">
+                            <span>Fats</span>
+                            <strong>{msg.structuredAction.diet.macronutrients?.fatsGrams || 50}g</strong>
+                          </div>
+                        </div>
+
+                        <div className="ai-action-buttons">
+                          <button 
+                            type="button" 
+                            className="ai-btn-action primary"
+                            onClick={() => handleSaveDiet(msg.structuredAction.diet)}
+                          >
+                            <Utensils size={13} /> Save Diet Plan
+                          </button>
+                          <button 
+                            type="button" 
+                            className="ai-btn-action secondary"
+                            onClick={() => handleSend("Can we adjust these calorie and macro targets?")}
+                          >
+                            <RefreshCw size={13} /> Adjust Targets
+                          </button>
+                        </div>
                       </div>
                     )}
                   </>

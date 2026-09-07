@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Dumbbell, Plus, Edit2, Trash2, Calendar, Utensils, 
   MessageSquare, CheckCircle, Search, FileText, Activity, AlertCircle, RefreshCw,
-  Archive, RotateCcw, Cpu, ShieldCheck
+  Archive, RotateCcw, Cpu, ShieldCheck, Sparkles, Upload, Flame, Layers, Video, HeartPulse
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import DashboardShell from '../../components/layout/DashboardShell';
@@ -36,18 +36,36 @@ const FitnessInstructorDashboard = () => {
   // Exercise Form Modal
   const [editingEx, setEditingEx] = useState(null);
   const [showExForm, setShowExForm] = useState(false);
+  const [exModalTab, setExModalTab] = useState('basic'); // 'basic' | 'biomechanics' | 'programming' | 'cues' | 'safety' | 'media'
+  const [isAnalyzingEx, setIsAnalyzingEx] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
   const [exForm, setExForm] = useState({
     name: '',
     category: 'Chest',
     targetMuscles: 'Chest, Triceps',
+    secondaryMuscles: 'Anterior Deltoids',
+    movementPatterns: 'horizontal push',
+    tags: 'compound, hypertrophy',
+    sportTags: 'general',
     equipmentRequired: 'Bodyweight',
     difficulty: 'Beginner',
+    primaryPurpose: '',
+    secondaryPurpose: '',
     defaultSets: 3,
     defaultReps: 10,
     defaultDuration: 0,
     instructions: '',
     description: '',
+    coachingCues: '',
+    commonMistakes: '',
+    progressions: '',
+    regressions: '',
+    contraindications: '',
+    jointPainAvoidIf: '',
+    metValue: 5.0,
     mediaUrl: '',
+    aiGeneratedMetadata: false,
     aiDetection: {
       enabled: false,
       detectorId: 'pushup_v1',
@@ -133,20 +151,35 @@ const FitnessInstructorDashboard = () => {
   // EXERCISES CRUD & ARCHIVE MANAGEMENT
   // ==========================================
   const handleOpenExModal = (ex = null) => {
+    setExModalTab('basic');
     if (ex) {
       setEditingEx(ex);
       setExForm({
         name: ex.name || '',
         category: ex.category || (Array.isArray(ex.targetMuscles) ? ex.targetMuscles[0] : 'Chest'),
         targetMuscles: Array.isArray(ex.targetMuscles) ? ex.targetMuscles.join(', ') : (ex.targetMuscles || ''),
+        secondaryMuscles: Array.isArray(ex.secondaryMuscles) ? ex.secondaryMuscles.join(', ') : (ex.secondaryMuscles || ''),
+        movementPatterns: Array.isArray(ex.movementPatterns) ? ex.movementPatterns.join(', ') : (ex.movementPattern || 'horizontal push'),
+        tags: Array.isArray(ex.tags) ? ex.tags.join(', ') : (ex.tags || ''),
+        sportTags: Array.isArray(ex.sportTags) ? ex.sportTags.join(', ') : (ex.sportTags || ''),
         equipmentRequired: ex.equipmentRequired || 'Bodyweight',
         difficulty: ex.difficulty || 'Beginner',
+        primaryPurpose: ex.primaryPurpose || '',
+        secondaryPurpose: ex.secondaryPurpose || '',
         defaultSets: ex.defaultSets || 3,
         defaultReps: ex.defaultReps || 10,
         defaultDuration: ex.defaultDuration || 0,
         instructions: ex.instructions || ex.description || '',
         description: ex.description || '',
+        coachingCues: Array.isArray(ex.coachingCues) ? ex.coachingCues.join('; ') : (ex.coachingCues || ''),
+        commonMistakes: Array.isArray(ex.commonMistakes) ? ex.commonMistakes.join('; ') : (ex.commonMistakes || ''),
+        progressions: Array.isArray(ex.progressions) ? ex.progressions.join(', ') : (ex.progressions || ''),
+        regressions: Array.isArray(ex.regressions) ? ex.regressions.join(', ') : (ex.regressions || ''),
+        contraindications: Array.isArray(ex.contraindications) ? ex.contraindications.join(', ') : (ex.contraindications || ''),
+        jointPainAvoidIf: Array.isArray(ex.jointPainAvoidIf) ? ex.jointPainAvoidIf.join(', ') : (ex.jointPainAvoidIf || ''),
+        metValue: ex.calorieEstimation?.metValue || 5.0,
         mediaUrl: ex.mediaUrl || '',
+        aiGeneratedMetadata: Boolean(ex.aiGeneratedMetadata),
         aiDetection: {
           enabled: Boolean(ex.aiDetection?.enabled || ex.isAiTrackable),
           detectorId: ex.aiDetection?.detectorId || 'pushup_v1',
@@ -159,14 +192,28 @@ const FitnessInstructorDashboard = () => {
         name: '',
         category: 'Chest',
         targetMuscles: 'Chest, Triceps',
+        secondaryMuscles: 'Anterior Deltoids',
+        movementPatterns: 'horizontal push',
+        tags: 'compound, hypertrophy',
+        sportTags: 'general',
         equipmentRequired: 'Bodyweight',
         difficulty: 'Beginner',
+        primaryPurpose: '',
+        secondaryPurpose: '',
         defaultSets: 3,
         defaultReps: 10,
         defaultDuration: 0,
         instructions: '',
         description: '',
+        coachingCues: '',
+        commonMistakes: '',
+        progressions: '',
+        regressions: '',
+        contraindications: '',
+        jointPainAvoidIf: '',
+        metValue: 5.0,
         mediaUrl: '',
+        aiGeneratedMetadata: false,
         aiDetection: {
           enabled: false,
           detectorId: 'pushup_v1',
@@ -177,6 +224,78 @@ const FitnessInstructorDashboard = () => {
     setShowExForm(true);
   };
 
+  const handleAiAssistExercise = async () => {
+    if (!exForm.name || !exForm.name.trim()) {
+      return toast.warn('Please enter an exercise name first to analyze with AI');
+    }
+    setIsAnalyzingEx(true);
+    try {
+      const res = await fetch('/api/exercises/ai-assist', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          name: exForm.name.trim(),
+          category: exForm.category,
+          equipmentRequired: exForm.equipmentRequired,
+          difficulty: exForm.difficulty
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to analyze exercise');
+
+      const d = data.draft;
+      setExForm(prev => ({
+        ...prev,
+        movementPatterns: Array.isArray(d.movementPatterns) ? d.movementPatterns.join(', ') : (d.movementPatterns || prev.movementPatterns),
+        targetMuscles: Array.isArray(d.targetMuscles) ? d.targetMuscles.join(', ') : (d.targetMuscles || prev.targetMuscles),
+        secondaryMuscles: Array.isArray(d.secondaryMuscles) ? d.secondaryMuscles.join(', ') : (d.secondaryMuscles || prev.secondaryMuscles),
+        tags: Array.isArray(d.tags) ? d.tags.join(', ') : (d.tags || prev.tags),
+        sportTags: Array.isArray(d.sportTags) ? d.sportTags.join(', ') : (d.sportTags || prev.sportTags),
+        primaryPurpose: d.primaryPurpose || prev.primaryPurpose,
+        secondaryPurpose: d.secondaryPurpose || prev.secondaryPurpose,
+        coachingCues: Array.isArray(d.coachingCues) ? d.coachingCues.join('; ') : (d.coachingCues || prev.coachingCues),
+        commonMistakes: Array.isArray(d.commonMistakes) ? d.commonMistakes.join('; ') : (d.commonMistakes || prev.commonMistakes),
+        progressions: Array.isArray(d.progressions) ? d.progressions.join(', ') : (d.progressions || prev.progressions),
+        regressions: Array.isArray(d.regressions) ? d.regressions.join(', ') : (d.regressions || prev.regressions),
+        contraindications: Array.isArray(d.contraindications) ? d.contraindications.join(', ') : (d.contraindications || prev.contraindications),
+        metValue: d.metValue || prev.metValue,
+        instructions: d.instructions || prev.instructions,
+        aiGeneratedMetadata: true
+      }));
+      toast.success('✨ Qwen sports science metadata generated! Review the tabs before saving.');
+    } catch (err) {
+      toast.error(err.message || 'AI assistance unavailable');
+    } finally {
+      setIsAnalyzingEx(false);
+    }
+  };
+
+  const handleMediaUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append('media', file);
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch('/api/exercises/upload-media', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Media upload failed');
+      setExForm(prev => ({ ...prev, mediaUrl: data.mediaUrl }));
+      toast.success('Media uploaded successfully!');
+    } catch (err) {
+      toast.error(err.message || 'Upload failed');
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
   const handleSaveExercise = async (e) => {
     e.preventDefault();
     if (!exForm.name.trim()) {
@@ -184,18 +303,39 @@ const FitnessInstructorDashboard = () => {
     }
 
     try {
+      const splitClean = (val) => typeof val === 'string' ? val.split(/[;,]/).map(s => s.trim()).filter(Boolean) : (Array.isArray(val) ? val : []);
+
       const payload = {
         name: exForm.name.trim(),
         category: exForm.category,
-        targetMuscles: exForm.targetMuscles.split(',').map(m => m.trim()).filter(Boolean),
+        targetMuscles: splitClean(exForm.targetMuscles),
+        secondaryMuscles: splitClean(exForm.secondaryMuscles),
+        movementPatterns: splitClean(exForm.movementPatterns),
+        tags: splitClean(exForm.tags),
+        sportTags: splitClean(exForm.sportTags),
         equipmentRequired: exForm.equipmentRequired,
         difficulty: exForm.difficulty,
+        primaryPurpose: exForm.primaryPurpose,
+        secondaryPurpose: exForm.secondaryPurpose,
         defaultSets: Number(exForm.defaultSets) || 3,
         defaultReps: Number(exForm.defaultReps) || 10,
         defaultDuration: Number(exForm.defaultDuration) || 0,
         instructions: exForm.instructions,
         description: exForm.description || exForm.instructions,
+        coachingCues: splitClean(exForm.coachingCues),
+        commonMistakes: splitClean(exForm.commonMistakes),
+        progressions: splitClean(exForm.progressions),
+        regressions: splitClean(exForm.regressions),
+        contraindications: splitClean(exForm.contraindications),
+        jointPainAvoidIf: splitClean(exForm.jointPainAvoidIf),
+        calorieEstimation: {
+          metValue: Number(exForm.metValue) || 5.0,
+          intensity: exForm.difficulty === 'Advanced' ? 'high' : 'moderate',
+          estimatedKcalPerMinute: ((Number(exForm.metValue) || 5.0) * 3.5 * 70 / 200)
+        },
         mediaUrl: exForm.mediaUrl,
+        aiGeneratedMetadata: Boolean(exForm.aiGeneratedMetadata),
+        instructorApproved: true,
         aiDetection: exForm.aiDetection.enabled ? {
           enabled: true,
           detectorId: exForm.aiDetection.detectorId,
@@ -951,144 +1091,371 @@ const FitnessInstructorDashboard = () => {
         )}
 
         {/* MODAL: EXERCISE CREATE / EDIT */}
-        <Modal isOpen={showExForm} onClose={() => setShowExForm(false)} title={editingEx ? 'Update Exercise Definition' : 'Add Exercise to Platform Library'}>
-          <form onSubmit={handleSaveExercise} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Exercise Name *</label>
-              <input type="text" className="search-input" required value={exForm.name} onChange={e => setExForm({ ...exForm, name: e.target.value })} placeholder="e.g. Incline Dumbbell Press" />
+        <Modal isOpen={showExForm} onClose={() => setShowExForm(false)} title={editingEx ? `Edit Exercise: ${editingEx.name}` : 'Exercise Authoring Studio & Knowledge Base'}>
+          <form onSubmit={handleSaveExercise} style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '75vh', overflowY: 'auto', paddingRight: '4px' }}>
+            
+            {/* Top Row: Name + AI Assist Trigger */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Exercise Name *</label>
+                <input 
+                  type="text" 
+                  className="search-input" 
+                  required 
+                  value={exForm.name} 
+                  onChange={e => setExForm({ ...exForm, name: e.target.value })} 
+                  placeholder="e.g. Incline Dumbbell Press" 
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleAiAssistExercise}
+                disabled={isAnalyzingEx || !exForm.name.trim()}
+                className="btn btn-primary"
+                style={{
+                  height: '42px',
+                  background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                  padding: '0 14px',
+                  opacity: isAnalyzingEx ? 0.7 : 1
+                }}
+                title="Use Qwen AI sports science brain to draft biomechanics, cues, and safety"
+              >
+                <Sparkles size={16} />
+                {isAnalyzingEx ? 'Analyzing...' : '✨ Analyze with Qwen'}
+              </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Muscle Category</label>
-                <select className="search-input" value={exForm.category} onChange={e => setExForm({ ...exForm, category: e.target.value })}>
-                  <option value="Chest">Chest</option>
-                  <option value="Back">Back</option>
-                  <option value="Legs">Legs</option>
-                  <option value="Shoulders">Shoulders</option>
-                  <option value="Arms">Arms</option>
-                  <option value="Core">Core</option>
-                  <option value="Cardio">Cardio</option>
-                  <option value="Full Body">Full Body</option>
-                  <option value="Other">Other</option>
-                </select>
+            {/* AI Generated Draft Banner */}
+            {exForm.aiGeneratedMetadata && (
+              <div style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid #3b82f6', borderRadius: '8px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#93c5fd' }}>
+                <Sparkles size={15} />
+                <span><strong>Qwen AI Draft:</strong> Biomechanics, cues, and safety metadata pre-filled. Please review and refine each tab before publishing.</span>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Difficulty Level</label>
-                <select className="search-input" value={exForm.difficulty} onChange={e => setExForm({ ...exForm, difficulty: e.target.value })}>
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Advanced">Advanced</option>
-                </select>
-              </div>
+            )}
+
+            {/* Tab Navigation */}
+            <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid var(--card-border)', paddingBottom: '6px', overflowX: 'auto' }}>
+              {[
+                { id: 'basic', label: '🏷️ Identity & Basics' },
+                { id: 'biomechanics', label: '🧬 Biomechanics & Muscles' },
+                { id: 'programming', label: '⏱️ Prescriptions' },
+                { id: 'cues', label: '🎯 Cues & Errors' },
+                { id: 'safety', label: '🛡️ Safety & Health' },
+                { id: 'media', label: '⚡ Energy & Media' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setExModalTab(t.id)}
+                  style={{
+                    background: exModalTab === t.id ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                    border: exModalTab === t.id ? '1px solid #3b82f6' : '1px solid transparent',
+                    color: exModalTab === t.id ? '#93c5fd' : 'var(--text-secondary)',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Equipment Required</label>
-                <input type="text" className="search-input" value={exForm.equipmentRequired} onChange={e => setExForm({ ...exForm, equipmentRequired: e.target.value })} placeholder="Bodyweight, Dumbbells, Barbell" />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Target Muscles (comma separated)</label>
-                <input type="text" className="search-input" value={exForm.targetMuscles} onChange={e => setExForm({ ...exForm, targetMuscles: e.target.value })} placeholder="Pectoralis Major, Anterior Deltoid" />
-              </div>
-            </div>
-
-            {/* Prescribed Exercise Defaults */}
-            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '10px', border: '1px solid var(--card-border)' }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
-                Default Progression Baseline
-              </span>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '4px' }}>Default Sets</label>
-                  <input type="number" min="1" max="10" className="search-input" value={exForm.defaultSets} onChange={e => setExForm({ ...exForm, defaultSets: parseInt(e.target.value) || 1 })} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '4px' }}>Default Reps</label>
-                  <input type="number" min="1" max="100" className="search-input" value={exForm.defaultReps} onChange={e => setExForm({ ...exForm, defaultReps: parseInt(e.target.value) || 1 })} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '4px' }}>Duration (s, if hold)</label>
-                  <input type="number" min="0" max="600" className="search-input" value={exForm.defaultDuration} onChange={e => setExForm({ ...exForm, defaultDuration: parseInt(e.target.value) || 0 })} />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Execution Coaching Cues & Instructions</label>
-              <textarea rows="3" className="search-input" value={exForm.instructions} onChange={e => setExForm({ ...exForm, instructions: e.target.value })} placeholder="Step-by-step form cues, joint angle guidelines, breathing pattern..." />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Media URL (Video / GIF)</label>
-                <input type="text" className="search-input" value={exForm.mediaUrl} onChange={e => setExForm({ ...exForm, mediaUrl: e.target.value })} placeholder="https://example.com/demo.mp4" />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Exercise Description</label>
-                <input type="text" className="search-input" value={exForm.description} onChange={e => setExForm({ ...exForm, description: e.target.value })} placeholder="Movement description and biomechanics..." />
-              </div>
-            </div>
-
-            {/* AI Vision Detector Configuration */}
-            <div style={{ background: 'rgba(99, 102, 241, 0.05)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={exForm.aiDetection.enabled} 
-                    onChange={e => setExForm({
-                      ...exForm,
-                      aiDetection: {
-                        ...exForm.aiDetection,
-                        enabled: e.target.checked
-                      }
-                    })} 
-                  />
-                  <Cpu size={16} color="var(--primary-accent)" /> Enable AI Computer Vision Detection
-                </label>
-                {exForm.aiDetection.enabled && (
-                  <span className="category-badge ai-badge" style={{ fontSize: '0.72rem' }}>
-                    <ShieldCheck size={12} /> Certified Algorithm
-                  </span>
-                )}
-              </div>
-
-              {exForm.aiDetection.enabled && (
-                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* TAB 1: IDENTITY & BASICS */}
+            {exModalTab === 'basic' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Select Approved Platform Detector</label>
-                    <select 
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Muscle Category</label>
+                    <select className="search-input" value={exForm.category} onChange={e => setExForm({ ...exForm, category: e.target.value })}>
+                      <option value="Chest">Chest</option>
+                      <option value="Back">Back</option>
+                      <option value="Legs">Legs</option>
+                      <option value="Shoulders">Shoulders</option>
+                      <option value="Arms">Arms</option>
+                      <option value="Core">Core</option>
+                      <option value="Cardio">Cardio</option>
+                      <option value="Full Body">Full Body</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Difficulty Level</label>
+                    <select className="search-input" value={exForm.difficulty} onChange={e => setExForm({ ...exForm, difficulty: e.target.value })}>
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Equipment Required</label>
+                    <input type="text" className="search-input" value={exForm.equipmentRequired} onChange={e => setExForm({ ...exForm, equipmentRequired: e.target.value })} placeholder="Bodyweight, Dumbbells, Barbell, Cable" />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Tags (comma-separated)</label>
+                    <input type="text" className="search-input" value={exForm.tags} onChange={e => setExForm({ ...exForm, tags: e.target.value })} placeholder="compound, hypertrophy, unilateral, power" />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Exercise Description / Overview</label>
+                  <textarea rows="2" className="search-input" value={exForm.description} onChange={e => setExForm({ ...exForm, description: e.target.value })} placeholder="High-level biomechanical overview and context..." />
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: BIOMECHANICS & MUSCLES */}
+            {exModalTab === 'biomechanics' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Primary Movement Pattern *</label>
+                    <select className="search-input" value={exForm.movementPatterns} onChange={e => setExForm({ ...exForm, movementPatterns: e.target.value })}>
+                      <option value="horizontal push">Horizontal Push (Bench Press, Push-ups)</option>
+                      <option value="vertical push">Vertical Push (Overhead Press, Dips)</option>
+                      <option value="horizontal pull">Horizontal Pull (Rows, Face Pulls)</option>
+                      <option value="vertical pull">Vertical Pull (Pull-ups, Lat Pulldowns)</option>
+                      <option value="squat">Squat (Squats, Leg Press)</option>
+                      <option value="hinge">Hinge (Deadlifts, Hip Thrusts)</option>
+                      <option value="lunge">Lunge (Split Squats, Walking Lunges)</option>
+                      <option value="rotation">Rotation (Russian Twists, Woodchops)</option>
+                      <option value="anti-rotation">Anti-Rotation (Pallof Press)</option>
+                      <option value="anti-extension">Anti-Extension (Planks, Rollouts)</option>
+                      <option value="carry">Carry (Farmer's Walk)</option>
+                      <option value="locomotion">Locomotion (Jogging, Running)</option>
+                      <option value="sprinting">Sprinting (High-speed sprints)</option>
+                      <option value="jumping">Jumping (Box Jumps, Plyometrics)</option>
+                      <option value="mobility">Mobility (Dynamic Stretches)</option>
+                      <option value="activation">Activation (Glute bridges, Band walks)</option>
+                      <option value="conditioning">Conditioning (Burpees, Battle ropes)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Sport Relevance Tags</label>
+                    <input type="text" className="search-input" value={exForm.sportTags} onChange={e => setExForm({ ...exForm, sportTags: e.target.value })} placeholder="general, cricket, football, running, combat" />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Primary Target Muscles</label>
+                    <input type="text" className="search-input" value={exForm.targetMuscles} onChange={e => setExForm({ ...exForm, targetMuscles: e.target.value })} placeholder="e.g. Pectoralis Major, Anterior Deltoid" />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Secondary Supporting Muscles</label>
+                    <input type="text" className="search-input" value={exForm.secondaryMuscles} onChange={e => setExForm({ ...exForm, secondaryMuscles: e.target.value })} placeholder="e.g. Triceps Brachii, Serratus Anterior" />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Primary Purpose</label>
+                    <input type="text" className="search-input" value={exForm.primaryPurpose} onChange={e => setExForm({ ...exForm, primaryPurpose: e.target.value })} placeholder="Build horizontal pressing strength and pectoralis hypertrophy" />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Secondary / Functional Purpose</label>
+                    <input type="text" className="search-input" value={exForm.secondaryPurpose} onChange={e => setExForm({ ...exForm, secondaryPurpose: e.target.value })} placeholder="Stabilize glenohumeral joint and scapular rhythm" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: PRESCRIPTIONS & PROGRAMMING */}
+            {exModalTab === 'programming' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '10px', border: '1px solid var(--card-border)' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '10px' }}>
+                    Default Progression Baseline
+                  </span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '4px' }}>Default Sets</label>
+                      <input type="number" min="1" max="10" className="search-input" value={exForm.defaultSets} onChange={e => setExForm({ ...exForm, defaultSets: parseInt(e.target.value) || 1 })} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '4px' }}>Default Reps</label>
+                      <input type="number" min="1" max="100" className="search-input" value={exForm.defaultReps} onChange={e => setExForm({ ...exForm, defaultReps: parseInt(e.target.value) || 1 })} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '4px' }}>Duration (s, if static hold)</label>
+                      <input type="number" min="0" max="600" className="search-input" value={exForm.defaultDuration} onChange={e => setExForm({ ...exForm, defaultDuration: parseInt(e.target.value) || 0 })} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: CUES & ERRORS */}
+            {exModalTab === 'cues' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Coaching Cues (semicolon-separated)</label>
+                  <input type="text" className="search-input" value={exForm.coachingCues} onChange={e => setExForm({ ...exForm, coachingCues: e.target.value })} placeholder="Retract scapulae; Keep elbows at 45 degrees; Drive feet into ground" />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Common Mistakes to Avoid (semicolon-separated)</label>
+                  <input type="text" className="search-input" value={exForm.commonMistakes} onChange={e => setExForm({ ...exForm, commonMistakes: e.target.value })} placeholder="Flaring elbows to 90 degrees; Bouncing weight off chest" />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Regressions (Easier variations)</label>
+                    <input type="text" className="search-input" value={exForm.regressions} onChange={e => setExForm({ ...exForm, regressions: e.target.value })} placeholder="Push-ups, Dumbbell Floor Press" />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Progressions (Harder variations)</label>
+                    <input type="text" className="search-input" value={exForm.progressions} onChange={e => setExForm({ ...exForm, progressions: e.target.value })} placeholder="Pause Bench Press, Incline Dumbbell Press" />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Step-by-Step Instructions</label>
+                  <textarea rows="3" className="search-input" value={exForm.instructions} onChange={e => setExForm({ ...exForm, instructions: e.target.value })} placeholder="1. Lie flat on bench with feet planted...\n2. Unrack with arms extended...\n3. Inhale and lower with control..." />
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: SAFETY & HEALTH */}
+            {exModalTab === 'safety' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600, color: '#f87171' }}>
+                    Contraindications & Medical Exclusions (comma-separated)
+                  </label>
+                  <input type="text" className="search-input" value={exForm.contraindications} onChange={e => setExForm({ ...exForm, contraindications: e.target.value })} placeholder="Rotator cuff impingement, Acute wrist fracture, Herniated disc" />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>
+                    Joint Pain Exclusions (comma-separated)
+                  </label>
+                  <input type="text" className="search-input" value={exForm.jointPainAvoidIf} onChange={e => setExForm({ ...exForm, jointPainAvoidIf: e.target.value })} placeholder="shoulders, wrists, elbows, lower back" />
+                </div>
+              </div>
+            )}
+
+            {/* TAB 6: ENERGY & MEDIA */}
+            {exModalTab === 'media' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* MET Value for Calorie Estimation */}
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '10px', border: '1px solid var(--card-border)' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>
+                    ⚡ MET (Metabolic Equivalent) Value: <strong style={{ color: '#10b981' }}>{exForm.metValue || 5.0}</strong>
+                  </label>
+                  <input 
+                    type="range" 
+                    min="2" 
+                    max="14" 
+                    step="0.5" 
+                    value={exForm.metValue || 5.0} 
+                    onChange={e => setExForm({ ...exForm, metValue: parseFloat(e.target.value) })}
+                    style={{ width: '100%' }} 
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    <span>Light (2.5)</span>
+                    <span>Moderate (5.0)</span>
+                    <span>Vigorous (8.0)</span>
+                    <span>Maximum (12+)</span>
+                  </div>
+                  <span style={{ display: 'block', marginTop: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Est. burn rate for 70kg athlete: <strong>~{Math.round(((exForm.metValue || 5.0) * 3.5 * 70 / 200) * 60)} kcal/hour</strong>
+                  </span>
+                </div>
+
+                {/* Media File Upload & URL */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>
+                    Upload Exercise Demonstration Media (Image / Video / GIF)
+                  </label>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <label className="btn btn-outline" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px' }}>
+                      <Upload size={15} />
+                      {isUploadingMedia ? 'Uploading...' : 'Choose File'}
+                      <input 
+                        type="file" 
+                        accept="image/*,video/*" 
+                        onChange={handleMediaUpload} 
+                        disabled={isUploadingMedia} 
+                        style={{ display: 'none' }} 
+                      />
+                    </label>
+                    <input 
+                      type="text" 
                       className="search-input" 
-                      value={exForm.aiDetection.detectorId} 
-                      onChange={e => {
-                        const selected = REGISTERED_DETECTORS.find(d => d.id === e.target.value);
-                        setExForm({
+                      style={{ flex: 1 }} 
+                      value={exForm.mediaUrl} 
+                      onChange={e => setExForm({ ...exForm, mediaUrl: e.target.value })} 
+                      placeholder="Or paste URL: https://example.com/demo.mp4" 
+                    />
+                  </div>
+                  {exForm.mediaUrl && (
+                    <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <CheckCircle size={14} /> Attached Media URL active
+                    </div>
+                  )}
+                </div>
+
+                {/* AI Vision Detector Configuration */}
+                <div style={{ background: 'rgba(99, 102, 241, 0.05)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={exForm.aiDetection.enabled} 
+                        onChange={e => setExForm({
                           ...exForm,
                           aiDetection: {
                             ...exForm.aiDetection,
-                            detectorId: e.target.value,
-                            detectorVersion: selected ? selected.version : '1.0'
+                            enabled: e.target.checked
                           }
-                        });
-                      }}
-                    >
-                      {REGISTERED_DETECTORS.map(det => (
-                        <option key={det.id} value={det.id}>
-                          {det.name} ({det.status === 'production' ? 'Production' : 'Experimental'})
-                        </option>
-                      ))}
-                    </select>
+                        })} 
+                      />
+                      <Cpu size={15} color="var(--primary-accent)" /> Enable AI Pose / Rep Detector
+                    </label>
                   </div>
-                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    🔒 <strong>Security Policy:</strong> Only certified detectors with audited landmark models can be attached. Arbitrary executable script injection is blocked on the server.
-                  </p>
-                </div>
-              )}
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                  {exForm.aiDetection.enabled && (
+                    <div style={{ marginTop: '8px' }}>
+                      <select 
+                        className="search-input" 
+                        value={exForm.aiDetection.detectorId} 
+                        onChange={e => {
+                          const selected = REGISTERED_DETECTORS.find(d => d.id === e.target.value);
+                          setExForm({
+                            ...exForm,
+                            aiDetection: {
+                              ...exForm.aiDetection,
+                              detectorId: e.target.value,
+                              detectorVersion: selected ? selected.version : '1.0'
+                            }
+                          });
+                        }}
+                      >
+                        {REGISTERED_DETECTORS.map(det => (
+                          <option key={det.id} value={det.id}>
+                            {det.name} ({det.status === 'production' ? 'Production' : 'Experimental'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--card-border)' }}>
               <button type="button" className="btn btn-outline" onClick={() => setShowExForm(false)}>Cancel</button>
               <button type="submit" className="btn btn-primary">{editingEx ? 'Save Exercise Changes' : 'Publish Exercise'}</button>
             </div>
