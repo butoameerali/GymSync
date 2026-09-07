@@ -39,6 +39,25 @@ export const protect = async (req, res, next) => {
   return res.status(401).json({ message: 'Not authorized, no authentication token provided' });
 };
 
+// Optional protect middleware - populates req.user if valid token provided, but allows guests
+export const optionalProtect = async (req, res, next) => {
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      if (token && process.env.JWT_SECRET) {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.id).select('-password');
+        if (user && !user.isBanned) {
+          req.user = user;
+        }
+      }
+    } catch (error) {
+      // Allow guest to proceed without user attachment
+    }
+  }
+  return next();
+};
+
 // Authorize specific roles (RBAC) - Strictly based on req.user.role from MongoDB
 export const authorizeRoles = (...roles) => {
   return (req, res, next) => {

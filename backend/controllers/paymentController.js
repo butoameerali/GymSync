@@ -27,15 +27,24 @@ const getDefaultConfigs = () => ([
 
 export const createPaymentIntent = async (req, res) => {
   try {
-    const { amount, currency = 'usd' } = req.body;
+    const { amount, currency = 'usd', email, cardholderName } = req.body;
     const stripe = getStripe();
     
     // Stripe expects amount in lowest denomination (e.g., cents/paisa)
-    const paymentIntent = await stripe.paymentIntents.create({
+    const intentParams = {
       amount: Math.round(amount * 100),
       currency: currency,
       payment_method_types: ['card'],
-    });
+    };
+
+    if (email && email.trim()) {
+      intentParams.receipt_email = email.trim();
+    }
+    if (cardholderName && cardholderName.trim()) {
+      intentParams.metadata = { cardholderName: cardholderName.trim() };
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create(intentParams);
     
     res.json({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
@@ -58,10 +67,13 @@ export const createPayment = async (req, res) => {
       methodDetails = '',
       startNextMonth = false,
       membershipType = 'Monthly',
-      joiningDate = null
+      joiningDate = null,
+      customerEmail = '',
+      customerPhone = '',
+      cardholderName = ''
     } = req.body;
 
-    const userName = req.user?.name;
+    const userName = req.user?.name || req.body.userName || 'Guest User';
     const numericAmount = Number(amount);
     if (!paymentId || !userName || !paymentMethod || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       return res.status(400).json({ message: 'Missing required payment fields' });
@@ -70,6 +82,7 @@ export const createPayment = async (req, res) => {
       return res.status(400).json({ message: 'Unsupported payment method' });
     }
 
+    const trackingCode = `GS-GYM-${Math.floor(100000 + Math.random() * 900000)}`;
     let status = 'PendingApproval';
     let finalAmount = numericAmount;
 
@@ -130,7 +143,11 @@ export const createPayment = async (req, res) => {
 
     const payment = await Payment.create({
       paymentId,
+      trackingCode,
       userName,
+      customerEmail,
+      customerPhone,
+      cardholderName,
       gymName: gymName || 'GymSync Platform',
       paymentType,
       paymentMethod,
@@ -294,5 +311,46 @@ export const approvePayment = async (req, res) => {
   } catch (error) {
     console.error('approvePayment error:', error.message);
     return res.status(500).json({ message: 'Unable to approve payment' });
+  }
+};
+
+// @desc    Track gym registration or payment status publicly
+// @route   GET /api/payments/track/:code
+// @access  Public
+export const trackPaymentByCode = async (req, res) => {
+  try {
+    const { code } = req.params;
+    if (!code) return res.status(400).json({ message: 'Tracking code is required' });
+
+    const cleanCode = code.trim();
+    const payment = await Payment.findOne({
+      $or: [
+        { trackingCode: cleanCode },
+        { paymentId: cleanCode },
+        { transactionRef: cleanCode }
+      ]
+    });
+
+    if (!payment) {
+      return res.status(404).json({ message: 'No gym registration or payment found with this tracking code' });
+    }
+
+    res.json({
+      type: 'GymRegistration',
+      trackingCode: payment.trackingCode || payment.paymentId,
+      paymentId: payment.paymentId,
+      userName: payment.userName,
+      gymName: payment.gymName,
+      paymentType: payment.paymentType,
+      membershipType: payment.membershipType,
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      status: payment.status,
+      joiningDate: payment.joiningDate,
+      createdAt: payment.createdAt,
+      approvedBy: payment.approvedBy
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };

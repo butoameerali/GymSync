@@ -145,7 +145,7 @@ const PostCard = ({
 
           <div className="comments-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {comments.map((c, idx) => {
-              const commentAuthor = c.authorName || c.name || 'User';
+              const commentAuthor = (typeof c.author === 'object' ? c.author?.name : c.author) || c.authorName || c.name || 'User';
               const canDeleteComment = isAdmin || commentAuthor === currentUserName;
               const replies = Array.isArray(c.replies) ? c.replies : [];
 
@@ -155,7 +155,7 @@ const PostCard = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{commentAuthor}</strong>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        {c.createdAt ? new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                        {c.createdAt || c.date ? new Date(c.createdAt || c.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
                       </span>
                     </div>
                     {canDeleteComment && (
@@ -173,7 +173,7 @@ const PostCard = ({
                   {/* Nested Replies */}
                   <div style={{ marginTop: '8px', paddingLeft: '12px', borderLeft: '2px solid var(--card-border)' }}>
                     {replies.map((r, rIdx) => {
-                      const replyAuthor = r.authorName || r.name || 'User';
+                      const replyAuthor = (typeof r.author === 'object' ? r.author?.name : r.author) || r.authorName || r.name || 'User';
                       const canDeleteReply = isAdmin || replyAuthor === currentUserName;
                       return (
                         <div key={r._id || rIdx} style={{ fontSize: '0.8rem', margin: '4px 0', background: 'rgba(255,255,255,0.03)', padding: '4px 8px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

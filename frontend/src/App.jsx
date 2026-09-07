@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import GlobalChat from './components/chat/GlobalChat';
@@ -7,6 +7,7 @@ import OnboardingWizard from './components/onboarding/OnboardingWizard';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import { getRoleRedirectPath } from './context/AuthContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
@@ -34,6 +35,30 @@ const MessagesPage = lazy(() => import('./pages/Messages/MessagesPage'));
 const LegalPage = lazy(() => import('./pages/Legal/LegalPage'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
+
+const RootRoute = () => {
+  const token = localStorage.getItem('gymsync_token');
+  const userRole = localStorage.getItem('gymsync_role');
+  if (token && userRole && userRole !== 'guest') {
+    return <Navigate to={getRoleRedirectPath(userRole)} replace />;
+  }
+  return <LandingPage />;
+};
+
+const StoreRoute = () => {
+  const userRole = localStorage.getItem('gymsync_role') || '';
+  const normalized = userRole.toLowerCase().replace(/[_\s]/g, '');
+  if (normalized === 'gymtrainer') {
+    return <Navigate to="/gym-trainer" replace />;
+  }
+  if (normalized === 'gymowner') {
+    return <Navigate to="/gym-owner" replace />;
+  }
+  if (normalized === 'fitnessinstructor') {
+    return <Navigate to="/fitness-instructor" replace />;
+  }
+  return <Store />;
+};
 
 function App() {
   const location = useLocation();
@@ -76,7 +101,7 @@ function App() {
         <main className="main-content">
           <Suspense fallback={<LoadingSpinner size="large" message="Loading GymSync module..." />}>
             <Routes>
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<RootRoute />} />
               <Route path="/login" element={<AuthPortal />} />
               <Route path="/register" element={<AuthPortal />} />
               <Route path="/forgot-password" element={<AuthPortal />} />
@@ -107,7 +132,7 @@ function App() {
               <Route path="/regulations" element={<LegalPage type="regulations" />} />
               
               <Route path="/profile/:userName" element={<PublicProfile />} />
-              <Route path="/store" element={<Store />} />
+              <Route path="/store" element={<StoreRoute />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

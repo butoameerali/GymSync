@@ -155,8 +155,9 @@ export const deleteProduct = async (req, res) => {
 // @access  Public / User
 export const createOrder = async (req, res) => {
   try {
-    const { items, totalAmount, shippingAddress, paymentId } = req.body;
-    const userName = req.user?.name;
+    const { items, totalAmount, shippingAddress, paymentId, guestName, guestEmail, guestPhone } = req.body;
+    const userName = req.user?.name || guestName || req.body.userName || 'Guest User';
+    const isGuestOrder = !req.user;
 
     if (!userName || !Array.isArray(items) || items.length === 0 || typeof totalAmount !== 'number' || !shippingAddress || !paymentId) {
       return res.status(400).json({ message: 'Required order details missing' });
@@ -173,7 +174,7 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: 'Valid payment record is required before creating an order' });
     }
 
-    if (payment.userName !== userName) {
+    if (req.user && payment.userName !== userName && payment.userName !== 'Guest User') {
       return res.status(403).json({ message: 'Payment record does not belong to the authenticated user' });
     }
 
@@ -219,10 +220,15 @@ export const createOrder = async (req, res) => {
 
     const count = await Order.countDocuments();
     const orderId = `ORD-${10000 + count + 1}`;
+    const trackingCode = `GS-ORD-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const order = await Order.create({
       orderId,
+      trackingCode,
       userName,
+      guestEmail: guestEmail || payment.customerEmail || '',
+      guestPhone: guestPhone || payment.customerPhone || '',
+      isGuestOrder,
       paymentId: payment.paymentId,
       items: verifiedItems,
       totalAmount: roundedVerifiedTotal,
@@ -315,5 +321,46 @@ export const updateOrderStatus = async (req, res) => {
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Track Order status publicly by trackingCode or orderId
+// @route   GET /api/store/track/:code
+// @access  Public
+export const trackOrderByCode = async (req, res) => {
+  try {
+    const { code } = req.params;
+    if (!code) return res.status(400).json({ message: 'Tracking code is required' });
+
+    const cleanCode = code.trim();
+    const order = await Order.findOne({
+      $or: [
+        { trackingCode: cleanCode },
+        { orderId: cleanCode }
+      ]
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'No order found with this tracking code' });
+    }
+
+    res.json({
+      type: 'StoreOrder',
+      orderId: order.orderId,
+      trackingCode: order.trackingCode || order.orderId,
+      userName: order.userName,
+      guestEmail: order.guestEmail,
+      items: order.items,
+      totalAmount: order.totalAmount,
+      shippingAddress: order.shippingAddress,
+      paymentStatus: order.paymentStatus,
+      orderStatus: order.orderStatus,
+      courierName: order.courierName,
+      trackingNumber: order.trackingNumber,
+      estimatedDeliveryDate: order.estimatedDeliveryDate,
+      createdAt: order.createdAt
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };

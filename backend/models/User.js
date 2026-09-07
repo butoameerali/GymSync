@@ -53,7 +53,15 @@ const userSchema = new mongoose.Schema({
     units: { type: String, enum: ['metric', 'imperial'], default: 'metric' },
     height: { type: Number, default: 170 },
     weight: { type: Number, default: 70 },
-    targetMuscles: [{ type: String }]
+    targetMuscles: [{ type: String }],
+    sport: { type: String, default: '' },
+    fitnessLevel: { type: String, default: 'Beginner' },
+    sessionDurationMins: { type: Number, default: 45 },
+    medicalConditions: [{ type: String }],
+    jointPain: [{ type: String }],
+    injuries: [{ type: String }],
+    limitations: [{ type: String }],
+    foodPreferences: { type: String, default: '' }
   },
   isOnboardingCompleted: { type: Boolean, default: false }
 }, {

@@ -26,9 +26,14 @@ const paymentSchema = new mongoose.Schema({
   methodDetails: { type: String, default: '' },
   startNextMonth: { type: Boolean, default: false },
   membershipType: { type: String, enum: ['Monthly', 'Yearly'], default: 'Monthly' },
-  approvedBy: { type: String, default: '' }
+  approvedBy: { type: String, default: '' },
+  trackingCode: { type: String, sparse: true, index: true },
+  customerEmail: { type: String, default: '' },
+  customerPhone: { type: String, default: '' },
+  cardholderName: { type: String, default: '' }
 }, { timestamps: true });
 
 paymentSchema.index({ transactionRef: 1 }, { unique: true, sparse: true });
+paymentSchema.index({ trackingCode: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model('Payment', paymentSchema);

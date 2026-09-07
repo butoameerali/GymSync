@@ -19,6 +19,9 @@ const PaymentModal = ({
   startNextMonth = false,
   membershipType = 'Monthly',
   joiningDate = null,
+  guestEmail = '',
+  guestPhone = '',
+  guestName = '',
   onPaymentSuccess,
   onPaymentRecorded
 }) => {
@@ -27,7 +30,11 @@ const PaymentModal = ({
   const [configs, setConfigs] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const userName = localStorage.getItem('gymsync_user_name') || 'Guest User';
+  const storedUser = (() => {
+    try { return JSON.parse(localStorage.getItem('userInfo') || '{}'); } catch (e) { return {}; }
+  })();
+  const effectiveUserName = guestName || (localStorage.getItem('gymsync_user_name') && localStorage.getItem('gymsync_user_name') !== 'Guest User' ? localStorage.getItem('gymsync_user_name') : (guestName || 'Guest User'));
+  const effectiveUserEmail = guestEmail || storedUser?.email || '';
   const commission15Percent = (Number(amount) || 0) * 0.15;
 
   useEffect(() => {
@@ -51,7 +58,7 @@ const PaymentModal = ({
 
   const selectedConfig = configs.find(c => c.method === paymentMethod);
 
-  const handlePaymentSubmit = async (e, transactionRef = '') => {
+  const handlePaymentSubmit = async (e, transactionRef = '', billingDetails = null) => {
     if (e && e.preventDefault) e.preventDefault();
     setLoading(true);
 
@@ -62,9 +69,15 @@ const PaymentModal = ({
         return;
       }
 
+      const finalUserName = billingDetails?.cardholderName || effectiveUserName;
+      const finalEmail = billingDetails?.email || effectiveUserEmail;
+
       const payload = {
         paymentId: `PAY-${Date.now()}`,
-        userName,
+        userName: finalUserName,
+        customerEmail: finalEmail,
+        customerPhone: guestPhone,
+        cardholderName: billingDetails?.cardholderName || '',
         gymName: gymName || 'GymSync Platform',
         paymentType,
         paymentMethod,
@@ -209,8 +222,10 @@ const PaymentModal = ({
              <Elements stripe={stripePromise}>
                <StripePaymentForm 
                   amount={amount} 
-                  onSuccess={(refId) => {
-                     handlePaymentSubmit(new Event('submit'), refId);
+                  defaultEmail={effectiveUserEmail}
+                  defaultName={effectiveUserName !== 'Guest User' ? effectiveUserName : ''}
+                  onSuccess={(refId, billingDetails) => {
+                     handlePaymentSubmit(new Event('submit'), refId, billingDetails);
                   }}
                   setLoading={setLoading}
                   loading={loading}
@@ -231,15 +246,33 @@ const PaymentModal = ({
   );
 };
 
-const StripePaymentForm = ({ amount, onSuccess, setLoading, loading }) => {
+const StripePaymentForm = ({ amount, defaultEmail, defaultName, onSuccess, setLoading, loading }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const [email, setEmail] = useState(defaultEmail || '');
+  const [cardholderName, setCardholderName] = useState(defaultName || '');
+  const [cardError, setCardError] = useState('');
+
+  useEffect(() => {
+    if (defaultEmail && !email) setEmail(defaultEmail);
+    if (defaultName && !cardholderName) setCardholderName(defaultName);
+  }, [defaultEmail, defaultName]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!stripe || !elements) return;
 
+    if (!email.trim() || !email.includes('@')) {
+      toast.error('Please enter a valid billing email address.');
+      return;
+    }
+    if (!cardholderName.trim()) {
+      toast.error('Please enter the name on the card.');
+      return;
+    }
+
     setLoading(true);
+    setCardError('');
     try {
       // 1. Create payment intent on the backend
       const res = await fetch('/api/payments/create-intent', {
@@ -248,31 +281,38 @@ const StripePaymentForm = ({ amount, onSuccess, setLoading, loading }) => {
           'Content-Type': 'application/json',
           ...(localStorage.getItem('gymsync_token') ? { Authorization: `Bearer ${localStorage.getItem('gymsync_token')}` } : {})
         },
-        body: JSON.stringify({ amount: Number(amount) || 50 })
+        body: JSON.stringify({ 
+          amount: Number(amount) || 50,
+          email: email.trim(),
+          cardholderName: cardholderName.trim()
+        })
       });
       
       const data = await res.json();
 
       if (!res.ok || !data.clientSecret) {
-        toast.error('Failed to initialize Stripe payment. Please check API keys.');
+        toast.error(data.message || 'Failed to initialize Stripe payment. Please check API keys.');
         return;
       }
 
       // 2. Confirm the payment with Stripe
+      const cardElement = elements.getElement(CardElement);
       const result = await stripe.confirmCardPayment(data.clientSecret, {
         payment_method: {
-          card: elements.getElement(CardElement),
+          card: cardElement,
           billing_details: {
-            name: localStorage.getItem('gymsync_user_name') || 'Guest User',
+            name: cardholderName.trim(),
+            email: email.trim()
           },
         }
       });
 
       if (result.error) {
+        setCardError(result.error.message);
         toast.error(`Stripe payment failed: ${result.error.message}`);
       } else {
         if (result.paymentIntent?.status === 'succeeded') {
-          onSuccess(result.paymentIntent.id);
+          onSuccess(result.paymentIntent.id, { email: email.trim(), cardholderName: cardholderName.trim() });
         }
       }
     } catch (err) {
@@ -283,14 +323,73 @@ const StripePaymentForm = ({ amount, onSuccess, setLoading, loading }) => {
   };
 
   return (
-    <>
-      <div style={{ padding: '10px', background: '#fff', borderRadius: '4px', border: '1px solid #ccc' }}>
-        <CardElement options={{ style: { base: { fontSize: '16px' } } }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Billing Email</label>
+        <input
+          type="email"
+          required
+          placeholder="e.g. yourname@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="search-input"
+          style={{ width: '100%', padding: '10px 12px', fontSize: '0.9rem', borderRadius: '8px' }}
+        />
       </div>
-      <button type="button" onClick={handleSubmit} className="btn btn-primary" disabled={!stripe || loading} style={{ padding: '12px', marginTop: '15px' }}>
-        {loading ? 'Processing...' : `Pay $${amount} via Stripe`}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Name on Card</label>
+        <input
+          type="text"
+          required
+          placeholder="e.g. John Doe"
+          value={cardholderName}
+          onChange={(e) => setCardholderName(e.target.value)}
+          className="search-input"
+          style={{ width: '100%', padding: '10px 12px', fontSize: '0.9rem', borderRadius: '8px' }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Card Details</label>
+        <div style={{ 
+          padding: '12px 14px', 
+          background: '#ffffff', 
+          borderRadius: '8px', 
+          border: cardError ? '1px solid #ef4444' : '1px solid rgba(0,0,0,0.15)',
+          boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
+        }}>
+          <CardElement 
+            options={{ 
+              style: { 
+                base: { 
+                  fontSize: '15px',
+                  color: '#1f2937',
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  '::placeholder': { color: '#9ca3af' }
+                },
+                invalid: { color: '#ef4444' }
+              } 
+            }} 
+            onChange={(e) => {
+              if (e.error) setCardError(e.error.message);
+              else setCardError('');
+            }}
+          />
+        </div>
+        {cardError && <span style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '2px' }}>{cardError}</span>}
+      </div>
+
+      <button 
+        type="button" 
+        onClick={handleSubmit} 
+        className="btn btn-primary" 
+        disabled={!stripe || loading} 
+        style={{ padding: '12px', marginTop: '6px', fontWeight: 600 }}
+      >
+        {loading ? 'Processing Payment...' : `Pay $${amount} via Card`}
       </button>
-    </>
+    </div>
   );
 };
 

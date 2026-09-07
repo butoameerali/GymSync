@@ -2,7 +2,11 @@ import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
   orderId: { type: String, required: true, unique: true },
-  userName: { type: String, required: true },
+  trackingCode: { type: String, unique: true, sparse: true, index: true },
+  userName: { type: String, required: true, default: 'Guest User' },
+  guestEmail: { type: String, default: '' },
+  guestPhone: { type: String, default: '' },
+  isGuestOrder: { type: Boolean, default: false },
   paymentId: { type: String, required: true, index: true },
   items: [{
     productId: String,

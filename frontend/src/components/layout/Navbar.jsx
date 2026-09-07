@@ -154,7 +154,7 @@ const Navbar = () => {
     localStorage.removeItem('gymsync_role');
     localStorage.removeItem('gymsync_user_name');
     localStorage.removeItem('gymsync_subscribed');
-    window.location.href = '/'; // Redirect to auth portal
+    window.location.href = '/login';
   };
 
   return (
@@ -170,7 +170,7 @@ const Navbar = () => {
           {!isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && <Link to="/explore" className="nav-link">Explore Gyms</Link>}
           {!isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>}
           {isLoggedIn && !isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && hasGymSubscription && <Link to="/your-gym" className="nav-link">YourGym</Link>}
-          <Link to="/store" className="nav-link">Store</Link>
+          {!isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && <Link to="/store" className="nav-link">Store</Link>}
           {isLoggedIn && isAdmin && <Link to="/admin" className="nav-link" style={{ color: 'var(--primary-accent)', fontWeight: 600 }}>Admin Panel</Link>}
           {isLoggedIn && isGymOwner && <Link to="/gym-owner" className="nav-link" style={{ color: '#8b5cf6', fontWeight: 600 }}>Gym Panel</Link>}
           {isLoggedIn && isFitnessInstructor && <Link to="/fitness-instructor" className="nav-link" style={{ color: '#10b981', fontWeight: 600 }}>Instructor Panel</Link>}
@@ -179,7 +179,7 @@ const Navbar = () => {
           
           <div className="nav-auth-mobile">
             {!isLoggedIn ? (
-              <Link to="/" className="btn btn-primary" style={{width: '100%'}}>Log In / Register</Link>
+              <Link to="/login" className="btn btn-primary" style={{width: '100%'}}>Log In / Register</Link>
             ) : (
               <button onClick={handleLogout} className="btn btn-outline" style={{width: '100%'}}>Log Out</button>
             )}
@@ -290,7 +290,7 @@ const Navbar = () => {
               )}
             </div>
           ) : (
-            <Link to="/" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link to="/login" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>?</div>
                Log In
             </Link>

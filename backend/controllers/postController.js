@@ -149,7 +149,9 @@ export const addComment = async (req, res) => {
   const { text } = req.body;
   try {
     if (!text?.trim()) return res.status(400).json({ message: 'Comment cannot be empty.' });
-    const newComment = { text: text.trim(), author: req.user.name, date: new Date(), replies: [] };
+    const authorName = req.user.name || 'User';
+    const authorPic = req.user.profilePic || '';
+    const newComment = { text: text.trim(), author: authorName, authorName, authorPic, date: new Date(), replies: [] };
     const comments = await appendPostComment(req.params.id, newComment);
     if (!comments) return res.status(404).json({ message: 'Post not found' });
 
@@ -159,8 +161,6 @@ export const addComment = async (req, res) => {
   }
 };
 
-// @desc    Add a reply to a comment
-// @route   POST /api/posts/:id/comment/:commentId/reply
 // @desc    Add a reply to a comment
 // @route   POST /api/posts/:id/comment/:commentId/reply
 // @access  Private
@@ -174,7 +174,9 @@ export const addReply = async (req, res) => {
     const comment = post.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
 
-    comment.replies.push({ text: text.trim(), author: req.user.name, date: new Date() });
+    const authorName = req.user.name || 'User';
+    const authorPic = req.user.profilePic || '';
+    comment.replies.push({ text: text.trim(), author: authorName, authorName, authorPic, date: new Date() });
     await post.save();
 
     res.json(post.comments);

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Star, ArrowLeft, CheckCircle, Calendar, Clock, Phone, FileText, Dumbbell, ShieldCheck, Eye } from 'lucide-react';
+import { MapPin, Star, ArrowLeft, CheckCircle, Calendar, Clock, Phone, FileText, Dumbbell, ShieldCheck, Eye, Copy, Check } from 'lucide-react';
 import PaymentModal from '../../components/common/PaymentModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import Modal from '../../components/common/Modal';
+import TrackingModal from '../../components/common/TrackingModal';
 import { toast } from 'react-toastify';
 import './GymDetails.css';
 
@@ -94,11 +95,15 @@ const GymDetails = () => {
   }, [id, isGuest, userName, searchParams]);
 
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [isGuestJoinModalOpen, setIsGuestJoinModalOpen] = useState(false);
+  const [guestJoinInfo, setGuestJoinInfo] = useState({ name: '', email: '', phone: '' });
+  const [guestRegistrationCode, setGuestRegistrationCode] = useState('');
+  const [isRegistrationSuccessOpen, setIsRegistrationSuccessOpen] = useState(false);
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
 
   const handleJoinClick = () => {
     if (isGuest) {
-      toast.info('Please log in or create an account to subscribe to this facility.');
-      navigate('/login');
+      setIsGuestJoinModalOpen(true);
       return;
     }
     if (currentUser?.subscribedGymName && currentUser.subscribedGymName !== gym.name) {
@@ -106,6 +111,16 @@ const GymDetails = () => {
       return;
     }
     setStartNextMonth(false);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleGuestJoinSubmit = (e) => {
+    e.preventDefault();
+    if (!guestJoinInfo.name.trim() || !guestJoinInfo.email.trim()) {
+      toast.error('Please enter your name and email address to proceed.');
+      return;
+    }
+    setIsGuestJoinModalOpen(false);
     setIsPaymentModalOpen(true);
   };
 
@@ -327,7 +342,7 @@ const GymDetails = () => {
             className="btn btn-primary w-100 mt-20"
             onClick={handleJoinClick}
           >
-            {isGuest ? 'Log In to Join' : 'Join Now & Pay'}
+            {isGuest ? 'Join Facility & Register' : 'Join Now & Pay'}
           </button>
 
           <button 
@@ -462,11 +477,143 @@ const GymDetails = () => {
         startNextMonth={startNextMonth}
         membershipType={membershipType}
         joiningDate={joiningDate}
+        guestName={guestJoinInfo.name}
+        guestEmail={guestJoinInfo.email}
+        guestPhone={guestJoinInfo.phone}
         title={`Join ${gym.name}`}
-        onPaymentSuccess={() => {
-          localStorage.setItem('gymsync_user_gym', gym.name);
-          window.location.href = '/your-gym';
+        onPaymentRecorded={(paymentData) => {
+          if (isGuest) {
+            setGuestRegistrationCode(paymentData?.trackingCode || paymentData?.paymentId || '');
+            setIsRegistrationSuccessOpen(true);
+          }
         }}
+        onPaymentSuccess={() => {
+          if (!isGuest) {
+            localStorage.setItem('gymsync_user_gym', gym.name);
+            window.location.href = '/your-gym';
+          }
+        }}
+      />
+
+      {/* Guest Join Info Modal */}
+      <Modal 
+        isOpen={isGuestJoinModalOpen} 
+        onClose={() => setIsGuestJoinModalOpen(false)} 
+        title={`Register for ${gym.name}`}
+      >
+        <form onSubmit={handleGuestJoinSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
+            Enter your registration details. After payment, you will receive a <strong>Membership Tracking Code</strong> and entry pass.
+          </p>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Full Name *</label>
+            <input 
+              type="text" 
+              required 
+              placeholder="e.g. John Doe"
+              value={guestJoinInfo.name} 
+              onChange={e => setGuestJoinInfo({ ...guestJoinInfo, name: e.target.value })}
+              className="search-input"
+              style={{ width: '100%', padding: '10px 12px' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Email Address *</label>
+            <input 
+              type="email" 
+              required 
+              placeholder="name@example.com"
+              value={guestJoinInfo.email} 
+              onChange={e => setGuestJoinInfo({ ...guestJoinInfo, email: e.target.value })}
+              className="search-input"
+              style={{ width: '100%', padding: '10px 12px' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Phone / WhatsApp Number</label>
+            <input 
+              type="tel" 
+              placeholder="+92 300 1234567"
+              value={guestJoinInfo.phone} 
+              onChange={e => setGuestJoinInfo({ ...guestJoinInfo, phone: e.target.value })}
+              className="search-input"
+              style={{ width: '100%', padding: '10px 12px' }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Membership Plan</label>
+              <select className="search-input" value={membershipType} onChange={e => setMembershipType(e.target.value)} style={{ width: '100%', padding: '10px 12px' }}>
+                <option value="Monthly">Monthly Pass</option>
+                <option value="Yearly">Yearly Pass</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>Activation Date</label>
+              <input className="search-input" type="date" min={new Date().toISOString().slice(0, 10)} value={joiningDate || new Date().toISOString().slice(0, 10)} onChange={e => setJoiningDate(e.target.value)} style={{ width: '100%', padding: '10px 12px' }} />
+            </div>
+          </div>
+
+          <button type="submit" className="btn btn-primary" style={{ marginTop: '10px', padding: '12px' }}>
+            Continue to Payment (${membershipAmount})
+          </button>
+        </form>
+      </Modal>
+
+      {/* Guest Registration Confirmation Modal */}
+      <Modal 
+        isOpen={isRegistrationSuccessOpen} 
+        onClose={() => setIsRegistrationSuccessOpen(false)} 
+        title="Registration Confirmed!"
+      >
+        <div style={{ textAlign: 'center', padding: '16px' }}>
+          <Check size={52} color="#10b981" style={{ margin: '0 auto 12px' }} />
+          <h3>Welcome to {gym.name}!</h3>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem' }}>
+            Your registration request has been submitted. Keep your tracking code safe for entrance verification.
+          </p>
+
+          {guestRegistrationCode && (
+            <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '14px', borderRadius: '10px', marginBottom: '20px' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Membership Tracking Code</span>
+              <strong style={{ fontSize: '1.3rem', color: '#38bdf8', letterSpacing: '1px' }}>{guestRegistrationCode}</strong>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '12px' }}>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(guestRegistrationCode);
+                    toast.success('Code copied to clipboard!');
+                  }}
+                >
+                  Copy Code
+                </button>
+                <button 
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    setIsRegistrationSuccessOpen(false);
+                    setIsTrackingModalOpen(true);
+                  }}
+                >
+                  Track Pass Status
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button className="btn btn-primary" onClick={() => setIsRegistrationSuccessOpen(false)}>
+            Done
+          </button>
+        </div>
+      </Modal>
+
+      <TrackingModal 
+        isOpen={isTrackingModalOpen} 
+        onClose={() => setIsTrackingModalOpen(false)} 
+        initialCode={guestRegistrationCode} 
       />
     </div>
   );

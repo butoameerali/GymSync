@@ -264,3 +264,190 @@
 .profile-tabs .tab-btn {
   transition: none !important;
 }
+
+/* Facebook-Style Profile Layout */
+.fb-profile-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.fb-profile-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 90px;
+}
+
+.fb-profile-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.fb-intro-card {
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.fb-bio-text {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.fb-intro-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  margin: 10px 0;
+}
+
+.fb-create-post-card {
+  padding: 16px 20px;
+  border-radius: 12px;
+}
+
+.fb-feed-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--primary-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.fb-feed-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fb-post-input {
+  flex: 1;
+  padding: 12px 18px !important;
+  border-radius: 24px !important;
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--card-border) !important;
+  font-size: 0.9rem !important;
+  color: var(--text-primary) !important;
+}
+
+.fb-media-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 8px 14px;
+  border-radius: 8px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #38bdf8;
+}
+
+.fb-media-preview button {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.fb-post-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
+}
+
+.fb-upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.fb-upload-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+/* Facebook-Style Settings Hub */
+.fb-settings-container {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.fb-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.fb-settings-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.fb-settings-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.fb-settings-nav-btn.active {
+  background: var(--primary-accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.fb-settings-card {
+  padding: 24px;
+  border-radius: 12px;
+}
+
+@media (max-width: 900px) {
+  .fb-profile-layout {
+    grid-template-columns: 1fr;
+  }
+  .fb-profile-sidebar {
+    position: static;
+  }
+  .fb-settings-container {
+    grid-template-columns: 1fr;
+  }
+}

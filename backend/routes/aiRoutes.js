@@ -1,14 +1,14 @@
 import express from 'express';
 import { handleChat } from '../controllers/aiController.js';
 import { generatePlan } from '../controllers/recommendationEngine.js';
-import { protect } from '../middleware/authMiddleware.js';
+import { optionalProtect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// POST /api/ai/chat (Authenticated)
-router.post('/chat', protect, handleChat);
+// POST /api/ai/chat (Accessible to authenticated users and guests)
+router.post('/chat', optionalProtect, handleChat);
 
-// POST /api/ai/generate-plan (Authenticated)
-router.post('/generate-plan', protect, generatePlan);
+// POST /api/ai/generate-plan (Accessible to authenticated users and guests)
+router.post('/generate-plan', optionalProtect, generatePlan);
 
 export default router;

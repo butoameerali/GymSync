@@ -40,10 +40,14 @@ const postSchema = new mongoose.Schema({
   comments: [{
     text: { type: String },
     author: { type: String },
+    authorName: { type: String },
+    authorPic: { type: String },
     date: { type: Date, default: Date.now },
     replies: [{
       text: { type: String },
       author: { type: String },
+      authorName: { type: String },
+      authorPic: { type: String },
       date: { type: Date, default: Date.now }
     }]
   }]

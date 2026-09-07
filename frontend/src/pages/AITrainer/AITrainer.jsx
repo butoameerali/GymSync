@@ -245,6 +245,69 @@ const AITrainer = () => {
     return isExerciseCompletedInState(dayNum, exIndex - 1);
   };
 
+  const [isRecalculating, setIsRecalculating] = useState(false);
+
+  const handleCoachAction = async (actionPrompt, targetEx = null) => {
+    setIsRecalculating(true);
+    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+    const bioData = JSON.parse(localStorage.getItem(`gymsync_${userKey}_bio_data`) || '{}');
+    const token = localStorage.getItem('gymsync_token') || localStorage.getItem('token') || '';
+
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          message: targetEx ? `${actionPrompt}: ${targetEx.name}` : actionPrompt,
+          userContext: bioData,
+          currentPlan: aiPlan,
+          currentWorkout: selectedCalendarDay
+        })
+      });
+
+      const data = await res.json();
+      if (data.structuredAction?.workout) {
+        const newSession = data.structuredAction.workout;
+        const updatedCalendar = (aiPlan.interactive_calendar || []).map(day => {
+          if (day.dayNumber === selectedCalendarDay.dayNumber) {
+            return {
+              ...day,
+              focusArea: newSession.sessionObjective,
+              sessionObjective: newSession.sessionObjective,
+              warmup: newSession.warmup,
+              workoutSplit: newSession.mainWorkout,
+              cooldown: newSession.cooldown,
+              timeBudget: newSession.timeBudget,
+              rationale: newSession.rationale,
+              externalActivity: newSession.externalActivity
+            };
+          }
+          return day;
+        });
+
+        const updatedPlan = {
+          ...aiPlan,
+          interactive_calendar: updatedCalendar
+        };
+
+        setAiPlan(updatedPlan);
+        localStorage.setItem(`gymsync_${userKey}_ai_plan`, JSON.stringify(updatedPlan));
+        setSelectedCalendarDay(updatedCalendar.find(d => d.dayNumber === selectedCalendarDay.dayNumber));
+        toast.success(data.structuredAction.explanation || 'Workout adapted by AI Coach!');
+      } else {
+        toast.info(data.content);
+      }
+    } catch (err) {
+      console.error('Coach Action Error:', err);
+      toast.error('Unable to reach AI Coach right now.');
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
   const startExercise = (exercise) => {
     setCurrentExercise(exercise);
     setReps(exercise.reps || exercise.defaultReps || 10);
@@ -1097,8 +1160,60 @@ const AITrainer = () => {
                               </span>
                             </div>
 
-                            {/* WORKOUT SPLIT FOR SELECTED DAY */}
-                            <h4 style={{fontSize: '0.95rem', color: '#3b82f6', marginBottom: '10px'}}>🏋️ Workout Split</h4>
+                            {/* 1. TODAY'S GOAL / ADAPTATION OBJECTIVE */}
+                            <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '10px 14px', borderRadius: '10px', marginBottom: '14px' }}>
+                              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#60a5fa', fontWeight: 600 }}>🎯 Today's Adaptation Goal</div>
+                              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+                                {selectedCalendarDay.sessionObjective || selectedCalendarDay.focusArea}
+                              </div>
+                            </div>
+
+                            {/* 1B. COACH RATIONALE & EVENT AWARENESS CARD */}
+                            {selectedCalendarDay.rationale && (
+                              <div style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.25)', padding: '10px 14px', borderRadius: '10px', marginBottom: '14px' }}>
+                                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#818cf8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  🧠 Coach Rationale & Life Context
+                                </div>
+                                {selectedCalendarDay.rationale.constraints?.length > 0 && (
+                                  <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                    <strong style={{ color: '#cbd5e1' }}>Context:</strong> {selectedCalendarDay.rationale.constraints.join(' • ')}
+                                  </div>
+                                )}
+                                {selectedCalendarDay.rationale.rejectedExercises?.length > 0 && (
+                                  <div style={{ fontSize: '0.74rem', color: '#f87171', marginTop: '4px' }}>
+                                    <strong>Fatigue Protected:</strong> {selectedCalendarDay.rationale.rejectedExercises.map(r => `${r.name} (${r.reason})`).join('; ')}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* 2. REASONED WARM-UP SECTION */}
+                            {selectedCalendarDay.warmup?.warmupExercises?.length > 0 && (
+                              <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f59e0b' }}>🔥 Reasoned Warm-Up ({selectedCalendarDay.warmup.totalEstimatedMinutes || 5} Mins)</span>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {selectedCalendarDay.warmup.warmupExercises.map((w, wi) => (
+                                    <div key={wi} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                      <strong style={{ color: 'var(--text-primary)' }}>{w.phase}:</strong> {w.name} ({w.repsOrDuration || w.duration})
+                                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>{w.purpose}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 3. MAIN WORKOUT SPLIT FOR SELECTED DAY */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                              <h4 style={{ fontSize: '0.95rem', color: '#3b82f6', margin: 0 }}>🏋️ Main Resistance Work</h4>
+                              {selectedCalendarDay.timeBudget?.totalEstimatedMinutes && (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                  ⏱️ Est. {selectedCalendarDay.timeBudget.totalEstimatedMinutes} Mins Total
+                                </span>
+                              )}
+                            </div>
+
                             {status === 'LOCKED' ? (
                               <div style={{ textAlign: 'center', padding: '30px 20px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px dashed var(--card-border)', marginBottom: '20px' }}>
                                 <Lock size={32} color="var(--text-secondary)" style={{ marginBottom: '8px' }} />
@@ -1112,7 +1227,7 @@ const AITrainer = () => {
                                 {selectedCalendarDay.workoutSplit}
                               </p>
                             ) : (
-                              <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', maxHeight: '250px', overflowY: 'auto'}}>
+                              <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', maxHeight: '300px', overflowY: 'auto'}}>
                                 {selectedCalendarDay.workoutSplit.map((ex, idx) => {
                                   const targetEx = EXERCISE_LIBRARY.find(e => e.id === ex.id) || { ...ex, category: 'AI Custom', instructions: 'Follow AI targets', points: 1 };
                                   const isExDone = isExerciseCompletedInState(selectedCalendarDay.dayNumber, idx);
@@ -1143,44 +1258,169 @@ const AITrainer = () => {
                                       className="ai-exercise-card"
                                       style={{
                                         background: isExDone ? 'rgba(16, 185, 129, 0.15)' : !isUnlocked && status !== 'COMPLETED' ? 'rgba(0,0,0,0.3)' : 'var(--card-bg)', 
-                                        padding: '10px 12px', 
-                                        borderRadius: '8px', 
+                                        padding: '12px 14px', 
+                                        borderRadius: '10px', 
                                         border: isExDone ? '1px solid #10b981' : isUnlocked ? '1px solid #3b82f6' : '1px solid var(--card-border)', 
                                         display: 'flex', 
-                                        justifyContent: 'space-between', 
-                                        alignItems: 'center',
+                                        flexDirection: 'column',
+                                        gap: '8px',
                                         cursor: (status !== 'MISSED' && status !== 'REST' && (isUnlocked || status === 'COMPLETED')) ? 'pointer' : 'not-allowed',
                                         opacity: (status === 'MISSED' || status === 'REST' || (!isUnlocked && status !== 'COMPLETED')) ? 0.6 : 1,
                                         transition: 'all 0.2s'
                                       }}
                                     >
-                                      <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                                        <div style={{width: '24px', height: '24px', borderRadius: '50%', border: '2px solid', borderColor: isExDone ? '#10b981' : isUnlocked ? '#3b82f6' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                                          {isExDone ? <CheckCircle size={16} color="#10b981" /> : !isUnlocked && status !== 'COMPLETED' ? <Lock size={12} color="var(--text-secondary)" /> : <span style={{ fontSize: '0.75rem', color: '#3b82f6' }}>{idx + 1}</span>}
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                                          <div style={{width: '24px', height: '24px', borderRadius: '50%', border: '2px solid', borderColor: isExDone ? '#10b981' : isUnlocked ? '#3b82f6' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                            {isExDone ? <CheckCircle size={16} color="#10b981" /> : !isUnlocked && status !== 'COMPLETED' ? <Lock size={12} color="var(--text-secondary)" /> : <span style={{ fontSize: '0.75rem', color: '#3b82f6' }}>{idx + 1}</span>}
+                                          </div>
+                                          <div>
+                                            <h5 style={{fontSize: '0.92rem', margin: 0, color: isExDone ? '#10b981' : 'var(--text-primary)', textDecoration: isExDone ? 'line-through' : 'none'}}>
+                                              {ex.name}
+                                            </h5>
+                                            <span style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>{ex.target} • {ex.equipment}</span>
+                                          </div>
                                         </div>
-                                        <div>
-                                          <h5 style={{fontSize: '0.9rem', margin: 0, color: isExDone ? '#10b981' : 'var(--text-primary)', textDecoration: isExDone ? 'line-through' : 'none'}}>{ex.name}</h5>
-                                          <span style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>{ex.target} • {ex.equipment}</span>
-                                        </div>
-                                      </div>
-                                      <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
                                         <div style={{textAlign: 'right'}}>
-                                          <span style={{fontSize: '0.8rem', fontWeight: 'bold', color: isExDone ? '#10b981' : 'var(--primary-accent)', display: 'block'}}>{ex.sets} Sets × {ex.reps} Reps</span>
+                                          <span style={{fontSize: '0.82rem', fontWeight: 'bold', color: isExDone ? '#10b981' : 'var(--primary-accent)', display: 'block'}}>{ex.sets} Sets × {ex.reps} Reps</span>
                                           <span style={{fontSize: '0.7rem', color: '#f59e0b'}}>{ex.rpe}</span>
                                         </div>
-                                        <button 
-                                          className="btn btn-outline btn-sm" 
-                                          style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                          disabled={status === 'MISSED' || (!isUnlocked && status !== 'COMPLETED')}
-                                        >
-                                          {status === 'MISSED' ? <AlertTriangle size={12} color="#ef4444" /> : !isUnlocked && status !== 'COMPLETED' ? <Lock size={12}/> : <Eye size={14} />} {status === 'MISSED' ? 'Missed' : 'View'}
-                                        </button>
+                                      </div>
+
+                                      {/* Why Selected & Purpose */}
+                                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.03)', padding: '5px 8px', borderRadius: '6px' }}>
+                                        💡 <strong style={{ color: '#38bdf8' }}>Why Selected:</strong> {ex.purpose || ex.reasonForSelection || 'Compound movement aligned with session objective.'}
+                                      </div>
+
+                                      {/* Interactive Action Bar */}
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleCoachAction('Why this exercise', ex); }}
+                                            style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.7rem', cursor: 'pointer', textDecoration: 'underline' }}
+                                          >
+                                            Why this?
+                                          </button>
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>•</span>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleCoachAction('Replace this exercise', ex); }}
+                                            style={{ background: 'none', border: 'none', color: '#f59e0b', fontSize: '0.7rem', cursor: 'pointer', textDecoration: 'underline' }}
+                                          >
+                                            Replace
+                                          </button>
+                                        </div>
+
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          {(ex.isAiTrackable || ex.aiDetection?.enabled) && (
+                                            <span style={{ fontSize: '0.68rem', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '2px 6px', borderRadius: '4px' }}>
+                                              🎯 AI Vision
+                                            </span>
+                                          )}
+                                          <button 
+                                            className="btn btn-outline btn-sm" 
+                                            style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+                                            disabled={status === 'MISSED' || (!isUnlocked && status !== 'COMPLETED')}
+                                          >
+                                            {status === 'MISSED' ? 'Missed' : isExDone ? 'Completed' : 'Start'}
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   );
                                 })}
                               </div>
                             )}
+
+                            {/* 4. REASONED COOL-DOWN SECTION */}
+                            {selectedCalendarDay.cooldown?.cooldownExercises?.length > 0 && (
+                              <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px' }}>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#10b981', display: 'block', marginBottom: '6px' }}>
+                                  🧘 Reasoned Cool-Down & Recovery
+                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  {selectedCalendarDay.cooldown.cooldownExercises.map((c, ci) => (
+                                    <div key={ci} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                      <strong style={{ color: 'var(--text-primary)' }}>{c.name}:</strong> {c.duration}
+                                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>{c.purpose}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 5. QUICK COACH RECALCULATE ACTIONS */}
+                            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--card-border)', padding: '10px 12px', borderRadius: '10px', marginBottom: '18px' }}>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                                ⚡ Real-Time Coach Session Adjustments:
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  disabled={isRecalculating}
+                                  onClick={() => handleCoachAction('I only have dumbbells today')}
+                                  className="btn btn-outline btn-sm"
+                                  style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                                >
+                                  🏋️ Dumbbells Only
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isRecalculating}
+                                  onClick={() => handleCoachAction('I only have 20 minutes today')}
+                                  className="btn btn-outline btn-sm"
+                                  style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                                >
+                                  ⏱️ 20 Mins
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isRecalculating}
+                                  onClick={() => handleCoachAction('My knee hurts today')}
+                                  className="btn btn-outline btn-sm"
+                                  style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                                >
+                                  🩺 Knee Discomfort
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isRecalculating}
+                                  onClick={() => handleCoachAction('I have a match tomorrow')}
+                                  className="btn btn-outline btn-sm"
+                                  style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                                >
+                                  🏏 Match Tomorrow
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isRecalculating}
+                                  onClick={() => handleCoachAction('I have army training tomorrow')}
+                                  className="btn btn-outline btn-sm"
+                                  style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                                >
+                                  🎖️ Army Training
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isRecalculating}
+                                  onClick={() => handleCoachAction('I have football practice tomorrow')}
+                                  className="btn btn-outline btn-sm"
+                                  style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                                >
+                                  ⚽ Football Tomorrow
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isRecalculating}
+                                  onClick={() => handleCoachAction('5K race tomorrow')}
+                                  className="btn btn-outline btn-sm"
+                                  style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                                >
+                                  🏃 5K Race Tomorrow
+                                </button>
+                              </div>
+                            </div>
 
                             {/* DIET PLAN FOR SELECTED DAY */}
                             <h4 style={{fontSize: '0.95rem', color: '#10b981', marginBottom: '10px'}}>🥗 Natural Whole Food Diet</h4>

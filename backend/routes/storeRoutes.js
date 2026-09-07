@@ -10,11 +10,14 @@ import {
   updateOrderStatus,
   getMyOrders,
   cancelMyOrder,
-  requestOrderRefund
+  requestOrderRefund,
+  trackOrderByCode
 } from '../controllers/storeController.js';
-import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
+import { protect, optionalProtect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+router.get('/track/:code', trackOrderByCode);
 
 router.route('/products')
   .get(getProducts)
@@ -29,7 +32,7 @@ router.route('/products/:id/status')
 
 router.route('/orders')
   .get(protect, authorizeRoles('StoreManager', 'Admin', 'SuperAdmin'), getOrders)
-  .post(protect, createOrder);
+  .post(optionalProtect, createOrder);
 
 router.get('/orders/mine', protect, getMyOrders);
 router.put('/orders/:id/cancel', protect, cancelMyOrder);

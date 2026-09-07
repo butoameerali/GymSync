@@ -255,15 +255,28 @@ const GlobalChat = () => {
         const currentHistory = messages[activeContact.id] || [];
         const historyToSend = currentHistory.slice(-8);
 
+        const token = localStorage.getItem('gymsync_token') || localStorage.getItem('token') || '';
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
           body: JSON.stringify({ message: messageText, userContext, history: historyToSend })
         });
         const data = await response.json();
-        let replyText = data.content;
+        let replyText = data.content || data.message || "I couldn't process that response. Please try again.";
 
-        const planMatch = replyText.match(/<PLAN>(.*?)<\/PLAN>/i);
+        if (data.structuredAction?.workout) {
+          localStorage.setItem('gymsync_ai_structured_workout', JSON.stringify(data.structuredAction.workout));
+          const exNames = (data.structuredAction.workout.exercises || []).map(e => e.name || e);
+          if (exNames.length > 0) {
+            localStorage.setItem('gymsync_ai_plan', JSON.stringify(exNames));
+          }
+          toast.success("AI Workout Plan Updated!");
+        }
+
+        const planMatch = replyText && typeof replyText === 'string' ? replyText.match(/<PLAN>(.*?)<\/PLAN>/i) : null;
         if (planMatch) {
           const exercisesString = planMatch[1];
           const exercisesArray = exercisesString.split(',').map(e => e.trim());

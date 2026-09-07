@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, Flame, Target, MapPin, Calendar, CheckCircle, Clock, DownloadCloud, Trash2, Shield, Lock, Camera, Building } from 'lucide-react';
+import { 
+  Activity, Flame, Target, MapPin, Calendar, CheckCircle, Clock, 
+  DownloadCloud, Trash2, Shield, Lock, Camera, Building, 
+  Image as ImageIcon, Send, User, Settings 
+} from 'lucide-react';
 import ImageCropper from '../../components/layout/ImageCropper';
 import Modal from '../../components/common/Modal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -7,11 +11,14 @@ import { toast } from 'react-toastify';
 import { can } from '../../config/permissions';
 import './Profile.css';
 import WorkoutCalendar from '../../components/common/WorkoutCalendar';
+import PostList from '../../features/social/components/PostList';
+import { postService } from '../../services/postService';
 
 const Profile = () => {
   const userRole = localStorage.getItem('gymsync_role') || 'User';
   const isTrainee = userRole === 'User' || userRole === 'Guest';
-  const [activeTab, setActiveTab] = useState(() => (userRole === 'GymOwner' ? 'gig' : (isTrainee ? 'history' : 'posts')));
+  const [activeTab, setActiveTab] = useState('posts');
+  const [activeSettingSection, setActiveSettingSection] = useState('general');
   const [isEditingBio, setIsEditingBio] = useState(false);
   
   // Stats
@@ -25,6 +32,12 @@ const Profile = () => {
   const [profilePic, setProfilePic] = useState(localStorage.getItem(`gymsync_${userKey}_pic`) || '');
   const [userData, setUserData] = useState(null);
   const [rawImageSrc, setRawImageSrc] = useState(null);
+
+  // New Post State
+  const [newPostText, setNewPostText] = useState('');
+  const [selectedPostFile, setSelectedPostFile] = useState(null);
+  const [isPublishingPost, setIsPublishingPost] = useState(false);
+  const postFileInputRef = useRef(null);
 
   // Bio Data
   const [bio, setBio] = useState({
@@ -210,7 +223,6 @@ const Profile = () => {
 
     const role = localStorage.getItem('gymsync_role');
     if (role === 'GymOwner') {
-      setActiveTab('gig');
       fetches.push(
         fetch(`/api/gym-owner/dashboard/${userName}`, {
           headers: {
@@ -225,8 +237,6 @@ const Profile = () => {
         })
         .catch(err => console.error('Error fetching gym gig', err))
       );
-    } else if (!isTrainee) {
-      setActiveTab('posts');
     }
 
     Promise.allSettled(fetches).then(() => {
@@ -249,6 +259,79 @@ const Profile = () => {
   const [passwordError, setPasswordError] = useState('');
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  // Post Actions Handlers
+  const handleCreateProfilePost = async (e) => {
+    if (e) e.preventDefault();
+    if (!newPostText.trim() && !selectedPostFile) {
+      toast.warning('Please write something or attach a photo.');
+      return;
+    }
+    setIsPublishingPost(true);
+    try {
+      const formData = new FormData();
+      formData.append('content', newPostText);
+      formData.append('authorName', userName);
+      if (selectedPostFile) {
+        formData.append('media', selectedPostFile);
+      }
+      const created = await postService.createPost(formData);
+      setMyPosts(prev => [created, ...prev]);
+      setNewPostText('');
+      setSelectedPostFile(null);
+      if (postFileInputRef.current) postFileInputRef.current.value = null;
+      toast.success('Post published to your timeline!');
+    } catch (err) {
+      toast.error(err.message || 'Failed to create post');
+    } finally {
+      setIsPublishingPost(false);
+    }
+  };
+
+  const handleLikePost = async (postId) => {
+    try {
+      const updated = await postService.likePost(postId);
+      setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p)));
+    } catch (err) {
+      toast.error(err.message || 'Failed to like post');
+    }
+  };
+
+  const handleAddComment = async (postId, text) => {
+    try {
+      const updated = await postService.addComment(postId, text);
+      setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p)));
+    } catch (err) {
+      toast.error(err.message || 'Failed to add comment');
+    }
+  };
+
+  const handleDeleteComment = async (postId, commentId) => {
+    try {
+      const updated = await postService.deleteComment(postId, commentId);
+      setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p)));
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete comment');
+    }
+  };
+
+  const handleAddReply = async (postId, commentId, text) => {
+    try {
+      const updated = await postService.addReply(postId, commentId, text);
+      setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p)));
+    } catch (err) {
+      toast.error(err.message || 'Failed to reply');
+    }
+  };
+
+  const handleDeleteReply = async (postId, commentId, replyId) => {
+    try {
+      const updated = await postService.deleteReply(postId, commentId, replyId);
+      setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p)));
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete reply');
+    }
+  };
 
   const handleDeleteAccount = async () => {
     setIsDeletingAccount(true);
@@ -274,46 +357,6 @@ const Profile = () => {
     }
   };
 
-  const handleSaveBio = async (e) => {
-    e.preventDefault();
-    const errors = [];
-
-    if (bio.weight && (isNaN(bio.weight) || Number(bio.weight) <= 0 || Number(bio.weight) > 400)) {
-      errors.push("Please enter a valid weight between 1 and 400.");
-    }
-    if (bio.height && (isNaN(bio.height) || Number(bio.height) <= 0 || Number(bio.height) > 300)) {
-      errors.push("Please enter a valid height between 1 and 300.");
-    }
-
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
-
-    setValidationErrors([]);
-
-    try {
-      if (profilePic) await saveProfilePic(profilePic);
-    } catch (picErr) {
-      toast.error(picErr.message || 'Unable to save profile picture.');
-      return;
-    }
-
-    localStorage.setItem(`gymsync_${userKey}_bio_filled`, 'true');
-    localStorage.setItem('gymsync_bio_filled', 'true');
-    localStorage.setItem(`gymsync_${userKey}_bio_data`, JSON.stringify(bio));
-    localStorage.setItem(`gymsync_${userKey}_bio`, JSON.stringify(bio));
-
-    setIsEditingBio(false);
-    window.dispatchEvent(new Event('gymsync_bio_updated'));
-
-    // Auto generate mock upcoming schedule after bio fill
-    setUpcoming([
-      { id: 'u1', name: 'Barbell Squats', date: 'Tomorrow, 8:00 AM' },
-      { id: 'u2', name: 'Romanian Deadlifts', date: 'Tomorrow, 8:30 AM' }
-    ]);
-  };
-
   const handlePicUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -323,7 +366,6 @@ const Profile = () => {
       };
       reader.readAsDataURL(file);
     }
-    // Reset file input so same file can be selected again
     if (e.target) e.target.value = null;
   };
 
@@ -399,92 +441,7 @@ const Profile = () => {
   const todayDate = new Date().toDateString();
   const safeHistory = Array.isArray(history) ? history : [];
   const todayHistory = safeHistory.filter(h => h && h.date && new Date(h.date).toDateString() === todayDate);
-  const pastHistory = safeHistory.filter(h => h && h.date && new Date(h.date).toDateString() !== todayDate);
-
-  if (isAdminUser) {
-    return (
-      <div className="profile-page">
-        <div className="profile-cover"></div>
-        <div className="container">
-          <div className="profile-header glass-panel" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '20px', alignItems: 'center' }}>
-            <div className="profile-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '120px', height: '120px', borderRadius: '50%', background: 'var(--card-bg)' }}>
-              {profilePic ? (
-                <img src={profilePic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: '3rem', color: 'var(--text-primary)' }}>{userName.charAt(0).toUpperCase()}</span>
-              )}
-            </div>
-            <div className="profile-info">
-              <h1>{userName}</h1>
-              <p className="bio-tagline" style={{ color: 'var(--text-secondary)' }}>{userRole}</p>
-              <p style={{ marginTop: '12px', maxWidth: '600px', color: 'var(--text-secondary)' }}>
-                Admin profile settings are simplified to security actions only. Update your password or delete your account from here.
-              </p>
-            </div>
-          </div>
-
-          <div className="glass-panel section-panel" style={{ marginTop: '24px', maxWidth: '700px', width: '100%' }}>
-            <h3 className="section-title"><Lock size={20} /> Password Settings</h3>
-            <form onSubmit={handleChangePassword} style={{ display: 'grid', gap: '16px', marginTop: '20px' }}>
-              <label>
-                Current Password
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password"
-                  className="input-field"
-                />
-              </label>
-              <label>
-                New Password
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
-                  className="input-field"
-                />
-              </label>
-              <label>
-                Confirm New Password
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                  className="input-field"
-                />
-              </label>
-              {passwordError && <p style={{ color: '#ef4444', margin: 0 }}>{passwordError}</p>}
-              {passwordMessage && <p style={{ color: '#10b981', margin: 0 }}>{passwordMessage}</p>}
-              <button type="submit" className="btn btn-primary" style={{ width: 'fit-content' }}>
-                Save New Password
-              </button>
-            </form>
-          </div>
-
-          <div className="glass-panel section-panel" style={{ marginTop: '24px', maxWidth: '700px', width: '100%', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-              <div>
-                <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b91c1c' }}><Trash2 size={20} /> Delete Account</h3>
-                <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
-                  Permanently remove your admin account and all local session data. This action cannot be undone.
-                </p>
-              </div>
-              <button
-                className="btn"
-                style={{ background: '#ef4444', color: 'var(--text-primary)', minWidth: '180px' }}
-                onClick={() => setShowDeleteAccountModal(true)}
-              >
-                Delete Account
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const photoPosts = myPosts.filter(p => p.mediaUrl).slice(0, 6);
 
   if (isLoading) {
     return (
@@ -522,8 +479,13 @@ const Profile = () => {
           </div>
           <input type="file" ref={fileInputRef} accept="image/*" style={{display: 'none'}} onChange={handlePicUpload} />
           <div className="profile-info">
-            <h1>{userName}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0 }}>{userName}</h1>
+              <span className="category-badge" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600 }}>
+                {userRole}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }}>
               <p className="bio-tagline" style={{ margin: 0 }}>{bio.location ? <><MapPin size={16}/> {bio.location}</> : 'Fitness Enthusiast'}</p>
               {userData?.isGoogleApproved || userData?.isEmailVerified ? (
                 <span className="category-badge" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 600 }}>
@@ -562,19 +524,172 @@ const Profile = () => {
 
         {/* Navigation Tabs */}
         <div className="profile-tabs glass-panel">
-          {isTrainee && <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Workout History</button>}
-          <button className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>Your Timeline</button>
-          {isTrainee && <button className={`tab-btn ${activeTab === 'bio' ? 'active' : ''}`} onClick={() => setActiveTab('bio')}>Health Bio</button>}
-          {userRole === 'GymOwner' && <button className={`tab-btn ${activeTab === 'gig' ? 'active' : ''}`} onClick={() => setActiveTab('gig')}>Your Gym Gig</button>}
-          <button className={`tab-btn ${activeTab === 'privacy' ? 'active' : ''}`} onClick={() => setActiveTab('privacy')}>Privacy & Data</button>
+          <button className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>
+            Timeline
+          </button>
+          {isTrainee && (
+            <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+              Workout History
+            </button>
+          )}
+          {isTrainee && (
+            <button className={`tab-btn ${activeTab === 'bio' ? 'active' : ''}`} onClick={() => setActiveTab('bio')}>
+              Health Bio
+            </button>
+          )}
+          {userRole === 'GymOwner' && (
+            <button className={`tab-btn ${activeTab === 'gig' ? 'active' : ''}`} onClick={() => setActiveTab('gig')}>
+              Your Gym Gig
+            </button>
+          )}
+          <button className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+            Settings & Privacy
+          </button>
         </div>
 
         <div className="profile-content">
           
+          {/* TIMELINE TAB (Facebook-Style Two Column Layout) */}
+          {activeTab === 'posts' && (
+            <div className="fb-profile-layout">
+              {/* Left Column: Intro, Stats, Photos */}
+              <div className="fb-profile-sidebar">
+                <div className="glass-panel fb-intro-card">
+                  <h3 className="section-title" style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Intro</h3>
+                  <p className="fb-bio-text">
+                    {bio.fitnessGoals || (userRole === 'GymTrainer' ? 'Certified Gym Trainer & Fitness Coach' : userRole === 'GymOwner' ? 'Gym Owner & Facility Partner' : isAdminUser ? 'GymSync Platform Administrator' : 'GymSync Community Member')}
+                  </p>
+                  <div style={{ borderTop: '1px solid var(--card-border)', paddingTop: '10px' }}>
+                    {bio.location && (
+                      <div className="fb-intro-item"><MapPin size={16} color="var(--primary-accent)" /> Lives in <strong>{bio.location}</strong></div>
+                    )}
+                    <div className="fb-intro-item"><User size={16} color="var(--primary-accent)" /> Role: <strong>{userRole}</strong></div>
+                    {bio.mainGoalArea && (
+                      <div className="fb-intro-item"><Target size={16} color="#10b981" /> Path: <strong>{bio.mainGoalArea}</strong></div>
+                    )}
+                    {bio.equipmentAccess && (
+                      <div className="fb-intro-item"><Building size={16} color="#f59e0b" /> Access: <strong>{bio.equipmentAccess}</strong></div>
+                    )}
+                    {!hideHealthData && bio.height && (
+                      <div className="fb-intro-item">📏 Height: <strong>{bio.height} {bio.units === 'imperial' ? 'in' : 'cm'}</strong></div>
+                    )}
+                    {!hideHealthData && bio.weight && (
+                      <div className="fb-intro-item">⚖️ Weight: <strong>{bio.weight} {bio.units === 'imperial' ? 'lbs' : 'kg'}</strong></div>
+                    )}
+                  </div>
+                  {isTrainee && (
+                    <button 
+                      className="btn btn-outline btn-sm" 
+                      style={{ width: '100%', marginTop: '14px' }}
+                      onClick={() => {
+                        localStorage.setItem('gymsync_onboarding_skip_date', ''); 
+                        window.dispatchEvent(new Event('open-onboarding'));
+                      }}
+                    >
+                      Edit Bio / Assessment
+                    </button>
+                  )}
+                </div>
+
+                {/* Badges / Stats */}
+                <div className="glass-panel fb-intro-card">
+                  <h4 className="section-title" style={{ fontSize: '1rem', marginBottom: '12px' }}>Fitness Stats</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div style={{ background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ color: 'var(--primary-accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>{stats.points}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Total Points</div>
+                    </div>
+                    <div style={{ background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ color: '#f97316', fontWeight: 'bold', fontSize: '1.2rem' }}>{stats.streak}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Day Streak</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Photos Preview */}
+                {photoPosts.length > 0 && (
+                  <div className="glass-panel fb-intro-card">
+                    <h4 className="section-title" style={{ fontSize: '1rem', marginBottom: '12px' }}>Photos</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {photoPosts.map((p, idx) => (
+                        <img key={p._id || idx} src={p.mediaUrl} alt="Timeline photo" style={{ width: '100%', height: '75px', objectFit: 'cover', borderRadius: '8px' }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Create Post Card + Interactive PostList */}
+              <div className="fb-profile-feed">
+                {/* Create Post Card */}
+                <div className="glass-panel fb-create-post-card">
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div className="fb-feed-avatar">
+                      {profilePic ? <img src={profilePic} alt="User" /> : userName.charAt(0).toUpperCase()}
+                    </div>
+                    <input 
+                      type="text" 
+                      className="fb-post-input"
+                      placeholder={`What's on your fitness mind, ${userName.split(' ')[0]}?`}
+                      value={newPostText}
+                      onChange={e => setNewPostText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleCreateProfilePost(e); }}
+                    />
+                  </div>
+
+                  {selectedPostFile && (
+                    <div className="fb-media-preview">
+                      <span>Attached: {selectedPostFile.name}</span>
+                      <button type="button" onClick={() => { setSelectedPostFile(null); if (postFileInputRef.current) postFileInputRef.current.value = null; }}>Remove</button>
+                    </div>
+                  )}
+
+                  <div className="fb-post-actions-bar">
+                    <label className="fb-upload-btn">
+                      <ImageIcon size={18} color="#10b981" />
+                      <span>Photo / Video</span>
+                      <input 
+                        type="file" 
+                        ref={postFileInputRef} 
+                        accept="image/*,video/*" 
+                        style={{ display: 'none' }} 
+                        onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            setSelectedPostFile(e.target.files[0]);
+                          }
+                        }} 
+                      />
+                    </label>
+                    <button 
+                      className="btn btn-primary btn-sm" 
+                      onClick={handleCreateProfilePost}
+                      disabled={isPublishingPost}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Send size={14} />
+                      {isPublishingPost ? 'Posting...' : 'Post'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Facebook PostList with interactive like, comment, and replies */}
+                <PostList 
+                  posts={myPosts}
+                  currentUserName={userName}
+                  userRole={userRole}
+                  onLike={handleLikePost}
+                  onAddComment={handleAddComment}
+                  onDeleteComment={handleDeleteComment}
+                  onAddReply={handleAddReply}
+                  onDeleteReply={handleDeleteReply}
+                />
+              </div>
+            </div>
+          )}
+
           {/* HISTORY TAB */}
           {activeTab === 'history' && (
             <div className="history-grid">
-              
               {/* Upcoming / AI Schedule */}
               <div className="glass-panel section-panel">
                 <h3 className="section-title"><Calendar size={20}/> Upcoming AI Schedule</h3>
@@ -618,44 +733,11 @@ const Profile = () => {
             </div>
           )}
 
-          {/* TIMELINE TAB (Facebook Style) */}
-          {activeTab === 'posts' && (
-            <div className="timeline-grid">
-              {myPosts.length > 0 ? (
-                myPosts.map(post => (
-                  <div key={post._id} className="glass-panel post-card">
-                    <div className="post-header">
-                      <div className="avatar" style={{ overflow: 'hidden' }}>
-                         {profilePic ? <img src={profilePic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : post.authorName?.charAt(0).toUpperCase() || 'U'}
-                      </div>
-                      <div>
-                        <h4>{post.authorName || post.author?.name}</h4>
-                        <span className="time">{new Date(post.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    <p className="post-content">{post.content}</p>
-                    {post.mediaUrl && (
-                      <img src={`${post.mediaUrl}`} alt="Post" style={{ width: '100%', borderRadius: '12px', marginTop: '10px' }} />
-                    )}
-                    <div className="post-stats" style={{ display: 'flex', gap: '15px', marginTop: '15px', color: 'var(--text-secondary)' }}>
-                      <span>{post.likes?.length || 0} Likes</span>
-                      <span>{post.comments?.length || 0} Comments</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="glass-panel section-panel">
-                  <p className="empty-text">You haven't posted anything yet. Share your journey on the Home feed!</p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* BIO TAB */}
           {activeTab === 'bio' && (
             <div className="glass-panel section-panel bio-panel">
               <div style={{display:'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                <h3 className="section-title"><Target size={20}/> Bio</h3>
+                <h3 className="section-title"><Target size={20}/> Health Bio</h3>
                 <button 
                   className="btn btn-outline btn-sm" 
                   onClick={() => {
@@ -728,79 +810,190 @@ const Profile = () => {
             </div>
           )}
 
-          {/* PRIVACY & DATA TAB */}
-          {activeTab === 'privacy' && (
-            <div className="glass-panel section-panel" style={{ maxWidth: '600px', margin: '0 auto' }}>
-              <h3 className="section-title"><Shield size={20} color="var(--primary-accent)"/> Privacy & GDPR Controls</h3>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Manage your data privacy and control what others can see on your public profile.</p>
+          {/* SETTINGS & PRIVACY TAB (Consolidated Facebook Hub) */}
+          {activeTab === 'settings' && (
+            <div className="fb-settings-container">
+              {/* Left Settings Nav */}
+              <div className="glass-panel fb-settings-nav">
+                <button 
+                  className={`fb-settings-nav-btn ${activeSettingSection === 'general' ? 'active' : ''}`}
+                  onClick={() => setActiveSettingSection('general')}
+                >
+                  <User size={18} /> General Account
+                </button>
+                <button 
+                  className={`fb-settings-nav-btn ${activeSettingSection === 'security' ? 'active' : ''}`}
+                  onClick={() => setActiveSettingSection('security')}
+                >
+                  <Lock size={18} /> Security & Password
+                </button>
+                <button 
+                  className={`fb-settings-nav-btn ${activeSettingSection === 'privacy' ? 'active' : ''}`}
+                  onClick={() => setActiveSettingSection('privacy')}
+                >
+                  <Shield size={18} /> Privacy & GDPR
+                </button>
+                <button 
+                  className={`fb-settings-nav-btn ${activeSettingSection === 'delete' ? 'active' : ''}`}
+                  onClick={() => setActiveSettingSection('delete')}
+                >
+                  <Trash2 size={18} /> Delete Account
+                </button>
+              </div>
 
-              {can(userRole, 'profile', 'health_bio_privacy') && (
-                <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Lock size={16}/> Private Health Bio</h4>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '5px 0 0 0' }}>Hide your Height and Weight from your public profile.</p>
+              {/* Right Settings Content Card */}
+              <div className="glass-panel fb-settings-card">
+                {activeSettingSection === 'general' && (
+                  <div>
+                    <h3 className="section-title" style={{ marginBottom: '16px' }}><User size={20} /> General Account Settings</h3>
+                    <div style={{ display: 'grid', gap: '16px' }}>
+                      <div style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '10px' }}>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Full Name</div>
+                        <div style={{ fontWeight: 600, fontSize: '1.05rem', marginTop: '4px' }}>{userName}</div>
+                      </div>
+                      <div style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '10px' }}>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Account Role</div>
+                        <div style={{ fontWeight: 600, fontSize: '1.05rem', marginTop: '4px' }}>{userRole}</div>
+                      </div>
+                      <div style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Google Gmail Address</div>
+                          <div style={{ fontWeight: 600, fontSize: '1.05rem', marginTop: '4px' }}>{userData?.email || 'Not connected'}</div>
+                        </div>
+                        {userData?.isGoogleApproved || userData?.isEmailVerified ? (
+                          <span style={{ color: '#10b981', fontWeight: 600, background: 'rgba(16, 185, 129, 0.15)', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem' }}>
+                            ✅ Verified
+                          </span>
+                        ) : (
+                          <button 
+                            className="btn btn-primary btn-sm"
+                            onClick={() => {
+                              setVerifyEmailInput(userData?.email || '');
+                              setIsVerifyModalOpen(true);
+                            }}
+                          >
+                            Verify Now
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={hideHealthData} 
-                        onChange={(e) => {
-                          const isChecked = e.target.checked;
-                          setHideHealthData(isChecked);
-                          localStorage.setItem('gymsync_privacy_hideHealth', isChecked ? 'true' : 'false');
-                          toast.success(`Health data is now ${isChecked ? 'PRIVATE' : 'PUBLIC'} on your profile.`);
-                        }}
-                        style={{ transform: 'scale(1.5)', cursor: 'pointer' }}
-                      />
-                    </label>
                   </div>
-                </div>
-              )}
+                )}
 
-              <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {activeSettingSection === 'security' && (
                   <div>
-                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><DownloadCloud size={16}/> Download My Data</h4>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '5px 0 0 0' }}>Export a JSON copy of all your personal data (GDPR Right to Access).</p>
+                    <h3 className="section-title" style={{ marginBottom: '16px' }}><Lock size={20} /> Change Password</h3>
+                    <form onSubmit={handleChangePassword} style={{ display: 'grid', gap: '16px' }}>
+                      <label>
+                        Current Password
+                        <input
+                          type="password"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          placeholder="Enter current password"
+                          className="input-field"
+                        />
+                      </label>
+                      <label>
+                        New Password
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Enter new password (min 6 characters)"
+                          className="input-field"
+                        />
+                      </label>
+                      <label>
+                        Confirm New Password
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Confirm new password"
+                          className="input-field"
+                        />
+                      </label>
+                      {passwordError && <p style={{ color: '#ef4444', margin: 0 }}>{passwordError}</p>}
+                      {passwordMessage && <p style={{ color: '#10b981', margin: 0 }}>{passwordMessage}</p>}
+                      <button type="submit" className="btn btn-primary" style={{ width: 'fit-content' }}>
+                        Save New Password
+                      </button>
+                    </form>
                   </div>
-                  <button 
-                    className="btn btn-outline btn-sm"
-                    onClick={() => {
-                      const data = {
-                        bio, stats, history, myPosts,
-                        profilePic: !!profilePic
-                      };
-                      const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `GymSync_Data_${userName}.json`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                  >
-                    Export Data
-                  </button>
-                </div>
-              </div>
+                )}
 
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '20px', borderRadius: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {activeSettingSection === 'privacy' && (
                   <div>
-                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444' }}><Trash2 size={16}/> Delete Account</h4>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '5px 0 0 0' }}>Permanently delete your account and all associated data.</p>
-                  </div>
-                  <button 
-                    className="btn"
-                    style={{ background: '#ef4444', color: 'var(--text-primary)' }}
-                    onClick={() => setShowDeleteAccountModal(true)}
-                  >
-                    Delete Account
-                  </button>
-                </div>
-              </div>
+                    <h3 className="section-title" style={{ marginBottom: '16px' }}><Shield size={20} color="var(--primary-accent)" /> Privacy & GDPR Controls</h3>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Manage what others can view and export your stored data.</p>
 
+                    {can(userRole, 'profile', 'health_bio_privacy') && (
+                      <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Lock size={16}/> Private Health Bio</h4>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '5px 0 0 0' }}>Hide your Height and Weight from your public profile.</p>
+                          </div>
+                          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={hideHealthData} 
+                              onChange={(e) => {
+                                const isChecked = e.target.checked;
+                                setHideHealthData(isChecked);
+                                localStorage.setItem('gymsync_privacy_hideHealth', isChecked ? 'true' : 'false');
+                                toast.success(`Health data is now ${isChecked ? 'PRIVATE' : 'PUBLIC'} on your profile.`);
+                              }}
+                              style={{ transform: 'scale(1.5)', cursor: 'pointer' }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                        <div>
+                          <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><DownloadCloud size={16}/> Download My Personal Data</h4>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '5px 0 0 0' }}>Export a JSON archive of your bio, workouts, and posts (GDPR compliant).</p>
+                        </div>
+                        <button 
+                          className="btn btn-outline btn-sm"
+                          onClick={() => {
+                            const data = { bio, stats, history, myPosts, profilePic: !!profilePic };
+                            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `GymSync_Data_${userName}.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                        >
+                          Export JSON
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeSettingSection === 'delete' && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '24px', borderRadius: '12px' }}>
+                    <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444' }}><Trash2 size={20} /> Permanent Account Deletion</h3>
+                    <p style={{ color: 'var(--text-secondary)', marginTop: '8px', lineHeight: '1.6' }}>
+                      Permanently delete your account, posts, workout history, and personal profile from GymSync. Once confirmed, this action cannot be recovered.
+                    </p>
+                    <button
+                      className="btn"
+                      style={{ background: '#ef4444', color: '#fff', marginTop: '16px' }}
+                      onClick={() => setShowDeleteAccountModal(true)}
+                    >
+                      Delete Account
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

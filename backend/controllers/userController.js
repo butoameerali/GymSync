@@ -676,7 +676,15 @@ export const saveUserBioController = async (req, res) => {
       units: bio.units || user.bioData?.units || 'metric',
       height: Number(bio.height) || user.bioData?.height || 170,
       weight: Number(bio.weight) || user.bioData?.weight || 70,
-      targetMuscles: Array.isArray(bio.targetMuscles) ? bio.targetMuscles : user.bioData?.targetMuscles || []
+      targetMuscles: Array.isArray(bio.targetMuscles) ? bio.targetMuscles : user.bioData?.targetMuscles || [],
+      sport: bio.sport || user.bioData?.sport || '',
+      fitnessLevel: bio.fitnessLevel || user.bioData?.fitnessLevel || 'Beginner',
+      sessionDurationMins: Number(bio.sessionDurationMins) || user.bioData?.sessionDurationMins || 45,
+      medicalConditions: Array.isArray(bio.medicalConditions) ? bio.medicalConditions : user.bioData?.medicalConditions || [],
+      jointPain: Array.isArray(bio.jointPain) ? bio.jointPain : user.bioData?.jointPain || [],
+      injuries: Array.isArray(bio.injuries) ? bio.injuries : user.bioData?.injuries || [],
+      limitations: Array.isArray(bio.limitations) ? bio.limitations : user.bioData?.limitations || [],
+      foodPreferences: bio.foodPreferences || user.bioData?.foodPreferences || ''
     };
     user.isOnboardingCompleted = true;
 

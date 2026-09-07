@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, Heart, Search, Filter, Plus, Minus, Check, Trash2, PlusCircle } from 'lucide-react';
+import { ShoppingCart, Heart, Search, Filter, Plus, Minus, Check, Trash2, PlusCircle, Truck } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useDebounce } from '../../hooks/useDebounce';
 import Modal from '../../components/common/Modal';
 import PaymentModal from '../../components/common/PaymentModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
+import TrackingModal from '../../components/common/TrackingModal';
 import { can } from '../../config/permissions';
 import './Store.css';
 
@@ -24,6 +25,10 @@ const Store = () => {
   const [shippingAddress, setShippingAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastOrderPayment, setLastOrderPayment] = useState(null);
+  const [confirmedOrder, setConfirmedOrder] = useState(null);
+  const [guestInfo, setGuestInfo] = useState({ name: '', email: '', phone: '' });
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [trackingInitialCode, setTrackingInitialCode] = useState('');
   const [myOrders, setMyOrders] = useState([]);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [adminOrders, setAdminOrders] = useState([]);
@@ -226,8 +231,10 @@ const Store = () => {
   const handleCheckoutSubmit = async (e) => {
     e.preventDefault();
     if (!authToken) {
-      toast.error('Please log in before placing an order.');
-      return;
+      if (!guestInfo.name.trim() || !guestInfo.email.trim()) {
+        toast.error('Please enter your name and email address for order confirmation.');
+        return;
+      }
     }
     if (!shippingAddress.trim()) {
       toast.error('Please enter a valid shipping address');
@@ -249,24 +256,28 @@ const Store = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
         },
         body: JSON.stringify({
           items: cart.map(i => ({ productId: i.id, name: i.name, price: i.price, quantity: i.quantity })),
           totalAmount: cartTotal,
           shippingAddress: shippingAddress.trim(),
-          paymentId: paymentData._id || paymentData.paymentId
+          paymentId: paymentData._id || paymentData.paymentId,
+          guestName: guestInfo.name.trim(),
+          guestEmail: guestInfo.email.trim(),
+          guestPhone: guestInfo.phone.trim()
         })
       });
 
       if (res.ok) {
-        await res.json();
+        const orderData = await res.json();
+        setConfirmedOrder(orderData);
         setCart([]);
         setShippingAddress('');
+        setGuestInfo({ name: '', email: '', phone: '' });
         setIsCartOpen(false);
         setIsOrderConfirmed(true);
-        fetchMyOrders();
-        // The confirmation modal below is the only success/status message for checkout.
+        if (authToken) fetchMyOrders();
       } else {
         const data = await res.json().catch(() => ({}));
         toast.error(data.message || 'Failed to place order. Please try again.');
@@ -350,6 +361,14 @@ const Store = () => {
             {can(userRole, 'store_management', 'create_product') && <button className="btn btn-outline" onClick={() => { fetchAdminOrders(); setIsAdminOrdersOpen(true); }}>Manage Orders</button>}
 
             {can(userRole, 'store', 'purchase') && authToken && <button className="btn btn-outline" onClick={() => { fetchMyOrders(); setIsOrdersOpen(true); }}>My Orders</button>}
+            
+            <button 
+              className="btn btn-outline" 
+              onClick={() => { setTrackingInitialCode(''); setIsTrackingModalOpen(true); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Truck size={16} /> Track Order
+            </button>
             
             {can(userRole, 'store', 'purchase') && (
               <button className="cart-toggle-btn" onClick={() => setIsCartOpen(true)}>
@@ -542,14 +561,57 @@ const Store = () => {
       </Modal>
 
       {/* Checkout Form Modal */}
-      <Modal isOpen={isCheckoutFormOpen} onClose={() => setIsCheckoutFormOpen(false)} title="Complete Your Order">
+      <Modal isOpen={isCheckoutFormOpen} onClose={() => setIsCheckoutFormOpen(false)} title={authToken ? "Shipping Address" : "Guest Checkout"}>
         <form onSubmit={handleCheckoutSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {!authToken && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '12px', background: 'rgba(59, 130, 246, 0.08)', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#38bdf8' }}>Contact Information</span>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', fontWeight: 600 }}>Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. John Doe"
+                  value={guestInfo.name}
+                  onChange={e => setGuestInfo({ ...guestInfo, name: e.target.value })}
+                  className="search-input"
+                  style={{ width: '100%', padding: '8px 10px', fontSize: '0.85rem' }}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', fontWeight: 600 }}>Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                    value={guestInfo.email}
+                    onChange={e => setGuestInfo({ ...guestInfo, email: e.target.value })}
+                    className="search-input"
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '0.85rem' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', fontWeight: 600 }}>Phone Number</label>
+                  <input
+                    type="tel"
+                    placeholder="+92 300 1234567"
+                    value={guestInfo.phone}
+                    onChange={e => setGuestInfo({ ...guestInfo, phone: e.target.value })}
+                    className="search-input"
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '0.85rem' }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', fontWeight: '600' }}>Shipping Address</label>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '6px', fontWeight: '600' }}>Shipping Address *</label>
             <textarea 
               rows={3} 
               required
-              placeholder="Enter full street address, city, state, zip code..." 
+              placeholder="Enter full street address, city, postal code..." 
               value={shippingAddress} 
               onChange={e => setShippingAddress(e.target.value)}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'var(--card-bg)', border: '1px solid var(--card-border)', color: 'var(--text-primary)' }}
@@ -574,6 +636,9 @@ const Store = () => {
         title="Select Payment Method"
         gymName="GymSync Store"
         paymentType="StoreOrder"
+        guestName={guestInfo.name}
+        guestEmail={guestInfo.email}
+        guestPhone={guestInfo.phone}
         onPaymentRecorded={handleOrderFromPayment}
       />
 
@@ -586,16 +651,51 @@ const Store = () => {
         <div style={{ textAlign: 'center', padding: '20px' }}>
           <Check size={56} color="#10b981" style={{ marginBottom: '16px' }} />
           <h3>{lastOrderPayment?.status === 'Completed' ? 'Thank you for your order!' : 'Your payment is awaiting approval.'}</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
             {lastOrderPayment?.status === 'Completed'
               ? 'Your payment has been completed and the order is being prepared for delivery.'
               : 'Your payment proof has been received and your order is pending approval.'}
           </p>
+
+          {confirmedOrder?.trackingCode && (
+            <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '14px', borderRadius: '10px', marginBottom: '20px' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Your Order Tracking Code</span>
+              <strong style={{ fontSize: '1.25rem', color: '#38bdf8', letterSpacing: '1px' }}>{confirmedOrder.trackingCode}</strong>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '12px' }}>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(confirmedOrder.trackingCode);
+                    toast.success('Tracking code copied to clipboard!');
+                  }}
+                >
+                  Copy Code
+                </button>
+                <button 
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    setTrackingInitialCode(confirmedOrder.trackingCode);
+                    setIsOrderConfirmed(false);
+                    setIsTrackingModalOpen(true);
+                  }}
+                >
+                  Track Order
+                </button>
+              </div>
+            </div>
+          )}
+
           <button className="btn btn-primary" onClick={() => setIsOrderConfirmed(false)}>
             Back to Store
           </button>
         </div>
       </Modal>
+
+      <TrackingModal 
+        isOpen={isTrackingModalOpen} 
+        onClose={() => setIsTrackingModalOpen(false)} 
+        initialCode={trackingInitialCode}
+      />
 
       {/* Manage Order Modal */}
       <Modal isOpen={!!orderToManage} onClose={() => setOrderToManage(null)} title={`Manage Order - ${orderToManage?.orderId}`}>
