@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import Exercise from '../../models/Exercise.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -885,6 +886,95 @@ function initRegistry() {
   });
 }
 
+/**
+ * Synchronize custom exercises from MongoDB into the in-memory AI registry
+ */
+export async function syncDatabaseExercises() {
+  try {
+    initRegistry();
+    if (!Exercise) return registry.length;
+    const dbItems = await Exercise.find({ status: 'active' }).lean().catch(() => []);
+    if (!dbItems || dbItems.length === 0) return registry.length;
+
+    let added = 0;
+    for (const item of dbItems) {
+      const id = item.exerciseId || String(item._id);
+      if (registryMap.has(id)) continue;
+
+      const name = item.name || 'Custom Exercise';
+      const target = Array.isArray(item.targetMuscles) ? item.targetMuscles.join(', ') : (item.targetMuscles || '');
+      const rawEquip = item.equipmentRequired || 'Bodyweight';
+      const pattern = inferMovementPattern(name, target, rawEquip);
+      const { primaryMuscles, secondaryMuscles } = parseMuscles(target, pattern);
+
+      let equipment = 'Bodyweight';
+      const eqLower = rawEquip.toLowerCase();
+      if (eqLower.includes('barbell') || eqLower.includes('cable') || eqLower.includes('machine') || eqLower.includes('smith') || eqLower.includes('rowing') || eqLower.includes('treadmill')) {
+        equipment = 'Full Gym';
+      } else if (eqLower.includes('dumbbell') || eqLower.includes('kettlebell') || eqLower.includes('bench')) {
+        equipment = 'Dumbbells';
+      } else if (eqLower.includes('band')) {
+        equipment = 'Resistance Bands';
+      }
+
+      const difficulty = item.difficulty || 'Beginner';
+      const isWarmupRehab = pattern === 'mobility' || pattern === 'activation';
+
+      const injuryExclusions = [];
+      if (Array.isArray(item.jointPainAvoidIf)) {
+        item.jointPainAvoidIf.forEach(j => injuryExclusions.push(j.toLowerCase().replace(/\s+/g, '')));
+      }
+      if (Array.isArray(item.medicalAvoidIf)) {
+        item.medicalAvoidIf.forEach(m => injuryExclusions.push(m.toLowerCase().replace(/\s+/g, '')));
+      }
+
+      const jointStress = inferJointStress(pattern, name, target);
+
+      const enriched = {
+        exerciseId: id,
+        name,
+        movementPattern: pattern,
+        primaryMuscles,
+        secondaryMuscles,
+        trainingQualities: [pattern === 'sprinting' || pattern === 'jumping' ? 'power' : isWarmupRehab ? 'mobility' : 'hypertrophy'],
+        fitnessLevels: [difficulty],
+        sportRelevance: inferSportRelevance(pattern, name, primaryMuscles),
+        equipment,
+        equipmentCategory: rawEquip,
+        difficulty,
+        stabilityRequirement: difficulty === 'Advanced' ? 'high' : 'moderate',
+        mobilityRequirement: pattern === 'squat' || pattern === 'hinge' ? 'moderate' : 'low',
+        fatigueCost: inferFatigueCost(pattern, rawEquip, difficulty),
+        injuryExclusions,
+        jointStress,
+        progressionOptions: [],
+        regressionOptions: [],
+        warmUpSuitability: isWarmupRehab || pattern === 'mobility' || pattern === 'activation',
+        mainWorkSuitability: !isWarmupRehab && pattern !== 'mobility',
+        accessorySuitability: pattern === 'rotation' || pattern === 'anti-rotation' || pattern === 'anti-extension' || isWarmupRehab,
+        cooldownSuitability: isWarmupRehab || pattern === 'mobility',
+        isAiTrackable: Boolean(item.isAiTrackable),
+        aiDetection: item.aiDetection || { enabled: false },
+        estimatedSecPerRep: pattern === 'locomotion' || pattern === 'anti-extension' ? 1 : 3.5,
+        defaultRestSec: isWarmupRehab ? 15 : difficulty === 'Advanced' ? 90 : 60,
+        source: 'custom_db'
+      };
+
+      registryMap.set(id, enriched);
+      registry.push(enriched);
+      added++;
+    }
+
+    if (added > 0) {
+      console.log(`[ExerciseRegistry] Successfully ingested ${added} custom exercises from database into AI registry.`);
+    }
+    return registry.length;
+  } catch (err) {
+    console.warn('[ExerciseRegistry] DB sync skipped:', err.message);
+    return registry.length;
+  }
+}
+
 // Initial boot
 initRegistry();
 
@@ -922,7 +1012,9 @@ export const exerciseRegistry = {
       return exercises.filter(ex => ex.equipment === 'Bodyweight' || ex.equipment === 'Resistance Bands');
     }
     return exercises; // Full Gym allows all
-  }
+  },
+
+  syncDatabaseExercises
 };
 
 export default exerciseRegistry;

@@ -83,16 +83,7 @@ const GlobalChat = () => {
     if (!messages[contact.id]) {
       setMessages(prev => ({ ...prev, [contact.id]: [] }));
     }
-    if (contact.id !== 'ai' && contact.id !== 'gym') {
-      fetchConversation(contact.id);
-    } else if (contact.id === 'ai' && isSubscribed) {
-      if (!messages[contact.id] || messages[contact.id].length === 0) {
-        setMessages(prev => ({
-          ...prev,
-          [contact.id]: [{ id: 1, text: `Hello! I'm your AI Fitness Coach. How can I help you today?`, sender: 'other' }]
-        }));
-      }
-    }
+    fetchConversation(contact.id);
   };
 
   // Data-fetching effect: runs only when login state or userName changes.
@@ -252,20 +243,23 @@ const GlobalChat = () => {
       };
 
       try {
-        const currentHistory = messages[activeContact.id] || [];
-        const historyToSend = currentHistory.slice(-8);
-
         const token = localStorage.getItem('gymsync_token') || localStorage.getItem('token') || '';
-        const response = await fetch('/api/ai/chat', {
+        // Send via /api/chat so it persists in the database for both /messages and widget!
+        const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
-          body: JSON.stringify({ message: messageText, userContext, history: historyToSend })
+          body: JSON.stringify({
+            sender: userName,
+            receiver: 'AI Trainer',
+            text: messageText,
+            userContext
+          })
         });
         const data = await response.json();
-        let replyText = data.content || data.message || "I couldn't process that response. Please try again.";
+        let replyText = data.content || data.aiReply?.text || data.message || "I couldn't process that response. Please try again.";
 
         if (data.structuredAction?.workout) {
           localStorage.setItem('gymsync_ai_structured_workout', JSON.stringify(data.structuredAction.workout));
@@ -287,7 +281,7 @@ const GlobalChat = () => {
         }
 
         const botMsg = {
-          id: Date.now() + 1,
+          id: data.aiReply?._id || Date.now() + 1,
           text: replyText,
           sender: 'other',
           timestamp: new Date().toISOString()
@@ -310,19 +304,34 @@ const GlobalChat = () => {
         }));
       }
     }
-    else {
-      setTimeout(() => {
-        const reply = {
-          id: Date.now() + 1,
-          text: `Automated reply from ${activeContact.name}`,
-          sender: 'other',
-          timestamp: new Date().toISOString()
-        };
-        setMessages(prev => ({
-          ...prev,
-          [activeContact.id]: [...(prev[activeContact.id] || []), reply]
-        }));
-      }, 1000);
+    else if (activeContact.id === 'gym') {
+      try {
+        const token = localStorage.getItem('gymsync_token') || localStorage.getItem('token') || '';
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            sender: userName,
+            receiver: 'Gym Support',
+            text: messageText
+          })
+        });
+        const data = await response.json();
+        if (data.supportReply?.text) {
+          setMessages(prev => ({
+            ...prev,
+            [activeContact.id]: [...(prev[activeContact.id] || []), {
+              id: data.supportReply._id || Date.now() + 1,
+              text: data.supportReply.text,
+              sender: 'other',
+              timestamp: new Date().toISOString()
+            }]
+          }));
+        }
+      } catch (err) { console.error("Support chat error:", err); }
     }
   };
 

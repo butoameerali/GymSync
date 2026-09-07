@@ -1,7 +1,7 @@
 import express from 'express';
-import { handleChat } from '../controllers/aiController.js';
+import { handleChat, getSavedPlans, saveAIPlan, deleteSavedPlan } from '../controllers/aiController.js';
 import { generatePlan } from '../controllers/recommendationEngine.js';
-import { optionalProtect } from '../middleware/authMiddleware.js';
+import { optionalProtect, protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -10,5 +10,10 @@ router.post('/chat', optionalProtect, handleChat);
 
 // POST /api/ai/generate-plan (Accessible to authenticated users and guests)
 router.post('/generate-plan', optionalProtect, generatePlan);
+
+// Saved AI Plans (Goal-titled plans: Fat Loss, Muscle Gain, Cricket Taper, etc.)
+router.get('/saved-plans', optionalProtect, getSavedPlans);
+router.post('/saved-plans', optionalProtect, saveAIPlan);
+router.delete('/saved-plans/:id', optionalProtect, deleteSavedPlan);
 
 export default router;

@@ -1,5 +1,6 @@
 import Exercise from '../models/Exercise.js';
 import { fetchAllExercises, insertExercise } from '../services/supabaseService.js';
+import exerciseRegistry from '../services/workout/exerciseRegistry.js';
 
 // GET /api/exercises - Public / User fetch with search and filters (Supabase + MongoDB fallback)
 export const getAllExercises = async (req, res) => {
@@ -101,6 +102,8 @@ export const createExercise = async (req, res) => {
     };
 
     const exercise = await insertExercise(exercisePayload);
+    // Auto-sync into in-memory AI exercise registry
+    exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message));
     res.status(201).json(exercise);
   } catch (error) {
     console.error('createExercise Error:', error);
@@ -178,6 +181,9 @@ export const updateExercise = async (req, res) => {
 
     const updated = await Exercise.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!updated) return res.status(404).json({ error: 'Exercise not found' });
+
+    // Auto-sync into in-memory AI exercise registry
+    exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message));
 
     res.status(200).json(updated);
   } catch (error) {
