@@ -9,7 +9,24 @@ import {
 } from '../config/supabase.js';
 import { protect } from '../middleware/authMiddleware.js';
 
+import path from 'path';
+
 const router = express.Router();
+
+const ALLOWED_FOLDERS = ['exercises', 'programs', 'articles', 'curriculum', 'drills', 'avatars', 'general', 'media', 'posts'];
+
+const ALLOWED_MEDIA_TYPES = {
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'image/webp': ['.webp'],
+  'image/gif': ['.gif'],
+  'video/mp4': ['.mp4'],
+  'video/webm': ['.webm'],
+  'video/quicktime': ['.mov']
+};
+
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
 /**
  * GET /api/media/status
@@ -28,24 +45,77 @@ router.get('/status', (req, res) => {
 
 /**
  * POST /api/media/signed-upload-url
- * Generate short-lived direct signed upload URL from Supabase Storage.
- * Bypasses Node server RAM by allowing browser to upload large videos directly to Supabase CDN.
+ * Generate short-lived direct signed upload URL from Supabase Storage with strict server-side validation.
+ * Enforces authenticated role, folder allowlist, MIME/extension verification, and file size limits.
  */
 router.post('/signed-upload-url', protect, async (req, res) => {
   try {
     const { fileName, folder = 'media', contentType = 'image/jpeg', fileSize } = req.body;
+
+    // 1. Required filename and anti-traversal sanitization
+    if (!fileName || typeof fileName !== 'string' || !fileName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'fileName is required and must be a valid non-empty string.'
+      });
+    }
+
+    if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\') || /[\x00-\x1f]/.test(fileName)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid fileName: path traversal characters or illegal control characters detected.'
+      });
+    }
+
     const cleanFolder = String(folder).toLowerCase().trim();
+    if (!ALLOWED_FOLDERS.includes(cleanFolder)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid folder '${cleanFolder}'. Permitted folders: ${ALLOWED_FOLDERS.join(', ')}`
+      });
+    }
+
+    // 2. Role-based folder access enforcement
     const userRole = req.user?.role || 'User';
     const isStaff = ['FitnessInstructor', 'Admin', 'SuperAdmin'].includes(userRole);
-
     const restrictedFolders = ['exercises', 'programs', 'articles', 'curriculum', 'drills'];
     if (restrictedFolders.includes(cleanFolder) && !isStaff) {
       return res.status(403).json({
         success: false,
-        message: `Role '${userRole}' is not authorized to upload to folder '${cleanFolder}'.`
+        message: `Role '${userRole}' is not authorized to upload to restricted staff folder '${cleanFolder}'.`
       });
     }
 
+    // 3. MIME type whitelist check
+    const normalizedType = String(contentType).toLowerCase().trim();
+    const allowedExtensions = ALLOWED_MEDIA_TYPES[normalizedType];
+    if (!allowedExtensions) {
+      return res.status(400).json({
+        success: false,
+        message: `Unsupported content type '${normalizedType}'. Allowed types: ${Object.keys(ALLOWED_MEDIA_TYPES).join(', ')}`
+      });
+    }
+
+    // 4. File extension match check
+    const ext = path.extname(fileName).toLowerCase();
+    if (!ext || !allowedExtensions.includes(ext)) {
+      return res.status(400).json({
+        success: false,
+        message: `Extension '${ext}' does not match declared MIME type '${normalizedType}'. Expected: ${allowedExtensions.join(' or ')}`
+      });
+    }
+
+    // 5. File size limits
+    const isVideo = normalizedType.startsWith('video/');
+    const maxAllowedSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+    if (fileSize && Number(fileSize) > maxAllowedSize) {
+      return res.status(400).json({
+        success: false,
+        message: `File size exceeds limit of ${maxAllowedSize / (1024 * 1024)}MB for ${isVideo ? 'video' : 'image'} uploads.`
+      });
+    }
+
+    // 6. Supabase configuration status check
     if (!isSupabaseConfigured()) {
       return res.status(200).json({
         success: false,
@@ -54,14 +124,16 @@ router.post('/signed-upload-url', protect, async (req, res) => {
       });
     }
 
+    const sanitizedBase = path.basename(fileName).replace(/[^a-zA-Z0-9._-]/g, '_');
+
     const signedPayload = await createDirectSignedUploadUrl({
       folder: cleanFolder,
-      fileName,
-      contentType
+      fileName: sanitizedBase,
+      contentType: normalizedType
     });
 
     if (!signedPayload) {
-      return res.status(500).json({ success: false, message: 'Could not generate signed upload URL' });
+      return res.status(500).json({ success: false, message: 'Could not generate signed upload URL from Supabase Storage' });
     }
 
     res.status(200).json({

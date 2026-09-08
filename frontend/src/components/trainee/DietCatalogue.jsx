@@ -141,7 +141,7 @@ const DietCatalogue = ({ onDietAdopted }) => {
 
       if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
       if (goalFilter !== 'All') params.append('goal', goalFilter);
-      if (typeFilter !== 'All') params.append('difficulty', typeFilter); // or dietaryType
+      if (typeFilter !== 'All') params.append('dietaryType', typeFilter);
       if (cursorParam) params.append('cursor', cursorParam);
 
       const res = await fetch(`/api/plans/premade?${params.toString()}`, {

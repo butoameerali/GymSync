@@ -5,12 +5,50 @@
  * 1. Requests a short-lived signed upload URL from `/api/media/signed-upload-url`.
  * 2. Directly streams binary data from browser to Supabase Storage CDN using XMLHttpRequest.
  * 3. Bypasses Node.js server RAM completely and eliminates memory buffering.
+ * 4. Implements automatic retry logic with backoff for network resilience.
  * 
  * For smaller files or when Supabase is not configured:
  * Gracefully falls back to standard multipart upload (`/api/media/upload`) with progress monitoring.
  */
 
 const LARGE_FILE_THRESHOLD = 6 * 1024 * 1024; // 6 MB
+
+async function attemptDirectSignedUpload(signedUrl, file, onProgress, maxRetries = 2) {
+  let attempt = 0;
+  while (attempt <= maxRetries) {
+    try {
+      return await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', signedUrl, true);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            onProgress(100);
+            resolve(true);
+          } else {
+            reject(new Error(`Direct CDN upload HTTP ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during direct CDN upload'));
+        xhr.send(file);
+      });
+    } catch (err) {
+      attempt++;
+      if (attempt > maxRetries) throw err;
+      // Exponential backoff: 500ms, 1000ms
+      await new Promise(r => setTimeout(r, attempt * 500));
+    }
+  }
+}
 
 export async function uploadMediaWithProgress(file, options = {}) {
   const {
@@ -23,7 +61,7 @@ export async function uploadMediaWithProgress(file, options = {}) {
     throw new Error('No file specified for upload.');
   }
 
-  // 1. If large file, attempt direct signed CDN upload
+  // 1. If large file (>6MB), attempt direct signed CDN upload
   if (file.size > LARGE_FILE_THRESHOLD) {
     try {
       const signedRes = await fetch('/api/media/signed-upload-url', {
@@ -43,39 +81,16 @@ export async function uploadMediaWithProgress(file, options = {}) {
       if (signedRes.ok) {
         const signedData = await signedRes.json();
         if (signedData.directUploadAvailable && signedData.signedUrl) {
-          // Direct browser-to-Supabase upload via PUT
-          return await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('PUT', signedData.signedUrl, true);
-            xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-
-            xhr.upload.onprogress = (event) => {
-              if (event.lengthComputable) {
-                const percent = Math.round((event.loaded / event.total) * 100);
-                onProgress(percent);
-              }
-            };
-
-            xhr.onload = () => {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                onProgress(100);
-                resolve({
-                  success: true,
-                  mediaUrl: signedData.publicUrl,
-                  directUpload: true
-                });
-              } else {
-                reject(new Error(`Direct CDN upload failed with status ${xhr.status}`));
-              }
-            };
-
-            xhr.onerror = () => reject(new Error('Network error during direct CDN upload'));
-            xhr.send(file);
-          });
+          await attemptDirectSignedUpload(signedData.signedUrl, file, onProgress);
+          return {
+            success: true,
+            mediaUrl: signedData.publicUrl,
+            directUpload: true
+          };
         }
       }
     } catch (err) {
-      console.warn('Direct upload negotiation failed, falling back to server upload:', err.message);
+      console.warn('Direct upload negotiation/transfer failed, falling back to server upload:', err.message);
     }
   }
 

@@ -250,6 +250,142 @@ async function runPerformanceTests() {
     assert(typeof aiChatData.meta?.totalTimeMs === 'number', `meta.totalTimeMs is measured (${aiChatData.meta?.totalTimeMs}ms)`);
     assert(typeof aiChatData.meta?.retrievalTimeMs === 'number', `meta.retrievalTimeMs is measured (${aiChatData.meta?.retrievalTimeMs}ms)`);
 
+    // -------------------------------------------------------------
+    // TEST 6: Strict Cursor Validation (HTTP 400 on Malformed Cursors)
+    // -------------------------------------------------------------
+    console.log('\n--- Step 6: Strict Keyset Cursor Validation ---');
+    const badCursorRes = await fetch(`${BASE_URL}/api/plans/premade?paginate=true&limit=2&cursor=invalid_mongo_hex_id`);
+    assert(badCursorRes.status === 400, 'Malformed cursor returns HTTP 400 Bad Request');
+    const badCursorData = await badCursorRes.json();
+    assert(Boolean(badCursorData.message && badCursorData.message.includes('cursor')), 'Error response clearly identifies invalid cursor');
+
+    // -------------------------------------------------------------
+    // TEST 7: Dietary Filter Support in Diet Catalogue
+    // -------------------------------------------------------------
+    console.log('\n--- Step 7: Dietary Type Filtering Verification ---');
+    // Seed a specific dietary plan if not present
+    let ketoPlan = await PreMadePlan.findOne({ type: 'Diet', dietaryType: 'Keto' });
+    if (!ketoPlan) {
+      ketoPlan = await PreMadePlan.create({
+        title: 'Keto Kickstart Protocol',
+        type: 'Diet',
+        dietaryType: 'Keto',
+        status: 'published',
+        goal: 'Weight Loss',
+        durationWeeks: 4,
+        caloriesTarget: 2100,
+        description: 'Low-carb ketogenic nutrition protocol.',
+        weeks: [{ weekNumber: 1, focus: 'Induction', days: [{ dayNumber: 1, title: 'Day 1', meals: [{ mealType: 'Breakfast', name: 'Eggs & Avocado' }] }] }],
+        createdBy: 'Coach Perf Instructor',
+        createdById: instructorUser._id
+      });
+    }
+
+    const dietRes = await fetch(`${BASE_URL}/api/plans/premade?type=Diet&dietaryType=Keto`);
+    assert(dietRes.status === 200, 'Diet filter query responded 200 OK');
+    const dietData = await dietRes.json();
+    const dietItems = Array.isArray(dietData) ? dietData : (dietData.items || []);
+    assert(dietItems.length > 0, 'Diet catalogue returns matching keto plans');
+    const allKeto = dietItems.every(p => p.dietaryType === 'Keto' || (p.title && p.title.toLowerCase().includes('keto')));
+    assert(allKeto, 'All returned plans match dietaryType=Keto');
+
+    // -------------------------------------------------------------
+    // TEST 8: Article Excerpt Generation & Card DTO Projection
+    // -------------------------------------------------------------
+    console.log('\n--- Step 8: Article Excerpt Pre-Save & Card DTO Projection ---');
+    let testArticle = await Article.findOne({ title: 'Performance Excerpt Test Article' });
+    if (!testArticle) {
+      testArticle = await Article.create({
+        title: 'Performance Excerpt Test Article',
+        category: 'Nutrition',
+        summary: 'A short overview of modern nutrient timing.',
+        content: '### Detailed Analysis of Nutrient Timing\n\nNutrient timing is a popular nutritional strategy that involves consuming specific combinations of nutrients in and around an exercise session. This comprehensive guide covers pre-workout, intra-workout, and post-workout guidelines in extreme detail with scientific research references.',
+        status: 'published',
+        author: 'Coach Perf Instructor',
+        authorId: instructorUser._id
+      });
+    }
+
+    // Check that pre-save hook generated an excerpt
+    assert(Boolean(testArticle.excerpt && testArticle.excerpt.length > 20), 'Article model pre-save hook successfully populated excerpt');
+
+    // Query article list endpoint and verify projection
+    const articleListRes = await fetch(`${BASE_URL}/api/articles?category=Nutrition`);
+    assert(articleListRes.status === 200, 'Article list query responded 200 OK');
+    const articleList = await articleListRes.json();
+    const foundArticleCard = articleList.find(a => a._id.toString() === testArticle._id.toString());
+    assert(Boolean(foundArticleCard), 'Created article appears in catalogue list');
+    assert(Boolean(foundArticleCard.excerpt), 'Article card includes excerpt');
+    assert(foundArticleCard.content === undefined, 'Article card projection omits heavy full markdown content');
+
+    // -------------------------------------------------------------
+    // TEST 9: Signed Upload URL Security Hardening
+    // -------------------------------------------------------------
+    console.log('\n--- Step 9: Signed Upload URL Security & Boundary Checks ---');
+    // Attempt path traversal in fileName
+    const traversalRes = await fetch(`${BASE_URL}/api/media/signed-upload-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${instructorToken}`
+      },
+      body: JSON.stringify({ fileName: '../../etc/passwd', folder: 'exercises', contentType: 'image/png' })
+    });
+    assert(traversalRes.status === 400, 'Path traversal attempt in fileName returns HTTP 400');
+
+    // Attempt disallowed MIME type / extension (.exe)
+    const executableRes = await fetch(`${BASE_URL}/api/media/signed-upload-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${instructorToken}`
+      },
+      body: JSON.stringify({ fileName: 'malicious.exe', folder: 'exercises', contentType: 'application/x-msdownload' })
+    });
+    assert(executableRes.status === 400, 'Disallowed MIME/extension upload request returns HTTP 400');
+
+    // Attempt oversized file (e.g. 100MB video exceeding 50MB limit)
+    const oversizedRes = await fetch(`${BASE_URL}/api/media/signed-upload-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${instructorToken}`
+      },
+      body: JSON.stringify({ fileName: 'huge_video.mp4', folder: 'exercises', contentType: 'video/mp4', fileSize: 100 * 1024 * 1024 })
+    });
+    assert(oversizedRes.status === 400, 'Oversized file exceeding size limit returns HTTP 400');
+
+    // -------------------------------------------------------------
+    // TEST 10: Exercise Library Server-Side Pagination & DTO
+    // -------------------------------------------------------------
+    console.log('\n--- Step 10: Exercise Library Pagination & Lightweight Projection ---');
+    // Ensure at least 5 exercises exist in DB
+    const exerciseCount = await Exercise.countDocuments();
+    if (exerciseCount < 5) {
+      const demoExercises = [
+        { exerciseId: 'push_up', name: 'Push Up', category: 'Strength', targetMuscles: ['Chest', 'Triceps'], equipment: 'Bodyweight', difficulty: 'Beginner', executionSteps: ['Get into plank position', 'Lower chest to floor', 'Push back up'] },
+        { exerciseId: 'pull_up', name: 'Pull Up', category: 'Strength', targetMuscles: ['Back', 'Biceps'], equipment: 'Pull-up Bar', difficulty: 'Intermediate', executionSteps: ['Grip bar', 'Pull chin over bar', 'Lower down'] },
+        { exerciseId: 'air_squat', name: 'Air Squat', category: 'Strength', targetMuscles: ['Quads', 'Glutes'], equipment: 'Bodyweight', difficulty: 'Beginner', executionSteps: ['Stand shoulder-width', 'Squat down', 'Drive through heels'] },
+        { exerciseId: 'plank', name: 'Plank', category: 'Core', targetMuscles: ['Core', 'Abs'], equipment: 'Bodyweight', difficulty: 'Beginner', executionSteps: ['Rest on forearms', 'Maintain straight spine', 'Hold'] },
+        { exerciseId: 'dumbbell_curl', name: 'Dumbbell Curl', category: 'Strength', targetMuscles: ['Biceps'], equipment: 'Dumbbell', difficulty: 'Beginner', executionSteps: ['Hold dumbbells', 'Curl up', 'Lower slowly'] }
+      ];
+      for (const ex of demoExercises) {
+        await Exercise.findOneAndUpdate({ exerciseId: ex.exerciseId }, ex, { upsert: true, new: true });
+      }
+    }
+
+    const exPage1Res = await fetch(`${BASE_URL}/api/exercises?paginate=true&limit=3`);
+    assert(exPage1Res.status === 200, 'Exercise pagination query responded 200 OK');
+    const exPage1 = await exPage1Res.json();
+    assert(Array.isArray(exPage1.items) && exPage1.items.length <= 3, 'Exercise page 1 respects limit=3');
+    assert(Boolean(exPage1.nextCursor), 'Exercise page 1 returns nextCursor');
+    assert(exPage1.items[0].executionSteps === undefined, 'Exercise card DTO omits executionSteps array');
+
+    // Malformed cursor for exercises returns 400
+    const badExCursor = await fetch(`${BASE_URL}/api/exercises?paginate=true&limit=3&cursor=not_valid_hex`);
+    assert(badExCursor.status === 400, 'Exercise malformed cursor returns HTTP 400');
+
+
     console.log('\n===============================================================');
     console.log(`📊 PERFORMANCE SUITE RESULTS: ${passed} PASSED, ${failed} FAILED`);
     console.log('===============================================================\n');

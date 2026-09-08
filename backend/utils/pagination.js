@@ -1,10 +1,20 @@
 import mongoose from 'mongoose';
 
+export class InvalidCursorError extends Error {
+  constructor(message = 'Invalid pagination cursor provided') {
+    super(message);
+    this.name = 'InvalidCursorError';
+    this.statusCode = 400;
+  }
+}
+
 /**
  * Universal Cursor & Offset Pagination Utility
  *
  * Supports efficient cursor-based pagination for large collections
  * with fallback to page/limit pagination for backward compatibility.
+ * Strictly validates cursor inputs and throws InvalidCursorError (HTTP 400)
+ * rather than silently falling back to page 1.
  *
  * @param {mongoose.Model} model - Mongoose model to query
  * @param {Object} query - Base MongoDB query filter
@@ -59,32 +69,29 @@ export const paginateQuery = async (model, query = {}, {
     };
   }
 
-  // 2. High-performance Cursor-based pagination
+  // 2. High-performance Cursor-based pagination with strict validation
   const cleanCursor = (cursor && cursor !== 'null' && cursor !== 'undefined') ? String(cursor).trim() : null;
   if (cleanCursor) {
-    try {
-      let cursorVal = cleanCursor;
-      let valid = true;
-      if (cursorField === '_id') {
-        if (mongoose.Types.ObjectId.isValid(cleanCursor)) {
-          cursorVal = new mongoose.Types.ObjectId(cleanCursor);
-        } else {
-          valid = false;
-        }
-      } else if (cursorField.toLowerCase().includes('date') || cursorField.toLowerCase().includes('at')) {
-        cursorVal = new Date(cleanCursor);
-        if (isNaN(cursorVal.getTime())) valid = false;
-      }
+    let cursorVal = cleanCursor;
 
-      if (valid) {
-        if (direction === -1) {
-          filter[cursorField] = { $lt: cursorVal };
-        } else {
-          filter[cursorField] = { $gt: cursorVal };
-        }
+    if (cursorField === '_id') {
+      const isValidHex = /^[0-9a-fA-F]{24}$/.test(cleanCursor);
+      if (!isValidHex || !mongoose.Types.ObjectId.isValid(cleanCursor)) {
+        throw new InvalidCursorError(`Invalid cursor format: '${cleanCursor}' is not a valid 24-character ObjectId.`);
       }
-    } catch (e) {
-      console.warn('Invalid cursor provided, falling back to initial query:', cursor);
+      cursorVal = new mongoose.Types.ObjectId(cleanCursor);
+    } else if (cursorField.toLowerCase().includes('date') || cursorField.toLowerCase().includes('at')) {
+      const parsedDate = new Date(cleanCursor);
+      if (isNaN(parsedDate.getTime())) {
+        throw new InvalidCursorError(`Invalid cursor format: '${cleanCursor}' is not a valid date string.`);
+      }
+      cursorVal = parsedDate;
+    }
+
+    if (direction === -1) {
+      filter[cursorField] = { $lt: cursorVal };
+    } else {
+      filter[cursorField] = { $gt: cursorVal };
     }
   }
 

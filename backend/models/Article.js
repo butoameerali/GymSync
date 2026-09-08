@@ -57,12 +57,25 @@ const articleSchema = new mongoose.Schema({
     default: 'published',
     index: true
   },
+  excerpt: {
+    type: String,
+    default: '',
+    trim: true,
+    maxlength: 300
+  },
   coverImage: {
     type: String,
     default: ''
   }
 }, {
   timestamps: true
+});
+
+articleSchema.pre('save', function () {
+  if (!this.excerpt && this.content) {
+    const cleanText = this.content.replace(/[#*`_~\[\]()>-]/g, '').trim();
+    this.excerpt = cleanText.substring(0, 160) + (cleanText.length > 160 ? '...' : '');
+  }
 });
 
 articleSchema.index({ status: 1, category: 1, createdAt: -1 });

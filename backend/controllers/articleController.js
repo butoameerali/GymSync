@@ -14,6 +14,7 @@ const INITIAL_ARTICLES = [
     tags: ['Hypertrophy', 'Strength', 'Basics'],
     topics: ['Progressive Overload', 'Strength Progression'],
     relatedExerciseIds: ['bench-press', 'barbell-squat'],
+    excerpt: 'Progressive overload involves gradually increasing weight, frequency, or repetitions in your routine to trigger continued musculoskeletal adaptation.',
     status: 'published'
   },
   {
@@ -25,6 +26,7 @@ const INITIAL_ARTICLES = [
     readTime: '6 min',
     tags: ['Nutrition', 'Protein', 'Recovery'],
     topics: ['Protein Timing', 'Muscle Recovery'],
+    excerpt: 'Consuming high-quality protein post-workout delivers essential amino acids required to rebuild and repair muscle fibers damaged during intense exercise.',
     status: 'published'
   },
   {
@@ -38,6 +40,7 @@ const INITIAL_ARTICLES = [
     topics: ['Deadlift Form', 'Spinal Mechanics', 'Injury Prevention'],
     relatedExerciseIds: ['barbell-deadlift', 'romanian-deadlift'],
     relatedGoals: ['Strength', 'Powerlifting'],
+    excerpt: 'Master spinal alignment, intra-abdominal pressure, and hip hinge kinematics to eliminate lumbar shear stress during heavy deadlifts.',
     status: 'published'
   }
 ];
@@ -89,8 +92,8 @@ export const getArticles = async (req, res) => {
       }
     }
 
-    // Lightweight projection for article cards (excludes heavy full markdown content)
-    const cardProjection = '_id title author authorId authorRole category readTime tags topics coverImage status createdAt updatedAt';
+    // Lightweight projection for article cards (excludes heavy full markdown content, includes excerpt)
+    const cardProjection = '_id title author authorId authorRole category readTime excerpt tags topics coverImage status createdAt updatedAt';
 
     const isPaginated = paginate === 'true' || Boolean(cursor) || Boolean(page);
 
@@ -131,6 +134,9 @@ export const getArticles = async (req, res) => {
     res.setHeader('X-Cache', 'MISS');
     res.json(articles);
   } catch (error) {
+    if (error.name === 'InvalidCursorError' || error.statusCode === 400) {
+      return res.status(400).json({ error: 'Invalid cursor', message: error.message });
+    }
     res.status(500).json({ message: 'Failed to fetch articles', error: error.message });
   }
 };
@@ -167,6 +173,8 @@ export const createArticle = async (req, res) => {
       relatedProgramIds,
       relatedGoals,
       relatedSports,
+      coverImage,
+      excerpt,
       status
     } = req.body;
 
@@ -192,6 +200,8 @@ export const createArticle = async (req, res) => {
       authorRole,
       category: category || 'Training',
       readTime: readTime || '5 min',
+      excerpt: excerpt ? excerpt.trim() : undefined,
+      coverImage: coverImage || '',
       tags: parseArray(tags),
       topics: parseArray(topics),
       relatedExerciseIds: parseArray(relatedExerciseIds),
@@ -236,6 +246,7 @@ export const updateArticle = async (req, res) => {
     if (fields.content) article.content = fields.content.trim();
     if (fields.category) article.category = fields.category;
     if (fields.readTime) article.readTime = fields.readTime;
+    if (fields.excerpt !== undefined) article.excerpt = fields.excerpt.trim();
     if (fields.status) article.status = fields.status;
     if (fields.tags !== undefined) article.tags = parseArray(fields.tags);
     if (fields.topics !== undefined) article.topics = parseArray(fields.topics);

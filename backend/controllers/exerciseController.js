@@ -22,11 +22,16 @@ export const getAllExercises = async (req, res) => {
         ];
       }
       if (category && category !== 'All' && category !== 'Favorites') {
-        mongoQuery.targetMuscles = { $regex: category, $options: 'i' };
+        mongoQuery.$or = [
+          { category: new RegExp(`^${category}$`, 'i') },
+          { targetMuscles: new RegExp(category, 'i') }
+        ];
       }
       if (equipment && equipment !== 'All') {
-        if (equipment === 'No Equipment') {
+        if (equipment === 'No Equipment' || equipment === 'Bodyweight') {
           mongoQuery.equipmentRequired = { $regex: 'bodyweight|none', $options: 'i' };
+        } else {
+          mongoQuery.equipmentRequired = { $regex: equipment, $options: 'i' };
         }
       }
       if (status) {
@@ -35,8 +40,8 @@ export const getAllExercises = async (req, res) => {
         mongoQuery.status = { $ne: 'archived' };
       }
 
-      // Lightweight card DTO projection
-      const cardProjection = '_id exerciseId name category targetMuscles equipmentRequired difficulty mediaUrl status isAiTrackable aiDetection';
+      // Lightweight card DTO projection (omits heavy execution steps and coaching matrices)
+      const cardProjection = '_id exerciseId name category targetMuscles secondaryMuscles equipmentRequired difficulty mediaUrl status isAiTrackable calorieEstimation';
 
       const paginatedResult = await paginateQuery(Exercise, mongoQuery, {
         cursor,
@@ -59,6 +64,9 @@ export const getAllExercises = async (req, res) => {
     });
     res.status(200).json(exercises);
   } catch (error) {
+    if (error.name === 'InvalidCursorError' || error.statusCode === 400) {
+      return res.status(400).json({ error: 'Invalid cursor', message: error.message });
+    }
     console.error('getAllExercises Error:', error);
     res.status(500).json({ error: 'Failed to fetch exercises', message: error.message });
   }

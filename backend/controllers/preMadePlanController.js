@@ -110,7 +110,7 @@ const INITIAL_PLANS = [
 // GET /api/plans/premade
 export const getPreMadePlans = async (req, res) => {
   try {
-    const { type, status, goal, difficulty, search, cursor, page, limit = 12, paginate } = req.query;
+    const { type, status, goal, difficulty, dietaryType, search, cursor, page, limit = 12, paginate } = req.query;
     let query = {};
 
     if (type) {
@@ -138,6 +138,14 @@ export const getPreMadePlans = async (req, res) => {
       query.difficulty = difficulty;
     }
 
+    if (dietaryType && dietaryType !== 'All') {
+      if (dietaryType.toLowerCase().includes('keto') || dietaryType.toLowerCase().includes('low-carb')) {
+        query.dietaryType = /keto|low-carb/i;
+      } else {
+        query.dietaryType = new RegExp(`^${dietaryType.trim()}$`, 'i');
+      }
+    }
+
     if (search && search.trim()) {
       const sRegex = new RegExp(search.trim(), 'i');
       query.$or = [
@@ -149,7 +157,7 @@ export const getPreMadePlans = async (req, res) => {
 
     // Cache key for non-search public queries
     const shouldCache = !search && (!req.user || req.user.role === 'User');
-    const cacheKey = `plans:${type || 'all'}:${query.status || 'all'}:${goal || 'all'}:${difficulty || 'all'}:${cursor || page || '0'}:${limit}`;
+    const cacheKey = `plans:${type || 'all'}:${query.status || 'all'}:${goal || 'all'}:${difficulty || 'all'}:${dietaryType || 'all'}:${cursor || page || '0'}:${limit}`;
 
     if (shouldCache) {
       const cached = apiCache.get(cacheKey);
@@ -203,6 +211,9 @@ export const getPreMadePlans = async (req, res) => {
     res.setHeader('X-Cache', 'MISS');
     res.status(200).json(plans);
   } catch (error) {
+    if (error.name === 'InvalidCursorError' || error.statusCode === 400) {
+      return res.status(400).json({ error: 'Invalid cursor', message: error.message });
+    }
     console.error('getPreMadePlans Error:', error);
     res.status(500).json({ error: 'Failed to fetch pre-made plans', message: error.message });
   }

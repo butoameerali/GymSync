@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles, Eye, Video, FileText, Info, Clock, Moon, AlertTriangle, Utensils, BookOpen, Layers } from 'lucide-react';
 import { toast } from 'react-toastify';
 import PaymentModal from '../../components/common/PaymentModal';
-import { EXERCISE_LIBRARY, EXERCISE_CATEGORIES } from '../../data/exercises';
 import { useNavigate } from 'react-router-dom';
 import AIDetectorContainer from '../../ai-detectors/AIDetectorContainer';
 import './AITrainer.css';
 
-// Code-split catalogue tabs for optimal initial load performance
+// Code-split catalogue & library tabs for optimal initial bundle size and zero static exercise bloat
+const ExerciseLibrary = lazy(() => import('../../components/trainee/ExerciseLibrary'));
 const ProgramCatalogue = lazy(() => import('../../components/trainee/ProgramCatalogue'));
 const DietCatalogue = lazy(() => import('../../components/trainee/DietCatalogue'));
 const LearnArticles = lazy(() => import('../../components/trainee/LearnArticles'));
@@ -360,7 +360,7 @@ const AITrainer = () => {
     }
   };
 
-  const startExercise = (exercise) => {
+  const startExercise = async (exercise) => {
     setCurrentExercise(exercise);
     setReps(exercise.reps || exercise.defaultReps || 10);
     setCurrentSet(1);
@@ -370,6 +370,20 @@ const AITrainer = () => {
       setAiModeChoice('without_ai');
     } else {
       setAiModeChoice(null); // Present clean DO WITH AI vs DO WITHOUT AI choice
+    }
+
+    // Detail fetch only when exercise is opened (if full execution steps or instructions omitted in card DTO)
+    const exId = exercise._id || exercise.id;
+    if (exId && (!exercise.instructions || !exercise.executionSteps)) {
+      try {
+        const res = await fetch(`/api/exercises/${exId}`);
+        if (res.ok) {
+          const fullExercise = await res.json();
+          setCurrentExercise(prev => ({ ...prev, ...fullExercise }));
+        }
+      } catch (err) {
+        console.warn('Exercise detail fetch notice:', err.message);
+      }
     }
   };
 
@@ -973,62 +987,15 @@ const AITrainer = () => {
           );
         })()}
 
-        {/* ALL EXERCISES LIBRARY VIEW */}
+        {/* ALL EXERCISES LIBRARY VIEW (Server-side cursor paginated with infinite scroll) */}
         {activeMode === 'library' && !currentExercise && (
-          <div className="library-view glass-panel">
-            <div className="library-filters">
-              <div className="search-bar">
-                <Search size={20} color="var(--text-secondary)"/>
-                <input type="text" placeholder="Search 600+ exercises from database..." value={search} onChange={e => setSearch(e.target.value)} />
-              </div>
-              <div className="category-scroll">
-                <button className={`cat-pill ${activeCategory === 'All' ? 'active' : ''}`} onClick={() => setActiveCategory('All')}>All Categories</button>
-                <button className={`cat-pill ${activeCategory === 'Favorites' ? 'active' : ''}`} onClick={() => setActiveCategory('Favorites')}>★ Favorites</button>
-                {EXERCISE_CATEGORIES.map(cat => (
-                  <button key={cat} className={`cat-pill ${activeCategory === cat ? 'active' : ''}`} onClick={() => setActiveCategory(cat)}>{cat}</button>
-                ))}
-              </div>
-              <div className="category-scroll" style={{marginTop: '10px'}}>
-                <button className={`cat-pill ${activeEquipment === 'All' ? 'active' : ''}`} onClick={() => setActiveEquipment('All')}>All Equipment</button>
-                <button className={`cat-pill ${activeEquipment === 'No Equipment' ? 'active' : ''}`} onClick={() => setActiveEquipment('No Equipment')}>No Equipment</button>
-                <button className={`cat-pill ${activeEquipment === 'With Equipment' ? 'active' : ''}`} onClick={() => setActiveEquipment('With Equipment')}>With Equipment</button>
-              </div>
-            </div>
-
-            <div className="exercise-grid">
-              {(dbExercises.length > 0 ? dbExercises : EXERCISE_LIBRARY).filter(ex => {
-                const exName = ex.name || '';
-                const exMuscles = Array.isArray(ex.targetMuscles) ? ex.targetMuscles.join(', ') : (ex.category || '');
-                const exEquipment = ex.equipmentRequired || ex.equipment || 'Bodyweight';
-                const isBodyweight = exEquipment.toLowerCase().includes('bodyweight') || exEquipment.toLowerCase().includes('none');
-
-                if (activeCategory === 'Favorites' && !favorites.includes(ex._id || ex.id)) return false;
-                if (activeCategory !== 'All' && activeCategory !== 'Favorites' && !exMuscles.toLowerCase().includes(activeCategory.toLowerCase())) return false;
-                if (activeEquipment === 'No Equipment' && !isBodyweight) return false;
-                if (activeEquipment === 'With Equipment' && isBodyweight) return false;
-
-                return exName.toLowerCase().includes(search.toLowerCase()) || exMuscles.toLowerCase().includes(search.toLowerCase());
-              }).slice(0, 120).map(ex => (
-                <div key={ex._id || ex.id} className="exercise-card">
-                  <div className="ex-card-header">
-                    <h4>{ex.name}</h4>
-                    <button className="fav-btn" onClick={() => toggleFavorite(ex._id || ex.id)}>
-                      <Star size={20} color={favorites.includes(ex._id || ex.id) ? "#f59e0b" : "var(--text-secondary)"} fill={favorites.includes(ex._id || ex.id) ? "#f59e0b" : "none"}/>
-                    </button>
-                  </div>
-                  <span className="ex-category">{Array.isArray(ex.targetMuscles) ? ex.targetMuscles.join(', ') : (ex.category || 'General')}</span>
-                  <p className="ex-instructions">{(ex.description || ex.instructions || 'Maintain proper form.').substring(0, 65)}...</p>
-                  <button 
-                    className="btn btn-primary btn-sm w-100 mt-10" 
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                    onClick={() => startExercise(ex)}
-                  >
-                    <Eye size={16} /> View Exercise
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading exercise library...</div>}>
+            <ExerciseLibrary
+              onSelectExercise={startExercise}
+              favorites={favorites}
+              onToggleFavorite={toggleFavorite}
+            />
+          </Suspense>
         )}
 
         {/* TRAINER ASSIGNED WORKOUTS VIEW */}
@@ -1044,7 +1011,7 @@ const AITrainer = () => {
             </div>
 
             <div className="exercise-grid">
-              {(dbExercises.length > 0 ? dbExercises.slice(0, 24) : EXERCISE_LIBRARY.slice(0, 24)).map(ex => (
+              {(dbExercises.length > 0 ? dbExercises.slice(0, 24) : []).map(ex => (
                 <div key={ex._id || ex.id} className="exercise-card">
                   <div className="ex-card-header">
                     <h4>{ex.name}</h4>
@@ -1418,7 +1385,7 @@ const AITrainer = () => {
                             ) : (
                               <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', maxHeight: '300px', overflowY: 'auto'}}>
                                 {selectedCalendarDay.workoutSplit.map((ex, idx) => {
-                                  const targetEx = EXERCISE_LIBRARY.find(e => e.id === ex.id) || { ...ex, category: 'AI Custom', instructions: 'Follow AI targets', points: 1 };
+                                  const targetEx = { ...ex, category: ex.category || 'AI Custom', instructions: ex.instructions || 'Follow AI targets', points: ex.points || 1 };
                                   const isExDone = isExerciseCompletedInState(selectedCalendarDay.dayNumber, idx);
                                   const isUnlocked = isExerciseUnlockedInState(selectedCalendarDay.dayNumber, idx);
 
