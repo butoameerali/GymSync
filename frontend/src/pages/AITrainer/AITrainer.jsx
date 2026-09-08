@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles, Eye, Video, FileText, Info, Clock, Moon, AlertTriangle } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles, Eye, Video, FileText, Info, Clock, Moon, AlertTriangle, Utensils, BookOpen, Layers } from 'lucide-react';
 import { toast } from 'react-toastify';
 import PaymentModal from '../../components/common/PaymentModal';
 import { EXERCISE_LIBRARY, EXERCISE_CATEGORIES } from '../../data/exercises';
 import { useNavigate } from 'react-router-dom';
 import AIDetectorContainer from '../../ai-detectors/AIDetectorContainer';
+import ProgramCatalogue from '../../components/trainee/ProgramCatalogue';
+import DietCatalogue from '../../components/trainee/DietCatalogue';
+import LearnArticles from '../../components/trainee/LearnArticles';
 import './AITrainer.css';
 
 const AITrainer = () => {
@@ -29,6 +32,7 @@ const AITrainer = () => {
   const [isSubscribedState, setIsSubscribedState] = useState(true);
   const [dbExercises, setDbExercises] = useState([]);
   const [preMadePlans, setPreMadePlans] = useState([]);
+  const [activeUserProgram, setActiveUserProgram] = useState(null);
 
   useEffect(() => {
     // Load favorites from local storage for demo
@@ -94,6 +98,8 @@ const AITrainer = () => {
       })
       .catch(err => console.error('Fetch Pre-Made Plans Error:', err));
 
+    fetchActiveProgram();
+
     const checkBioState = () => {
       const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
       const filled = localStorage.getItem('gymsync_bio_filled') === 'true' || localStorage.getItem(`gymsync_${userKey}_bio_filled`) === 'true';
@@ -104,6 +110,53 @@ const AITrainer = () => {
     window.addEventListener('gymsync_bio_updated', checkBioState);
     return () => window.removeEventListener('gymsync_bio_updated', checkBioState);
   }, []);
+
+  const fetchActiveProgram = () => {
+    const token = localStorage.getItem('gymsync_token');
+    if (!token) return;
+    fetch('/api/plans/user-programs/active', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data && data._id) {
+          setActiveUserProgram(data);
+        } else {
+          setActiveUserProgram(null);
+        }
+      })
+      .catch(err => console.error('Fetch active program error:', err));
+  };
+
+  const handleLogProgramSession = async (userProgramId, weekNum, dayNum) => {
+    try {
+      const token = localStorage.getItem('gymsync_token');
+      if (!token) return toast.error('Please log in');
+      const res = await fetch(`/api/plans/user-programs/${userProgramId}/progress`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          weekNumber: weekNum,
+          dayNumber: dayNum,
+          completed: true,
+          durationMinutes: 45
+        })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setActiveUserProgram(updated);
+        toast.success(`Day ${dayNum} of Week ${weekNum} completed! Workout streak updated.`);
+      } else {
+        toast.error('Could not log session progress');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Network error');
+    }
+  };
 
   const toggleFavorite = (id) => {
     let newFavs;
@@ -590,8 +643,17 @@ const AITrainer = () => {
           <button className={`tab-btn ${activeMode === 'library' ? 'active' : ''}`} onClick={() => {setActiveMode('library'); setCurrentExercise(null);}}>
             Exercise Library
           </button>
+          <button className={`tab-btn ${activeMode === 'programs' ? 'active' : ''}`} onClick={() => {setActiveMode('programs'); setCurrentExercise(null);}}>
+            <Dumbbell size={15} style={{marginRight: '6px', verticalAlign: 'middle'}}/> Workout Programs
+          </button>
+          <button className={`tab-btn ${activeMode === 'diets' ? 'active' : ''}`} onClick={() => {setActiveMode('diets'); setCurrentExercise(null);}}>
+            <Utensils size={15} style={{marginRight: '6px', verticalAlign: 'middle'}}/> Diet Plans
+          </button>
+          <button className={`tab-btn ${activeMode === 'learn' ? 'active' : ''}`} onClick={() => {setActiveMode('learn'); setCurrentExercise(null);}}>
+            <BookOpen size={15} style={{marginRight: '6px', verticalAlign: 'middle'}}/> Guides & Knowledge
+          </button>
           <button className={`tab-btn ${activeMode === 'ai' ? 'active' : ''}`} onClick={handleAIModeClick}>
-            My AI Plan
+            <Sparkles size={15} style={{marginRight: '6px', verticalAlign: 'middle'}}/> My AI Plan
           </button>
           <button className={`tab-btn ${activeMode === 'assigned' ? 'active' : ''}`} onClick={() => {setActiveMode('assigned'); setCurrentExercise(null);}}>
             Trainer Assigned
@@ -1006,9 +1068,131 @@ const AITrainer = () => {
           </div>
         )}
 
+        {/* WORKOUT PROGRAMS CATALOGUE VIEW */}
+        {activeMode === 'programs' && !currentExercise && (
+          <ProgramCatalogue
+            onSelectExercise={(exercise) => startExercise(exercise)}
+            onApplied={() => {
+              fetchActiveProgram();
+              setActiveMode('ai');
+            }}
+          />
+        )}
+
+        {/* DIET TEMPLATES CATALOGUE VIEW */}
+        {activeMode === 'diets' && !currentExercise && (
+          <DietCatalogue />
+        )}
+
+        {/* GUIDES & KNOWLEDGE VIEW */}
+        {activeMode === 'learn' && !currentExercise && (
+          <LearnArticles
+            onSelectExercise={(exercise) => startExercise(exercise)}
+          />
+        )}
+
         {/* AI GENERATED PLAN VIEW WITH INTERACTIVE CALENDAR & SIDE-DRAWER */}
         {activeMode === 'ai' && !currentExercise && (
           <div className="ai-plan-view glass-panel">
+            {/* ACTIVE APPLIED INSTRUCTOR PROGRAM BANNER */}
+            {activeUserProgram && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(16, 185, 129, 0.12) 100%)',
+                border: '1px solid #3b82f6',
+                borderRadius: '16px',
+                padding: '20px',
+                marginBottom: '24px'
+              }}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
+                  <div>
+                    <span style={{
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      color: '#10b981',
+                      padding: '3px 10px',
+                      borderRadius: '12px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      display: 'inline-block',
+                      marginBottom: '6px'
+                    }}>
+                      ACTIVE INSTRUCTOR PROGRAM (v{activeUserProgram.programVersion || 1})
+                    </span>
+                    <h3 style={{fontSize: '1.3rem', color: 'var(--text-primary)', margin: '0 0 4px 0'}}>
+                      {activeUserProgram.title}
+                    </h3>
+                    <p style={{fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0}}>
+                      Goal: <strong>{activeUserProgram.goal}</strong> • Difficulty: <strong>{activeUserProgram.difficulty}</strong> • {activeUserProgram.durationWeeks} Weeks
+                    </p>
+                  </div>
+                  <div style={{textAlign: 'right'}}>
+                    <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)'}}>Schedule Status</div>
+                    <div style={{fontSize: '1.15rem', fontWeight: 'bold', color: '#10b981'}}>
+                      Week {activeUserProgram.progress?.currentWeek || 1} • Day {activeUserProgram.progress?.currentDay || 1}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scheduled routine session */}
+                {(() => {
+                  const currentWk = activeUserProgram.weeks?.find(w => w.weekNumber === (activeUserProgram.progress?.currentWeek || 1)) || activeUserProgram.weeks?.[0];
+                  const currentDayObj = currentWk?.days?.find(d => d.dayNumber === (activeUserProgram.progress?.currentDay || 1)) || currentWk?.days?.[0];
+                  if (!currentDayObj) return null;
+
+                  return (
+                    <div style={{marginTop: '16px', background: 'rgba(0,0,0,0.25)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.06)'}}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px'}}>
+                        <div>
+                          <h4 style={{margin: 0, color: 'var(--text-primary)', fontSize: '1rem'}}>
+                            Scheduled Today: {currentDayObj.focus || 'Core Routine'}
+                          </h4>
+                          <span style={{fontSize: '0.82rem', color: 'var(--text-secondary)'}}>
+                            {(currentDayObj.exercises || []).length} structured exercises
+                          </span>
+                        </div>
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() => handleLogProgramSession(activeUserProgram._id, activeUserProgram.progress?.currentWeek || 1, activeUserProgram.progress?.currentDay || 1)}
+                        >
+                          <CheckCircle size={14} style={{marginRight: '4px'}} /> Complete Session
+                        </button>
+                      </div>
+
+                      <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px'}}>
+                        {(currentDayObj.exercises || []).map((ex, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              if (ex.exerciseId && typeof ex.exerciseId === 'object') startExercise(ex.exerciseId);
+                            }}
+                            style={{
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid var(--card-border)',
+                              borderRadius: '8px',
+                              padding: '10px 12px',
+                              cursor: ex.exerciseId ? 'pointer' : 'default',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <div>
+                              <div style={{fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.88rem'}}>
+                                {ex.exerciseId?.name || ex.name || `Exercise ${idx + 1}`}
+                              </div>
+                              <div style={{fontSize: '0.78rem', color: 'var(--text-secondary)'}}>
+                                {ex.sets} sets × {ex.reps} reps {ex.rpe ? `• RPE ${ex.rpe}` : ''}
+                              </div>
+                            </div>
+                            {ex.exerciseId && <Play size={14} color="#3b82f6" />}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             {!isBioFilled ? (
               <div style={{ textAlign: 'center', padding: '50px 20px', background: 'rgba(15, 23, 42, 0.8)', borderRadius: '20px', border: '1px solid rgba(245, 158, 11, 0.3)', margin: '10px 0' }}>
                 <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>

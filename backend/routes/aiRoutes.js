@@ -5,8 +5,9 @@ import { optionalProtect, protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// POST /api/ai/chat (Accessible to authenticated users and guests)
+// POST /api/ai/chat & /api/ai/coach-chat (Accessible to authenticated users and guests)
 router.post('/chat', optionalProtect, handleChat);
+router.post('/coach-chat', optionalProtect, handleChat);
 
 // POST /api/ai/generate-plan (Accessible to authenticated users and guests)
 router.post('/generate-plan', optionalProtect, generatePlan);

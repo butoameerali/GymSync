@@ -9,6 +9,7 @@ export const getNavigationForRole = (role) => {
       return [
         { id: 'overview', label: 'System Metrics', icon: 'BarChart2' },
         { id: 'users', label: 'User & Role Management', icon: 'Users' },
+        { id: 'instructor_tasks', label: 'Instructor Tasks', icon: 'CheckSquare' },
         { id: 'gyms', label: 'Gym Facility Approvals', icon: 'Building' },
         { id: 'moderation', label: 'Post Moderation', icon: 'ShieldAlert' },
         { id: 'complaints', label: 'Complaints Queue', icon: 'MessageSquare' },

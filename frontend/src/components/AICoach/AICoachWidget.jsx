@@ -225,6 +225,26 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
                     {/* Structured Workout Action Card */}
                     {msg.structuredAction?.workout && (
                       <div className="ai-action-card">
+                        {msg.structuredAction?.sourceAttribution && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 10px',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            borderRadius: '8px',
+                            fontSize: '0.72rem',
+                            color: '#34d399',
+                            marginBottom: '10px'
+                          }}>
+                            <CheckCircle size={13} color="#10b981" />
+                            <span>
+                              Curated from Instructor Program: <strong>{msg.structuredAction.sourceAttribution.sourceTitle || 'Certified Program'}</strong>
+                              {msg.structuredAction.sourceAttribution.instructor ? ` by ${msg.structuredAction.sourceAttribution.instructor}` : ''}
+                            </span>
+                          </div>
+                        )}
                         <div className="ai-card-header">
                           <div className="ai-card-title">
                             <Dumbbell size={15} color="#3b82f6" />
@@ -277,6 +297,26 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
                     {/* Structured Diet Action Card */}
                     {msg.structuredAction?.diet && (
                       <div className="ai-action-card diet-card">
+                        {msg.structuredAction?.sourceAttribution && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 10px',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            borderRadius: '8px',
+                            fontSize: '0.72rem',
+                            color: '#34d399',
+                            marginBottom: '10px'
+                          }}>
+                            <CheckCircle size={13} color="#10b981" />
+                            <span>
+                              Curated from Instructor Diet: <strong>{msg.structuredAction.sourceAttribution.sourceTitle || 'Certified Nutrition Template'}</strong>
+                              {msg.structuredAction.sourceAttribution.instructor ? ` by ${msg.structuredAction.sourceAttribution.instructor}` : ''}
+                            </span>
+                          </div>
+                        )}
                         <div className="ai-card-header">
                           <div className="ai-card-title">
                             <Utensils size={15} color="#10b981" />
@@ -318,6 +358,28 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
                             <RefreshCw size={13} /> Adjust Targets
                           </button>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Standalone Source Attribution (e.g. guide or advice cited from instructor) */}
+                    {msg.structuredAction?.sourceAttribution && !msg.structuredAction?.workout && !msg.structuredAction?.diet && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 10px',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        borderRadius: '8px',
+                        fontSize: '0.72rem',
+                        color: '#34d399',
+                        marginTop: '8px'
+                      }}>
+                        <CheckCircle size={13} color="#10b981" />
+                        <span>
+                          Verified Instructor Guide: <strong>{msg.structuredAction.sourceAttribution.sourceTitle}</strong>
+                          {msg.structuredAction.sourceAttribution.instructor ? ` by ${msg.structuredAction.sourceAttribution.instructor}` : ''}
+                        </span>
                       </div>
                     )}
                   </>

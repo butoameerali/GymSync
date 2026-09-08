@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Activity, Flame, Target, MapPin, Calendar, CheckCircle, Clock, 
   DownloadCloud, Trash2, Shield, Lock, Camera, Building, 
-  Image as ImageIcon, Send, User, Settings 
+  Image as ImageIcon, Send, User, Settings, Dumbbell, BookOpen, Utensils, Award 
 } from 'lucide-react';
 import ImageCropper from '../../components/layout/ImageCropper';
 import Modal from '../../components/common/Modal';
@@ -23,6 +23,12 @@ const Profile = () => {
   
   // Stats
   const [stats, setStats] = useState({ points: 0, streak: 0 });
+  const [instructorStats, setInstructorStats] = useState({
+    programs: 0,
+    diets: 0,
+    articles: 0,
+    tasksCompleted: 0
+  });
   const [history, setHistory] = useState([]);
   const [upcoming, setUpcoming] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
@@ -127,6 +133,28 @@ const Profile = () => {
       rawHistory = Array.isArray(parsed) ? parsed : [];
     } catch (e) { rawHistory = []; }
     setHistory([...rawHistory].reverse()); // Newest first
+
+    if (userRole === 'FitnessInstructor') {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const headers = { 'Authorization': `Bearer ${token}` };
+      Promise.all([
+        fetch('/api/plans/premade', { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch('/api/articles', { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch('/api/instructor-requests', { headers }).then(r => r.ok ? r.json() : []).catch(() => [])
+      ]).then(([plans, articles, requests]) => {
+        const myPrograms = (plans || []).filter(p => (p.type === 'workout' || !p.type));
+        const myDiets = (plans || []).filter(p => p.type === 'diet');
+        const myArticles = (articles || []);
+        const myCompletedTasks = (requests || []).filter(r => r.status === 'Completed');
+
+        setInstructorStats({
+          programs: myPrograms.length,
+          diets: myDiets.length,
+          articles: myArticles.length,
+          tasksCompleted: myCompletedTasks.length
+        });
+      }).catch(err => console.error('Error fetching instructor stats:', err));
+    }
 
     // Function to load and sync bio data dynamically
     const loadBioData = () => {
@@ -511,14 +539,38 @@ const Profile = () => {
             </div>
           </div>
           <div className="profile-stats">
-            <div className="stat-badge pulse-blue">
-              <Activity size={20} />
-              <span>{stats.points} Pts</span>
-            </div>
-            <div className="stat-badge pulse-orange">
-              <Flame size={20} />
-              <span>{stats.streak} Days</span>
-            </div>
+            {isTrainee ? (
+              <>
+                <div className="stat-badge pulse-blue">
+                  <Activity size={20} />
+                  <span>{stats.points} Pts</span>
+                </div>
+                <div className="stat-badge pulse-orange">
+                  <Flame size={20} />
+                  <span>{stats.streak} Days</span>
+                </div>
+              </>
+            ) : userRole === 'FitnessInstructor' ? (
+              <>
+                <div className="stat-badge" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', border: '1px solid #3b82f6' }}>
+                  <Award size={18} />
+                  <span>Certified Instructor</span>
+                </div>
+                <div className="stat-badge" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', border: '1px solid #10b981' }}>
+                  <Dumbbell size={18} />
+                  <span>{instructorStats.programs} Programs</span>
+                </div>
+                <div className="stat-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', border: '1px solid #f59e0b' }}>
+                  <BookOpen size={18} />
+                  <span>{instructorStats.articles} Guides</span>
+                </div>
+              </>
+            ) : (
+              <div className="stat-badge" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', border: '1px solid #3b82f6' }}>
+                <Shield size={18} />
+                <span>{userRole}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -592,19 +644,47 @@ const Profile = () => {
                 </div>
 
                 {/* Badges / Stats */}
-                <div className="glass-panel fb-intro-card">
-                  <h4 className="section-title" style={{ fontSize: '1rem', marginBottom: '12px' }}>Fitness Stats</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div style={{ background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
-                      <div style={{ color: 'var(--primary-accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>{stats.points}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Total Points</div>
-                    </div>
-                    <div style={{ background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
-                      <div style={{ color: '#f97316', fontWeight: 'bold', fontSize: '1.2rem' }}>{stats.streak}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Day Streak</div>
+                {isTrainee && (
+                  <div className="glass-panel fb-intro-card">
+                    <h4 className="section-title" style={{ fontSize: '1rem', marginBottom: '12px' }}>Fitness Stats</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div style={{ background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                        <div style={{ color: 'var(--primary-accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>{stats.points}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Total Points</div>
+                      </div>
+                      <div style={{ background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                        <div style={{ color: '#f97316', fontWeight: 'bold', fontSize: '1.2rem' }}>{stats.streak}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Day Streak</div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {userRole === 'FitnessInstructor' && (
+                  <div className="glass-panel fb-intro-card">
+                    <h4 className="section-title" style={{ fontSize: '1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Award size={16} color="var(--primary-accent)" /> Instructor Portfolio
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div style={{ background: 'var(--card-bg)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                        <div style={{ color: 'var(--primary-accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>{instructorStats.programs}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Programs Authored</div>
+                      </div>
+                      <div style={{ background: 'var(--card-bg)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                        <div style={{ color: '#10b981', fontWeight: 'bold', fontSize: '1.2rem' }}>{instructorStats.diets}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Diet Templates</div>
+                      </div>
+                      <div style={{ background: 'var(--card-bg)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                        <div style={{ color: '#f59e0b', fontWeight: 'bold', fontSize: '1.2rem' }}>{instructorStats.articles}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Published Guides</div>
+                      </div>
+                      <div style={{ background: 'var(--card-bg)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                        <div style={{ color: '#8b5cf6', fontWeight: 'bold', fontSize: '1.2rem' }}>{instructorStats.tasksCompleted}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Tasks Completed</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Photos Preview */}
                 {photoPosts.length > 0 && (

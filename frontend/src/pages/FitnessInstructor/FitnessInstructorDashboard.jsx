@@ -9,6 +9,9 @@ import DashboardShell from '../../components/layout/DashboardShell';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import WorkoutProgramBuilderModal from '../../components/instructor/WorkoutProgramBuilderModal';
+import DietTemplateBuilderModal from '../../components/instructor/DietTemplateBuilderModal';
+import ArticleBuilderModal from '../../components/instructor/ArticleBuilderModal';
 import { REGISTERED_DETECTORS } from '../../ai-detectors/registry';
 import './FitnessInstructorDashboard.css';
 
@@ -395,46 +398,16 @@ const FitnessInstructorDashboard = () => {
   // ==========================================
   // WORKOUT PROGRAMS CRUD
   // ==========================================
+  // ==========================================
+  // WORKOUT PROGRAMS CRUD
+  // ==========================================
   const handleOpenProgModal = (p = null) => {
-    if (p) {
-      setEditingProg(p);
-      setProgForm({
-        title: p.title || '',
-        days: p.details?.days || 4,
-        level: p.details?.level || 'Intermediate',
-        category: p.category || 'Muscle Building',
-        description: p.description || ''
-      });
-    } else {
-      setEditingProg(null);
-      setProgForm({
-        title: '',
-        days: 4,
-        level: 'Intermediate',
-        category: 'Muscle Building',
-        description: ''
-      });
-    }
+    setEditingProg(p);
     setShowProgModal(true);
   };
 
-  const handleSaveProgram = async (e) => {
-    e.preventDefault();
-    if (!progForm.title.trim()) return toast.warn('Program title is required');
-
+  const handleSaveProgram = async (payload) => {
     try {
-      const payload = {
-        title: progForm.title.trim(),
-        type: 'Workout',
-        category: progForm.category,
-        description: progForm.description,
-        details: {
-          days: Number(progForm.days) || 4,
-          level: progForm.level,
-          target: progForm.category
-        }
-      };
-
       const url = editingProg ? `/api/plans/premade/${editingProg._id}` : '/api/plans/premade';
       const method = editingProg ? 'PUT' : 'POST';
 
@@ -444,9 +417,12 @@ const FitnessInstructorDashboard = () => {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Failed to save workout program');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to save workout program');
+      }
 
-      toast.success(editingProg ? 'Workout program updated!' : 'Workout program created and persisted!');
+      toast.success(editingProg ? 'Workout program updated!' : 'Workout program created & published!');
       setShowProgModal(false);
       setEditingProg(null);
       fetchData();
@@ -459,51 +435,12 @@ const FitnessInstructorDashboard = () => {
   // DIET PLANS CRUD
   // ==========================================
   const handleOpenDietModal = (d = null) => {
-    if (d) {
-      setEditingDiet(d);
-      setDietForm({
-        title: d.title || '',
-        calories: d.details?.calories || '2500 kcal',
-        goal: d.details?.goal || d.category || 'Muscle Gain',
-        description: d.description || '',
-        protein: d.details?.protein || '180g',
-        carbs: d.details?.carbs || '280g',
-        fat: d.details?.fat || '65g'
-      });
-    } else {
-      setEditingDiet(null);
-      setDietForm({
-        title: '',
-        calories: '2500 kcal',
-        goal: 'Muscle Gain',
-        description: '',
-        protein: '180g',
-        carbs: '280g',
-        fat: '65g'
-      });
-    }
+    setEditingDiet(d);
     setShowDietModal(true);
   };
 
-  const handleSaveDiet = async (e) => {
-    e.preventDefault();
-    if (!dietForm.title.trim()) return toast.warn('Diet title is required');
-
+  const handleSaveDiet = async (payload) => {
     try {
-      const payload = {
-        title: dietForm.title.trim(),
-        type: 'Diet',
-        category: dietForm.goal,
-        description: dietForm.description,
-        details: {
-          calories: dietForm.calories,
-          goal: dietForm.goal,
-          protein: dietForm.protein,
-          carbs: dietForm.carbs,
-          fat: dietForm.fat
-        }
-      };
-
       const url = editingDiet ? `/api/plans/premade/${editingDiet._id}` : '/api/plans/premade';
       const method = editingDiet ? 'PUT' : 'POST';
 
@@ -513,9 +450,12 @@ const FitnessInstructorDashboard = () => {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Failed to save diet plan');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to save diet template');
+      }
 
-      toast.success(editingDiet ? 'Diet plan updated!' : 'Diet plan created and persisted!');
+      toast.success(editingDiet ? 'Diet template updated!' : 'Diet template created & published!');
       setShowDietModal(false);
       setEditingDiet(null);
       fetchData();
@@ -528,43 +468,12 @@ const FitnessInstructorDashboard = () => {
   // ARTICLES CRUD
   // ==========================================
   const handleOpenArticleModal = (a = null) => {
-    if (a) {
-      setEditingArticle(a);
-      setArticleForm({
-        title: a.title || '',
-        category: a.category || 'Training',
-        content: a.content || '',
-        readTime: a.readTime || '4 min',
-        tags: Array.isArray(a.tags) ? a.tags.join(', ') : (a.tags || '')
-      });
-    } else {
-      setEditingArticle(null);
-      setArticleForm({
-        title: '',
-        category: 'Training',
-        content: '',
-        readTime: '4 min',
-        tags: 'Hypertrophy, Form, Health'
-      });
-    }
+    setEditingArticle(a);
     setShowArticleModal(true);
   };
 
-  const handleSaveArticle = async (e) => {
-    e.preventDefault();
-    if (!articleForm.title.trim() || !articleForm.content.trim()) {
-      return toast.warn('Title and article content are required');
-    }
-
+  const handleSaveArticle = async (payload) => {
     try {
-      const payload = {
-        title: articleForm.title.trim(),
-        category: articleForm.category,
-        content: articleForm.content.trim(),
-        readTime: articleForm.readTime,
-        tags: articleForm.tags.split(',').map(t => t.trim()).filter(Boolean)
-      };
-
       const url = editingArticle ? `/api/articles/${editingArticle._id}` : '/api/articles';
       const method = editingArticle ? 'PUT' : 'POST';
 
@@ -574,7 +483,10 @@ const FitnessInstructorDashboard = () => {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Failed to save article');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to save article');
+      }
 
       toast.success(editingArticle ? 'Article updated!' : 'Educational article published!');
       setShowArticleModal(false);
@@ -588,14 +500,31 @@ const FitnessInstructorDashboard = () => {
   // ==========================================
   // ADMIN REQUESTS
   // ==========================================
-  const handleCompleteRequest = async (requestId) => {
+  const handleStartRequest = async (requestId) => {
+    try {
+      const res = await fetch(`/api/instructor-requests/${requestId}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ status: 'In Progress' })
+      });
+
+      if (!res.ok) throw new Error('Failed to update task');
+
+      toast.success('Task status set to "In Progress"');
+      fetchData();
+    } catch (err) {
+      toast.error('Failed to update task');
+    }
+  };
+
+  const handleCompleteRequest = async (requestId, notes = '') => {
     try {
       const res = await fetch(`/api/instructor-requests/${requestId}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
           status: 'Completed',
-          responseNotes: `Completed by ${instructorName} on ${new Date().toLocaleDateString()}`
+          responseNotes: notes || `Completed by ${instructorName} on ${new Date().toLocaleDateString()}`
         })
       });
 
@@ -1063,24 +992,50 @@ const FitnessInstructorDashboard = () => {
                         }}
                       >
                         <div style={{ flex: 1, minWidth: '240px' }}>
-                          <span className="category-badge" style={{ background: 'rgba(59,130,246,0.2)', color: '#3b82f6', marginBottom: '6px' }}>
-                            From: {r.from || 'Admin'}
-                          </span>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
+                            <span className="category-badge" style={{ background: 'rgba(59,130,246,0.2)', color: '#3b82f6' }}>
+                              From: {r.from || 'Admin'}
+                            </span>
+                            <span className="category-badge" style={{
+                              background: r.priority === 'Urgent' ? 'rgba(239,68,68,0.2)' : r.priority === 'High' ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.15)',
+                              color: r.priority === 'Urgent' ? '#ef4444' : r.priority === 'High' ? '#f59e0b' : '#10b981'
+                            }}>
+                              {r.priority || 'Medium'} Priority
+                            </span>
+                            <span className="category-badge" style={{
+                              background: r.status === 'Completed' ? 'rgba(16,185,129,0.2)' : r.status === 'In Progress' ? 'rgba(59,130,246,0.2)' : 'rgba(245,158,11,0.2)',
+                              color: r.status === 'Completed' ? '#10b981' : r.status === 'In Progress' ? '#3b82f6' : '#f59e0b'
+                            }}>
+                              {r.status}
+                            </span>
+                          </div>
                           <h4 style={{ margin: '6px 0', color: 'var(--text-primary)' }}>{r.topic}</h4>
                           <p style={{ margin: '0 0 6px 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>{r.description}</p>
+                          {r.responseNotes && (
+                            <p style={{ margin: '4px 0 6px 0', fontSize: '0.82rem', color: '#10b981', background: 'rgba(16,185,129,0.06)', padding: '6px 10px', borderRadius: '6px' }}>
+                              📝 <strong>Resolution:</strong> {r.responseNotes}
+                            </p>
+                          )}
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            Status: <strong>{r.status}</strong> {r.completedBy ? `(Completed by ${r.completedBy})` : ''}
+                            Assigned To: <strong>{r.assignedTo || 'All Instructors'}</strong> {r.completedBy ? `• Completed by ${r.completedBy} on ${new Date(r.completedAt).toLocaleDateString()}` : ''}
                           </span>
                         </div>
-                        {r.status === 'Pending' ? (
-                          <button className="btn btn-primary btn-sm" onClick={() => handleCompleteRequest(r._id || r.id)}>
-                            <CheckCircle size={14} /> Mark Completed
-                          </button>
-                        ) : (
-                          <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
-                            <CheckCircle size={16} /> Completed
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {r.status === 'Pending' && (
+                            <button className="btn btn-outline btn-sm" onClick={() => handleStartRequest(r._id || r.id)}>
+                              Start Task
+                            </button>
+                          )}
+                          {r.status !== 'Completed' ? (
+                            <button className="btn btn-primary btn-sm" onClick={() => handleCompleteRequest(r._id || r.id)}>
+                              <CheckCircle size={14} /> Mark Completed
+                            </button>
+                          ) : (
+                            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                              <CheckCircle size={16} /> Completed
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1489,129 +1444,31 @@ const FitnessInstructorDashboard = () => {
           </form>
         </Modal>
 
-        {/* MODAL: WORKOUT PROGRAM CREATE / EDIT */}
-        <Modal isOpen={showProgModal} onClose={() => setShowProgModal(false)} title={editingProg ? 'Edit Workout Program' : 'Create Curated Workout Program'}>
-          <form onSubmit={handleSaveProgram} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Program Title</label>
-              <input type="text" required placeholder="e.g. 4-Week Hypertrophy Split" className="search-input" value={progForm.title} onChange={e => setProgForm({ ...progForm, title: e.target.value })} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Days per Week</label>
-                <input type="number" min="1" max="7" className="search-input" value={progForm.days} onChange={e => setProgForm({ ...progForm, days: parseInt(e.target.value) || 3 })} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Experience Level</label>
-                <select className="search-input" value={progForm.level} onChange={e => setProgForm({ ...progForm, level: e.target.value })}>
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Advanced">Advanced</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Category Goal</label>
-              <select className="search-input" value={progForm.category} onChange={e => setProgForm({ ...progForm, category: e.target.value })}>
-                <option value="Muscle Building">Muscle Building</option>
-                <option value="Weight Loss">Weight Loss</option>
-                <option value="Strength & Power">Strength & Power</option>
-                <option value="Endurance">Endurance</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Description</label>
-              <textarea rows="3" className="search-input" placeholder="Program overview, schedule details, rest days..." value={progForm.description} onChange={e => setProgForm({ ...progForm, description: e.target.value })} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button type="button" className="btn btn-outline" onClick={() => setShowProgModal(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary">{editingProg ? 'Save Changes' : 'Save Program'}</button>
-            </div>
-          </form>
-        </Modal>
+        {/* BUILDER MODAL: WORKOUT PROGRAM */}
+        <WorkoutProgramBuilderModal
+          isOpen={showProgModal}
+          onClose={() => { setShowProgModal(false); setEditingProg(null); }}
+          onSave={handleSaveProgram}
+          editingProgram={editingProg}
+          availableExercises={exercises.filter(e => e.status !== 'archived')}
+        />
 
-        {/* MODAL: DIET PLAN CREATE / EDIT */}
-        <Modal isOpen={showDietModal} onClose={() => setShowDietModal(false)} title={editingDiet ? 'Edit Diet Template' : 'Create Nutritional Diet Template'}>
-          <form onSubmit={handleSaveDiet} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Diet Plan Title</label>
-              <input type="text" required placeholder="e.g. Clean Bulk High-Protein Protocol" className="search-input" value={dietForm.title} onChange={e => setDietForm({ ...dietForm, title: e.target.value })} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Target Daily Calories</label>
-                <input type="text" required placeholder="e.g. 2800 kcal" className="search-input" value={dietForm.calories} onChange={e => setDietForm({ ...dietForm, calories: e.target.value })} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Target Goal</label>
-                <select className="search-input" value={dietForm.goal} onChange={e => setDietForm({ ...dietForm, goal: e.target.value })}>
-                  <option value="Muscle Gain">Muscle Gain</option>
-                  <option value="Fat Loss">Fat Loss</option>
-                  <option value="Maintenance">Maintenance</option>
-                </select>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Protein</label>
-                <input type="text" className="search-input" value={dietForm.protein} onChange={e => setDietForm({ ...dietForm, protein: e.target.value })} placeholder="180g" />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Carbs</label>
-                <input type="text" className="search-input" value={dietForm.carbs} onChange={e => setDietForm({ ...dietForm, carbs: e.target.value })} placeholder="280g" />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Fats</label>
-                <input type="text" className="search-input" value={dietForm.fat} onChange={e => setDietForm({ ...dietForm, fat: e.target.value })} placeholder="65g" />
-              </div>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Meal Schedule & Guidelines</label>
-              <textarea rows="3" className="search-input" placeholder="Daily meal distribution, hydration notes..." value={dietForm.description} onChange={e => setDietForm({ ...dietForm, description: e.target.value })} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button type="button" className="btn btn-outline" onClick={() => setShowDietModal(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary">{editingDiet ? 'Save Changes' : 'Save Diet Plan'}</button>
-            </div>
-          </form>
-        </Modal>
+        {/* BUILDER MODAL: NUTRITIONAL DIET TEMPLATE */}
+        <DietTemplateBuilderModal
+          isOpen={showDietModal}
+          onClose={() => { setShowDietModal(false); setEditingDiet(null); }}
+          onSave={handleSaveDiet}
+          editingDiet={editingDiet}
+        />
 
-        {/* MODAL: ARTICLE CREATE / EDIT */}
-        <Modal isOpen={showArticleModal} onClose={() => setShowArticleModal(false)} title={editingArticle ? 'Edit Article' : 'Publish Educational Article'}>
-          <form onSubmit={handleSaveArticle} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Article Title</label>
-              <input type="text" required placeholder="e.g. 5 Essential Rules for Progressive Overload" className="search-input" value={articleForm.title} onChange={e => setArticleForm({ ...articleForm, title: e.target.value })} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Category</label>
-                <select className="search-input" value={articleForm.category} onChange={e => setArticleForm({ ...articleForm, category: e.target.value })}>
-                  <option value="Training">Training</option>
-                  <option value="Nutrition">Nutrition</option>
-                  <option value="Recovery">Recovery</option>
-                  <option value="Biomechanics">Biomechanics</option>
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Estimated Read Time</label>
-                <input type="text" className="search-input" value={articleForm.readTime} onChange={e => setArticleForm({ ...articleForm, readTime: e.target.value })} placeholder="4 min" />
-              </div>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Tags (comma separated)</label>
-              <input type="text" className="search-input" value={articleForm.tags} onChange={e => setArticleForm({ ...articleForm, tags: e.target.value })} placeholder="Hypertrophy, Strength, Form" />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Full Article Body</label>
-              <textarea rows="6" required className="search-input" placeholder="Write evidence-based training guide..." value={articleForm.content} onChange={e => setArticleForm({ ...articleForm, content: e.target.value })} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button type="button" className="btn btn-outline" onClick={() => setShowArticleModal(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary">{editingArticle ? 'Update Article' : 'Publish Article'}</button>
-            </div>
-          </form>
-        </Modal>
+        {/* BUILDER MODAL: EDUCATIONAL ARTICLE & GUIDE */}
+        <ArticleBuilderModal
+          isOpen={showArticleModal}
+          onClose={() => { setShowArticleModal(false); setEditingArticle(null); }}
+          onSave={handleSaveArticle}
+          editingArticle={editingArticle}
+          availableExercises={exercises.filter(e => e.status !== 'archived')}
+        />
 
         {/* REUSABLE CONFIRMATION MODAL */}
         <ConfirmDialog

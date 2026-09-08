@@ -1,39 +1,25 @@
 import InstructorRequest from '../models/InstructorRequest.js';
 
-const INITIAL_REQUESTS = [
-  {
-    from: 'SuperAdmin',
-    topic: 'Update Lower Body Exercise Demos',
-    description: 'Please review and update video URLs and form cues for squats and Romanian deadlifts.',
-    status: 'Pending',
-    assignedTo: 'All'
-  },
-  {
-    from: 'Admin',
-    topic: 'Create 3-Day Home Dumbbell Routine',
-    description: 'Members have requested a beginner-friendly 3-day dumbbell split for home workouts.',
-    status: 'Completed',
-    assignedTo: 'All',
-    completedBy: 'Fitness Instructor',
-    completedAt: new Date()
-  }
-];
-
 // @desc    Get all instructor requests
 // @route   GET /api/instructor-requests
 // @access  Private / FitnessInstructor, Admin, SuperAdmin
 export const getInstructorRequests = async (req, res) => {
   try {
-    let requests = await InstructorRequest.find().sort({ createdAt: -1 });
+    const userRole = req.user?.role;
+    const userName = req.user?.name;
 
-    if (requests.length === 0) {
-      try {
-        requests = await InstructorRequest.insertMany(INITIAL_REQUESTS);
-      } catch (e) {
-        return res.json(INITIAL_REQUESTS);
-      }
+    let filter = {};
+    // If logged in as an instructor, show tasks assigned to 'All' or specifically to this instructor
+    if (userRole === 'FitnessInstructor' && userName) {
+      filter = {
+        $or: [
+          { assignedTo: 'All' },
+          { assignedTo: userName }
+        ]
+      };
     }
 
+    const requests = await InstructorRequest.find(filter).sort({ createdAt: -1 });
     res.json(requests);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch instructor requests', error: error.message });
@@ -45,23 +31,31 @@ export const getInstructorRequests = async (req, res) => {
 // @access  Private / Admin, SuperAdmin
 export const createInstructorRequest = async (req, res) => {
   try {
-    const { topic, description, assignedTo } = req.body;
+    const topic = req.body.topic || req.body.title;
+    const { description, priority, assignedTo, dueDate } = req.body;
     const from = req.user?.name || 'Admin';
+    const fromId = req.user?._id;
 
-    if (!topic) {
-      return res.status(400).json({ message: 'Request topic is required' });
+    if (!topic || !topic.trim()) {
+      return res.status(400).json({ message: 'Request topic/title is required' });
     }
+
+    const validPriorities = ['Low', 'Medium', 'High', 'Urgent'];
+    const selectedPriority = validPriorities.includes(priority) ? priority : 'Medium';
 
     const newRequest = await InstructorRequest.create({
       from,
-      topic,
+      fromId,
+      topic: topic.trim(),
       description: description || '',
+      priority: selectedPriority,
       assignedTo: assignedTo || 'All',
       status: 'Pending'
     });
 
     res.status(201).json(newRequest);
   } catch (error) {
+    console.error('createInstructorRequest Error:', error);
     res.status(500).json({ message: 'Failed to create request', error: error.message });
   }
 };
@@ -72,7 +66,7 @@ export const createInstructorRequest = async (req, res) => {
 export const updateInstructorRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, responseNotes } = req.body;
+    const { status, responseNotes, priority, assignedTo } = req.body;
 
     const request = await InstructorRequest.findById(id);
     if (!request) {
@@ -81,8 +75,10 @@ export const updateInstructorRequest = async (req, res) => {
 
     if (status) request.status = status;
     if (responseNotes !== undefined) request.responseNotes = responseNotes;
+    if (priority) request.priority = priority;
+    if (assignedTo) request.assignedTo = assignedTo;
 
-    if (status === 'Completed' && !request.completedAt) {
+    if (status === 'Completed') {
       request.completedBy = req.user?.name || 'Fitness Instructor';
       request.completedAt = new Date();
     } else if (status === 'Pending') {
@@ -94,5 +90,23 @@ export const updateInstructorRequest = async (req, res) => {
     res.json(request);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update request', error: error.message });
+  }
+};
+
+// @desc    Delete a request
+// @route   DELETE /api/instructor-requests/:id
+// @access  Private / Admin, SuperAdmin
+export const deleteInstructorRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await InstructorRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    await request.deleteOne();
+    res.json({ message: 'Request deleted successfully', id });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete request', error: error.message });
   }
 };

@@ -2,11 +2,17 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
 import crypto from 'crypto';
+import WebSocket from 'ws';
+
+// Ensure WebSocket is available globally for Supabase in Node 20
+if (typeof globalThis.WebSocket === 'undefined') {
+  globalThis.WebSocket = WebSocket;
+}
 
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
+const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
 export const SUPABASE_STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'gymsync-media';
 
 let supabaseClient = null;
@@ -74,6 +80,50 @@ export const uploadToSupabaseStorage = async ({
   } catch (err) {
     console.error('[Supabase Storage Error]:', err.message);
     return null;
+  }
+};
+
+/**
+ * Delete a media file from Supabase Storage by public URL or relative path.
+ * Helps prevent orphan file accumulation and protects the 1 GB quota.
+ */
+export const deleteFromSupabaseStorage = async ({
+  fileUrlOrPath,
+  bucket = SUPABASE_STORAGE_BUCKET
+}) => {
+  if (!isSupabaseConfigured() || !supabase || !fileUrlOrPath) {
+    return false;
+  }
+
+  try {
+    let storagePath = fileUrlOrPath;
+    if (typeof fileUrlOrPath === 'string' && fileUrlOrPath.startsWith('http')) {
+      const bucketMarker = `/${bucket}/`;
+      const idx = fileUrlOrPath.indexOf(bucketMarker);
+      if (idx !== -1) {
+        storagePath = fileUrlOrPath.substring(idx + bucketMarker.length);
+      } else {
+        const parts = fileUrlOrPath.split('/');
+        storagePath = parts.slice(-2).join('/');
+      }
+    }
+
+    // Clean any URL query parameters if present
+    storagePath = storagePath.split('?')[0];
+
+    const { error } = await supabase.storage
+      .from(bucket)
+      .remove([storagePath]);
+
+    if (error) {
+      console.warn('[Supabase Storage Deletion Warning]:', error.message);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('[Supabase Storage Deletion Error]:', err.message);
+    return false;
   }
 };
 

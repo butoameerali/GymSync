@@ -11,6 +11,7 @@ import ComplaintManagement from '../../components/admin/ComplaintManagement';
 import PaymentManagement from '../../components/admin/PaymentManagement';
 import BroadcastManagement from '../../components/admin/BroadcastManagement';
 import AuditLogManagement from '../../components/admin/AuditLogManagement';
+import InstructorTaskManagement from '../../components/admin/InstructorTaskManagement';
 
 import './AdminDashboard.css';
 
@@ -33,7 +34,7 @@ const AdminDashboard = () => {
   // Allowed tabs based on role
   const allowedTabs = isModerator 
     ? ['overview', 'moderation', 'reported_posts', 'complaints', 'complaint_chats']
-    : ['overview', 'users', 'users_instructors', 'gyms', 'gym_approvals', 'moderation', 'reported_posts', 'complaints', 'complaint_chats', 'payments', 'cashback', 'broadcast', 'audit', 'audit_logs'];
+    : ['overview', 'users', 'users_instructors', 'instructor_tasks', 'gyms', 'gym_approvals', 'moderation', 'reported_posts', 'complaints', 'complaint_chats', 'payments', 'cashback', 'broadcast', 'audit', 'audit_logs'];
 
   const fetchAdminData = useCallback(async () => {
     try {
@@ -156,6 +157,11 @@ const AdminDashboard = () => {
                 users={users} 
                 onRefresh={fetchAdminData} 
               />
+            )}
+
+            {/* INSTRUCTOR TASKS & REQUESTS (Admin/SuperAdmin only) */}
+            {!isModerator && effectiveTab === 'instructor_tasks' && (
+              <InstructorTaskManagement />
             )}
 
             {/* GYM FACILITY APPROVALS (Admin/SuperAdmin only) */}
