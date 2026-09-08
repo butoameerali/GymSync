@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles, Eye, Video, FileText, Info, Clock, Moon, AlertTriangle, Utensils, BookOpen, Layers } from 'lucide-react';
 import { toast } from 'react-toastify';
 import PaymentModal from '../../components/common/PaymentModal';
 import { EXERCISE_LIBRARY, EXERCISE_CATEGORIES } from '../../data/exercises';
 import { useNavigate } from 'react-router-dom';
 import AIDetectorContainer from '../../ai-detectors/AIDetectorContainer';
-import ProgramCatalogue from '../../components/trainee/ProgramCatalogue';
-import DietCatalogue from '../../components/trainee/DietCatalogue';
-import LearnArticles from '../../components/trainee/LearnArticles';
 import './AITrainer.css';
+
+// Code-split catalogue tabs for optimal initial load performance
+const ProgramCatalogue = lazy(() => import('../../components/trainee/ProgramCatalogue'));
+const DietCatalogue = lazy(() => import('../../components/trainee/DietCatalogue'));
+const LearnArticles = lazy(() => import('../../components/trainee/LearnArticles'));
 
 const AITrainer = () => {
   const [activeMode, setActiveMode] = useState('library'); // 'library', 'ai', 'assigned'
@@ -31,7 +33,6 @@ const AITrainer = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isSubscribedState, setIsSubscribedState] = useState(true);
   const [dbExercises, setDbExercises] = useState([]);
-  const [preMadePlans, setPreMadePlans] = useState([]);
   const [activeUserProgram, setActiveUserProgram] = useState(null);
 
   useEffect(() => {
@@ -82,22 +83,6 @@ const AITrainer = () => {
     localStorage.setItem('gymsync_subscribed', 'true');
     setIsSubscribedState(true);
 
-    // Fetch exercises from MongoDB
-    fetch('/api/exercises')
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) setDbExercises(data);
-      })
-      .catch(err => console.error('Fetch Exercises Error:', err));
-
-    // Fetch Pre-Made Plans for Scenario B Fallback
-    fetch('/api/plans/premade')
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        if (Array.isArray(data)) setPreMadePlans(data);
-      })
-      .catch(err => console.error('Fetch Pre-Made Plans Error:', err));
-
     fetchActiveProgram();
 
     const checkBioState = () => {
@@ -110,6 +95,20 @@ const AITrainer = () => {
     window.addEventListener('gymsync_bio_updated', checkBioState);
     return () => window.removeEventListener('gymsync_bio_updated', checkBioState);
   }, []);
+
+  // Lazily fetch exercises from MongoDB on-demand only when Library tab is opened
+  useEffect(() => {
+    if (activeMode === 'library' && dbExercises.length === 0) {
+      fetch('/api/exercises')
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+          const items = Array.isArray(data) ? data : (data.items || []);
+          if (items.length > 0) setDbExercises(items);
+        })
+        .catch(err => console.error('Fetch Exercises Error:', err));
+    }
+  }, [activeMode, dbExercises.length]);
+
 
   const fetchActiveProgram = () => {
     const token = localStorage.getItem('gymsync_token');
@@ -1070,25 +1069,31 @@ const AITrainer = () => {
 
         {/* WORKOUT PROGRAMS CATALOGUE VIEW */}
         {activeMode === 'programs' && !currentExercise && (
-          <ProgramCatalogue
-            onSelectExercise={(exercise) => startExercise(exercise)}
-            onApplied={() => {
-              fetchActiveProgram();
-              setActiveMode('ai');
-            }}
-          />
+          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading workout programs...</div>}>
+            <ProgramCatalogue
+              onSelectExercise={(exercise) => startExercise(exercise)}
+              onApplied={() => {
+                fetchActiveProgram();
+                setActiveMode('ai');
+              }}
+            />
+          </Suspense>
         )}
 
         {/* DIET TEMPLATES CATALOGUE VIEW */}
         {activeMode === 'diets' && !currentExercise && (
-          <DietCatalogue />
+          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading nutrition protocols...</div>}>
+            <DietCatalogue />
+          </Suspense>
         )}
 
         {/* GUIDES & KNOWLEDGE VIEW */}
         {activeMode === 'learn' && !currentExercise && (
-          <LearnArticles
-            onSelectExercise={(exercise) => startExercise(exercise)}
-          />
+          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading educational guides...</div>}>
+            <LearnArticles
+              onSelectExercise={(exercise) => startExercise(exercise)}
+            />
+          </Suspense>
         )}
 
         {/* AI GENERATED PLAN VIEW WITH INTERACTIVE CALENDAR & SIDE-DRAWER */}

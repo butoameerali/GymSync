@@ -1,5 +1,7 @@
 import Article from '../models/Article.js';
 import { deleteFromSupabaseStorage } from '../config/supabase.js';
+import { paginateQuery } from '../utils/pagination.js';
+import { apiCache } from '../utils/cache.js';
 
 const INITIAL_ARTICLES = [
   {
@@ -40,12 +42,12 @@ const INITIAL_ARTICLES = [
   }
 ];
 
-// @desc    Get all educational articles (supports search, category, and tags)
+// @desc    Get all educational articles (supports pagination, search, category, and tags)
 // @route   GET /api/articles
 // @access  Public
 export const getArticles = async (req, res) => {
   try {
-    const { category, tag, search, status } = req.query;
+    const { category, tag, search, status, cursor, page, limit = 12, paginate } = req.query;
     const filter = {};
 
     const userRole = req.user?.role;
@@ -75,7 +77,42 @@ export const getArticles = async (req, res) => {
       ];
     }
 
-    let articles = await Article.find(filter).sort({ createdAt: -1 });
+    // Cache key for non-search public queries
+    const shouldCache = !search && (!req.user || req.user.role === 'User');
+    const cacheKey = `articles:${category || 'all'}:${tag || 'all'}:${filter.status || 'all'}:${cursor || page || '0'}:${limit}`;
+
+    if (shouldCache) {
+      const cached = apiCache.get(cacheKey);
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.status(200).json(cached);
+      }
+    }
+
+    // Lightweight projection for article cards (excludes heavy full markdown content)
+    const cardProjection = '_id title author authorId authorRole category readTime tags topics coverImage status createdAt updatedAt';
+
+    const isPaginated = paginate === 'true' || Boolean(cursor) || Boolean(page);
+
+    if (isPaginated) {
+      const paginatedResult = await paginateQuery(Article, filter, {
+        cursor,
+        page,
+        limit: Number(limit) || 12,
+        cursorField: '_id',
+        direction: -1,
+        select: cardProjection
+      });
+
+      if (shouldCache) {
+        apiCache.set(cacheKey, paginatedResult, 300);
+      }
+      res.setHeader('X-Cache', 'MISS');
+      return res.status(200).json(paginatedResult);
+    }
+
+    // Legacy unpaginated fallback
+    let articles = await Article.find(filter).select(cardProjection).sort({ createdAt: -1 });
 
     if (articles.length === 0 && !search && !category && !tag) {
       try {
@@ -88,11 +125,16 @@ export const getArticles = async (req, res) => {
       }
     }
 
+    if (shouldCache) {
+      apiCache.set(cacheKey, articles, 300);
+    }
+    res.setHeader('X-Cache', 'MISS');
     res.json(articles);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch articles', error: error.message });
   }
 };
+
 
 // @desc    Get single article by ID
 // @route   GET /api/articles/:id
@@ -159,6 +201,7 @@ export const createArticle = async (req, res) => {
       status: status || 'published'
     });
 
+    apiCache.invalidatePattern('articles:*');
     res.status(201).json(article);
   } catch (error) {
     console.error('createArticle Error:', error);
@@ -210,6 +253,7 @@ export const updateArticle = async (req, res) => {
     }
 
     await article.save();
+    apiCache.invalidatePattern('articles:*');
     res.json(article);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update article', error: error.message });
@@ -238,9 +282,11 @@ export const deleteArticle = async (req, res) => {
     }
 
     await Article.findByIdAndDelete(id);
+    apiCache.invalidatePattern('articles:*');
     res.json({ message: 'Article deleted successfully', id });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete article', error: error.message });
   }
 };
+
 

@@ -2,11 +2,54 @@ import Exercise from '../models/Exercise.js';
 import { fetchAllExercises, insertExercise } from '../services/supabaseService.js';
 import { uploadToSupabaseStorage } from '../config/supabase.js';
 import exerciseRegistry from '../services/workout/exerciseRegistry.js';
+import { paginateQuery } from '../utils/pagination.js';
+import { apiCache } from '../utils/cache.js';
 
-// GET /api/exercises - Public / User fetch with search and filters (Supabase + MongoDB fallback)
+// GET /api/exercises - Public / User fetch with search, filters and optional cursor pagination
 export const getAllExercises = async (req, res) => {
   try {
-    const { search, category, equipment, status, includeArchived } = req.query;
+    const { search, category, equipment, status, includeArchived, cursor, page, limit = 24, paginate } = req.query;
+
+    const isPaginated = paginate === 'true' || Boolean(cursor) || Boolean(page);
+
+    if (isPaginated) {
+      let mongoQuery = {};
+      if (search) {
+        mongoQuery.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { targetMuscles: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } }
+        ];
+      }
+      if (category && category !== 'All' && category !== 'Favorites') {
+        mongoQuery.targetMuscles = { $regex: category, $options: 'i' };
+      }
+      if (equipment && equipment !== 'All') {
+        if (equipment === 'No Equipment') {
+          mongoQuery.equipmentRequired = { $regex: 'bodyweight|none', $options: 'i' };
+        }
+      }
+      if (status) {
+        mongoQuery.status = status;
+      } else if (includeArchived !== 'true' && includeArchived !== true) {
+        mongoQuery.status = { $ne: 'archived' };
+      }
+
+      // Lightweight card DTO projection
+      const cardProjection = '_id exerciseId name category targetMuscles equipmentRequired difficulty mediaUrl status isAiTrackable aiDetection';
+
+      const paginatedResult = await paginateQuery(Exercise, mongoQuery, {
+        cursor,
+        page,
+        limit: Number(limit) || 24,
+        cursorField: '_id',
+        direction: -1,
+        select: cardProjection
+      });
+
+      return res.status(200).json(paginatedResult);
+    }
+
     const exercises = await fetchAllExercises({
       search,
       category,
@@ -20,6 +63,7 @@ export const getAllExercises = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch exercises', message: error.message });
   }
 };
+
 
 // GET /api/exercises/:id
 export const getExerciseById = async (req, res) => {
@@ -171,12 +215,14 @@ export const createExercise = async (req, res) => {
     const exercise = await insertExercise(exercisePayload);
     // Auto-sync into in-memory AI exercise registry
     exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message));
+    apiCache.invalidatePattern('exercises:*');
     res.status(201).json(exercise);
   } catch (error) {
     console.error('createExercise Error:', error);
     res.status(500).json({ error: 'Failed to create exercise', message: error.message });
   }
 };
+
 
 // PUT /api/exercises/:id (FitnessInstructor, Admin, SuperAdmin)
 export const updateExercise = async (req, res) => {
@@ -306,6 +352,7 @@ export const updateExercise = async (req, res) => {
 
     // Auto-sync into in-memory AI exercise registry
     exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message));
+    apiCache.invalidatePattern('exercises:*');
 
     res.status(200).json(updated);
   } catch (error) {
@@ -326,6 +373,7 @@ export const archiveExercise = async (req, res) => {
     await exercise.save();
 
     exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message));
+    apiCache.invalidatePattern('exercises:*');
 
     res.status(200).json({
       message: `Exercise successfully ${newStatus === 'archived' ? 'archived' : 'restored'}`,
@@ -344,12 +392,14 @@ export const deleteExercise = async (req, res) => {
     if (!deleted) return res.status(404).json({ error: 'Exercise not found' });
 
     exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message));
+    apiCache.invalidatePattern('exercises:*');
 
     res.status(200).json({ message: 'Exercise deleted successfully', id: req.params.id });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete exercise', message: error.message });
   }
 };
+
 
 // POST /api/exercises/ai-assist (FitnessInstructor, Admin, SuperAdmin)
 export const aiAssistExercise = async (req, res) => {

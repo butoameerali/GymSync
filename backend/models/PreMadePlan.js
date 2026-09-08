@@ -231,7 +231,12 @@ preMadePlanSchema.pre('save', function() {
 
 
 preMadePlanSchema.index({ type: 1, status: 1, category: 1 });
+preMadePlanSchema.index({ type: 1, status: 1, goal: 1, difficulty: 1, createdAt: -1 });
+preMadePlanSchema.index({ type: 1, status: 1, createdAt: -1 });
+preMadePlanSchema.index({ type: 1, status: 1, sportTags: 1 });
+preMadePlanSchema.index({ createdById: 1, status: 1 });
 preMadePlanSchema.index({ goal: 1, difficulty: 1 });
 
 export default mongoose.model('PreMadePlan', preMadePlanSchema);
+
 

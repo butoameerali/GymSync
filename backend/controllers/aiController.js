@@ -47,13 +47,19 @@ export const executeCoachPipeline = async ({
   const equipment = userContext?.equipmentAccess || 'Full Gym';
   const weight = userContext?.weight || userContext?.weightKg || 'Not specified';
 
-  // 1. RETRIEVE AUTHORITATIVE INSTRUCTOR CONTENT FROM KNOWLEDGE LAYER
+  const startTime = Date.now();
+  let retrievalTimeMs = 0;
+  let decisionTimeMs = 0;
+  let qwenTimeMs = 0;
+
+  // 1. RETRIEVE AUTHORITATIVE INSTRUCTOR CONTENT FROM KNOWLEDGE LAYER (Parallel Retrieval)
   let relevantPrograms = [];
   let relevantDiets = [];
   let relevantArticles = [];
   let relevantExercises = [];
 
   try {
+    const retrievalStart = Date.now();
     const [progs, diets, articles, exercises] = await Promise.all([
       fitnessContentService.findRelevantPrograms({ query: rawMessage, goal: primaryGoal, equipment, limit: 2 }),
       fitnessContentService.findRelevantDietTemplates({ query: rawMessage, goal: primaryGoal, limit: 2 }),
@@ -64,11 +70,13 @@ export const executeCoachPipeline = async ({
     relevantDiets = diets;
     relevantArticles = articles;
     relevantExercises = exercises;
+    retrievalTimeMs = Date.now() - retrievalStart;
   } catch (err) {
     console.warn('fitnessContentService query error:', err.message);
   }
 
   // 2. RUN CONVERSATIONAL MEMORY & DECISION ENGINE (Acts as Sports Science Calculation & Safety Tool)
+  const decisionStart = Date.now();
   const decisionResult = coachConversationEngine.processTurn({
     message: rawMessage,
     userContext,
@@ -79,9 +87,11 @@ export const executeCoachPipeline = async ({
     currentProgress,
     preferences
   });
+  decisionTimeMs = Date.now() - decisionStart;
 
   const structuredAction = decisionResult.structuredAction || {};
   structuredAction.safetyFlags = structuredAction.safetyFlags || [];
+
 
   const isInjuryOrMedical = /sharp pain|hurt bad|injured|injury|popped|torn|severe pain|dislocated|swelling|doctor|sprain|cannot bend/i.test(rawMessage);
   if (isInjuryOrMedical) {
@@ -296,7 +306,13 @@ COACHING DIRECTIVES & FORMAT:
           return {
             role: 'assistant',
             content: reply,
-            structuredAction
+            structuredAction,
+            meta: {
+              retrievalTimeMs,
+              decisionTimeMs,
+              qwenTimeMs: Date.now() - startTime - retrievalTimeMs - decisionTimeMs,
+              totalTimeMs: Date.now() - startTime
+            }
           };
         }
       }
@@ -304,6 +320,13 @@ COACHING DIRECTIVES & FORMAT:
       console.warn('Ollama unavailable or timed out, falling back to deterministic engine:', ollamaErr.message);
     }
   }
+
+  const performanceMeta = {
+    retrievalTimeMs,
+    decisionTimeMs,
+    qwenTimeMs: 0,
+    totalTimeMs: Date.now() - startTime
+  };
 
   // 5. DETERMINISTIC ENGINE FALLBACK (Used when Ollama is disabled or offline)
   if (isGreeting(rawMessage)) {
@@ -319,7 +342,8 @@ How are you feeling today, and what would you like to work on?`;
     return {
       role: 'assistant',
       content: greeting,
-      structuredAction: { intent: 'greeting', workout: null, diet: null, safetyFlags: [], sourceAttribution }
+      structuredAction: { intent: 'greeting', workout: null, diet: null, safetyFlags: [], sourceAttribution },
+      meta: performanceMeta
     };
   }
 
@@ -328,7 +352,8 @@ How are you feeling today, and what would you like to work on?`;
     return {
       role: 'assistant',
       content: `⚠️ **Medical Safety Alert**: I am an AI coach, not a doctor. If you are experiencing acute pain, swelling, or potential injury, stop the exercise immediately. Do not load the affected area. Rest, elevate, and please consult a physician or sports physiotherapist before resuming training.`,
-      structuredAction
+      structuredAction,
+      meta: performanceMeta
     };
   }
 
@@ -338,7 +363,8 @@ How are you feeling today, and what would you like to work on?`;
     return {
       role: 'assistant',
       content: `💡 **Expert Form Insight** (from "${a.sourceTitle}" by ${a.instructor}):\n\n${a.contentSnippet || a.content}\n\n*Review the full guide below for complete biomechanics.*`,
-      structuredAction
+      structuredAction,
+      meta: performanceMeta
     };
   }
 
@@ -348,16 +374,19 @@ How are you feeling today, and what would you like to work on?`;
     return {
       role: 'assistant',
       content: `🏋️ **Verified Instructor Program**: I recommend **"${p.sourceTitle}"** authored by ${p.instructor} (${p.difficulty} • ${p.durationWeeks} weeks • ${p.daysPerWeek} days/week).\n\n${p.description}\n\nYou can apply this routine directly to your calendar below!`,
-      structuredAction
+      structuredAction,
+      meta: performanceMeta
     };
   }
 
   return {
     role: 'assistant',
     content: decisionResult.content,
-    structuredAction
+    structuredAction,
+    meta: performanceMeta
   };
 };
+
 
 export const getSavedPlans = async (req, res) => {
   try {

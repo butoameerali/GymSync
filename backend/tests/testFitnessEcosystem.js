@@ -8,7 +8,11 @@ import Exercise from '../models/Exercise.js';
 import User from '../models/User.js';
 import { fitnessContentService } from '../services/fitnessContentService.js';
 
-dotenv.config({ path: './.env' });
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 async function runEcosystemTests() {
   console.log('====================================================');

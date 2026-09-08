@@ -65,8 +65,11 @@ const articleSchema = new mongoose.Schema({
   timestamps: true
 });
 
-articleSchema.index({ status: 1, category: 1 });
-articleSchema.index({ tags: 1 });
+articleSchema.index({ status: 1, category: 1, createdAt: -1 });
+articleSchema.index({ status: 1, createdAt: -1 });
+articleSchema.index({ status: 1, tags: 1 });
+articleSchema.index({ status: 1, topics: 1 });
 
 const Article = mongoose.model('Article', articleSchema);
 export default Article;
+

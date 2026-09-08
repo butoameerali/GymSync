@@ -222,4 +222,12 @@ const exerciseSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// Compound indexes for high-frequency catalogue and AI retrieval filters
+exerciseSchema.index({ status: 1, category: 1 });
+exerciseSchema.index({ status: 1, targetMuscles: 1 });
+exerciseSchema.index({ status: 1, sportTags: 1 });
+exerciseSchema.index({ status: 1, equipmentRequired: 1 });
+exerciseSchema.index({ name: 1, status: 1 });
+
 export default mongoose.model('Exercise', exerciseSchema);
+

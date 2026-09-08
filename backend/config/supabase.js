@@ -127,4 +127,51 @@ export const deleteFromSupabaseStorage = async ({
   }
 };
 
+/**
+ * Generate a short-lived direct signed upload URL from Supabase Storage.
+ * Allows client browser to upload large videos directly to Supabase CDN,
+ * bypassing Node.js server RAM completely.
+ */
+export const createDirectSignedUploadUrl = async ({
+  folder = 'media',
+  fileName = 'upload',
+  contentType = 'image/jpeg',
+  bucket = SUPABASE_STORAGE_BUCKET
+}) => {
+  if (!isSupabaseConfigured() || !supabase) {
+    return null;
+  }
+
+  try {
+    const ext = path.extname(fileName) || (contentType.includes('png') ? '.png' : contentType.includes('mp4') ? '.mp4' : '.jpg');
+    const randomHex = crypto.randomBytes(6).toString('hex');
+    const storagePath = `${folder}/${Date.now()}_${randomHex}${ext}`;
+
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUploadUrl(storagePath);
+
+    if (error) {
+      console.error('[Supabase createSignedUploadUrl Error]:', error.message);
+      return null;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(storagePath);
+
+    return {
+      signedUrl: data.signedUrl,
+      token: data.token,
+      path: data.path || storagePath,
+      publicUrl: publicUrlData?.publicUrl || null,
+      bucket
+    };
+  } catch (err) {
+    console.error('[Supabase Direct Signed URL Error]:', err.message);
+    return null;
+  }
+};
+
 export default supabase;
+

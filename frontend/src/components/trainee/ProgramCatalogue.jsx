@@ -1,35 +1,208 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Search, Dumbbell, Award, ArrowRight, CheckCircle, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { Calendar, Search, Dumbbell, Award, ArrowRight, CheckCircle, Info, Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Modal from '../common/Modal';
+import useDebounce from '../../hooks/useDebounce';
+import useInfiniteScroll from '../../hooks/useInfiniteScroll';
 
-const ProgramCatalogue = ({ onProgramApplied }) => {
+// Memoized individual program card to prevent re-rendering entire grid on query changes
+const ProgramCard = memo(({ prog, onPreview, onApply, applyingId }) => {
+  const weekCount = prog.weeks?.length || prog.durationWeeks || 4;
+  const daysCount = prog.daysPerWeek || prog.details?.days || 4;
+  const exerciseCount = prog.totalExercises || (prog.weeks || []).reduce(
+    (acc, w) => acc + (w.days || []).reduce((dAcc, d) => dAcc + (d.exercises || []).length, 0),
+    0
+  );
+
+  return (
+    <div
+      className="glass-panel"
+      style={{
+        padding: '22px',
+        borderRadius: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        border: '1px solid var(--card-border)',
+        transition: 'transform 0.2s ease, border-color 0.2s ease'
+      }}
+    >
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+          <span className="category-badge" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+            {prog.goal || prog.category || 'General'}
+          </span>
+          <span className="category-badge" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
+            {prog.difficulty || 'Intermediate'}
+          </span>
+        </div>
+
+        <h3 style={{ margin: '0 0 6px 0', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+          {prog.title}
+        </h3>
+
+        <p style={{ fontSize: '0.8rem', color: '#10b981', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <CheckCircle size={14} /> Certified by {prog.createdBy || 'Fitness Instructor'}
+        </p>
+
+        <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 16px 0' }}>
+          {prog.description || 'Structured multi-week progression program.'}
+        </p>
+
+        {/* Program Metrics Row */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '8px',
+          background: 'rgba(255,255,255,0.03)',
+          padding: '10px',
+          borderRadius: '10px',
+          textAlign: 'center',
+          marginBottom: '16px'
+        }}>
+          <div>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>DURATION</span>
+            <strong style={{ fontSize: '0.92rem' }}>{weekCount} Wks</strong>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>FREQUENCY</span>
+            <strong style={{ fontSize: '0.92rem' }}>{daysCount} D/Wk</strong>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>EXERCISES</span>
+            <strong style={{ fontSize: '0.92rem' }}>{exerciseCount || 'Structured'}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+        <button
+          type="button"
+          className="btn btn-outline btn-sm"
+          style={{ flex: 1 }}
+          onClick={() => onPreview(prog)}
+        >
+          Preview Routine
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          style={{ flex: 1.2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          onClick={() => onApply(prog)}
+          disabled={applyingId === prog._id}
+        >
+          {applyingId === prog._id ? 'Applying...' : 'Apply to Routine'} <ArrowRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+});
+
+ProgramCard.displayName = 'ProgramCard';
+
+const ProgramCatalogue = ({ onProgramApplied, onApplied }) => {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+
+  // Search & Filters
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 350);
   const [goalFilter, setGoalFilter] = useState('All');
   const [diffFilter, setDiffFilter] = useState('All');
 
   // Preview Modal
   const [previewProgram, setPreviewProgram] = useState(null);
+  const [loadingPreviewDetails, setLoadingPreviewDetails] = useState(false);
   const [applyingId, setApplyingId] = useState(null);
 
-  useEffect(() => {
-    fetchPrograms();
-  }, []);
+  // AbortController ref for in-flight request cancellation
+  const abortControllerRef = useRef(null);
 
-  const fetchPrograms = async () => {
-    setLoading(true);
+  const fetchPrograms = useCallback(async (isLoadMore = false, cursorParam = null) => {
+    if (abortControllerRef.current && !isLoadMore) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    if (isLoadMore) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      const res = await fetch('/api/plans/premade?type=Workout');
+      const params = new URLSearchParams({
+        type: 'Workout',
+        paginate: 'true',
+        limit: '12'
+      });
+
+      if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+      if (goalFilter !== 'All') params.append('goal', goalFilter);
+      if (diffFilter !== 'All') params.append('difficulty', diffFilter);
+      if (cursorParam) params.append('cursor', cursorParam);
+
+      const res = await fetch(`/api/plans/premade?${params.toString()}`, {
+        signal: abortControllerRef.current.signal
+      });
+
       if (res.ok) {
         const data = await res.json();
-        setPrograms(Array.isArray(data) ? data : []);
+        const items = data.items || (Array.isArray(data) ? data : []);
+        setPrograms(prev => (isLoadMore ? [...prev, ...items] : items));
+        setNextCursor(data.nextCursor || null);
+        setHasMore(Boolean(data.hasMore));
       }
     } catch (err) {
-      console.error('Fetch Programs Error:', err);
+      if (err.name !== 'AbortError') {
+        console.error('Fetch Programs Error:', err);
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [debouncedSearch, goalFilter, diffFilter]);
+
+  // Refetch when filters or debounced search change
+  useEffect(() => {
+    fetchPrograms(false, null);
+    return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, [fetchPrograms]);
+
+  // Infinite Scroll Trigger
+  const loadMore = useCallback(() => {
+    if (hasMore && !loading && !loadingMore && nextCursor) {
+      fetchPrograms(true, nextCursor);
+    }
+  }, [hasMore, loading, loadingMore, nextCursor, fetchPrograms]);
+
+  const sentinelRef = useInfiniteScroll({
+    onIntersect: loadMore,
+    hasMore,
+    isLoading: loading || loadingMore
+  });
+
+  const handlePreview = async (prog) => {
+    setPreviewProgram(prog);
+    // If weeks array is omitted due to lightweight card projection, load full plan
+    if (!prog.weeks || prog.weeks.length === 0) {
+      setLoadingPreviewDetails(true);
+      try {
+        const res = await fetch(`/api/plans/premade/${prog._id}`);
+        if (res.ok) {
+          const fullPlan = await res.json();
+          setPreviewProgram(fullPlan);
+        }
+      } catch (err) {
+        console.warn('Failed to load full program details:', err);
+      } finally {
+        setLoadingPreviewDetails(false);
+      }
     }
   };
 
@@ -55,27 +228,18 @@ const ProgramCatalogue = ({ onProgramApplied }) => {
 
       toast.success(data.message || `Applied "${program.title}" to your routine!`);
 
-      // Store in local storage for instant offline / calendar reflection
       const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
       localStorage.setItem(`gymsync_${userKey}_applied_program`, JSON.stringify(data.userProgram));
 
       if (setPreviewProgram) setPreviewProgram(null);
       if (onProgramApplied) onProgramApplied(data.userProgram);
+      if (onApplied) onApplied(data.userProgram);
     } catch (err) {
       toast.error(err.message || 'Failed to apply program');
     } finally {
       setApplyingId(null);
     }
   };
-
-  const filteredPrograms = programs.filter(p => {
-    const matchSearch = (p.title || '').toLowerCase().includes(search.toLowerCase()) ||
-                        (p.description || '').toLowerCase().includes(search.toLowerCase()) ||
-                        (Array.isArray(p.sportTags) && p.sportTags.some(t => t.toLowerCase().includes(search.toLowerCase())));
-    const matchGoal = goalFilter === 'All' || (p.goal || p.category) === goalFilter;
-    const matchDiff = diffFilter === 'All' || p.difficulty === diffFilter;
-    return matchSearch && matchGoal && matchDiff;
-  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -121,106 +285,47 @@ const ProgramCatalogue = ({ onProgramApplied }) => {
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
           Loading certified instructor workout programs...
         </div>
-      ) : filteredPrograms.length === 0 ? (
+      ) : programs.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
           <Calendar size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
           <p>No workout programs found matching your filters.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-          {filteredPrograms.map(prog => {
-            const weekCount = prog.weeks?.length || prog.durationWeeks || 4;
-            const daysCount = prog.daysPerWeek || prog.details?.days || 4;
-            const exerciseCount = (prog.weeks || []).reduce(
-              (acc, w) => acc + (w.days || []).reduce((dAcc, d) => dAcc + (d.exercises || []).length, 0),
-              0
-            );
-
-            return (
-              <div
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+            {programs.map(prog => (
+              <ProgramCard
                 key={prog._id}
-                className="glass-panel"
-                style={{
-                  padding: '22px',
-                  borderRadius: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  border: '1px solid var(--card-border)',
-                  transition: 'transform 0.2s ease, border-color 0.2s ease'
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <span className="category-badge" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
-                      {prog.goal || prog.category || 'General'}
-                    </span>
-                    <span className="category-badge" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
-                      {prog.difficulty || 'Intermediate'}
-                    </span>
-                  </div>
+                prog={prog}
+                onPreview={handlePreview}
+                onApply={handleApply}
+                applyingId={applyingId}
+              />
+            ))}
+          </div>
 
-                  <h3 style={{ margin: '0 0 6px 0', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
-                    {prog.title}
-                  </h3>
-
-                  <p style={{ fontSize: '0.8rem', color: '#10b981', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <CheckCircle size={14} /> Certified by {prog.createdBy || 'Fitness Instructor'}
-                  </p>
-
-                  <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 16px 0' }}>
-                    {prog.description || 'Structured multi-week progression program.'}
-                  </p>
-
-                  {/* Program Metrics Row */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: '8px',
-                    background: 'rgba(255,255,255,0.03)',
-                    padding: '10px',
-                    borderRadius: '10px',
-                    textAlign: 'center',
-                    marginBottom: '16px'
-                  }}>
-                    <div>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>DURATION</span>
-                      <strong style={{ fontSize: '0.92rem' }}>{weekCount} Wks</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>FREQUENCY</span>
-                      <strong style={{ fontSize: '0.92rem' }}>{daysCount} D/Wk</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>EXERCISES</span>
-                      <strong style={{ fontSize: '0.92rem' }}>{exerciseCount || 'Varied'}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    style={{ flex: 1 }}
-                    onClick={() => setPreviewProgram(prog)}
-                  >
-                    Preview Routine
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    style={{ flex: 1.2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                    onClick={() => handleApply(prog)}
-                    disabled={applyingId === prog._id}
-                  >
-                    {applyingId === prog._id ? 'Applying...' : 'Apply to Routine'} <ArrowRight size={14} />
-                  </button>
-                </div>
+          {/* Infinite scroll sentinel and status */}
+          <div
+            ref={sentinelRef}
+            style={{
+              padding: '16px',
+              textAlign: 'center',
+              color: 'var(--text-secondary)',
+              minHeight: '40px'
+            }}
+          >
+            {loadingMore && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
+                <Loader2 size={16} className="animate-spin" /> Loading more programs...
               </div>
-            );
-          })}
-        </div>
+            )}
+            {!hasMore && programs.length > 0 && (
+              <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                All certified workout programs loaded ({programs.length})
+              </span>
+            )}
+          </div>
+        </>
       )}
 
       {/* Program Preview Modal */}
@@ -245,35 +350,41 @@ const ProgramCatalogue = ({ onProgramApplied }) => {
               {previewProgram.description}
             </p>
 
-            {/* Weeks Accordion */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto' }}>
-              {(previewProgram.weeks || []).map((w, wIdx) => (
-                <div key={wIdx} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--card-border)', borderRadius: '10px', padding: '14px' }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: 'var(--primary-accent)' }}>
-                    Week {w.weekNumber}: {w.focus || 'Training Phase'}
-                  </h4>
+            {loadingPreviewDetails ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Loading full training curriculum...
+              </div>
+            ) : (
+              /* Weeks Accordion */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto' }}>
+                {(previewProgram.weeks || []).map((w, wIdx) => (
+                  <div key={wIdx} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--card-border)', borderRadius: '10px', padding: '14px' }}>
+                    <h4 style={{ margin: '0 0 10px 0', color: 'var(--primary-accent)' }}>
+                      Week {w.weekNumber}: {w.focus || 'Training Phase'}
+                    </h4>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {(w.days || []).map((d, dIdx) => (
-                      <div key={dIdx} style={{ background: 'rgba(0,0,0,0.25)', padding: '10px 12px', borderRadius: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                          <strong style={{ fontSize: '0.9rem' }}>Day {d.dayNumber}: {d.title}</strong>
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{d.focus}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {(w.days || []).map((d, dIdx) => (
+                        <div key={dIdx} style={{ background: 'rgba(0,0,0,0.25)', padding: '10px 12px', borderRadius: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                            <strong style={{ fontSize: '0.9rem' }}>Day {d.dayNumber}: {d.title}</strong>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{d.focus}</span>
+                          </div>
+
+                          <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            {(d.exercises || []).map((ex, exIdx) => (
+                              <li key={exIdx}>
+                                <strong>{ex.name}</strong> — {ex.sets} sets × {ex.reps} reps {ex.rpe ? `(RPE ${ex.rpe})` : ''} {ex.restSeconds ? `• ${ex.restSeconds}s rest` : ''}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-
-                        <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                          {(d.exercises || []).map((ex, exIdx) => (
-                            <li key={exIdx}>
-                              <strong>{ex.name}</strong> — {ex.sets} sets × {ex.reps} reps {ex.rpe ? `(RPE ${ex.rpe})` : ''} {ex.restSeconds ? `• ${ex.restSeconds}s rest` : ''}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--card-border)', paddingTop: '12px' }}>
               <button type="button" className="btn btn-outline" onClick={() => setPreviewProgram(null)}>

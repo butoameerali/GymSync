@@ -1,41 +1,181 @@
-import React, { useState, useEffect } from 'react';
-import { BookOpen, Search, Clock, CheckCircle, ArrowRight, Tag, Dumbbell } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { BookOpen, Search, Clock, CheckCircle, ArrowRight, Tag, Dumbbell, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import Modal from '../common/Modal';
+import useDebounce from '../../hooks/useDebounce';
+import useInfiniteScroll from '../../hooks/useInfiniteScroll';
+
+// Memoized individual article card
+const ArticleCard = memo(({ art, onRead }) => {
+  return (
+    <div
+      className="glass-panel"
+      style={{
+        padding: '22px',
+        borderRadius: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        border: '1px solid var(--card-border)',
+        transition: 'transform 0.2s ease, border-color 0.2s ease'
+      }}
+    >
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <span className="category-badge" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+            {art.category || 'Training'}
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Clock size={12} /> {art.readTime || '5 min'}
+          </span>
+        </div>
+
+        {art.coverImage && (
+          <img
+            src={art.coverImage}
+            alt={art.title}
+            loading="lazy"
+            decoding="async"
+            style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '8px', marginBottom: '12px' }}
+          />
+        )}
+
+        <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: 'var(--text-primary)' }}>
+          {art.title}
+        </h3>
+
+        <p style={{ fontSize: '0.8rem', color: '#10b981', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <CheckCircle size={14} /> Written by {art.author || 'Fitness Instructor'}
+        </p>
+
+        <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 14px 0' }}>
+          {art.excerpt || (art.content || '').substring(0, 140)}...
+        </p>
+
+        {/* Tags */}
+        {Array.isArray(art.tags) && art.tags.length > 0 && (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
+            {art.tags.slice(0, 3).map((tag, i) => (
+              <span key={i} style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.04)', padding: '2px 8px', borderRadius: '12px' }}>
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        className="btn btn-outline btn-sm"
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+        onClick={() => onRead(art)}
+      >
+        Read Full Guide <ArrowRight size={14} />
+      </button>
+    </div>
+  );
+});
+
+ArticleCard.displayName = 'ArticleCard';
 
 const LearnArticles = ({ onSelectExercise }) => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+
+  // Search & Filters
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 350);
   const [categoryFilter, setCategoryFilter] = useState('All');
+
+  // Reading Modal
   const [readingArticle, setReadingArticle] = useState(null);
+  const [loadingArticleBody, setLoadingArticleBody] = useState(false);
 
-  useEffect(() => {
-    fetchArticles();
-  }, []);
+  const abortControllerRef = useRef(null);
 
-  const fetchArticles = async () => {
-    setLoading(true);
+  const fetchArticles = useCallback(async (isLoadMore = false, cursorParam = null) => {
+    if (abortControllerRef.current && !isLoadMore) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    if (isLoadMore) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      const res = await fetch('/api/articles');
+      const params = new URLSearchParams({
+        paginate: 'true',
+        limit: '12'
+      });
+
+      if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+      if (categoryFilter !== 'All') params.append('category', categoryFilter);
+      if (cursorParam) params.append('cursor', cursorParam);
+
+      const res = await fetch(`/api/articles?${params.toString()}`, {
+        signal: abortControllerRef.current.signal
+      });
+
       if (res.ok) {
         const data = await res.json();
-        setArticles(Array.isArray(data) ? data : []);
+        const items = data.items || (Array.isArray(data) ? data : []);
+        setArticles(prev => (isLoadMore ? [...prev, ...items] : items));
+        setNextCursor(data.nextCursor || null);
+        setHasMore(Boolean(data.hasMore));
       }
     } catch (err) {
-      console.error('Fetch Articles Error:', err);
+      if (err.name !== 'AbortError') {
+        console.error('Fetch Articles Error:', err);
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [debouncedSearch, categoryFilter]);
+
+  useEffect(() => {
+    fetchArticles(false, null);
+    return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, [fetchArticles]);
+
+  const loadMore = useCallback(() => {
+    if (hasMore && !loading && !loadingMore && nextCursor) {
+      fetchArticles(true, nextCursor);
+    }
+  }, [hasMore, loading, loadingMore, nextCursor, fetchArticles]);
+
+  const sentinelRef = useInfiniteScroll({
+    onIntersect: loadMore,
+    hasMore,
+    isLoading: loading || loadingMore
+  });
+
+  const handleRead = async (art) => {
+    setReadingArticle(art);
+    // If full content was omitted in card projection, fetch full article details
+    if (!art.content || art.content.length <= 150) {
+      setLoadingArticleBody(true);
+      try {
+        const res = await fetch(`/api/articles/${art._id || art.slug}`);
+        if (res.ok) {
+          const fullArt = await res.json();
+          setReadingArticle(fullArt);
+        }
+      } catch (err) {
+        console.warn('Failed to load full article content:', err);
+      } finally {
+        setLoadingArticleBody(false);
+      }
     }
   };
-
-  const filteredArticles = articles.filter(a => {
-    const matchSearch = (a.title || '').toLowerCase().includes(search.toLowerCase()) ||
-                        (a.content || '').toLowerCase().includes(search.toLowerCase()) ||
-                        (Array.isArray(a.tags) && a.tags.some(t => t.toLowerCase().includes(search.toLowerCase())));
-    const matchCategory = categoryFilter === 'All' || a.category === categoryFilter;
-    return matchSearch && matchCategory;
-  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -70,71 +210,45 @@ const LearnArticles = ({ onSelectExercise }) => {
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
           Loading instructor educational articles & guides...
         </div>
-      ) : filteredArticles.length === 0 ? (
+      ) : articles.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
           <BookOpen size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
           <p>No guides found matching your filters.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-          {filteredArticles.map(art => (
-            <div
-              key={art._id}
-              className="glass-panel"
-              style={{
-                padding: '22px',
-                borderRadius: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                border: '1px solid var(--card-border)'
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span className="category-badge" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
-                    {art.category || 'Training'}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock size={12} /> {art.readTime || '5 min'}
-                  </span>
-                </div>
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+            {articles.map(art => (
+              <ArticleCard
+                key={art._id}
+                art={art}
+                onRead={handleRead}
+              />
+            ))}
+          </div>
 
-                <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: 'var(--text-primary)' }}>
-                  {art.title}
-                </h3>
-
-                <p style={{ fontSize: '0.8rem', color: '#10b981', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <CheckCircle size={14} /> Written by {art.author || 'Fitness Instructor'}
-                </p>
-
-                <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 14px 0' }}>
-                  {(art.content || '').substring(0, 140)}...
-                </p>
-
-                {/* Tags */}
-                {Array.isArray(art.tags) && art.tags.length > 0 && (
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
-                    {art.tags.slice(0, 3).map((tag, i) => (
-                      <span key={i} style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.04)', padding: '2px 8px', borderRadius: '12px' }}>
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
+          {/* Infinite Scroll Sentinel */}
+          <div
+            ref={sentinelRef}
+            style={{
+              padding: '16px',
+              textAlign: 'center',
+              color: 'var(--text-secondary)',
+              minHeight: '40px'
+            }}
+          >
+            {loadingMore && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
+                <Loader2 size={16} className="animate-spin" /> Loading more guides...
               </div>
-
-              <button
-                type="button"
-                className="btn btn-outline btn-sm"
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                onClick={() => setReadingArticle(art)}
-              >
-                Read Full Guide <ArrowRight size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
+            )}
+            {!hasMore && articles.length > 0 && (
+              <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                All certified educational guides loaded ({articles.length})
+              </span>
+            )}
+          </div>
+        </>
       )}
 
       {/* Reading Modal */}
@@ -185,9 +299,15 @@ const LearnArticles = ({ onSelectExercise }) => {
               </div>
             )}
 
-            <div style={{ fontSize: '0.92rem', lineHeight: 1.7, color: 'var(--text-primary)', maxHeight: '420px', overflowY: 'auto', whiteSpace: 'pre-line' }}>
-              <ReactMarkdown>{readingArticle.content}</ReactMarkdown>
-            </div>
+            {loadingArticleBody ? (
+              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Loading complete guide content...
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.92rem', lineHeight: 1.7, color: 'var(--text-primary)', maxHeight: '420px', overflowY: 'auto', whiteSpace: 'pre-line' }}>
+                <ReactMarkdown>{readingArticle.content}</ReactMarkdown>
+              </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--card-border)', paddingTop: '12px' }}>
               <button type="button" className="btn btn-outline" onClick={() => setReadingArticle(null)}>

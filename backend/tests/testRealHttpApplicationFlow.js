@@ -1,5 +1,9 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: './.env' });
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import app from '../index.js';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
@@ -116,7 +120,9 @@ async function runRealHttpTests() {
       console.error('Upload raw response was not JSON:', uploadRes.status, rawUploadText.substring(0, 300));
     }
     assert(uploadRes.status === 201 || uploadRes.status === 200, `POST /api/media/upload returned HTTP ${uploadRes.status}`);
-    assert(uploadData.success && uploadData.url && uploadData.url.includes('supabase'), `Media saved in Supabase Storage with CDN URL: ${uploadData.url?.substring(0, 55)}...`);
+    const isSupabase = isSupabaseConfigured();
+    const hasValidUrl = uploadData.success && uploadData.url && (isSupabase ? uploadData.url.includes('supabase') : (uploadData.url.startsWith('data:') || uploadData.url.startsWith('/uploads')));
+    assert(hasValidUrl, `Media saved via ${isSupabase ? 'Supabase Storage CDN' : 'MongoDB inline fallback'}: ${uploadData.url?.substring(0, 55)}...`);
 
     // 4. Real HTTP Instructor Creates Structured Workout Program
     console.log('\n--- Step 3: Real HTTP Instructor Program Creation ---');

@@ -1,6 +1,12 @@
 import express from 'express';
 import { upload } from '../middleware/uploadMiddleware.js';
-import { uploadToSupabaseStorage, deleteFromSupabaseStorage, isSupabaseConfigured, SUPABASE_STORAGE_BUCKET } from '../config/supabase.js';
+import {
+  uploadToSupabaseStorage,
+  deleteFromSupabaseStorage,
+  createDirectSignedUploadUrl,
+  isSupabaseConfigured,
+  SUPABASE_STORAGE_BUCKET
+} from '../config/supabase.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -19,6 +25,56 @@ router.get('/status', (req, res) => {
       : 'Operating in MongoDB inline fallback mode.'
   });
 });
+
+/**
+ * POST /api/media/signed-upload-url
+ * Generate short-lived direct signed upload URL from Supabase Storage.
+ * Bypasses Node server RAM by allowing browser to upload large videos directly to Supabase CDN.
+ */
+router.post('/signed-upload-url', protect, async (req, res) => {
+  try {
+    const { fileName, folder = 'media', contentType = 'image/jpeg', fileSize } = req.body;
+    const cleanFolder = String(folder).toLowerCase().trim();
+    const userRole = req.user?.role || 'User';
+    const isStaff = ['FitnessInstructor', 'Admin', 'SuperAdmin'].includes(userRole);
+
+    const restrictedFolders = ['exercises', 'programs', 'articles', 'curriculum', 'drills'];
+    if (restrictedFolders.includes(cleanFolder) && !isStaff) {
+      return res.status(403).json({
+        success: false,
+        message: `Role '${userRole}' is not authorized to upload to folder '${cleanFolder}'.`
+      });
+    }
+
+    if (!isSupabaseConfigured()) {
+      return res.status(200).json({
+        success: false,
+        directUploadAvailable: false,
+        message: 'Supabase storage is not configured. Use standard /api/media/upload fallback.'
+      });
+    }
+
+    const signedPayload = await createDirectSignedUploadUrl({
+      folder: cleanFolder,
+      fileName,
+      contentType
+    });
+
+    if (!signedPayload) {
+      return res.status(500).json({ success: false, message: 'Could not generate signed upload URL' });
+    }
+
+    res.status(200).json({
+      success: true,
+      directUploadAvailable: true,
+      ...signedPayload
+    });
+  } catch (error) {
+    console.error('signed-upload-url Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to generate signed upload URL' });
+  }
+});
+
 
 /**
  * POST /api/media/upload

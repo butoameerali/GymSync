@@ -2,6 +2,8 @@ import PreMadePlan from '../models/PreMadePlan.js';
 import UserWorkoutProgram from '../models/UserWorkoutProgram.js';
 import UserDietPlan from '../models/UserDietPlan.js';
 import WorkoutProgress from '../models/WorkoutProgress.js';
+import { paginateQuery } from '../utils/pagination.js';
+import { apiCache } from '../utils/cache.js';
 
 // Seed starter data with structured weeks & meals if database is fresh
 const INITIAL_PLANS = [
@@ -108,7 +110,7 @@ const INITIAL_PLANS = [
 // GET /api/plans/premade
 export const getPreMadePlans = async (req, res) => {
   try {
-    const { type, status, goal, difficulty, search } = req.query;
+    const { type, status, goal, difficulty, search, cursor, page, limit = 12, paginate } = req.query;
     let query = {};
 
     if (type) {
@@ -145,7 +147,43 @@ export const getPreMadePlans = async (req, res) => {
       ];
     }
 
-    let plans = await PreMadePlan.find(query).sort({ createdAt: -1 });
+    // Cache key for non-search public queries
+    const shouldCache = !search && (!req.user || req.user.role === 'User');
+    const cacheKey = `plans:${type || 'all'}:${query.status || 'all'}:${goal || 'all'}:${difficulty || 'all'}:${cursor || page || '0'}:${limit}`;
+
+    if (shouldCache) {
+      const cached = apiCache.get(cacheKey);
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.status(200).json(cached);
+      }
+    }
+
+    // Lightweight projection for list cards (omits heavy nested week/exercise matrices)
+    const cardProjection = '_id title type category goal difficulty durationWeeks daysPerWeek description createdBy createdById authorRole status sportTags equipmentRequired version calories protein carbs fat dietaryType allergies createdAt updatedAt';
+
+    // Check if client requested pagination or provided cursor/page
+    const isPaginated = paginate === 'true' || Boolean(cursor) || Boolean(page);
+
+    if (isPaginated) {
+      const paginatedResult = await paginateQuery(PreMadePlan, query, {
+        cursor,
+        page,
+        limit: Number(limit) || 12,
+        cursorField: '_id',
+        direction: -1,
+        select: cardProjection
+      });
+
+      if (shouldCache) {
+        apiCache.set(cacheKey, paginatedResult, 300);
+      }
+      res.setHeader('X-Cache', 'MISS');
+      return res.status(200).json(paginatedResult);
+    }
+
+    // Legacy unpaginated fallback
+    let plans = await PreMadePlan.find(query).select(cardProjection).sort({ createdAt: -1 });
 
     // Seed if collection is completely empty
     if (plans.length === 0 && !type && !search) {
@@ -159,12 +197,17 @@ export const getPreMadePlans = async (req, res) => {
       }
     }
 
+    if (shouldCache) {
+      apiCache.set(cacheKey, plans, 300);
+    }
+    res.setHeader('X-Cache', 'MISS');
     res.status(200).json(plans);
   } catch (error) {
     console.error('getPreMadePlans Error:', error);
     res.status(500).json({ error: 'Failed to fetch pre-made plans', message: error.message });
   }
 };
+
 
 // GET /api/plans/premade/:id
 export const getPreMadePlanById = async (req, res) => {
@@ -245,6 +288,7 @@ export const createPreMadePlan = async (req, res) => {
       authorRole: req.user?.role || 'FitnessInstructor'
     });
 
+    apiCache.invalidatePattern('plans:*');
     res.status(201).json(newPlan);
   } catch (error) {
     console.error('createPreMadePlan Error:', error);
@@ -281,6 +325,7 @@ export const updatePreMadePlan = async (req, res) => {
     });
 
     await plan.save();
+    apiCache.invalidatePattern('plans:*');
     res.status(200).json(plan);
   } catch (error) {
     console.error('updatePreMadePlan Error:', error);
@@ -303,12 +348,14 @@ export const deletePreMadePlan = async (req, res) => {
     }
 
     await plan.deleteOne();
+    apiCache.invalidatePattern('plans:*');
     res.status(200).json({ message: 'Pre-made plan deleted successfully', id: req.params.id });
   } catch (error) {
     console.error('deletePreMadePlan Error:', error);
     res.status(500).json({ error: 'Failed to delete pre-made plan', message: error.message });
   }
 };
+
 
 // POST /api/plans/premade/:id/apply — Trainee applies instructor program to their routine
 export const applyProgramToUser = async (req, res) => {
