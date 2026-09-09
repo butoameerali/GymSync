@@ -1,20 +1,5 @@
+import crypto from 'crypto';
 import Complaint from '../models/Complaint.js';
-
-const MOCK_COMPLAINTS = [
-  {
-    _id: 'cmp_mock_1',
-    complaintId: 'CMP-1001',
-    reporterName: 'User_Alex',
-    reportedEntityType: 'Post',
-    reportedEntityId: 'post_101',
-    reportedEntityTitle: 'Aggressive Post',
-    reason: 'Inappropriate Content',
-    description: 'Post violates community guidelines.',
-    status: 'Pending',
-    adminReply: '',
-    history: [{ action: 'Created', performedBy: 'User_Alex', notes: 'Report submitted' }]
-  }
-];
 
 // @desc    Submit a new complaint
 // @route   POST /api/complaints
@@ -23,6 +8,7 @@ export const createComplaint = async (req, res) => {
   try {
     const { reportedEntityType, reportedEntityId, reportedEntityTitle, reason, description } = req.body;
     const reporterName = req.user?.name || req.body.reporterName;
+    const reporterId = req.user?._id || req.body.reporterId;
     let evidenceUrls = [];
     if (req.file) {
       if (req.file.buffer) {
@@ -37,12 +23,13 @@ export const createComplaint = async (req, res) => {
     }
 
     try {
-      const count = await Complaint.countDocuments();
-      const complaintId = `CMP-${1000 + count + 1}`;
+      // Collision-free, atomic entropy-backed unique identifier
+      const complaintId = `CMP-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 
       const complaint = await Complaint.create({
         complaintId,
         reporterName,
+        reporterId: reporterId || undefined,
         reportedEntityType,
         reportedEntityId,
         reportedEntityTitle: reportedEntityTitle || 'N/A',
@@ -58,19 +45,10 @@ export const createComplaint = async (req, res) => {
 
       return res.status(201).json(complaint);
     } catch (dbErr) {
-      // Fallback response if MongoDB is offline/unreachable
-      const complaintId = `CMP-${1000 + Math.floor(Math.random() * 900)}`;
-      return res.status(201).json({
-        _id: `cmp_mock_${Date.now()}`,
-        complaintId,
-        reporterName,
-        reportedEntityType,
-        reportedEntityId,
-        reportedEntityTitle: reportedEntityTitle || 'N/A',
-        reason,
-        description,
-        status: 'Pending',
-        adminReply: ''
+      console.error('Complaint creation DB error:', dbErr);
+      return res.status(503).json({
+        message: 'Unable to save complaint to database. Please try again.',
+        error: dbErr.message
       });
     }
   } catch (error) {
@@ -78,9 +56,9 @@ export const createComplaint = async (req, res) => {
   }
 };
 
-// @desc    Get all complaints for Admin / ComplaintModerator
+// @desc    Get all complaints for Admin / ComplaintModerator / Reporting User
 // @route   GET /api/complaints
-// @access  Private / Admin, ComplaintModerator
+// @access  Private / Admin, ComplaintModerator, User
 export const getAllComplaints = async (req, res) => {
   try {
     const { status, type } = req.query;
@@ -90,17 +68,18 @@ export const getAllComplaints = async (req, res) => {
     if (type && type !== 'All') filter.reportedEntityType = type;
 
     if (req.user && !['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase())) {
-       filter.reporterName = req.user.name;
+      const userConditions = [{ reporterName: req.user.name }];
+      if (req.user._id) {
+        userConditions.push({ reporterId: req.user._id });
+      }
+      filter.$or = userConditions;
     }
 
-    try {
-      const complaints = await Complaint.find(filter).sort({ createdAt: -1 });
-      return res.json(complaints);
-    } catch (dbErr) {
-      return res.json(MOCK_COMPLAINTS);
-    }
+    const complaints = await Complaint.find(filter).sort({ createdAt: -1 });
+    return res.json(complaints);
   } catch (error) {
-    res.json(MOCK_COMPLAINTS);
+    console.error('Fetch complaints error:', error);
+    return res.status(500).json({ message: 'Failed to fetch complaints from database', error: error.message });
   }
 };
 
@@ -112,30 +91,26 @@ export const updateComplaintStatus = async (req, res) => {
     const { id } = req.params;
     const { status, adminReply, assignedModerator, moderatorName } = req.body;
 
-    try {
-      const complaint = await Complaint.findById(id);
-      if (complaint) {
-        if (status) complaint.status = status;
-        if (adminReply) complaint.adminReply = adminReply;
-        if (assignedModerator) complaint.assignedModerator = assignedModerator;
+    const complaint = await Complaint.findById(id);
+    if (!complaint) {
+      return res.status(404).json({ message: 'Complaint not found' });
+    }
 
-        complaint.history.push({
-          action: `Status updated to ${status || complaint.status}`,
-          performedBy: moderatorName || 'Admin Moderator',
-          notes: adminReply || 'Moderator action taken'
-        });
+    if (status) complaint.status = status;
+    if (adminReply) complaint.adminReply = adminReply;
+    if (assignedModerator) complaint.assignedAdminName = assignedModerator;
 
-        await complaint.save();
-        return res.json(complaint);
-      }
-    } catch (e) {}
-
-    res.json({
-      _id: id,
-      status: status || 'Resolved',
-      adminReply: adminReply || 'Action taken by moderator'
+    const actor = moderatorName || req.user?.name || 'Admin Moderator';
+    complaint.history.push({
+      action: `Status updated to ${status || complaint.status}`,
+      performedBy: actor,
+      notes: adminReply || 'Moderator action taken'
     });
+
+    await complaint.save();
+    return res.json(complaint);
   } catch (error) {
+    console.error('Update complaint status error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -153,7 +128,10 @@ export const addComplaintChat = async (req, res) => {
     const complaint = await Complaint.findById(id);
     if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
 
-    const isReporter = req.user && req.user.name === complaint.reporterName;
+    const isReporter = req.user && (
+      (complaint.reporterId && String(req.user._id) === String(complaint.reporterId)) ||
+      req.user.name === complaint.reporterName
+    );
     const isStaff = req.user && ['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase());
 
     if (!isReporter && !isStaff) {
@@ -173,6 +151,7 @@ export const addComplaintChat = async (req, res) => {
     await complaint.save();
     return res.json(complaint.chatMessages);
   } catch (error) {
+    console.error('Add complaint chat error:', error);
     res.status(500).json({ message: error.message });
   }
 };

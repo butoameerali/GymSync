@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Payment from '../models/Payment.js';
@@ -32,13 +33,13 @@ export const getProducts = async (req, res) => {
         await Product.insertMany(MOCK_STORE_ITEMS);
         products = await Product.find(filter);
       } catch (e) {
-        return res.json(MOCK_STORE_ITEMS);
+        console.warn('Seed store items warning:', e.message);
       }
     }
 
     res.json(products);
   } catch (error) {
-    res.json(MOCK_STORE_ITEMS);
+    res.status(500).json({ message: 'Failed to fetch store products', error: error.message });
   }
 };
 
@@ -224,8 +225,7 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: `Payment amount ($${payment.amount}) does not match catalog item total ($${roundedVerifiedTotal})` });
     }
 
-    const count = await Order.countDocuments();
-    const orderId = `ORD-${10000 + count + 1}`;
+    const orderId = `ORD-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
     const trackingCode = `GS-ORD-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const order = await Order.create({

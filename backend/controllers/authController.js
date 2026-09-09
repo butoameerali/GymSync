@@ -70,12 +70,12 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'Username is already taken. Please choose a different name.' });
     }
 
-    const ALLOWED_SELF_ROLES = ['User', 'GymOwner', 'GymTrainer', 'FitnessInstructor', 'StoreManager'];
-    const DISALLOWED_ADMIN_ROLES = ['Admin', 'SuperAdmin', 'ComplaintModerator'];
+    const ALLOWED_SELF_ROLES = ['User', 'GymOwner'];
+    const PRIVILEGED_ROLES = ['Admin', 'SuperAdmin', 'ComplaintModerator', 'FitnessInstructor', 'GymTrainer', 'StoreManager'];
 
     let targetRole = role || 'User';
-    if (DISALLOWED_ADMIN_ROLES.map(r => r.toLowerCase()).includes(targetRole.toLowerCase())) {
-      return res.status(403).json({ message: 'Privileged administrative roles cannot be self-registered.' });
+    if (PRIVILEGED_ROLES.map(r => r.toLowerCase()).includes(targetRole.toLowerCase())) {
+      return res.status(403).json({ message: 'Privileged staff and administrative roles cannot be self-registered.' });
     }
 
     if (!ALLOWED_SELF_ROLES.map(r => r.toLowerCase()).includes(targetRole.toLowerCase())) {
@@ -187,8 +187,15 @@ export const forgotPassword = async (req, res) => {
   const { email } = req.body;
   try {
     const normalizedEmail = email?.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: 'Email address is required.' });
+    }
+
     const user = await User.findOne({ email: normalizedEmail });
-    if (!user) return res.status(404).json({ message: 'No account found with this email address.' });
+    // Anti-enumeration: return identical generic message if user does not exist
+    if (!user) {
+      return res.json({ message: 'If an account exists with this email address, a password reset code has been sent.' });
+    }
 
     const otp = crypto.randomInt(100000, 999999).toString();
 
@@ -222,9 +229,11 @@ export const forgotPassword = async (req, res) => {
     user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     user.otpVerified = false;
     user.otpAttempts = 0;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
     await user.save();
 
-    res.json({ message: 'OTP sent to your email address.' });
+    res.json({ message: 'If an account exists with this email address, a password reset code has been sent.' });
   } catch (error) {
     console.error('Email send error:', error.message);
     res.status(500).json({ message: error.message });
@@ -252,6 +261,8 @@ export const verifyOTP = async (req, res) => {
     user.otpExpiresAt = null;
     user.otpVerified = false;
     user.otpAttempts = 0;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
     await user.save();
     return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
   }
@@ -261,6 +272,8 @@ export const verifyOTP = async (req, res) => {
     user.otpExpiresAt = null;
     user.otpVerified = false;
     user.otpAttempts = 0;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
     await user.save();
     return res.status(429).json({ message: 'Too many incorrect attempts. This OTP has been invalidated. Please request a new one.' });
   }
@@ -277,6 +290,8 @@ export const verifyOTP = async (req, res) => {
       user.otpExpiresAt = null;
       user.otpVerified = false;
       user.otpAttempts = 0;
+      user.resetPasswordToken = null;
+      user.resetPasswordExpires = null;
       await user.save();
       return res.status(429).json({ message: 'Too many incorrect attempts. This OTP has been invalidated. Please request a new one.' });
     }
@@ -284,27 +299,47 @@ export const verifyOTP = async (req, res) => {
     return res.status(400).json({ message: `Incorrect OTP. ${5 - user.otpAttempts} attempts remaining.` });
   }
 
+  // Issue cryptographically secure single-use reset token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
   user.otpVerified = true;
   user.otpAttempts = 0;
+  user.resetPasswordToken = resetTokenHash;
+  user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
   await user.save();
 
-  res.json({ message: 'OTP verified successfully.' });
+  res.json({ message: 'OTP verified successfully.', resetToken });
 };
 
 // @desc    Reset password after OTP verification
 // @route   POST /api/auth/reset-password
 // @access  Public
 export const resetPassword = async (req, res) => {
-  const { email, newPassword } = req.body;
+  const { email, newPassword, resetToken } = req.body;
   const normalizedEmail = email?.trim().toLowerCase();
 
   const user = await User.findOne({ email: normalizedEmail });
   if (!user) return res.status(404).json({ message: 'User not found.' });
 
-  const isOtpValid = user.otpVerified === true && user.otpExpiresAt && new Date(user.otpExpiresAt).getTime() > Date.now();
+  // If client provided a reset token, cryptographically verify it
+  if (resetToken) {
+    const tokenHash = crypto.createHash('sha256').update(resetToken.trim()).digest('hex');
+    const isTokenMatch = user.resetPasswordToken &&
+      tokenHash.length === user.resetPasswordToken.length &&
+      crypto.timingSafeEqual(Buffer.from(tokenHash), Buffer.from(user.resetPasswordToken));
 
-  if (!isOtpValid) {
-    return res.status(400).json({ message: 'OTP not verified or has expired. Please complete OTP verification first.' });
+    const isTokenExpired = !user.resetPasswordExpires || new Date(user.resetPasswordExpires).getTime() < Date.now();
+
+    if (!isTokenMatch || isTokenExpired) {
+      return res.status(400).json({ message: 'Reset token is invalid or has expired. Please complete OTP verification again.' });
+    }
+  } else {
+    // Legacy fallback for clients checking OTP verified state directly
+    const isOtpValid = user.otpVerified === true && user.otpExpiresAt && new Date(user.otpExpiresAt).getTime() > Date.now();
+    if (!isOtpValid) {
+      return res.status(400).json({ message: 'OTP not verified or has expired. Please complete OTP verification first.' });
+    }
   }
 
   if (!newPassword || newPassword.length < 6) {
@@ -317,6 +352,8 @@ export const resetPassword = async (req, res) => {
     user.otpExpiresAt = null;
     user.otpVerified = false;
     user.otpAttempts = 0;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
     await user.save();
 
     res.json({ message: 'Password reset successful. You may now log in.' });
@@ -392,10 +429,9 @@ export const googleRegister = async (req, res) => {
       return res.status(400).json({ message: 'An account with this email already exists. Please log in instead.' });
     }
 
-    // Map frontend role values to backend enum
+    // Map frontend role values to backend enum (strictly non-privileged roles)
     const roleMap = {
-      user: 'User', gym_owner: 'GymOwner',
-      fitness_instructor: 'FitnessInstructor', gym_trainer: 'GymTrainer'
+      user: 'User', gym_owner: 'GymOwner'
     };
     const backendRole = roleMap[role] || 'User';
 
@@ -420,6 +456,30 @@ export const googleRegister = async (req, res) => {
       const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({ message: field === 'email' ? 'An account with this email already exists. Please log in instead.' : 'Unable to create this account.' });
     }
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get current logged in user session (authoritative profile validation)
+// @route   GET /api/auth/me
+// @access  Private
+export const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      profilePic: user.profilePic,
+      isEmailVerified: user.isEmailVerified,
+      isGoogleApproved: user.isGoogleApproved,
+      isBanned: user.isBanned
+    });
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };

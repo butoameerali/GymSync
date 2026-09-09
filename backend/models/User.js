@@ -32,6 +32,8 @@ const userSchema = new mongoose.Schema({
   otpExpiresAt: { type: Date, default: null },
   otpVerified: { type: Boolean, default: false },
   otpAttempts: { type: Number, default: 0 },
+  resetPasswordToken: { type: String, default: null },
+  resetPasswordExpires: { type: Date, default: null },
   
   // Friend & Follow System
   friends: [{ type: String }],

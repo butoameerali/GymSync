@@ -72,6 +72,30 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
     }
 
+    // Authoritative session verification against backend
+    if (token) {
+      axios.get('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(({ data }) => {
+        const validatedUser = {
+          ...data,
+          token
+        };
+        setUser(validatedUser);
+        localStorage.setItem('userInfo', JSON.stringify(validatedUser));
+        localStorage.setItem('gymsync_role', data.role || 'User');
+        localStorage.setItem('gymsync_user_name', data.name || 'User');
+      }).catch((err) => {
+        if (err.response?.status === 401 || err.response?.status === 404) {
+          localStorage.removeItem('userInfo');
+          localStorage.removeItem('gymsync_token');
+          localStorage.removeItem('gymsync_role');
+          localStorage.removeItem('gymsync_user_name');
+          setUser(null);
+        }
+      });
+    }
+
     setLoading(false);
 
     return () => {

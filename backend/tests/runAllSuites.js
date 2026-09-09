@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const suites = [
+  { name: 'Phase 5 Security & Integrity Audit Suite', file: 'testPhase5SecurityAudit.js' },
   { name: 'Phase 4 Hardening & Security Suite', file: 'testPhase4Hardening.js' },
   { name: 'Exercise Bridge Suite', file: 'testExerciseBridge.js' },
   { name: 'Phase 3 Integration & Security Suite', file: 'testPhase3Suites.js' },

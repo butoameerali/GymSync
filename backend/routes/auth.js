@@ -7,12 +7,14 @@ import {
   verifyOTP,
   resetPassword,
   googleAuth,
-  googleRegister
+  googleRegister,
+  getMe
 } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+router.get('/me', protect, getMe);
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.put('/change-password', protect, changePassword);

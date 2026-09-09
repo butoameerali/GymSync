@@ -23,6 +23,7 @@ const ForgotPasswordModal = ({ onClose }) => {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -39,7 +40,7 @@ const ForgotPasswordModal = ({ onClose }) => {
     setError(''); setLoading(true);
     try {
       const res = await post('/api/auth/forgot-password', { email });
-      toast.success('OTP sent! Please check your email inbox.');
+      toast.success(res.message || 'If this account exists, an OTP has been sent.');
       setStep(STEP.OTP);
     } catch (err) { setError(err.message); } 
     finally { setLoading(false); }
@@ -49,7 +50,10 @@ const ForgotPasswordModal = ({ onClose }) => {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
-      await post('/api/auth/verify-otp', { email, otp });
+      const data = await post('/api/auth/verify-otp', { email, otp });
+      if (data.resetToken) {
+        setResetToken(data.resetToken);
+      }
       setStep(STEP.RESET);
     } catch (err) { setError(err.message); } 
     finally { setLoading(false); }
@@ -61,7 +65,7 @@ const ForgotPasswordModal = ({ onClose }) => {
     if (newPassword.length < 6) { setError('Password must be at least 6 characters.'); return; }
     setError(''); setLoading(true);
     try {
-      await post('/api/auth/reset-password', { email, newPassword });
+      await post('/api/auth/reset-password', { email, newPassword, resetToken });
       setStep(STEP.DONE);
     } catch (err) { setError(err.message); } 
     finally { setLoading(false); }

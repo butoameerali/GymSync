@@ -59,9 +59,12 @@ const PublicProfile = () => {
 
   useEffect(() => {
     // Pull stats from local storage for the specified user
-    const mockPoints = localStorage.getItem(`gymsync_${userKey}_points`) || Math.floor(Math.random() * 50);
-    const mockStreak = localStorage.getItem(`gymsync_${userKey}_streak`) || Math.floor(Math.random() * 5);
-    setStats({ points: parseInt(mockPoints), streak: parseInt(mockStreak) });
+    const storedPoints = localStorage.getItem(`gymsync_${userKey}_points`);
+    const storedStreak = localStorage.getItem(`gymsync_${userKey}_streak`);
+    setStats({ 
+      points: storedPoints !== null ? parseInt(storedPoints, 10) : 0, 
+      streak: storedStreak !== null ? parseInt(storedStreak, 10) : 0 
+    });
 
     const loadBio = () => {
       const stored = localStorage.getItem(`gymsync_${userKey}_bio_data`) || localStorage.getItem(`gymsync_${userKey}_bio`);
@@ -307,8 +310,8 @@ const PublicProfile = () => {
                       </div>
                       
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {post.comments && post.comments.map((c) => (
-                          <div key={c._id || Math.random()} style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 15px', borderRadius: '12px' }}>
+                        {post.comments && post.comments.map((c, cIdx) => (
+                          <div key={c._id || `comment-${cIdx}-${c.date || ''}`} style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 15px', borderRadius: '12px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                               <span style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>{c.author || 'User'}</span>
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{c.date ? new Date(c.date).toLocaleDateString() : ''}</span>
