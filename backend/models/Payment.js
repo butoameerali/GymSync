@@ -22,16 +22,21 @@ const paymentSchema = new mongoose.Schema({
     default: 'Completed' 
   },
   screenshotUrl: { type: String, default: '' },
-  transactionRef: { type: String, default: '' },
+  transactionRef: { type: String, default: undefined },
   methodDetails: { type: String, default: '' },
   startNextMonth: { type: Boolean, default: false },
   membershipType: { type: String, enum: ['Monthly', 'Yearly'], default: 'Monthly' },
   approvedBy: { type: String, default: '' },
-  trackingCode: { type: String },
+  trackingCode: { type: String, default: undefined },
   customerEmail: { type: String, default: '' },
   customerPhone: { type: String, default: '' },
   cardholderName: { type: String, default: '' }
 }, { timestamps: true });
+
+paymentSchema.pre('validate', function() {
+  if (this.transactionRef === '') this.transactionRef = undefined;
+  if (this.trackingCode === '') this.trackingCode = undefined;
+});
 
 paymentSchema.index({ transactionRef: 1 }, { unique: true, sparse: true });
 paymentSchema.index({ trackingCode: 1 }, { unique: true, sparse: true });

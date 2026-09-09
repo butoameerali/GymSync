@@ -206,6 +206,11 @@ export const acceptFriendRequest = async (req, res) => {
 
     if (!sender || !receiver) return res.status(404).json({ message: 'User account not found' });
 
+    // Validate that receiver actually received a request from sender
+    if (!receiver.receivedRequests || !receiver.receivedRequests.includes(senderName)) {
+      return res.status(400).json({ message: 'No pending friend request from this user' });
+    }
+
     // Remove requests
     sender.sentRequests = sender.sentRequests.filter(name => name !== receiverName);
     receiver.receivedRequests = receiver.receivedRequests.filter(name => name !== senderName);
@@ -366,6 +371,11 @@ export const getUserDashboardData = async (req, res) => {
 export const approveGmail = async (req, res) => {
   const { userName, notificationId, email } = req.body;
   try {
+    const caller = req.user;
+    if (!caller || (caller.name !== userName && !['Admin', 'SuperAdmin'].includes(caller.role))) {
+      return res.status(403).json({ message: 'Not authorized to modify email verification settings' });
+    }
+
     const user = await User.findOne({ name: userName });
     if (!user) return res.status(404).json({ message: 'User profile not found' });
 

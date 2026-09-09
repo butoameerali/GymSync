@@ -2,6 +2,7 @@ import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Payment from '../models/Payment.js';
 import { logAuditTrail } from '../middleware/securityMiddleware.js';
+import { isValidObjectId } from '../utils/validation.js';
 
 const MOCK_STORE_ITEMS = [
   { name: "Optimum Nutrition Gold Standard 100% Whey", category: "Proteins", price: 64.99, rating: 4.9, image: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?q=80&w=1470&auto=format&fit=crop", badge: "Best Seller", status: "Approved" },
@@ -163,12 +164,10 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: 'Required order details missing' });
     }
 
-    const payment = await Payment.findOne({
-      $or: [
-        { _id: paymentId },
-        { paymentId }
-      ]
-    });
+    const isObjectId = isValidObjectId(paymentId);
+    const payment = await Payment.findOne(
+      isObjectId ? { $or: [{ _id: paymentId }, { paymentId }] } : { paymentId }
+    );
 
     if (!payment) {
       return res.status(400).json({ message: 'Valid payment record is required before creating an order' });
@@ -201,10 +200,17 @@ export const createOrder = async (req, res) => {
         return res.status(400).json({ message: `Product ${item.name || itemId} not found` });
       }
 
+      if (dbProduct && typeof dbProduct.stock === 'number' && dbProduct.stock < quantity) {
+        return res.status(400).json({
+          message: `Insufficient stock for '${dbProduct.name}'. Available: ${dbProduct.stock}, requested: ${quantity}`
+        });
+      }
+
       const lineTotal = itemPrice * quantity;
       verifiedTotal += lineTotal;
       verifiedItems.push({
-        id: itemId,
+        productId: String(itemId),
+        id: String(itemId),
         name: dbProduct ? dbProduct.name : item.name,
         price: itemPrice,
         image: dbProduct ? dbProduct.image : item.image,
@@ -237,6 +243,14 @@ export const createOrder = async (req, res) => {
       orderStatus: payment.status === 'Completed' ? 'Processing' : 'Pending'
     });
 
+    // Atomically decrement stock for products
+    for (const item of verifiedItems) {
+      await Product.updateOne(
+        { _id: item.id, stock: { $gte: item.quantity } },
+        { $inc: { stock: -item.quantity } }
+      );
+    }
+
     res.status(201).json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -268,6 +282,9 @@ export const getMyOrders = async (req, res) => {
 // @desc    Customer cancellation before dispatch/delivery
 export const cancelMyOrder = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
     const order = await Order.findOne({ _id: req.params.id, userName: req.user.name });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     if (!['Pending', 'Processing'].includes(order.orderStatus)) {
@@ -275,6 +292,17 @@ export const cancelMyOrder = async (req, res) => {
     }
     order.orderStatus = 'Cancelled';
     await order.save();
+
+    // Restock inventory
+    if (Array.isArray(order.items)) {
+      for (const item of order.items) {
+        const pId = item.productId || item.id;
+        if (pId && item.quantity) {
+          await Product.findByIdAndUpdate(pId, { $inc: { stock: item.quantity } });
+        }
+      }
+    }
+
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -283,6 +311,9 @@ export const cancelMyOrder = async (req, res) => {
 
 export const requestOrderRefund = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
     const order = await Order.findOne({ _id: req.params.id, userName: req.user.name });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     if (order.refundStatus === 'Approved') return res.status(400).json({ message: 'This order has already been refunded.' });

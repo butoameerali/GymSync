@@ -10,9 +10,11 @@ const orderSchema = new mongoose.Schema({
   paymentId: { type: String, required: true, index: true },
   items: [{
     productId: String,
+    id: String,
     name: String,
     price: Number,
-    quantity: Number
+    quantity: Number,
+    image: String
   }],
   totalAmount: { type: Number, required: true },
   shippingAddress: { type: String, required: true },

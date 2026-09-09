@@ -146,22 +146,27 @@ export const updateComplaintStatus = async (req, res) => {
 export const addComplaintChat = async (req, res) => {
   try {
     const { id } = req.params;
-    const { senderName, text } = req.body;
+    const { text } = req.body;
     
-    if (!text) return res.status(400).json({ message: 'Text is required' });
+    if (!text || !text.trim()) return res.status(400).json({ message: 'Text is required' });
 
     const complaint = await Complaint.findById(id);
     if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
 
-    let role = 'User';
-    if (req.user && ['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase())) {
-      role = 'Admin';
+    const isReporter = req.user && req.user.name === complaint.reporterName;
+    const isStaff = req.user && ['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase());
+
+    if (!isReporter && !isStaff) {
+      return res.status(403).json({ message: 'Not authorized to post to this complaint ticket' });
     }
 
+    const role = isStaff ? 'Admin' : 'User';
+    const authorName = req.user?.name || (isStaff ? 'Moderator' : 'User');
+
     complaint.chatMessages.push({
-      senderName: senderName || req.user?.name || 'User',
+      senderName: authorName,
       role,
-      text,
+      text: text.trim(),
       timestamp: new Date()
     });
 

@@ -13,7 +13,7 @@ import { protect } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 router.route('/my-tour-requests').get(protect, getUserTourRequests);
-router.route('/my-gym/:userId').get(getMyGym);
+router.route('/my-gym/:userId').get(protect, getMyGym);
 router.route('/my-gym-data/:userName').get(protect, getMyGymData);
 router.put('/plans/:planId/schedule/:scheduleId/complete', protect, completeGymPlanDay);
 router.route('/:id/tour-request').post(protect, createTourRequest);

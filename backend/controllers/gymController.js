@@ -11,6 +11,18 @@ import TourRequest from '../models/TourRequest.js';
 export const getMyGym = async (req, res) => {
   try {
     const { userId } = req.params;
+    const caller = req.user;
+
+    if (!caller) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const isSelf = userId && (String(caller._id) === String(userId) || caller.name === userId);
+    const isAdmin = ['Admin', 'SuperAdmin'].includes(caller.role);
+
+    if (!isSelf && !isAdmin) {
+      return res.status(403).json({ message: 'Not authorized to view gym facility details for this user' });
+    }
 
     // Try to find by owner ObjectId, ownerEmail (if provided), or header fallback name
     let gym = null;
