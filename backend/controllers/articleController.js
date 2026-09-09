@@ -85,7 +85,7 @@ export const getArticles = async (req, res) => {
     const cacheKey = `articles:${category || 'all'}:${tag || 'all'}:${filter.status || 'all'}:${cursor || page || '0'}:${limit}`;
 
     if (shouldCache) {
-      const cached = apiCache.get(cacheKey);
+      const cached = await apiCache.get(cacheKey);
       if (cached) {
         res.setHeader('X-Cache', 'HIT');
         return res.status(200).json(cached);
@@ -108,7 +108,7 @@ export const getArticles = async (req, res) => {
       });
 
       if (shouldCache) {
-        apiCache.set(cacheKey, paginatedResult, 300);
+        await apiCache.set(cacheKey, paginatedResult, 300);
       }
       res.setHeader('X-Cache', 'MISS');
       return res.status(200).json(paginatedResult);
@@ -129,7 +129,7 @@ export const getArticles = async (req, res) => {
     }
 
     if (shouldCache) {
-      apiCache.set(cacheKey, articles, 300);
+      await apiCache.set(cacheKey, articles, 300);
     }
     res.setHeader('X-Cache', 'MISS');
     res.json(articles);

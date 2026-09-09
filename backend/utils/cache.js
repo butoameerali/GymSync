@@ -1,21 +1,27 @@
 /**
- * GymSync Cache Layer with L1 In-Memory and Distributed L2 Extensibility
+ * GymSync Multi-Tier Caching Subsystem
  *
  * Architecture:
- * - L1: Fast in-process MemoryCache (Map + TTL) for sub-millisecond reads.
- * - L2: Optional Distributed Cache interface (Redis / Upstash).
- *
- * Deployment Semantics:
- * - Single-instance Node.js / Container: Process-local L1 cache provides instant
- *   sub-millisecond acceleration with zero network roundtrip.
- * - Multi-instance / Serverless Clusters: When REDIS_URL is configured, mutations
- *   publish invalidation signals or synchronize across instances to prevent stale content.
+ * - L1: In-Memory Map with TTL and bounded capacity (LRU eviction) for ultra-fast <1ms local reads.
+ * - L2: True Distributed Redis (via ioredis) when REDIS_URL is configured.
+ * - Synchronization: Redis Pub/Sub invalidation channel ensures peer instances drop stale L1 entries.
+ * - Fault Tolerance: 350ms timeout protection and automatic fallback to L1 if Redis hangs, errors, or is unreachable.
+ * - Transparency: If REDIS_URL is not set, explicitly reports "local_l1_only" (never claims distributed).
  */
 
-class MemoryCache {
-  constructor(defaultTtlSeconds = 300) {
+import crypto from 'crypto';
+import Redis from 'ioredis';
+
+const DEFAULT_TTL_SECONDS = 300;
+const MAX_L1_ITEMS = 1000;
+const REDIS_TIMEOUT_MS = 350;
+const INVALIDATION_CHANNEL = 'gymsync:cache_invalidation';
+
+export class MemoryCache {
+  constructor(defaultTtlSeconds = DEFAULT_TTL_SECONDS, maxItems = MAX_L1_ITEMS) {
     this.cache = new Map();
     this.defaultTtlMs = defaultTtlSeconds * 1000;
+    this.maxItems = maxItems;
   }
 
   get(key) {
@@ -27,11 +33,21 @@ class MemoryCache {
       return null;
     }
 
+    // Refresh position for LRU semantics
+    this.cache.delete(key);
+    this.cache.set(key, entry);
     return entry.value;
   }
 
   set(key, value, ttlSeconds = null) {
     const ttlMs = ttlSeconds ? ttlSeconds * 1000 : this.defaultTtlMs;
+
+    // Evict oldest if capacity exceeded
+    if (this.cache.size >= this.maxItems && !this.cache.has(key)) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey) this.cache.delete(oldestKey);
+    }
+
     this.cache.set(key, {
       value,
       expiresAt: Date.now() + ttlMs
@@ -42,16 +58,13 @@ class MemoryCache {
     return this.cache.delete(key);
   }
 
-  /**
-   * Invalidate all keys matching a prefix or regex pattern
-   * E.g. invalidatePattern('plans:*') or invalidatePattern('articles:*')
-   */
   invalidatePattern(pattern) {
     const isRegex = pattern instanceof RegExp;
     let count = 0;
+    const prefix = typeof pattern === 'string' ? pattern.replace('*', '') : '';
 
-    for (const key of this.cache.keys()) {
-      const matches = isRegex ? pattern.test(key) : key.startsWith(pattern.replace('*', ''));
+    for (const key of Array.from(this.cache.keys())) {
+      const matches = isRegex ? pattern.test(key) : key.startsWith(prefix);
       if (matches) {
         this.cache.delete(key);
         count++;
@@ -75,41 +88,188 @@ class MemoryCache {
   }
 }
 
-class DistributedCacheService {
-  constructor() {
-    this.l1 = new MemoryCache(300);
-    this.isDistributed = Boolean(process.env.REDIS_URL || process.env.UPSTASH_REDIS_REST_URL);
-    if (this.isDistributed) {
-      console.log('⚡ Distributed Cache: Remote Redis configuration detected.');
+function withTimeout(promise, timeoutMs = REDIS_TIMEOUT_MS) {
+  let timeoutHandle;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error('Redis operation timed out')), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutHandle));
+}
+
+export class DistributedCacheService {
+  constructor(options = {}) {
+    this.instanceId = options.instanceId || crypto.randomUUID();
+    this.l1 = new MemoryCache(options.defaultTtlSeconds || DEFAULT_TTL_SECONDS, options.maxItems || MAX_L1_ITEMS);
+    this.redisUrl = options.redisUrl || process.env.REDIS_URL || null;
+    this.redis = null;
+    this.subscriber = null;
+    this.isDistributed = false;
+    this.isConnected = false;
+
+    if (this.redisUrl) {
+      this.initRedis(options);
+    } else {
+      console.log('ℹ️ Cache Service: REDIS_URL not configured. Operating in Local L1 In-Memory Mode (Distributed Cache Not Configured).');
     }
   }
 
-  get(key) {
-    return this.l1.get(key);
+  initRedis(options = {}) {
+    try {
+      const clientConfig = {
+        maxRetriesPerRequest: 1,
+        connectTimeout: 1500,
+        lazyConnect: true,
+        enableOfflineQueue: false,
+        retryStrategy: (times) => (times > 3 ? null : Math.min(times * 100, 1000)),
+        ...options.redisOptions
+      };
+
+      this.redis = options.mockRedisClient || new Redis(this.redisUrl, clientConfig);
+      this.subscriber = options.mockSubscriberClient || new Redis(this.redisUrl, clientConfig);
+
+      this.redis.on('error', (err) => {
+        if (this.isConnected) {
+          console.warn('[Redis Cache Client Warning]:', err.message);
+        }
+        this.isConnected = false;
+      });
+
+      this.redis.on('connect', () => {
+        this.isConnected = true;
+        this.isDistributed = true;
+        console.log(`✅ Distributed Cache: Connected to Redis cluster/instance [Instance ID: ${this.instanceId.slice(0, 8)}]`);
+      });
+
+      this.subscriber.on('error', () => {});
+      this.subscriber.on('connect', () => {
+        this.subscriber.subscribe(INVALIDATION_CHANNEL, (err) => {
+          if (!err) {
+            this.subscriber.on('message', (channel, message) => {
+              if (channel === INVALIDATION_CHANNEL) {
+                try {
+                  const { pattern, senderId } = JSON.parse(message);
+                  if (senderId !== this.instanceId && pattern) {
+                    this.l1.invalidatePattern(pattern);
+                  }
+                } catch {
+                  // Ignore malformed messages
+                }
+              }
+            });
+          }
+        });
+      });
+
+      // Attempt async connection in background without blocking server boot
+      if (typeof this.redis.connect === 'function') {
+        this.redis.connect().catch(() => {});
+      }
+      if (typeof this.subscriber.connect === 'function') {
+        this.subscriber.connect().catch(() => {});
+      }
+    } catch (err) {
+      console.warn('⚠️ Could not initialize Redis client, falling back to L1:', err.message);
+      this.isDistributed = false;
+      this.isConnected = false;
+    }
   }
 
-  set(key, value, ttlSeconds = 300) {
-    return this.l1.set(key, value, ttlSeconds);
+  getMode() {
+    return this.isConnected ? 'distributed_l2' : 'local_l1_only';
   }
 
-  delete(key) {
-    return this.l1.delete(key);
+  async get(key) {
+    // 1. Check local L1 memory cache (ultra-fast <1ms)
+    const l1Val = this.l1.get(key);
+    if (l1Val !== null) {
+      return l1Val;
+    }
+
+    // 2. Check remote Redis L2 if configured and healthy
+    if (this.isConnected && this.redis) {
+      try {
+        const raw = await withTimeout(this.redis.get(key));
+        if (raw !== null) {
+          const parsed = JSON.parse(raw);
+          // Populate local L1 cache for subsequent fast reads
+          this.l1.set(key, parsed);
+          return parsed;
+        }
+      } catch (err) {
+        // Fallback gracefully without breaking Express controller
+        this.isConnected = false;
+      }
+    }
+
+    return null;
   }
 
-  invalidatePattern(pattern) {
-    return this.l1.invalidatePattern(pattern);
+  async set(key, value, ttlSeconds = DEFAULT_TTL_SECONDS) {
+    // Always populate local L1
+    this.l1.set(key, value, ttlSeconds);
+
+    // Populate remote Redis L2 if connected
+    if (this.isConnected && this.redis) {
+      try {
+        const serialized = JSON.stringify(value);
+        await withTimeout(this.redis.setex(key, ttlSeconds, serialized));
+      } catch (err) {
+        this.isConnected = false;
+      }
+    }
   }
 
-  clear() {
-    return this.l1.clear();
+  async delete(key) {
+    this.l1.delete(key);
+
+    if (this.isConnected && this.redis) {
+      try {
+        await withTimeout(this.redis.del(key));
+        this.redis.publish(INVALIDATION_CHANNEL, JSON.stringify({ pattern: key, senderId: this.instanceId })).catch(() => {});
+      } catch {
+        this.isConnected = false;
+      }
+    }
+  }
+
+  async invalidatePattern(pattern) {
+    const l1Count = this.l1.invalidatePattern(pattern);
+
+    if (this.isConnected && this.redis) {
+      try {
+        const prefix = typeof pattern === 'string' ? pattern.replace('*', '') : '';
+        const matchPattern = `${prefix}*`;
+
+        // Non-blocking SCAN loop to delete keys from Redis
+        let cursor = '0';
+        do {
+          const [nextCursor, keys] = await withTimeout(this.redis.scan(cursor, 'MATCH', matchPattern, 'COUNT', 100));
+          cursor = nextCursor;
+          if (keys && keys.length > 0) {
+            await withTimeout(this.redis.del(...keys));
+          }
+        } while (cursor !== '0');
+
+        // Publish cross-instance invalidation event to notify peer servers
+        await withTimeout(
+          this.redis.publish(
+            INVALIDATION_CHANNEL,
+            JSON.stringify({ pattern: typeof pattern === 'string' ? pattern : pattern.source, senderId: this.instanceId })
+          )
+        );
+      } catch (err) {
+        this.isConnected = false;
+      }
+    }
+
+    return l1Count;
   }
 
   flushAll() {
-    return this.l1.clear();
-  }
-
-  size() {
-    return this.l1.size();
+    this.l1.flushAll();
+    if (this.isConnected && this.redis) {
+      this.redis.flushdb().catch(() => {});
+    }
   }
 }
 

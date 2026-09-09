@@ -11,7 +11,8 @@ import User from '../models/User.js';
 import PreMadePlan from '../models/PreMadePlan.js';
 import Article from '../models/Article.js';
 import Exercise from '../models/Exercise.js';
-import { apiCache } from '../utils/cache.js';
+import MediaItem from '../models/MediaItem.js';
+import { apiCache, DistributedCacheService } from '../utils/cache.js';
 
 const TEST_PORT = 5101;
 const BASE_URL = `http://127.0.0.1:${TEST_PORT}`;
@@ -71,6 +72,28 @@ async function runPerformanceTests() {
       });
     }
     const traineeToken = jwt.sign({ id: traineeUser._id, role: traineeUser.role, name: traineeUser.name }, jwtSecret, { expiresIn: '1d' });
+
+    let trainee2User = await User.findOne({ email: 'trainee_bob_perf@gymsync.io' });
+    if (!trainee2User) {
+      trainee2User = await User.create({
+        name: 'Trainee Bob Perf',
+        email: 'trainee_bob_perf@gymsync.io',
+        password: 'HashedPassword123!',
+        role: 'User'
+      });
+    }
+    const trainee2Token = jwt.sign({ id: trainee2User._id, role: trainee2User.role, name: trainee2User.name }, jwtSecret, { expiresIn: '1d' });
+
+    let adminUser = await User.findOne({ role: 'Admin' });
+    if (!adminUser) {
+      adminUser = await User.create({
+        name: 'Super Admin Perf',
+        email: 'admin_perf@gymsync.io',
+        password: 'HashedPassword123!',
+        role: 'Admin'
+      });
+    }
+    const adminToken = jwt.sign({ id: adminUser._id, role: adminUser.role, name: adminUser.name }, jwtSecret, { expiresIn: '1d' });
 
     // Seed test plans if needed (ensuring at least 6 published workout plans for multi-page cursor pagination)
     const publishedWorkoutCount = await PreMadePlan.countDocuments({ type: 'Workout', status: 'published' });
@@ -384,6 +407,274 @@ async function runPerformanceTests() {
     // Malformed cursor for exercises returns 400
     const badExCursor = await fetch(`${BASE_URL}/api/exercises?paginate=true&limit=3&cursor=not_valid_hex`);
     assert(badExCursor.status === 400, 'Exercise malformed cursor returns HTTP 400');
+
+    // -------------------------------------------------------------
+    // TEST 11: Multi-Tier Cache Architecture & Multi-Instance Consistency
+    // -------------------------------------------------------------
+    console.log('\n--- Step 11: Multi-Tier Cache Architecture & Fallback Semantics ---');
+    const localCacheService = new DistributedCacheService();
+    assert(localCacheService.getMode() === 'local_l1_only', 'When REDIS_URL is absent, cache service explicitly reports local_l1_only mode');
+    
+    // Test L1 set and get
+    await localCacheService.set('test:key:1', { value: 42 }, 60);
+    const cachedVal = await localCacheService.get('test:key:1');
+    assert(cachedVal?.value === 42, 'L1 cache successfully stores and retrieves value');
+
+    // Test LRU / capacity eviction
+    const boundedCache = new DistributedCacheService({ maxItems: 3 });
+    await boundedCache.set('item:1', 1);
+    await boundedCache.set('item:2', 2);
+    await boundedCache.set('item:3', 3);
+    await boundedCache.set('item:4', 4); // should evict item:1
+    const evictedItem = await boundedCache.get('item:1');
+    const keptItem = await boundedCache.get('item:4');
+    assert(evictedItem === null, 'Bounded L1 cache evicts oldest key when capacity threshold is reached');
+    assert(keptItem === 4, 'Bounded L1 cache preserves newest keys');
+
+    // Simulate multi-instance synchronization with mock shared store
+    const sharedStore = new Map();
+    const listeners = [];
+    const createMockRedis = () => ({
+      async get(k) { return sharedStore.get(k) || null; },
+      async setex(k, ttl, v) { sharedStore.set(k, v); return 'OK'; },
+      async del(...keys) { for (const k of keys) sharedStore.delete(k); return keys.length; },
+      async scan(cursor, matchFlag, pattern) {
+        const prefix = pattern.replace('*', '');
+        const matched = [];
+        for (const k of sharedStore.keys()) {
+          if (k.startsWith(prefix)) matched.push(k);
+        }
+        return ['0', matched];
+      },
+      async publish(ch, msg) {
+        for (const l of listeners) l(ch, msg);
+        return 1;
+      },
+      subscribe(ch, cb) { if (cb) cb(null); },
+      on(event, handler) {
+        if (event === 'connect') setTimeout(handler, 10);
+        if (event === 'message') listeners.push(handler);
+      }
+    });
+
+    const instanceA = new DistributedCacheService({ mockRedisClient: createMockRedis(), mockSubscriberClient: createMockRedis(), redisUrl: 'redis://mock' });
+    const instanceB = new DistributedCacheService({ mockRedisClient: createMockRedis(), mockSubscriberClient: createMockRedis(), redisUrl: 'redis://mock' });
+    await new Promise(r => setTimeout(r, 50)); // allow connect event
+
+    // Instance A writes to cache
+    await instanceA.set('shared:exercise:101', { name: 'Deadlift' }, 300);
+    // Instance B reads from cache
+    const readByB = await instanceB.get('shared:exercise:101');
+    assert(readByB?.name === 'Deadlift', 'Instance B successfully reads cache entry written by Instance A');
+
+    // Instance A invalidates pattern
+    await instanceA.invalidatePattern('shared:exercise:*');
+    // Instance B should no longer return stale data
+    const readAfterInvalidateB = await instanceB.get('shared:exercise:101');
+    assert(readAfterInvalidateB === null, 'Instance A invalidation causes Instance B to return cache miss (zero stale data)');
+
+    // -------------------------------------------------------------
+    // TEST 12: Media DELETE Authorization & Strict RBAC Enforcement
+    // -------------------------------------------------------------
+    console.log('\n--- Step 12: Media DELETE Authorization & RBAC Checks ---');
+    
+    // 12.1 Unauthenticated delete attempt returns 401
+    const unauthDeleteRes = await fetch(`${BASE_URL}/api/media/delete`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath: 'exercises/test.mp4' })
+    });
+    assert(unauthDeleteRes.status === 401, 'Unauthenticated DELETE returns HTTP 401');
+
+    // 12.2 Path traversal attempt returns 400
+    const traversalDeleteRes = await fetch(`${BASE_URL}/api/media/delete`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${traineeToken}`
+      },
+      body: JSON.stringify({ filePath: '../../etc/passwd' })
+    });
+    assert(traversalDeleteRes.status === 400, 'Path traversal DELETE attempt returns HTTP 400 Bad Request');
+
+    // 12.3 Foreign external URL returns 400
+    const foreignUrlDeleteRes = await fetch(`${BASE_URL}/api/media/delete`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${traineeToken}`
+      },
+      body: JSON.stringify({ fileUrl: 'https://attacker.evil.com/malicious.jpg' })
+    });
+    assert(foreignUrlDeleteRes.status === 400, 'Foreign external URL deletion rejected with HTTP 400');
+
+    // Seed MediaItems to test ownership and folder restrictions
+    const staffMedia = await MediaItem.create({
+      storagePath: 'exercises/bench_press_instructor_demo.mp4',
+      publicUrl: 'https://supabase.co/storage/v1/object/public/gymsync-media/exercises/bench_press_instructor_demo.mp4',
+      bucket: 'gymsync-media',
+      folder: 'exercises',
+      ownerId: instructorUser._id,
+      uploadedBy: instructorUser.name,
+      mimeType: 'video/mp4',
+      sizeBytes: 1024 * 1024,
+      isPublic: true,
+      entityType: 'exercise'
+    });
+
+    const traineeMedia = await MediaItem.create({
+      storagePath: 'avatars/trainee_bob_photo.png',
+      publicUrl: 'https://supabase.co/storage/v1/object/public/gymsync-media/avatars/trainee_bob_photo.png',
+      bucket: 'gymsync-media',
+      folder: 'avatars',
+      ownerId: trainee2User._id,
+      uploadedBy: trainee2User.name,
+      mimeType: 'image/png',
+      sizeBytes: 256 * 1024,
+      isPublic: true,
+      entityType: 'user'
+    });
+
+    // 12.4 Normal Trainee attempting to delete staff media returns 403 Forbidden
+    const traineeStaffDeleteRes = await fetch(`${BASE_URL}/api/media/delete`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${traineeToken}`
+      },
+      body: JSON.stringify({ filePath: staffMedia.storagePath })
+    });
+    assert(traineeStaffDeleteRes.status === 403, 'Trainee deleting staff exercise media rejected with HTTP 403 Forbidden');
+
+    // 12.5 Trainee A attempting to delete Trainee B's media returns 403 Forbidden
+    const crossUserDeleteRes = await fetch(`${BASE_URL}/api/media/delete`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${traineeToken}` // Trainee Alex
+      },
+      body: JSON.stringify({ filePath: traineeMedia.storagePath }) // Trainee Bob's avatar
+    });
+    assert(crossUserDeleteRes.status === 403, 'Cross-user deletion attempt rejected with HTTP 403 Forbidden');
+
+    // 12.6 Owner (Trainee Bob) deleting own media returns 200 OK
+    const ownerDeleteRes = await fetch(`${BASE_URL}/api/media/delete`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${trainee2Token}` // Trainee Bob
+      },
+      body: JSON.stringify({ filePath: traineeMedia.storagePath })
+    });
+    assert(ownerDeleteRes.status === 200, 'Owner deleting own media succeeds with HTTP 200 OK');
+
+    // 12.7 Instructor deleting managed staff media returns 200 OK
+    const instructorDeleteRes = await fetch(`${BASE_URL}/api/media/delete`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${instructorToken}`
+      },
+      body: JSON.stringify({ filePath: staffMedia.storagePath })
+    });
+    assert(instructorDeleteRes.status === 200, 'Fitness Instructor deleting staff exercise media succeeds with HTTP 200 OK');
+
+    // 12.8 Admin deleting staff media returns 200 OK
+    const adminDeleteSeed = await MediaItem.create({
+      storagePath: 'programs/admin_cleanup_test.mp4',
+      publicUrl: 'https://supabase.co/storage/v1/object/public/gymsync-media/programs/admin_cleanup_test.mp4',
+      bucket: 'gymsync-media',
+      folder: 'programs',
+      ownerId: instructorUser._id,
+      uploadedBy: instructorUser.name,
+      mimeType: 'video/mp4',
+      sizeBytes: 1024 * 1024,
+      isPublic: true,
+      entityType: 'program'
+    });
+    const adminDeleteRes = await fetch(`${BASE_URL}/api/media/delete`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ filePath: adminDeleteSeed.storagePath })
+    });
+    assert(adminDeleteRes.status === 200, 'Admin deleting managed staff media succeeds with HTTP 200 OK');
+
+    // -------------------------------------------------------------
+    // TEST 13: 6MB Multipart Memory Limit (HTTP 413 Payload Too Large)
+    // -------------------------------------------------------------
+    console.log('\n--- Step 13: 6MB Multipart Buffer Hard Cap & HTTP 413 ---');
+    // Construct a multipart payload exceeding 6MB (e.g. 7MB dummy buffer)
+    const boundary = '----GymSyncFormBoundary' + Date.now();
+    const oversizedChunk = Buffer.alloc(7 * 1024 * 1024, 'A');
+    const multipartHeader = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="oversized_video.mp4"\r\nContent-Type: video/mp4\r\n\r\n`
+    );
+    const multipartFooter = Buffer.from(`\r\n--${boundary}--\r\n`);
+    const oversizedBody = Buffer.concat([multipartHeader, oversizedChunk, multipartFooter]);
+
+    const multipart413Res = await fetch(`${BASE_URL}/api/media/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Authorization': `Bearer ${instructorToken}`
+      },
+      body: oversizedBody
+    });
+
+    assert(multipart413Res.status === 413, `Multipart upload exceeding 6MB returns HTTP 413 (got ${multipart413Res.status})`);
+    const multipart413Data = await multipart413Res.json();
+    assert(multipart413Data.code === 'FILE_TOO_LARGE', 'Response includes FILE_TOO_LARGE code');
+
+    // -------------------------------------------------------------
+    // TEST 14: TUS Resumable Upload Ticket Authorization
+    // -------------------------------------------------------------
+    console.log('\n--- Step 14: TUS Resumable Upload Ticket Authorization ---');
+    // 14.1 Unauthenticated returns 401
+    const unauthTicketRes = await fetch(`${BASE_URL}/api/media/resumable-ticket`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: 'video.mp4', folder: 'exercises' })
+    });
+    assert(unauthTicketRes.status === 401, 'Unauthenticated TUS ticket request returns HTTP 401');
+
+    // 14.2 Trainee requesting staff folder returns 403
+    const traineeTicketRes = await fetch(`${BASE_URL}/api/media/resumable-ticket`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${traineeToken}`
+      },
+      body: JSON.stringify({ fileName: 'video.mp4', folder: 'exercises', contentType: 'video/mp4' })
+    });
+    assert(traineeTicketRes.status === 403, 'Trainee requesting TUS ticket for staff folder returns HTTP 403');
+
+    // 14.3 Disallowed file extension returns 400
+    const badExtTicketRes = await fetch(`${BASE_URL}/api/media/resumable-ticket`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${instructorToken}`
+      },
+      body: JSON.stringify({ fileName: 'exploit.sh', folder: 'exercises', contentType: 'video/mp4' })
+    });
+    assert(badExtTicketRes.status === 400, 'Disallowed extension for TUS ticket returns HTTP 400');
+
+    // 14.4 Instructor requesting valid TUS ticket returns 200
+    const instructorTicketRes = await fetch(`${BASE_URL}/api/media/resumable-ticket`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${instructorToken}`
+      },
+      body: JSON.stringify({ fileName: 'deadlift_coaching.mp4', folder: 'exercises', contentType: 'video/mp4', fileSize: 25 * 1024 * 1024 })
+    });
+    assert(instructorTicketRes.status === 200, 'Instructor valid TUS ticket request returns HTTP 200');
+    const ticketData = await instructorTicketRes.json();
+    assert(ticketData.hasOwnProperty('resumableAvailable'), 'Ticket response includes resumableAvailable flag');
+
 
 
     console.log('\n===============================================================');
