@@ -122,8 +122,24 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const userName = user?.name || '';
+  const userRole = user?.role || 'User';
+  const userId = user?._id || user?.id || '';
+  const isAuthenticated = Boolean(user && (user.token || localStorage.getItem('gymsync_token')));
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading, getRoleRedirectPath }}>
+    <AuthContext.Provider value={{
+      user,
+      userName,
+      userRole,
+      userId,
+      isAuthenticated,
+      login,
+      register,
+      logout,
+      loading,
+      getRoleRedirectPath
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -217,7 +217,8 @@ export const forgotPassword = async (req, res) => {
       return res.status(503).json({ message: 'We could not send the reset email. Please check the mail configuration and try again.' });
     }
 
-    user.otpCode = otp;
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    user.otpCode = hashedOtp;
     user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     user.otpVerified = false;
     user.otpAttempts = 0;
@@ -264,10 +265,10 @@ export const verifyOTP = async (req, res) => {
     return res.status(429).json({ message: 'Too many incorrect attempts. This OTP has been invalidated. Please request a new one.' });
   }
 
-  const inputOtp = otp.toString().trim();
-  const actualOtp = user.otpCode.toString().trim();
-  const isMatch = inputOtp.length === actualOtp.length &&
-    crypto.timingSafeEqual(Buffer.from(inputOtp), Buffer.from(actualOtp));
+  const inputHash = crypto.createHash('sha256').update(otp.toString().trim()).digest('hex');
+  const actualHash = user.otpCode.toString().trim();
+  const isMatch = inputHash.length === actualHash.length &&
+    crypto.timingSafeEqual(Buffer.from(inputHash), Buffer.from(actualHash));
 
   if (!isMatch) {
     user.otpAttempts = (user.otpAttempts || 0) + 1;
@@ -315,6 +316,7 @@ export const resetPassword = async (req, res) => {
     user.otpCode = null;
     user.otpExpiresAt = null;
     user.otpVerified = false;
+    user.otpAttempts = 0;
     await user.save();
 
     res.json({ message: 'Password reset successful. You may now log in.' });

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const paymentSchema = new mongoose.Schema({
   paymentId: { type: String, required: true, unique: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   userName: { type: String, required: true },
   gymName: { type: String, default: 'GymSync Platform' },
   paymentType: { 

@@ -7,10 +7,12 @@ import MessageDropdown from '../../features/messages/components/MessageDropdown'
 import { notificationService } from '../../features/notifications/services/notificationService';
 import { messageService } from '../../features/messages/services/messageService';
 import { toast } from 'react-toastify';
+import { useAuth } from '../../context/AuthContext';
 import './Navbar.css';
 
 const Navbar = () => {
   const { theme, toggleTheme } = useTheme();
+  const { user, userName: authName, userRole: authRole, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -22,8 +24,8 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const token = localStorage.getItem('gymsync_token') || '';
-  const userRole = localStorage.getItem('gymsync_role') || '';
+  const token = user?.token || localStorage.getItem('gymsync_token') || '';
+  const userRole = authRole || localStorage.getItem('gymsync_role') || '';
   const normalizedRole = userRole.toLowerCase().replace('_', '');
   const isGuest = userRole === 'guest' || !userRole || !token;
   const isLoggedIn = Boolean(userRole && userRole !== 'guest' && token);
@@ -32,7 +34,7 @@ const Navbar = () => {
   const isFitnessInstructor = normalizedRole === 'fitnessinstructor';
   const isGymTrainer = normalizedRole === 'gymtrainer';
   const isStoreManager = normalizedRole === 'storemanager';
-  const userName = localStorage.getItem('gymsync_user_name') || 'User';
+  const userName = authName || user?.name || localStorage.getItem('gymsync_user_name') || 'User';
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);

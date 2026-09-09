@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import Modal from './Modal';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { useAuth } from '../../context/AuthContext';
 
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
@@ -30,11 +31,9 @@ const PaymentModal = ({
   const [configs, setConfigs] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const storedUser = (() => {
-    try { return JSON.parse(localStorage.getItem('userInfo') || '{}'); } catch (e) { return {}; }
-  })();
-  const effectiveUserName = guestName || (localStorage.getItem('gymsync_user_name') && localStorage.getItem('gymsync_user_name') !== 'Guest User' ? localStorage.getItem('gymsync_user_name') : (guestName || 'Guest User'));
-  const effectiveUserEmail = guestEmail || storedUser?.email || '';
+  const { user, token, userName } = useAuth();
+  const effectiveUserName = guestName || (userName && userName !== 'Guest User' ? userName : (guestName || 'Guest User'));
+  const effectiveUserEmail = guestEmail || user?.email || '';
   const commission15Percent = (Number(amount) || 0) * 0.15;
 
   useEffect(() => {
@@ -95,7 +94,7 @@ const PaymentModal = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(localStorage.getItem('gymsync_token') ? { Authorization: `Bearer ${localStorage.getItem('gymsync_token')}` } : {})
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify(payload)
       });
@@ -247,6 +246,7 @@ const PaymentModal = ({
 };
 
 const StripePaymentForm = ({ amount, defaultEmail, defaultName, onSuccess, setLoading, loading }) => {
+  const { token } = useAuth();
   const stripe = useStripe();
   const elements = useElements();
   const [email, setEmail] = useState(defaultEmail || '');
@@ -279,7 +279,7 @@ const StripePaymentForm = ({ amount, defaultEmail, defaultName, onSuccess, setLo
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(localStorage.getItem('gymsync_token') ? { Authorization: `Bearer ${localStorage.getItem('gymsync_token')}` } : {})
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ 
           amount: Number(amount) || 50,

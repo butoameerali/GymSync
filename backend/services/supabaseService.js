@@ -128,17 +128,17 @@ export const updatePostLikes = async (postId, userName) => {
     }
   }
 
-  // MongoDB Fallback
-  const mongoPost = await Post.findById(postId);
-  if (!mongoPost) return null;
-  const isLiked = mongoPost.likes.includes(userName);
-  if (isLiked) {
-    mongoPost.likes = mongoPost.likes.filter(id => id !== userName);
-  } else {
-    mongoPost.likes.push(userName);
-  }
-  await mongoPost.save();
-  return { likes: mongoPost.likes };
+  // MongoDB Atomic Update
+  if (!isValidObjectId(postId)) return null;
+  const existing = await Post.findById(postId).select('likes').lean();
+  if (!existing) return null;
+  const isLiked = (existing.likes || []).includes(userName);
+  const updateOp = isLiked
+    ? { $pull: { likes: userName } }
+    : { $addToSet: { likes: userName } };
+
+  const updated = await Post.findByIdAndUpdate(postId, updateOp, { new: true, runValidators: false }).select('likes').lean();
+  return { likes: updated ? updated.likes : [] };
 };
 
 export const appendPostComment = async (postId, comment) => {
@@ -164,12 +164,14 @@ export const appendPostComment = async (postId, comment) => {
     }
   }
 
-  // MongoDB Fallback
-  const mongoPost = await Post.findById(postId);
-  if (!mongoPost) return null;
-  mongoPost.comments.push(comment);
-  await mongoPost.save();
-  return mongoPost.comments;
+  // MongoDB Atomic Push
+  if (!isValidObjectId(postId)) return null;
+  const updated = await Post.findByIdAndUpdate(
+    postId,
+    { $push: { comments: comment } },
+    { new: true, runValidators: false }
+  ).select('comments').lean();
+  return updated ? updated.comments : null;
 };
 
 export const removePost = async (postId, userName, isModerator) => {

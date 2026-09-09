@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Send, ArrowLeft, MessageSquare, Search, UserCheck } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { messageService } from '../../features/messages/services/messageService';
 import './MessagesPage.css';
 
@@ -11,6 +12,7 @@ const formatTime = (dateString) => {
 };
 
 const MessagesPage = () => {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const initialContact = searchParams.get('contact') || '';
 
@@ -23,7 +25,7 @@ const MessagesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const messagesEndRef = useRef(null);
-  const currentUserName = localStorage.getItem('gymsync_user_name') || 'User';
+  const currentUserName = user?.name || localStorage.getItem('gymsync_user_name') || 'User';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,8 +54,9 @@ const MessagesPage = () => {
     if (!contact) return;
     setLoadingMsgs(true);
     try {
-      const data = await messageService.getConversationMessages(currentUserName, contact);
-      setMessages(Array.isArray(data) ? data : []);
+      const resData = await messageService.getConversationMessages(currentUserName, contact);
+      const data = Array.isArray(resData) ? resData : (resData?.messages || []);
+      setMessages(data);
       setLoadingMsgs(false);
       setTimeout(scrollToBottom, 100);
 
@@ -85,8 +88,9 @@ const MessagesPage = () => {
       loadConversations();
       if (activeContact && currentUserName) {
         messageService.getConversationMessages(currentUserName, activeContact)
-          .then(data => {
-            if (Array.isArray(data)) {
+          .then(resData => {
+            const data = Array.isArray(resData) ? resData : (resData?.messages || []);
+            if (data.length > 0) {
               setMessages(prev => {
                 const pendingOptimistic = prev.filter(m => String(m._id || '').startsWith('temp-'));
                 const filteredPending = pendingOptimistic.filter(

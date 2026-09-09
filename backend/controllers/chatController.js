@@ -1,4 +1,5 @@
 import Message from '../models/Message.js';
+import Complaint from '../models/Complaint.js';
 import { executeCoachPipeline } from './aiController.js';
 import { isValidObjectId } from '../utils/validation.js';
 
@@ -50,27 +51,58 @@ export const getConversation = async (req, res) => {
   }
 
   try {
-    const messages = await Message.find({
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+    const before = req.query.before;
+
+    const query = {
       $or: [
         { sender: user1, receiver: user2 },
         { sender: user2, receiver: user1 }
       ]
-    }).sort({ createdAt: 1 });
+    };
+
+    if (before) {
+      if (isValidObjectId(before)) {
+        query._id = { $lt: before };
+      } else if (!isNaN(new Date(before).getTime())) {
+        query.createdAt = { $lt: new Date(before) };
+      }
+    }
+
+    // Fetch in descending order to get the most recent messages up to limit
+    const rawMessages = await Message.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit + 1)
+      .lean();
+
+    const hasMore = rawMessages.length > limit;
+    const items = hasMore ? rawMessages.slice(0, limit) : rawMessages;
+
+    // Chronological order (oldest to newest)
+    items.reverse();
 
     // Auto-mark incoming messages to current user as read when opening conversation
     if (currentUserName) {
       const otherUser = currentUserName === user1 ? user2 : user1;
-      await Message.updateMany({
+      Message.updateMany({
         sender: otherUser,
         receiver: currentUserName,
         isRead: false
       }, {
         isRead: true,
         readAt: new Date()
+      }).catch(() => {});
+    }
+
+    if (req.query.paginated === 'true') {
+      return res.json({
+        messages: items,
+        hasMore,
+        nextCursor: hasMore && items.length > 0 ? items[0]._id : null
       });
     }
 
-    res.json(messages);
+    return res.json(items);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -262,18 +294,58 @@ export const sendMessage = async (req, res) => {
         isRead: true
       });
 
-      // 2. Save automated confirmation response
+      // 2. Link or create real Support Ticket in Complaint collection
+      let ticket = await Complaint.findOne({
+        reporterName: sender,
+        reportedEntityType: 'User',
+        status: { $in: ['Pending', 'InReview'] }
+      }).sort({ createdAt: -1 });
+
+      if (!ticket) {
+        const ticketId = `TICKET-${Math.floor(100000 + Math.random() * 900000)}`;
+        ticket = await Complaint.create({
+          complaintId: ticketId,
+          reporterName: sender,
+          reportedEntityType: 'User',
+          reportedEntityId: String(req.user?._id || sender),
+          reportedEntityTitle: `Support Request from ${sender}`,
+          reason: 'General Inquiry / Live Chat Support',
+          description: rawText,
+          status: 'Pending',
+          chatMessages: [
+            {
+              senderName: sender,
+              role: req.user?.role || 'User',
+              text: rawText,
+              timestamp: new Date()
+            }
+          ]
+        });
+      } else {
+        ticket.chatMessages.push({
+          senderName: sender,
+          role: req.user?.role || 'User',
+          text: rawText,
+          timestamp: new Date()
+        });
+        await ticket.save();
+      }
+
+      const replyText = `Thanks for reaching out! Your inquiry has been logged as Support Ticket #${ticket.complaintId}. Our staff has been notified and will respond to you shortly.`;
+
+      // 3. Save automated confirmation response
       const supportReply = await Message.create({
         sender: 'Gym Support',
         receiver: sender,
         receiverId: req.user?._id || null,
-        text: "Thanks for reaching out! GymSync Support has received your message. Our staff will respond to your query shortly.",
+        text: replyText,
         isRead: false
       });
 
       return res.status(201).json({
         ...userMessage.toObject(),
-        supportReply
+        supportReply,
+        ticketId: ticket.complaintId
       });
     }
 

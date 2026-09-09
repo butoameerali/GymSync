@@ -73,7 +73,12 @@ export const createPayment = async (req, res) => {
       cardholderName = ''
     } = req.body;
 
-    const userName = req.user ? req.user.name : (req.body.userName || 'Guest User');
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Authentication required for payment transactions' });
+    }
+
+    const userId = req.user._id;
+    const userName = req.user.name;
     const numericAmount = Number(amount);
     if (!paymentId || !userName || !paymentMethod || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       return res.status(400).json({ message: 'Missing required payment fields' });
@@ -143,6 +148,7 @@ export const createPayment = async (req, res) => {
 
     const payment = await Payment.create({
       paymentId,
+      userId,
       trackingCode,
       userName,
       customerEmail,
@@ -335,20 +341,30 @@ export const trackPaymentByCode = async (req, res) => {
       return res.status(404).json({ message: 'No gym registration or payment found with this tracking code' });
     }
 
+    // Mask customer name for PII protection: "John Doe" -> "J*** D**"
+    const maskName = (name) => {
+      if (!name) return 'Customer';
+      return name
+        .split(' ')
+        .map(part => (part.length <= 1 ? part : `${part[0]}${'*'.repeat(Math.min(part.length - 1, 4))}`))
+        .join(' ');
+    };
+
+    const masked = maskName(payment.userName);
+
     res.json({
       type: 'GymRegistration',
       trackingCode: payment.trackingCode || payment.paymentId,
       paymentId: payment.paymentId,
-      userName: payment.userName,
+      userName: masked,
+      maskedUserName: masked,
       gymName: payment.gymName,
       paymentType: payment.paymentType,
       membershipType: payment.membershipType,
       amount: payment.amount,
-      paymentMethod: payment.paymentMethod,
       status: payment.status,
       joiningDate: payment.joiningDate,
-      createdAt: payment.createdAt,
-      approvedBy: payment.approvedBy
+      createdAt: payment.createdAt
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

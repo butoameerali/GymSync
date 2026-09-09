@@ -2,8 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
-  // A display name is not an account identifier. MongoDB's _id and email
-  // provide identity; multiple people may use the same display name.
+  // Account username must be unique across the platform.
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -68,6 +67,8 @@ const userSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+userSchema.index({ name: 1 }, { unique: true, collation: { locale: 'en', strength: 2 } });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);

@@ -3,6 +3,7 @@ import { MessageSquare, X, Send, Sparkles, Dumbbell, ShieldAlert, CheckCircle, E
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import './AICoachWidget.css';
 
 const QUICK_PROMPTS = [
@@ -32,6 +33,10 @@ const getContextSuggestions = (missingContext) => {
 };
 
 const AICoachWidget = ({ userContext: propUserContext }) => {
+  const { user, token: authToken, userName: authUserName } = useAuth();
+  const currentUserName = authUserName || user?.name || localStorage.getItem('gymsync_user_name') || 'Guest User';
+  const userKey = currentUserName.replace(/\s+/g, '_');
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
@@ -64,7 +69,6 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
     setIsTyping(true);
 
     try {
-      const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
       const storedBio = JSON.parse(localStorage.getItem(`gymsync_${userKey}_bio_data`) || localStorage.getItem('gymsync_bio_data') || '{}');
       const storedPlan = JSON.parse(localStorage.getItem(`gymsync_${userKey}_ai_plan`) || 'null');
       const storedHistory = JSON.parse(localStorage.getItem(`gymsync_${userKey}_history`) || '[]');
@@ -73,10 +77,10 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
       const fullContext = {
         ...storedBio,
         ...(propUserContext || {}),
-        name: localStorage.getItem('gymsync_user_name') || 'User'
+        name: currentUserName
       };
 
-      const token = localStorage.getItem('gymsync_token') || localStorage.getItem('token') || '';
+      const token = authToken || localStorage.getItem('gymsync_token') || localStorage.getItem('token') || '';
 
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -121,7 +125,6 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
 
   const handleApplyWorkout = (workout) => {
     if (!workout) return;
-    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
     
     // Save to active plan slot
     const existingPlan = JSON.parse(localStorage.getItem(`gymsync_${userKey}_ai_plan`) || '{}');
@@ -155,7 +158,6 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
 
   const handleSaveDiet = (diet) => {
     if (!diet) return;
-    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
     localStorage.setItem(`gymsync_${userKey}_diet_plan`, JSON.stringify(diet));
     toast.success('Diet target saved to active profile!');
   };

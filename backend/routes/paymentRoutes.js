@@ -14,8 +14,8 @@ const router = express.Router();
 
 router.get('/config', getPaymentConfigs);
 router.get('/track/:code', trackPaymentByCode);
-router.post('/', optionalProtect, createPayment);
-router.post('/create-intent', optionalProtect, createPaymentIntent);
+router.post('/', protect, createPayment);
+router.post('/create-intent', protect, createPaymentIntent);
 
 router.put('/config/:method', protect, authorizeRoles('SuperAdmin', 'Admin'), updatePaymentConfig);
 router.get('/pending', protect, authorizeRoles('SuperAdmin', 'Admin'), getPendingPayments);
