@@ -45,19 +45,14 @@ const RootRoute = () => {
   return <LandingPage />;
 };
 
-const StoreRoute = () => {
+const ConsumerRoute = ({ children }) => {
   const userRole = localStorage.getItem('gymsync_role') || '';
   const normalized = userRole.toLowerCase().replace(/[_\s]/g, '');
-  if (normalized === 'gymtrainer') {
-    return <Navigate to="/gym-trainer" replace />;
+  const staffRoles = ['fitnessinstructor', 'gymtrainer', 'gymowner', 'storemanager', 'complaintmoderator'];
+  if (staffRoles.includes(normalized)) {
+    return <Navigate to={getRoleRedirectPath(userRole)} replace />;
   }
-  if (normalized === 'gymowner') {
-    return <Navigate to="/gym-owner" replace />;
-  }
-  if (normalized === 'fitnessinstructor') {
-    return <Navigate to="/fitness-instructor" replace />;
-  }
-  return <Store />;
+  return children;
 };
 
 function App() {
@@ -106,21 +101,27 @@ function App() {
               <Route path="/register" element={<AuthPortal />} />
               <Route path="/forgot-password" element={<AuthPortal />} />
               
-              {/* Trainee Workout Routes guarded from Guest access */}
-              <Route path="/ai-trainer" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin', 'GymTrainer', 'FitnessInstructor']}><AITrainer /></ProtectedRoute>} />
+              {/* Trainee Workout Routes guarded from Guest and Staff access */}
+              <Route path="/ai-trainer" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin']}><AITrainer /></ProtectedRoute>} />
               <Route path="/running" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin']}><RunningTracker /></ProtectedRoute>} />
               
-              <Route path="/explore" element={<ExploreGyms />} />
-              <Route path="/gym/:id" element={<GymDetails />} />
+              {/* Public Consumer Gym Discovery & Store: accessible to guests & users, redirected for staff */}
+              <Route path="/explore" element={<ConsumerRoute><ExploreGyms /></ConsumerRoute>} />
+              <Route path="/gym/:id" element={<ConsumerRoute><GymDetails /></ConsumerRoute>} />
+              <Route path="/store" element={<ConsumerRoute><Store /></ConsumerRoute>} />
               
-              {/* Protected Routes with RBAC Guards */}
+              {/* Trainee Hub & Dashboard: guarded to trainee users and admins */}
+              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin']}><UserDashboard /></ProtectedRoute>} />
+              <Route path="/your-gym" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin']}><YourGym /></ProtectedRoute>} />
+              
+              {/* Protected Universal Community Routes (All authenticated roles participate in social feed, profile & chat) */}
               <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-              <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
               <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              <Route path="/your-gym" element={<ProtectedRoute><YourGym /></ProtectedRoute>} />
+              
+              {/* Role-Specific Management Panels */}
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}><AdminDashboard /></ProtectedRoute>} />
               <Route path="/moderator" element={<ProtectedRoute allowedRoles={['ComplaintModerator', 'Admin', 'SuperAdmin']}><ComplaintModeratorDashboard /></ProtectedRoute>} />
               <Route path="/gym-owner" element={<ProtectedRoute allowedRoles={['GymOwner', 'gym_owner']}><GymOwnerDashboard /></ProtectedRoute>} />
@@ -132,7 +133,6 @@ function App() {
               <Route path="/regulations" element={<LegalPage type="regulations" />} />
               
               <Route path="/profile/:userName" element={<PublicProfile />} />
-              <Route path="/store" element={<StoreRoute />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

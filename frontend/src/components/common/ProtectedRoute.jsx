@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, getRoleRedirectPath } from '../../context/AuthContext';
 
 const normalizeRole = (role = '') => role.toLowerCase().replace(/[_\s]/g, '');
 
@@ -25,8 +25,8 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     const isAllowed = normalizedAllowed.includes(normalizedUserRole) || (normalizedUserRole === 'superadmin' && normalizedAllowed.includes('admin'));
 
     if (!isAllowed) {
-      // Instantly redirect unauthorized roles away from restricted panels
-      return <Navigate to="/dashboard" replace />;
+      // Instantly redirect unauthorized roles away from restricted panels to their own home portal
+      return <Navigate to={getRoleRedirectPath(userRole)} replace />;
     }
   }
 
