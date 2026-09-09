@@ -246,7 +246,7 @@ export const createExercise = async (req, res) => {
 
     const exercise = await insertExercise(exercisePayload);
     // Auto-sync into in-memory AI exercise registry
-    exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message));
+    exerciseRegistry.syncDatabaseExercises({ force: true }).catch(e => console.warn('AI registry sync warning:', e.message));
     apiCache.invalidatePattern('exercises:*');
     res.status(201).json(exercise);
   } catch (error) {
@@ -383,7 +383,7 @@ export const updateExercise = async (req, res) => {
     if (!updated) return res.status(404).json({ error: 'Exercise not found' });
 
     // Auto-sync into in-memory AI exercise registry
-    exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message));
+    exerciseRegistry.syncDatabaseExercises({ force: true }).catch(e => console.warn('AI registry sync warning:', e.message));
     apiCache.invalidatePattern('exercises:*');
 
     res.status(200).json(updated);
@@ -404,7 +404,7 @@ export const archiveExercise = async (req, res) => {
     exercise.updatedBy = req.user?.name || req.user?.email || 'System';
     await exercise.save();
 
-    exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message));
+    exerciseRegistry.syncDatabaseExercises({ force: true }).catch(e => console.warn('AI registry sync warning:', e.message));
     apiCache.invalidatePattern('exercises:*');
 
     res.status(200).json({
@@ -423,7 +423,7 @@ export const deleteExercise = async (req, res) => {
     const deleted = await Exercise.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ error: 'Exercise not found' });
 
-    exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message));
+    exerciseRegistry.syncDatabaseExercises({ force: true }).catch(e => console.warn('AI registry sync warning:', e.message));
     apiCache.invalidatePattern('exercises:*');
 
     res.status(200).json({ message: 'Exercise deleted successfully', id: req.params.id });

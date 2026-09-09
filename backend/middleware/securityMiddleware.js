@@ -20,17 +20,24 @@ export const rateLimiter = (options = { windowMs: 15 * 60 * 1000, max: 100, scop
       const now = new Date();
       const resetAt = new Date(now.getTime() + options.windowMs);
 
-      // Atomic findOneAndUpdate with $inc and upsert
-      const doc = await RateLimit.findOneAndUpdate(
-        { key, resetAt: { $gt: now } },
-        { $inc: { count: 1 }, $setOnInsert: { key, resetAt } },
-        { upsert: true, returnDocument: 'after' }
-      );
-
-      if (doc && doc.count > options.max) {
-        return res.status(429).json({
-          message: 'Too many requests from this IP, please try again later.'
-        });
+      const existing = await RateLimit.findOne({ key });
+      if (!existing || existing.resetAt <= now) {
+        await RateLimit.findOneAndUpdate(
+          { key },
+          { $set: { count: 1, resetAt } },
+          { upsert: true, returnDocument: 'after' }
+        );
+      } else {
+        const updated = await RateLimit.findOneAndUpdate(
+          { key },
+          { $inc: { count: 1 } },
+          { returnDocument: 'after' }
+        );
+        if (updated && updated.count > options.max) {
+          return res.status(429).json({
+            message: 'Too many requests from this IP, please try again later.'
+          });
+        }
       }
       next();
     } catch (err) {

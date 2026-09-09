@@ -83,11 +83,17 @@ const MessagesPage = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       loadConversations();
-      if (activeContact) {
+      if (activeContact && currentUserName) {
         messageService.getConversationMessages(currentUserName, activeContact)
           .then(data => {
             if (Array.isArray(data)) {
-              setMessages(data);
+              setMessages(prev => {
+                const pendingOptimistic = prev.filter(m => String(m._id || '').startsWith('temp-'));
+                const filteredPending = pendingOptimistic.filter(
+                  p => !data.some(d => d.text === p.text && d.sender === p.sender)
+                );
+                return [...data, ...filteredPending];
+              });
             }
           })
           .catch(() => {});
@@ -104,13 +110,50 @@ const MessagesPage = () => {
     const textToSend = inputText.trim();
     setInputText('');
 
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticMsg = {
+      _id: optimisticId,
+      sender: currentUserName,
+      receiver: activeContact,
+      text: textToSend,
+      createdAt: new Date().toISOString(),
+      isRead: true
+    };
+
+    setMessages(prev => [...prev, optimisticMsg]);
+    setTimeout(scrollToBottom, 50);
+
     try {
       const sent = await messageService.sendMessage(activeContact, textToSend);
-      setMessages(prev => [...prev, sent]);
-      setTimeout(scrollToBottom, 100);
+      const incoming = [];
+      const userMsg = {
+        _id: sent._id || optimisticId,
+        sender: sent.sender || currentUserName,
+        receiver: sent.receiver || activeContact,
+        text: sent.text || textToSend,
+        createdAt: sent.createdAt || new Date().toISOString(),
+        isRead: sent.isRead ?? true
+      };
+      incoming.push(userMsg);
+
+      if (sent.aiReply) {
+        incoming.push(sent.aiReply);
+      } else if (sent.supportReply) {
+        incoming.push(sent.supportReply);
+      }
+
+      setMessages(prev => {
+        const withoutOptimistic = prev.filter(m => m._id !== optimisticId);
+        const existingIds = new Set(withoutOptimistic.map(m => String(m._id)));
+        const toAdd = incoming.filter(m => !existingIds.has(String(m._id)));
+        return [...withoutOptimistic, ...toAdd];
+      });
+
+      setTimeout(scrollToBottom, 50);
       loadConversations();
     } catch (err) {
       console.error('Failed to send message:', err);
+      setMessages(prev => prev.filter(m => m._id !== optimisticId));
     }
   };
 

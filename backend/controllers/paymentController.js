@@ -73,7 +73,7 @@ export const createPayment = async (req, res) => {
       cardholderName = ''
     } = req.body;
 
-    const userName = req.user?.name || req.body.userName || 'Guest User';
+    const userName = req.user ? req.user.name : (req.body.userName || 'Guest User');
     const numericAmount = Number(amount);
     if (!paymentId || !userName || !paymentMethod || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       return res.status(400).json({ message: 'Missing required payment fields' });
@@ -89,7 +89,7 @@ export const createPayment = async (req, res) => {
     if (paymentMethod === 'Stripe') {
       const stripeSecret = process.env.STRIPE_SECRET_KEY;
       const intentId = transactionRef || paymentId;
-      const isTestBypass = process.env.ALLOW_TEST_PAYMENT_BYPASS === 'true';
+      const isTestBypass = process.env.NODE_ENV !== 'production' && process.env.ALLOW_TEST_PAYMENT_BYPASS === 'true';
 
       // Issue 5: Replay check
       if (intentId) {

@@ -32,6 +32,7 @@ const userSchema = new mongoose.Schema({
   otpCode: { type: String, default: null },
   otpExpiresAt: { type: Date, default: null },
   otpVerified: { type: Boolean, default: false },
+  otpAttempts: { type: Number, default: 0 },
   
   // Friend & Follow System
   friends: [{ type: String }],

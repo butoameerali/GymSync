@@ -26,7 +26,7 @@ export const postService = {
   },
 
   async likePost(postId) {
-    return await apiJson(`/api/posts/${postId}/like`, { method: 'POST' });
+    return await apiJson(`/api/posts/${postId}/like`, { method: 'PUT' });
   },
 
   async addComment(postId, text) {

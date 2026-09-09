@@ -404,6 +404,7 @@ export const workoutDecisionEngine = {
       externalActivity: detectedEvent,
       warmup,
       mainWorkout: finalExercises,
+      exercises: finalExercises,
       cooldown,
       rationale,
       medicalSafetyReview: {

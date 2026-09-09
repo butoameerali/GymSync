@@ -166,13 +166,26 @@ const ForgotPasswordModal = ({ onClose }) => {
 // ──────────────────────────────────────────────
 // Main Auth Portal
 // ──────────────────────────────────────────────
+const getPasswordStrength = (pass = '') => {
+  if (!pass) return { score: 0, label: '', color: '' };
+  let score = 0;
+  if (pass.length >= 6) score++;
+  if (pass.length >= 8) score++;
+  if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++;
+  if (/[0-9]/.test(pass) || /[^A-Za-z0-9]/.test(pass)) score++;
+
+  if (score <= 1) return { score: 1, label: 'Weak', color: '#ef4444' };
+  if (score <= 3) return { score: 2, label: 'Fair', color: '#f59e0b' };
+  return { score: 3, label: 'Strong', color: '#10b981' };
+};
+
 const AuthPortal = () => {
   const { theme, toggleTheme } = useTheme();
   const initialPath = typeof window !== 'undefined' ? window.location.pathname : '/';
   const [isLogin, setIsLogin] = useState(initialPath !== '/register');
   const [showForgot, setShowForgot] = useState(initialPath === '/forgot-password');
   const [showPass, setShowPass] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'user' });
   const [googleData, setGoogleData] = useState(null);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -211,7 +224,20 @@ const AuthPortal = () => {
 
   const handleAuth = async (e) => {
     e.preventDefault();
-    setError(''); setIsSubmitting(true);
+    setError('');
+
+    if (!isLogin && !googleData) {
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters long.');
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
     const endpoint = googleData ? '/api/auth/google/register' : (isLogin ? '/api/auth/login' : '/api/auth/register');
     try {
       let backendRole = 'User';
@@ -220,7 +246,7 @@ const AuthPortal = () => {
         ? { email: googleData.email, displayName: formData.name, role: formData.role, picture: googleData.picture }
         : isLogin
         ? { email: formData.email, password: formData.password }
-        : { ...formData, role: backendRole };
+        : { name: formData.name, email: formData.email, password: formData.password, role: backendRole };
       if (payload.name) payload.name = payload.name.trim();
 
       const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -369,7 +395,40 @@ const AuthPortal = () => {
                     {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {!isLogin && formData.password && (() => {
+                  const strength = getPasswordStrength(formData.password);
+                  return (
+                    <div style={{ marginTop: '6px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${(strength.score / 3) * 100}%`,
+                          height: '100%',
+                          background: strength.color,
+                          transition: 'width 0.3s ease'
+                        }} />
+                      </div>
+                      <span style={{ color: strength.color, fontWeight: 600 }}>{strength.label}</span>
+                    </div>
+                  );
+                })()}
               </div>}
+
+              {!isLogin && !googleData && (
+                <div className="form-group">
+                  <label>Confirm Password</label>
+                  <div className="input-wrapper">
+                    <Lock size={18} className="input-icon" />
+                    <input
+                      type={showPass ? 'text' : 'password'}
+                      name="confirmPassword" required placeholder="Re-enter password"
+                      value={formData.confirmPassword} onChange={handleChange}
+                    />
+                  </div>
+                  {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                    <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: '4px 0 0 0' }}>Passwords do not match</p>
+                  )}
+                </div>
+              )}
 
               {!isLogin && (
                 <div className="form-group">

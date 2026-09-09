@@ -886,13 +886,19 @@ function initRegistry() {
   });
 }
 
+let lastSyncTime = 0;
+const DEFAULT_SYNC_TTL_MS = 30000;
+
 /**
  * Synchronize custom exercises from MongoDB into the in-memory AI registry
  */
-export async function syncDatabaseExercises() {
+export async function syncDatabaseExercises({ force = false, ttlMs = DEFAULT_SYNC_TTL_MS } = {}) {
   try {
     initRegistry();
     if (!Exercise) return registry.length;
+    if (!force && lastSyncTime && (Date.now() - lastSyncTime < ttlMs)) {
+      return registry.length;
+    }
     const dbItems = await Exercise.find({ status: 'active' }).lean().catch(() => []);
     if (!dbItems) return registry.length;
 
@@ -1037,6 +1043,7 @@ export async function syncDatabaseExercises() {
     if (added > 0 || updated > 0) {
       console.log(`[ExerciseRegistry] Ingested ${added} new and updated ${updated} custom exercises from database into AI registry.`);
     }
+    lastSyncTime = Date.now();
     return registry.length;
   } catch (err) {
     console.warn('[ExerciseRegistry] DB sync skipped:', err.message);
@@ -1069,6 +1076,7 @@ export function estimateExerciseCalories(exerciseIdOrName, durationMinutes = 30,
 
 // Initial boot
 initRegistry();
+syncDatabaseExercises().catch(() => {});
 
 export const exerciseRegistry = {
   getAll() {

@@ -58,10 +58,16 @@ export const registerUser = async (req, res) => {
     }
     await checkDBConnection();
     const normalizedEmail = email.trim().toLowerCase();
-    const userExists = await User.findOne({ email: normalizedEmail });
+    const trimmedName = name.trim();
 
+    const userExists = await User.findOne({ email: normalizedEmail });
     if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const nameExists = await User.findOne({ name: { $regex: new RegExp(`^${trimmedName}$`, 'i') } });
+    if (nameExists) {
+      return res.status(400).json({ message: 'Username is already taken. Please choose a different name.' });
     }
 
     const ALLOWED_SELF_ROLES = ['User', 'GymOwner', 'GymTrainer', 'FitnessInstructor', 'StoreManager'];
@@ -214,6 +220,7 @@ export const forgotPassword = async (req, res) => {
     user.otpCode = otp;
     user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     user.otpVerified = false;
+    user.otpAttempts = 0;
     await user.save();
 
     res.json({ message: 'OTP sent to your email address.' });
@@ -243,15 +250,41 @@ export const verifyOTP = async (req, res) => {
     user.otpCode = null;
     user.otpExpiresAt = null;
     user.otpVerified = false;
+    user.otpAttempts = 0;
     await user.save();
     return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
   }
 
-  if (user.otpCode !== otp.toString().trim()) {
-    return res.status(400).json({ message: 'Incorrect OTP. Please try again.' });
+  if (user.otpAttempts >= 5) {
+    user.otpCode = null;
+    user.otpExpiresAt = null;
+    user.otpVerified = false;
+    user.otpAttempts = 0;
+    await user.save();
+    return res.status(429).json({ message: 'Too many incorrect attempts. This OTP has been invalidated. Please request a new one.' });
+  }
+
+  const inputOtp = otp.toString().trim();
+  const actualOtp = user.otpCode.toString().trim();
+  const isMatch = inputOtp.length === actualOtp.length &&
+    crypto.timingSafeEqual(Buffer.from(inputOtp), Buffer.from(actualOtp));
+
+  if (!isMatch) {
+    user.otpAttempts = (user.otpAttempts || 0) + 1;
+    if (user.otpAttempts >= 5) {
+      user.otpCode = null;
+      user.otpExpiresAt = null;
+      user.otpVerified = false;
+      user.otpAttempts = 0;
+      await user.save();
+      return res.status(429).json({ message: 'Too many incorrect attempts. This OTP has been invalidated. Please request a new one.' });
+    }
+    await user.save();
+    return res.status(400).json({ message: `Incorrect OTP. ${5 - user.otpAttempts} attempts remaining.` });
   }
 
   user.otpVerified = true;
+  user.otpAttempts = 0;
   await user.save();
 
   res.json({ message: 'OTP verified successfully.' });

@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import Post from '../models/Post.js';
 import Exercise from '../models/Exercise.js';
 import User from '../models/User.js';
-import { safeRegex, safeExactRegex } from '../utils/validation.js';
+import { safeRegex, safeExactRegex, isValidObjectId } from '../utils/validation.js';
 
 /**
  * Supabase Data Service
@@ -207,6 +207,205 @@ export const removePost = async (postId, userName, isModerator) => {
   }
   await mongoPost.deleteOne();
   return true;
+};
+
+export const addPostReply = async (postId, commentId, reply) => {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data: post, error: fetchErr } = await supabase
+        .from('posts')
+        .select('comments')
+        .or(`id.eq.${postId},mongo_id.eq.${postId}`)
+        .single();
+
+      if (!fetchErr && post && Array.isArray(post.comments)) {
+        const comments = [...post.comments];
+        const comment = comments.find(c => String(c._id || c.id) === String(commentId));
+        if (comment) {
+          if (!Array.isArray(comment.replies)) comment.replies = [];
+          const replyObj = {
+            _id: reply._id || String(Date.now() + Math.random().toString(36).substring(2, 7)),
+            id: reply.id || reply._id || String(Date.now() + Math.random().toString(36).substring(2, 7)),
+            ...reply,
+            date: reply.date || new Date().toISOString()
+          };
+          comment.replies.push(replyObj);
+
+          const { error: updateErr } = await supabase
+            .from('posts')
+            .update({ comments, updated_at: new Date().toISOString() })
+            .or(`id.eq.${postId},mongo_id.eq.${postId}`);
+
+          if (!updateErr) return comments;
+        }
+      }
+    } catch (err) {
+      console.warn(`[Supabase addPostReply Error]: ${err.message}. Falling back to MongoDB.`);
+    }
+  }
+
+  // MongoDB Fallback
+  if (!isValidObjectId(postId)) return null;
+  const mongoPost = await Post.findById(postId);
+  if (!mongoPost) return null;
+  const comment = mongoPost.comments.id(commentId) || mongoPost.comments.find(c => String(c._id) === String(commentId));
+  if (!comment) return null;
+  comment.replies.push(reply);
+  await mongoPost.save();
+  return mongoPost.comments;
+};
+
+export const editPostReply = async (postId, commentId, replyId, newText, userName, isModerator) => {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data: post, error: fetchErr } = await supabase
+        .from('posts')
+        .select('comments')
+        .or(`id.eq.${postId},mongo_id.eq.${postId}`)
+        .single();
+
+      if (!fetchErr && post && Array.isArray(post.comments)) {
+        const comments = [...post.comments];
+        const comment = comments.find(c => String(c._id || c.id) === String(commentId));
+        if (comment && Array.isArray(comment.replies)) {
+          const reply = comment.replies.find(r => String(r._id || r.id) === String(replyId));
+          if (!reply) return null;
+          if (reply.author !== userName && reply.authorName !== userName && !isModerator) {
+            throw new Error('Unauthorized');
+          }
+          reply.text = newText;
+          const { error: updateErr } = await supabase
+            .from('posts')
+            .update({ comments, updated_at: new Date().toISOString() })
+            .or(`id.eq.${postId},mongo_id.eq.${postId}`);
+
+          if (!updateErr) return comments;
+        }
+      }
+    } catch (err) {
+      if (err.message === 'Unauthorized') throw err;
+      console.warn(`[Supabase editPostReply Error]: ${err.message}. Falling back to MongoDB.`);
+    }
+  }
+
+  // MongoDB Fallback
+  if (!isValidObjectId(postId)) return null;
+  const mongoPost = await Post.findById(postId);
+  if (!mongoPost) return null;
+  const comment = mongoPost.comments.id(commentId) || mongoPost.comments.find(c => String(c._id) === String(commentId));
+  if (!comment) return null;
+  const reply = comment.replies.id(replyId) || comment.replies.find(r => String(r._id) === String(replyId));
+  if (!reply) return null;
+  if (reply.author !== userName && reply.authorName !== userName && !isModerator) {
+    throw new Error('Unauthorized');
+  }
+  reply.text = newText;
+  await mongoPost.save();
+  return mongoPost.comments;
+};
+
+export const deletePostReply = async (postId, commentId, replyId, userName, isModerator) => {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data: post, error: fetchErr } = await supabase
+        .from('posts')
+        .select('comments')
+        .or(`id.eq.${postId},mongo_id.eq.${postId}`)
+        .single();
+
+      if (!fetchErr && post && Array.isArray(post.comments)) {
+        const comments = [...post.comments];
+        const comment = comments.find(c => String(c._id || c.id) === String(commentId));
+        if (comment && Array.isArray(comment.replies)) {
+          const reply = comment.replies.find(r => String(r._id || r.id) === String(replyId));
+          if (!reply) return null;
+          if (reply.author !== userName && reply.authorName !== userName && !isModerator) {
+            throw new Error('Unauthorized');
+          }
+          comment.replies = comment.replies.filter(r => String(r._id || r.id) !== String(replyId));
+          const { error: updateErr } = await supabase
+            .from('posts')
+            .update({ comments, updated_at: new Date().toISOString() })
+            .or(`id.eq.${postId},mongo_id.eq.${postId}`);
+
+          if (!updateErr) return comments;
+        }
+      }
+    } catch (err) {
+      if (err.message === 'Unauthorized') throw err;
+      console.warn(`[Supabase deletePostReply Error]: ${err.message}. Falling back to MongoDB.`);
+    }
+  }
+
+  // MongoDB Fallback
+  if (!isValidObjectId(postId)) return null;
+  const mongoPost = await Post.findById(postId);
+  if (!mongoPost) return null;
+  const comment = mongoPost.comments.id(commentId) || mongoPost.comments.find(c => String(c._id) === String(commentId));
+  if (!comment) return null;
+  const reply = comment.replies.id(replyId) || comment.replies.find(r => String(r._id) === String(replyId));
+  if (!reply) return null;
+  if (reply.author !== userName && reply.authorName !== userName && !isModerator) {
+    throw new Error('Unauthorized');
+  }
+  if (typeof comment.replies.pull === 'function') {
+    comment.replies.pull(replyId);
+  } else {
+    comment.replies = comment.replies.filter(r => String(r._id) !== String(replyId));
+  }
+  await mongoPost.save();
+  return mongoPost.comments;
+};
+
+export const reportPostService = async (postId, reporterName, reason, explanation) => {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data: post, error: fetchErr } = await supabase
+        .from('posts')
+        .select('reported_by, report_count')
+        .or(`id.eq.${postId},mongo_id.eq.${postId}`)
+        .single();
+
+      if (!fetchErr && post) {
+        const reportedBy = Array.isArray(post.reported_by) ? [...post.reported_by] : [];
+        const alreadyReported = reportedBy.some(r => r.userName === reporterName);
+        let count = post.report_count || 0;
+        if (!alreadyReported) {
+          reportedBy.push({
+            userName: reporterName,
+            reason: reason || 'Inappropriate',
+            explanation: explanation || '',
+            date: new Date().toISOString()
+          });
+          count += 1;
+          await supabase
+            .from('posts')
+            .update({ reported_by: reportedBy, report_count: count })
+            .or(`id.eq.${postId},mongo_id.eq.${postId}`);
+        }
+        return { message: 'Post reported to moderators', reportCount: count };
+      }
+    } catch (err) {
+      console.warn(`[Supabase reportPostService Error]: ${err.message}. Falling back to MongoDB.`);
+    }
+  }
+
+  // MongoDB Fallback
+  if (!isValidObjectId(postId)) return null;
+  const mongoPost = await Post.findById(postId);
+  if (!mongoPost) return null;
+  if (!mongoPost.reportedBy) mongoPost.reportedBy = [];
+  const alreadyReported = mongoPost.reportedBy.some(r => r.userName === reporterName);
+  if (!alreadyReported) {
+    mongoPost.reportedBy.push({
+      userName: reporterName,
+      reason: reason || 'Inappropriate',
+      explanation: explanation || ''
+    });
+    mongoPost.reportCount = (mongoPost.reportCount || 0) + 1;
+    await mongoPost.save();
+  }
+  return { message: 'Post reported to moderators', reportCount: mongoPost.reportCount };
 };
 
 // ==============================================================================

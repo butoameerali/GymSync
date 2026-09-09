@@ -264,6 +264,7 @@
   margin: 0;
   font-size: 0.92rem;
   word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .bubble-meta {

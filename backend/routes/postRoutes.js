@@ -23,18 +23,31 @@ router.route('/:id')
   .delete(protect, deletePost);
 
 router.route('/:id/like')
-  .put(protect, toggleLike);
+  .put(protect, toggleLike)
+  .post(protect, toggleLike);
 
 router.route('/:id/report')
   .post(protect, reportPost);
 
 router.route('/:id/comment')
   .post(protect, addComment);
+router.route('/:id/comments')
+  .post(protect, addComment);
 
 router.route('/:id/comment/:commentId/reply')
   .post(protect, addReply);
+router.route('/:id/comments/:commentId/reply')
+  .post(protect, addReply);
+router.route('/:id/comments/:commentId/replies')
+  .post(protect, addReply);
 
 router.route('/:id/comment/:commentId/reply/:replyId')
+  .put(protect, editReply)
+  .delete(protect, deleteReply);
+router.route('/:id/comments/:commentId/reply/:replyId')
+  .put(protect, editReply)
+  .delete(protect, deleteReply);
+router.route('/:id/comments/:commentId/replies/:replyId')
   .put(protect, editReply)
   .delete(protect, deleteReply);
 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles, Eye, Video, FileText, Info, Clock, Moon, AlertTriangle, Utensils, BookOpen, Layers } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle, Activity, Bot, ShieldAlert, Star, Search, Dumbbell, Lock, Play, Sparkles, Eye, Video, FileText, Info, Clock, Moon, AlertTriangle, Utensils, BookOpen, Layers, Bookmark, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import PaymentModal from '../../components/common/PaymentModal';
 import { useNavigate } from 'react-router-dom';
 import AIDetectorContainer from '../../ai-detectors/AIDetectorContainer';
+import aiPlanService from '../../services/aiPlanService';
 import './AITrainer.css';
 
 // Code-split catalogue & library tabs for optimal initial bundle size and zero static exercise bloat
@@ -84,6 +85,7 @@ const AITrainer = () => {
     setIsSubscribedState(true);
 
     fetchActiveProgram();
+    loadSavedPlans();
 
     const checkBioState = () => {
       const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
@@ -172,6 +174,86 @@ const AITrainer = () => {
   const [aiPlan, setAiPlan] = useState(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
+
+  // Saved AI Plans state
+  const [savedPlans, setSavedPlans] = useState([]);
+  const [showSavedPlansModal, setShowSavedPlansModal] = useState(false);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [isLoadingSavedPlans, setIsLoadingSavedPlans] = useState(false);
+
+  const loadSavedPlans = async () => {
+    if (isGuest) return;
+    setIsLoadingSavedPlans(true);
+    try {
+      const plans = await aiPlanService.getSavedPlans();
+      if (Array.isArray(plans)) {
+        setSavedPlans(plans);
+      }
+    } catch (err) {
+      console.warn('Failed to load saved plans:', err.message);
+    } finally {
+      setIsLoadingSavedPlans(false);
+    }
+  };
+
+  const handleSaveCurrentPlan = async () => {
+    if (isGuest) {
+      toast.info('Please create an account or log in to save custom AI workout plans.');
+      return;
+    }
+    if (!aiPlan) {
+      toast.error('No AI plan generated to save yet.');
+      return;
+    }
+    setIsSavingPlan(true);
+    try {
+      const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+      const bioData = JSON.parse(localStorage.getItem(`gymsync_${userKey}_bio_data`) || '{}');
+      const planTitle = `${aiPlan.primary_goal || bioData.mainGoalArea || 'Custom'} AI Plan (${new Date().toLocaleDateString()})`;
+
+      const saved = await aiPlanService.savePlan({
+        title: planTitle,
+        goal: aiPlan.primary_goal || bioData.mainGoalArea || 'General Fitness',
+        fitnessLevel: aiPlan.experience_level || bioData.fitnessLevel || 'Beginner',
+        workout: aiPlan,
+        calendar: aiPlan.interactive_calendar || [],
+        notes: `Target: ${aiPlan.target_muscles?.join(', ') || 'Full Body'}`
+      });
+
+      toast.success(`Plan "${saved.title || planTitle}" saved to your cloud profile!`);
+      loadSavedPlans();
+    } catch (err) {
+      toast.error(`Failed to save plan: ${err.message}`);
+    } finally {
+      setIsSavingPlan(false);
+    }
+  };
+
+  const handleActivateSavedPlan = (savedPlan) => {
+    if (!savedPlan || !savedPlan.workout) return;
+    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+    const activated = {
+      ...savedPlan.workout,
+      interactive_calendar: savedPlan.calendar && savedPlan.calendar.length > 0 ? savedPlan.calendar : (savedPlan.workout.interactive_calendar || []),
+      planId: savedPlan._id,
+      planStartDate: savedPlan.createdAt || new Date().toISOString()
+    };
+    setAiPlan(activated);
+    localStorage.setItem(`gymsync_${userKey}_ai_plan`, JSON.stringify(activated));
+    setShowSavedPlansModal(false);
+    toast.success(`Loaded saved plan: ${savedPlan.title}`);
+  };
+
+  const handleDeleteSavedPlan = async (planId, e) => {
+    if (e) e.stopPropagation();
+    try {
+      await aiPlanService.deletePlan(planId);
+      setSavedPlans(prev => prev.filter(p => p._id !== planId));
+      toast.success('Saved plan removed.');
+    } catch (err) {
+      toast.error(`Failed to delete plan: ${err.message}`);
+    }
+  };
 
   // Normalize Plan Metadata (planId & planStartDate)
   useEffect(() => {
@@ -1188,9 +1270,30 @@ const AITrainer = () => {
                       <p style={{color: 'var(--text-secondary)'}}>Sequential progressive overload & schedule-aware workout state machine</p>
                     </div>
                   </div>
-                  <span className="category-badge" style={{background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '6px 12px', borderRadius: '20px', fontSize: '0.85rem'}}>
-                    Plan Active: {aiPlan?.planDuration || 'Custom'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span className="category-badge" style={{background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '6px 12px', borderRadius: '20px', fontSize: '0.85rem'}}>
+                      Plan Active: {aiPlan?.planDuration || 'Custom'}
+                    </span>
+                    {!isGuest && aiPlan && (
+                      <button
+                        className="btn btn-sm btn-outline"
+                        onClick={handleSaveCurrentPlan}
+                        disabled={isSavingPlan}
+                        style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                      >
+                        <Bookmark size={14} /> {isSavingPlan ? 'Saving...' : 'Save Plan'}
+                      </button>
+                    )}
+                    {!isGuest && (
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => { setShowSavedPlansModal(true); loadSavedPlans(); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                      >
+                        <Layers size={14} /> My Saved Plans ({savedPlans.length})
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {isGeneratingPlan ? (
@@ -1642,6 +1745,119 @@ const AITrainer = () => {
                 ) : null}
               </>
             )}
+          </div>
+        )}
+        {/* SAVED AI PLANS MODAL */}
+        {showSavedPlansModal && (
+          <div
+            className="modal-backdrop"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.75)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '20px'
+            }}
+            onClick={() => setShowSavedPlansModal(false)}
+          >
+            <div
+              className="glass-panel"
+              style={{
+                maxWidth: '650px',
+                width: '100%',
+                maxHeight: '85vh',
+                overflowY: 'auto',
+                background: 'var(--panel-bg, #0f172a)',
+                borderRadius: '16px',
+                border: '1px solid var(--card-border, rgba(255, 255, 255, 0.1))',
+                padding: '24px'
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Layers size={24} color="#3b82f6" />
+                  <h3 style={{ margin: 0, fontSize: '1.3rem' }}>My Saved AI Workout Plans</h3>
+                </div>
+                <button
+                  className="btn btn-sm btn-outline"
+                  onClick={() => setShowSavedPlansModal(false)}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {isLoadingSavedPlans ? (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '3px solid #3b82f6', borderTopColor: 'transparent', animation: 'spin 1s linear infinite', margin: '0 auto 12px auto' }}></div>
+                  <p style={{ color: 'var(--text-secondary)' }}>Loading your saved plans...</p>
+                </div>
+              ) : savedPlans.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <Bookmark size={40} color="var(--text-secondary)" style={{ margin: '0 auto 12px auto', opacity: 0.5 }} />
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>No saved plans found in your cloud account.</p>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted, #94a3b8)' }}>
+                    Generate an AI workout and click "Save Plan" to store your favorite routines.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {savedPlans.map(plan => {
+                    const daysCount = plan.calendar?.length || plan.workout?.interactive_calendar?.length || 0;
+                    return (
+                      <div
+                        key={plan._id}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          border: '1px solid var(--card-border, rgba(255, 255, 255, 0.08))',
+                          borderRadius: '12px',
+                          padding: '16px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '12px'
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                          <h4 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                            {plan.title}
+                          </h4>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            <span className="category-badge" style={{ padding: '2px 8px', fontSize: '0.75rem' }}>
+                              {plan.goal || 'Fitness'}
+                            </span>
+                            <span>• Level: {plan.fitnessLevel || 'All'}</span>
+                            {daysCount > 0 && <span>• {daysCount} Days Schedule</span>}
+                            <span>• Saved: {new Date(plan.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleActivateSavedPlan(plan)}
+                          >
+                            Load Plan
+                          </button>
+                          <button
+                            className="btn btn-sm btn-outline"
+                            onClick={(e) => handleDeleteSavedPlan(plan._id, e)}
+                            style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                            title="Delete this saved plan"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

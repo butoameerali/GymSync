@@ -1,5 +1,6 @@
 import Message from '../models/Message.js';
 import { executeCoachPipeline } from './aiController.js';
+import { isValidObjectId } from '../utils/validation.js';
 
 const normalizeContact = (c) => {
   if (!c) return '';
@@ -200,6 +201,7 @@ export const sendMessage = async (req, res) => {
       // 1. Save user's message in Message collection
       const userMessage = await Message.create({
         sender,
+        senderId: req.user?._id || null,
         receiver: 'AI Trainer',
         text: rawText,
         isRead: true
@@ -237,6 +239,7 @@ export const sendMessage = async (req, res) => {
       const aiMessage = await Message.create({
         sender: 'AI Trainer',
         receiver: sender,
+        receiverId: req.user?._id || null,
         text: aiResult.content,
         isRead: false
       });
@@ -253,6 +256,7 @@ export const sendMessage = async (req, res) => {
       // 1. Save user inquiry
       const userMessage = await Message.create({
         sender,
+        senderId: req.user?._id || null,
         receiver: 'Gym Support',
         text: rawText,
         isRead: true
@@ -262,6 +266,7 @@ export const sendMessage = async (req, res) => {
       const supportReply = await Message.create({
         sender: 'Gym Support',
         receiver: sender,
+        receiverId: req.user?._id || null,
         text: "Thanks for reaching out! GymSync Support has received your message. Our staff will respond to your query shortly.",
         isRead: false
       });
@@ -275,6 +280,7 @@ export const sendMessage = async (req, res) => {
     // Standard peer-to-peer message
     const message = await Message.create({
       sender,
+      senderId: req.user?._id || null,
       receiver: normalizedReceiver,
       text: rawText,
       isRead: false

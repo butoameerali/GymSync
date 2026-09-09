@@ -1,0 +1,13 @@
+{
+  "name": "gymsync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GymSync - Full Stack Fitness & Gym Management Platform",
+  "scripts": {
+    "test": "cd backend && npm test",
+    "test:bridge": "cd backend && node tests/testExerciseBridge.js",
+    "test:phase3": "cd backend && node tests/testPhase3Suites.js",
+    "build": "cd frontend && npm run build",
+    "lint:frontend": "cd frontend && npm run lint"
+  }
+}

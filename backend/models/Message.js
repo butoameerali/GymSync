@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 const messageSchema = new mongoose.Schema({
   sender: { type: String, required: true, index: true },
   receiver: { type: String, required: true, index: true },
+  senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+  receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
   text: { type: String, required: true },
   isRead: { type: Boolean, default: false, index: true },
   readAt: { type: Date, default: null }

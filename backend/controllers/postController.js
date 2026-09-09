@@ -4,7 +4,17 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { fetchAllPosts, insertPost, updatePostLikes, appendPostComment, removePost } from '../services/supabaseService.js';
+import {
+  fetchAllPosts,
+  insertPost,
+  updatePostLikes,
+  appendPostComment,
+  addPostReply,
+  editPostReply,
+  deletePostReply,
+  reportPostService,
+  removePost
+} from '../services/supabaseService.js';
 import { uploadToSupabaseStorage } from '../config/supabase.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -168,18 +178,14 @@ export const addReply = async (req, res) => {
   const { text } = req.body;
   try {
     if (!text?.trim()) return res.status(400).json({ message: 'Reply text is required' });
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-
-    const comment = post.comments.id(req.params.commentId);
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
-
     const authorName = req.user.name || 'User';
     const authorPic = req.user.profilePic || '';
-    comment.replies.push({ text: text.trim(), author: authorName, authorName, authorPic, date: new Date() });
-    await post.save();
+    const newReply = { text: text.trim(), author: authorName, authorName, authorPic, date: new Date() };
 
-    res.json(post.comments);
+    const comments = await addPostReply(req.params.id, req.params.commentId, newReply);
+    if (!comments) return res.status(404).json({ message: 'Post or comment not found' });
+
+    res.json(comments);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -190,25 +196,15 @@ export const addReply = async (req, res) => {
 // @access  Private
 export const deleteReply = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-
-    const comment = post.comments.id(req.params.commentId);
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
-
-    const reply = comment.replies.id(req.params.replyId);
-    if (!reply) return res.status(404).json({ message: 'Reply not found' });
-
     const isModerator = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user.role);
-    if (reply.author !== req.user.name && !isModerator) {
+    const comments = await deletePostReply(req.params.id, req.params.commentId, req.params.replyId, req.user.name, isModerator);
+    if (!comments) return res.status(404).json({ message: 'Post, comment, or reply not found' });
+
+    res.json(comments);
+  } catch (err) {
+    if (err.message === 'Unauthorized') {
       return res.status(403).json({ message: 'You can only delete your own replies.' });
     }
-
-    comment.replies.pull(req.params.replyId);
-    await post.save();
-
-    res.json(post.comments);
-  } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
@@ -220,25 +216,15 @@ export const editReply = async (req, res) => {
   const { text } = req.body;
   try {
     if (!text?.trim()) return res.status(400).json({ message: 'Reply text is required' });
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-
-    const comment = post.comments.id(req.params.commentId);
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
-
-    const reply = comment.replies.id(req.params.replyId);
-    if (!reply) return res.status(404).json({ message: 'Reply not found' });
-
     const isModerator = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user.role);
-    if (reply.author !== req.user.name && !isModerator) {
+    const comments = await editPostReply(req.params.id, req.params.commentId, req.params.replyId, text.trim(), req.user.name, isModerator);
+    if (!comments) return res.status(404).json({ message: 'Post, comment, or reply not found' });
+
+    res.json(comments);
+  } catch (err) {
+    if (err.message === 'Unauthorized') {
       return res.status(403).json({ message: 'You can only edit your own replies.' });
     }
-
-    reply.text = text.trim();
-    await post.save();
-
-    res.json(post.comments);
-  } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
@@ -250,24 +236,10 @@ export const reportPost = async (req, res) => {
   try {
     const { reason, explanation } = req.body;
     const reporterName = req.user.name;
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    const result = await reportPostService(req.params.id, reporterName, reason, explanation);
+    if (!result) return res.status(404).json({ message: 'Post not found' });
 
-    if (!post.reportedBy) post.reportedBy = [];
-    
-    // Check if already reported by this user
-    const alreadyReported = post.reportedBy.some(r => r.userName === reporterName);
-    if (!alreadyReported) {
-      post.reportedBy.push({
-        userName: reporterName,
-        reason: reason || 'Inappropriate',
-        explanation: explanation || ''
-      });
-      post.reportCount = (post.reportCount || 0) + 1;
-      await post.save();
-    }
-
-    res.json({ message: 'Post reported to moderators', reportCount: post.reportCount });
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

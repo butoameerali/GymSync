@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema({
   userId: { type: String, required: true, index: true },
+  recipientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+  senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
   type: { type: String, enum: ['like', 'comment', 'reply', 'system', 'friend_request', 'gmail_verification', 'follow'], required: true },
   title: { type: String, default: '' },
   message: { type: String, required: true },

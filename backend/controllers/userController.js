@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Gym from '../models/Gym.js';
 import Notification from '../models/Notification.js';
@@ -15,6 +16,7 @@ import {
   fetchWorkoutProgress 
 } from '../services/supabaseService.js';
 import { uploadToSupabaseStorage } from '../config/supabase.js';
+import { isValidObjectId } from '../utils/validation.js';
 
 // @desc    Get all users (for friend search and member directory)
 // @route   GET /api/users
@@ -64,7 +66,17 @@ export const getGymMembers = async (req, res) => {
 // @access  Public
 export const getUserByName = async (req, res) => {
   try {
-    const user = await User.findOne({ name: req.params.name }).select('-password');
+    const queryParam = req.params.name;
+    let user = null;
+
+    if (mongoose.Types.ObjectId.isValid(queryParam)) {
+      user = await User.findById(queryParam).select('-password');
+    }
+
+    if (!user) {
+      user = await User.findOne({ name: queryParam }).select('-password');
+    }
+
     if (user) {
       res.json(user);
     } else {
@@ -160,9 +172,14 @@ export const deleteCurrentUser = async (req, res) => {
   }
 };
 
-// Helper to find user by name cleanly without creating ghost accounts
-const findUserByName = async (name) => {
-  return await User.findOne({ name });
+// Helper to find user by name or ObjectId cleanly without creating ghost accounts
+const findUserByName = async (nameOrId) => {
+  if (!nameOrId) return null;
+  if (isValidObjectId(nameOrId)) {
+    const userById = await User.findById(nameOrId);
+    if (userById) return userById;
+  }
+  return await User.findOne({ name: nameOrId });
 };
 
 // @desc    Send Friend Request

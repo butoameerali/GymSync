@@ -64,7 +64,8 @@ export const executeCoachPipeline = async ({
       fitnessContentService.findRelevantPrograms({ query: rawMessage, goal: primaryGoal, equipment, limit: 2 }),
       fitnessContentService.findRelevantDietTemplates({ query: rawMessage, goal: primaryGoal, limit: 2 }),
       fitnessContentService.findRelevantArticles({ query: rawMessage, limit: 2 }),
-      fitnessContentService.findRelevantExercises({ query: rawMessage, limit: 4 })
+      fitnessContentService.findRelevantExercises({ query: rawMessage, limit: 4 }),
+      exerciseRegistry.syncDatabaseExercises().catch(e => console.warn('AI registry sync warning:', e.message))
     ]);
     relevantPrograms = progs;
     relevantDiets = diets;
