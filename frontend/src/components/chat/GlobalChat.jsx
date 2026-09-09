@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MessageCircle, X, Send, Lock, Award } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, Building2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-toastify';
-import PaymentModal from '../common/PaymentModal';
+import UserAvatar from '../common/UserAvatar';
 import './GlobalChat.css';
 
-const CONTACTS = [
-  { id: 'ai', name: 'AI Trainer', role: 'Personal Coach', avatar: '🤖', isPremium: true },
-  { id: 'gym', name: 'Gym Support', role: 'Platform Support', avatar: '🏢', isPremium: false }
+const SYSTEM_CONTACTS = [
+  { id: 'ai', name: 'AI Trainer', role: 'Personal Coach', avatar: '🤖', isSystem: true, isPremium: true },
+  { id: 'gym', name: 'Gym Support', role: 'Platform Support', avatar: '🏢', isSystem: true, isPremium: false }
 ];
 
 const SYSTEM_IDENTIFIERS = new Set([
@@ -17,7 +17,8 @@ const SYSTEM_IDENTIFIERS = new Set([
   'ai trainer',
   'gym support',
   'iron core support',
-  'support team'
+  'support team',
+  'support'
 ]);
 
 const isSystemContact = (name) => {
@@ -31,31 +32,13 @@ const GlobalChat = () => {
   const [activeContact, setActiveContact] = useState(null);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState({});
-  const [dynamicFriends, setDynamicFriends] = useState([]);
-  const [gymTrainerContacts, setGymTrainerContacts] = useState([]);
-  const [spamContacts, setSpamContacts] = useState([]);
-  const [showSpam, setShowSpam] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(true);
+  const [memberContacts, setMemberContacts] = useState([]);
   const messagesEndRef = useRef(null);
 
   // Derived values — computed every render, before any early return, no hooks involved
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest';
-
-  // FIX: All useEffect hooks must come BEFORE any conditional return.
-  // Previously a `return null` at line 29 sat between useState calls (above)
-  // and useEffect calls (below), violating React's Rules of Hooks.
-  // This caused "Rendered fewer hooks than expected" on route transitions,
-  // which the ErrorBoundary caught and displayed as "Oops! Something went wrong".
-
-  useEffect(() => {
-    localStorage.setItem('gymsync_subscribed', 'true');
-    setIsSubscribed(true);
-  }, [userRole]);
-
-  const proPrice = localStorage.getItem('gymsync_pro_plan_price') || '9.99';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -65,13 +48,10 @@ const GlobalChat = () => {
     scrollToBottom();
   }, [messages, activeContact]);
 
-  // FIX: handleContactClick and fetchConversation are defined here — BEFORE the
-  // useEffect that references handleContactClick — so the closure captures the
-  // real function rather than undefined.
   const fetchConversation = async (contactId) => {
     try {
       const token = localStorage.getItem('gymsync_token') || '';
-      const res = await fetch(`/api/chat/${userName}/${contactId}`, {
+      const res = await fetch(`/api/chat/${encodeURIComponent(userName)}/${encodeURIComponent(contactId)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) return;
@@ -89,16 +69,18 @@ const GlobalChat = () => {
         ...prev,
         [contactId]: formattedMessages
       }));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error("fetchConversation error:", err);
+    }
   };
 
   const handleContactClick = (contact) => {
     let effectiveContact = contact;
     const lower = (contact.name || contact.id || '').toLowerCase().trim();
     if (lower === 'ai' || lower === 'ai trainer') {
-      effectiveContact = CONTACTS[0];
-    } else if (lower === 'gym' || lower === 'gym support' || lower === 'iron core support') {
-      effectiveContact = CONTACTS[1];
+      effectiveContact = SYSTEM_CONTACTS[0];
+    } else if (lower === 'gym' || lower === 'gym support' || lower === 'iron core support' || lower === 'support team' || lower === 'support') {
+      effectiveContact = SYSTEM_CONTACTS[1];
     }
     setActiveContact(effectiveContact);
     if (!messages[effectiveContact.id]) {
@@ -107,121 +89,178 @@ const GlobalChat = () => {
     fetchConversation(effectiveContact.id);
   };
 
-  // Data-fetching effect: runs only when login state or userName changes.
-  // Must NOT include dynamicFriends/spamContacts in deps — those are set
-  // inside this effect, which would create an infinite request loop.
+  // Unified contacts loader: deduplicates members, friends, trainers, and conversations
   useEffect(() => {
-    if (!isGuest) {
-      const token = localStorage.getItem('gymsync_token') || '';
-      const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
+    if (isGuest || !userName || userName === 'Guest') return;
 
-      fetch(`/api/users/${encodeURIComponent(userName)}`, { headers: authHeader })
-        .then(res => res.ok ? res.json() : null)
-        .then(async (user) => {
-          if (user && user.friends) {
-            const friendsWithPics = await Promise.all(user.friends.map(async (friendName) => {
-              const friendRes = await fetch(`/api/users/${encodeURIComponent(friendName)}`, { headers: authHeader });
-              const friendData = friendRes.ok ? await friendRes.json() : {};
-              return {
-                id: friendName,
-                name: friendName,
-                role: 'Friend',
-                avatar: friendData.profilePic || friendName.charAt(0).toUpperCase(),
-                isPremium: false,
-                isImage: !!friendData.profilePic
-              };
-            }));
-            setDynamicFriends(friendsWithPics);
+    let isMounted = true;
+    const token = localStorage.getItem('gymsync_token') || '';
+    const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-            // Trainers of the member's subscribed gym are trusted contacts,
-            // not message requests. They are available even before either
-            // person has sent the first message.
-            let trustedTrainerNames = [];
-            if (user.subscribedGymName) {
-              const usersRes = await fetch('/api/users', { headers: authHeader });
-              const allUsersRaw = usersRes.ok ? await usersRes.json() : [];
-              const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : [];
-              const trainers = allUsers
-                .filter(person => person && person.role === 'GymTrainer' && person.assignedGymName === user.subscribedGymName)
-                .map(person => ({
-                  id: person.name,
-                  name: person.name,
-                  role: `Gym Trainer · ${user.subscribedGymName}`,
-                  avatar: person.profilePic || person.name.charAt(0).toUpperCase(),
-                  isPremium: false,
-                  isImage: Boolean(person.profilePic),
-                  isTrainer: true
-                }));
-              trustedTrainerNames = trainers.map(trainer => trainer.id);
-              setGymTrainerContacts(trainers);
-            } else {
-              setGymTrainerContacts([]);
+    const loadContacts = async () => {
+      try {
+        const myLower = userName.toLowerCase().trim();
+
+        // 1. Fetch user's profile for friends & subscribedGymName
+        const userRes = await fetch(`/api/users/${encodeURIComponent(userName)}`, { headers: authHeader });
+        const user = userRes.ok ? await userRes.json() : null;
+
+        // 2. Fetch existing conversations
+        const convRes = await fetch(`/api/chat/conversations/${encodeURIComponent(userName)}`, { headers: authHeader });
+        const convRaw = convRes.ok ? await convRes.json() : [];
+        const convList = Array.isArray(convRaw) ? convRaw : [];
+
+        // 3. Fetch trainers if member is subscribed to a gym
+        let trainers = [];
+        if (user?.subscribedGymName) {
+          try {
+            const allUsersRes = await fetch('/api/users', { headers: authHeader });
+            const allUsers = allUsersRes.ok ? await allUsersRes.json() : [];
+            if (Array.isArray(allUsers)) {
+              trainers = allUsers.filter(p => p && p.role === 'GymTrainer' && p.assignedGymName === user.subscribedGymName);
             }
-
-            // Fetch all conversations to determine spam with Bearer token
-            const convRes = await fetch(`/api/chat/conversations/${encodeURIComponent(userName)}`, {
-              headers: authHeader
-            });
-            const convRaw = convRes.ok ? await convRes.json() : [];
-            const convContacts = Array.isArray(convRaw) ? convRaw : [];
-            // Backend returns conversation objects {id, name, lastMessage, ...} — extract the name string
-            const convContactNames = convContacts.map(c => (c && typeof c === 'object' ? (c.name || c.id) : c)).filter(Boolean);
-
-            // Filter out friends, trusted trainers, self, and system accounts
-            const userFriends = Array.isArray(user?.friends) ? user.friends : [];
-            const spamNames = convContactNames.filter(c => {
-              if (!c) return false;
-              const lower = String(c).toLowerCase().trim();
-              if (isSystemContact(lower) || lower === userName.toLowerCase().trim()) return false;
-              if (userFriends.some(f => String(f).toLowerCase().trim() === lower)) return false;
-              if (trustedTrainerNames.some(t => String(t).toLowerCase().trim() === lower)) return false;
-              return true;
-            });
-            const spamWithPics = await Promise.all(spamNames.map(async (spamName) => {
-              const spamRes = await fetch(`/api/users/${encodeURIComponent(spamName)}`, { headers: authHeader });
-              const spamData = spamRes.ok ? await spamRes.json() : {};
-              return {
-                id: spamName,
-                name: spamName,
-                role: 'Message Request',
-                avatar: spamData.profilePic || spamName.charAt(0).toUpperCase(),
-                isPremium: false,
-                isImage: Boolean(spamData.profilePic),
-                isSpam: true
-              };
-            }));
-            setSpamContacts(spamWithPics);
+          } catch (e) {
+            console.error("Failed to fetch gym trainers", e);
           }
-        })
-        .catch(err => console.error("GlobalChat fetch error:", err));
-    }
+        }
+
+        // Deduplication map: key is normalized lowercase trimmed username
+        const contactMap = new Map();
+
+        const isExcluded = (name) => {
+          if (!name) return true;
+          const l = String(name).toLowerCase().trim();
+          return l === myLower || isSystemContact(l);
+        };
+
+        // Add trainers first
+        for (const t of trainers) {
+          if (!t || isExcluded(t.name)) continue;
+          const key = t.name.toLowerCase().trim();
+          contactMap.set(key, {
+            id: t.name,
+            name: t.name,
+            role: `Gym Trainer · ${user.subscribedGymName}`,
+            avatar: t.profilePic || '',
+            unreadCount: 0,
+            lastMessage: '',
+            isTrainer: true
+          });
+        }
+
+        // Add friends
+        const friends = Array.isArray(user?.friends) ? user.friends : [];
+        for (const f of friends) {
+          if (!f || isExcluded(f)) continue;
+          const key = String(f).toLowerCase().trim();
+          if (!contactMap.has(key)) {
+            contactMap.set(key, {
+              id: f,
+              name: f,
+              role: 'Friend',
+              avatar: '',
+              unreadCount: 0,
+              lastMessage: '',
+              isFriend: true
+            });
+          } else {
+            contactMap.get(key).isFriend = true;
+          }
+        }
+
+        // Add backend conversation history
+        for (const c of convList) {
+          const contactName = c && typeof c === 'object' ? (c.name || c.id) : c;
+          if (!contactName || isExcluded(contactName)) continue;
+          const key = String(contactName).toLowerCase().trim();
+          const existing = contactMap.get(key);
+          if (existing) {
+            existing.unreadCount = c.unreadCount || existing.unreadCount || 0;
+            existing.lastMessage = c.lastMessage || existing.lastMessage || '';
+          } else {
+            contactMap.set(key, {
+              id: contactName,
+              name: contactName,
+              role: 'Member',
+              avatar: '',
+              unreadCount: c.unreadCount || 0,
+              lastMessage: c.lastMessage || ''
+            });
+          }
+        }
+
+        // Hydrate avatars for contacts lacking one
+        const contactsArray = Array.from(contactMap.values());
+        const hydrated = await Promise.all(
+          contactsArray.map(async (c) => {
+            if (c.avatar) return c;
+            try {
+              const res = await fetch(`/api/users/${encodeURIComponent(c.name)}`, { headers: authHeader });
+              if (res.ok) {
+                const uData = await res.json();
+                return { ...c, avatar: uData.profilePic || '' };
+              }
+            } catch (err) {
+              // Ignore single profile lookup error
+            }
+            return c;
+          })
+        );
+
+        if (isMounted) {
+          setMemberContacts(hydrated);
+        }
+      } catch (err) {
+        console.error("GlobalChat loadContacts error:", err);
+      }
+    };
+
+    loadContacts();
+
+    return () => {
+      isMounted = false;
+    };
   }, [isGuest, userName]);
 
-  // Separate effect for open_chat event listener so it can always see the
-  // latest dynamicFriends / spamContacts without re-triggering the data fetch.
+  // Listener for open_chat events triggered across the app
   useEffect(() => {
     const handleOpenChat = (e) => {
       setIsOpen(true);
-      const contactName = e.detail.userName;
-      const existingContact = dynamicFriends.find(c => c.id === contactName) || spamContacts.find(c => c.id === contactName) || CONTACTS.find(c => c.id === contactName);
-      if (existingContact) {
-        handleContactClick(existingContact);
-      } else {
-        // Create temporary contact for new chats
+      const targetName = e.detail?.userName;
+      if (!targetName) return;
+
+      const lower = targetName.toLowerCase().trim();
+      if (lower === 'ai' || lower === 'ai trainer') {
+        handleContactClick(SYSTEM_CONTACTS[0]);
+        return;
+      }
+      if (lower === 'gym' || lower === 'gym support' || lower === 'iron core support' || lower === 'support team' || lower === 'support') {
+        handleContactClick(SYSTEM_CONTACTS[1]);
+        return;
+      }
+
+      setMemberContacts(prev => {
+        const existing = prev.find(c => c.name.toLowerCase().trim() === lower);
+        if (existing) {
+          handleContactClick(existing);
+          return prev;
+        }
         const newContact = {
-          id: contactName,
-          name: contactName,
-          role: 'User',
-          avatar: contactName.charAt(0).toUpperCase(),
-          isPremium: false,
-          isImage: false
+          id: targetName,
+          name: targetName,
+          role: 'Member',
+          avatar: e.detail?.avatar || '',
+          unreadCount: 0,
+          lastMessage: ''
         };
         handleContactClick(newContact);
-      }
+        return [newContact, ...prev];
+      });
     };
+
     window.addEventListener('open_chat', handleOpenChat);
     return () => window.removeEventListener('open_chat', handleOpenChat);
-  }, [dynamicFriends, spamContacts]);
+  }, []);
 
   // FIX: Both route-guard early returns are now AFTER all hooks.
   // This ensures React always calls the same number of hooks on every render.
@@ -250,20 +289,7 @@ const GlobalChat = () => {
 
     setInput('');
 
-    if (activeContact.role === 'Friend' || activeContact.isTrainer || activeContact.role?.includes('Gym Trainer') || activeContact.role?.includes('Spam')) {
-      try {
-        const token = localStorage.getItem('gymsync_token') || '';
-        await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ sender: userName, receiver: activeContact.id, text: messageText })
-        });
-      } catch (err) { console.error(err); }
-    }
-    else if (activeContact.id === 'ai') {
+    if (activeContact.id === 'ai') {
       const userContext = {
         primaryGoal: localStorage.getItem('gymsync_onboarding_primaryGoal') || 'General Fitness',
         gender: localStorage.getItem('gymsync_onboarding_gender') || 'Unspecified',
@@ -361,6 +387,26 @@ const GlobalChat = () => {
         }
       } catch (err) { console.error("Support chat error:", err); }
     }
+    else {
+      // Direct message to member / friend / trainer
+      try {
+        const token = localStorage.getItem('gymsync_token') || '';
+        await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            sender: userName,
+            receiver: activeContact.name || activeContact.id,
+            text: messageText
+          })
+        });
+      } catch (err) {
+        console.error("Direct chat send error:", err);
+      }
+    }
   };
 
   return (
@@ -373,87 +419,126 @@ const GlobalChat = () => {
       <div className={`chat-window glass-panel ${isOpen ? 'open' : ''}`}>
         <div className="chat-header">
           {activeContact ? (
-            <>
-              <button className="back-btn" onClick={() => setActiveContact(null)} style={{background:'none', border:'none', color:'white', cursor:'pointer'}}>←</button>
-              <h3 style={{margin: '0 10px'}}>{activeContact.name}</h3>
-            </>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+              <button 
+                className="back-btn" 
+                onClick={() => setActiveContact(null)} 
+                style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px', fontSize: '1.2rem', lineHeight: 1 }}
+                title="Back to messages"
+              >
+                ←
+              </button>
+              {activeContact.isSystem ? (
+                <div style={{ width: '32px', height: '32px', minWidth: '32px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                  {activeContact.avatar}
+                </div>
+              ) : (
+                <UserAvatar src={activeContact.avatar} name={activeContact.name} size={32} />
+              )}
+              <div style={{ overflow: 'hidden', minWidth: 0 }}>
+                <h3 style={{ margin: 0, fontSize: '0.98rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {activeContact.name}
+                </h3>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {activeContact.role}
+                </span>
+              </div>
+            </div>
           ) : (
-            <h3>Messages</h3>
+            <h3 style={{ margin: 0 }}>Messages</h3>
           )}
-          <button className="close-btn" onClick={() => { setIsOpen(false); setActiveContact(null); }}><X size={20} /></button>
+          <button className="close-btn" onClick={() => { setIsOpen(false); setActiveContact(null); }} title="Close chat">
+            <X size={20} />
+          </button>
         </div>
 
         {!activeContact ? (
-          <div className="contact-list" style={{flex: 1, overflowY: 'auto'}}>
-
-            {/* SPAM FOLDER (MESSAGE REQUESTS) */}
-            {spamContacts.length > 0 && (
-              <div style={{ marginBottom: '10px' }}>
-                <div
-                  onClick={() => setShowSpam(!showSpam)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', background: 'rgba(239, 68, 68, 0.1)', borderBottom: '1px solid rgba(239, 68, 68, 0.2)', cursor: 'pointer', color: '#ef4444', fontWeight: 'bold' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <MessageCircle size={18} /> Message Requests (Spam)
-                  </div>
-                  <span>{showSpam ? '▼' : '▶'}</span>
+          <div className="contact-list" style={{ flex: 1, overflowY: 'auto' }}>
+            {/* Assistants Section */}
+            <div style={{ padding: '10px 16px 6px', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Assistants
+            </div>
+            {SYSTEM_CONTACTS.map(contact => (
+              <div
+                key={contact.id}
+                onClick={() => handleContactClick(contact)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  borderBottom: '1px solid rgba(255,255,255,0.05)',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <div style={{ width: '40px', height: '40px', minWidth: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', boxShadow: '0 2px 8px rgba(59,130,246,0.3)' }}>
+                  {contact.avatar}
                 </div>
-
-                {showSpam && spamContacts.map(contact => (
-                  <div
-                    key={contact.id}
-                    onClick={() => handleContactClick(contact)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s', opacity: 0.8 }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', overflow: 'hidden' }}>
-                      {contact.isImage ? <img src={contact.avatar} alt={contact.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : contact.avatar}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <h4 style={{ margin: 0, color: '#ef4444' }}>{contact.name}</h4>
-                      </div>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        {contact.role}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.92rem', color: 'var(--text-primary)' }}>{contact.name}</h4>
+                    {contact.isPremium && (
+                      <span style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                        AI
                       </span>
-                    </div>
+                    )}
                   </div>
-                ))}
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block' }}>
+                    {contact.role}
+                  </span>
+                </div>
               </div>
-            )}
+            ))}
 
-            {(() => {
-              const seen = new Set();
-              const allMainContacts = [...CONTACTS, ...gymTrainerContacts, ...dynamicFriends].filter(contact => {
-                const key = (contact.name || contact.id || '').toLowerCase().trim();
-                if (!key || seen.has(key)) return false;
-                seen.add(key);
-                return true;
-              });
+            {/* Direct Messages Section */}
+            <div style={{ padding: '14px 16px 6px', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Direct Messages</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 400 }}>{memberContacts.length}</span>
+            </div>
 
-              return allMainContacts.map(contact => (
+            {memberContacts.length === 0 ? (
+              <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                No conversations yet. Connect with members or trainers to start chatting!
+              </div>
+            ) : (
+              memberContacts.map(contact => (
                 <div
                   key={contact.id}
                   onClick={() => handleContactClick(contact)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px 16px',
+                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', overflow: 'hidden' }}>
-                    {contact.isImage ? <img src={contact.avatar} alt={contact.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : contact.avatar}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <h4 style={{ margin: 0 }}>{contact.name}</h4>
+                  <UserAvatar src={contact.avatar} name={contact.name} size={40} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.92rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {contact.name}
+                      </h4>
+                      {contact.unreadCount > 0 && (
+                        <span style={{ background: '#3b82f6', color: '#fff', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '10px', fontWeight: 'bold' }}>
+                          {contact.unreadCount}
+                        </span>
+                      )}
                     </div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      {contact.role}
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {contact.lastMessage || contact.role}
                     </span>
                   </div>
                 </div>
-              ));
-            })()}
+              ))
+            )}
           </div>
         ) : (
           <>

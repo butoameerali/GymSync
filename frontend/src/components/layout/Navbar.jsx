@@ -8,6 +8,7 @@ import { notificationService } from '../../features/notifications/services/notif
 import { messageService } from '../../features/messages/services/messageService';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import UserAvatar from '../common/UserAvatar';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -276,9 +277,7 @@ const Navbar = () => {
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer' }}
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
-                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--primary-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', overflow: 'hidden', flexShrink: 0 }}>
-                  {profilePic ? <img src={profilePic} alt="Me" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : userName.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar src={profilePic} name={userName} size={28} />
                 <span className="profile-text-mobile">Profile</span>
               </button>
               

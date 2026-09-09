@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import Modal from '../../components/common/Modal';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import PostList from '../../features/social/components/PostList';
+import UserAvatar from '../../components/common/UserAvatar';
 import { rankFeedPosts } from '../../features/social/utils/feedRanking';
 import { postService } from '../../services/postService';
 import './Home.css';
@@ -222,13 +223,11 @@ const Home = () => {
           {!isGuest && (
             <div className="glass-panel create-post-card">
               <div className="post-input-container">
-                <div className="user-avatar-circle">
-                  {globalUsers[userName] ? (
-                    <img src={globalUsers[userName]} alt={userName} className="avatar-img" />
-                  ) : (
-                    userName.charAt(0).toUpperCase()
-                  )}
-                </div>
+                <UserAvatar 
+                  src={globalUsers[userName]} 
+                  name={userName} 
+                  size={44} 
+                />
                 <textarea
                   className="create-post-textarea"
                   placeholder={`What's on your fitness mind, ${userName}?`}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Activity, Flame, MessageCircle, UserPlus, Check, X, ThumbsUp, AlertTriangle, Loader2 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
+import UserAvatar from '../../components/common/UserAvatar';
 import { toast } from 'react-toastify';
 import './Profile.css';
 
@@ -158,12 +159,13 @@ const PublicProfile = () => {
       <div className="profile-cover"></div>
       <div className="container">
         <div className="profile-header glass-panel">
-          <div className="profile-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {profilePic ? (
-              <img src={profilePic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              userName.charAt(0).toUpperCase()
-            )}
+          <div className="profile-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+            <UserAvatar 
+              src={profilePic} 
+              name={userName} 
+              size={120} 
+              style={{ width: '100%', height: '100%', borderRadius: '50%', boxShadow: 'none' }} 
+            />
           </div>
           <div className="profile-info">
             <h1>{userName}</h1>
@@ -239,7 +241,7 @@ const PublicProfile = () => {
                 <div key={post._id} className="glass-panel post-card" style={{ marginBottom: '15px' }}>
                   <div className="post-header">
                     <div className="avatar" style={{ overflow: 'hidden' }}>
-                      {profilePic ? <img src={profilePic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : userName.charAt(0).toUpperCase()}
+                      <UserAvatar src={profilePic} name={userName} size={40} />
                     </div>
                     <div>
                       <h4>{userName}</h4>

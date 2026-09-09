@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ThumbsUp, MessageCircle, AlertTriangle, Trash2 } from 'lucide-react';
+import UserAvatar from '../../../components/common/UserAvatar';
 
 const PostCard = ({
   post,
@@ -41,13 +42,11 @@ const PostCard = ({
       {/* Post Header */}
       <div className="post-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div className="post-author-avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>
-            {globalUsers[authorName] ? (
-              <img src={globalUsers[authorName]} alt={authorName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              authorAvatar
-            )}
-          </div>
+          <UserAvatar 
+            src={globalUsers[authorName]} 
+            name={authorName} 
+            size={40} 
+          />
           <div className="post-meta">
             <h4 style={{ margin: 0, fontSize: '0.95rem' }}>
               <Link to={authorName === currentUserName ? '/profile' : `/profile/${authorName}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>

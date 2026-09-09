@@ -12,6 +12,7 @@ import { can } from '../../config/permissions';
 import './Profile.css';
 import WorkoutCalendar from '../../components/common/WorkoutCalendar';
 import PostList from '../../features/social/components/PostList';
+import UserAvatar from '../../components/common/UserAvatar';
 import { postService } from '../../services/postService';
 
 const Profile = () => {
@@ -492,15 +493,16 @@ const Profile = () => {
         <div className="profile-header glass-panel">
           <div 
             className="profile-avatar avatar-clickable" 
-            style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', cursor: 'pointer' }}
+            style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', cursor: 'pointer', padding: 0 }}
             onClick={() => fileInputRef.current && fileInputRef.current.click()}
             title="Change Profile Picture"
           >
-            {profilePic ? (
-              <img src={profilePic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              userName.charAt(0).toUpperCase()
-            )}
+            <UserAvatar 
+              src={profilePic} 
+              name={userName} 
+              size={120} 
+              style={{ width: '100%', height: '100%', borderRadius: '50%', boxShadow: 'none' }} 
+            />
             <div className="avatar-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s', borderRadius: '50%' }}>
               <Camera color="white" size={28} />
             </div>
@@ -704,8 +706,8 @@ const Profile = () => {
                 {/* Create Post Card */}
                 <div className="glass-panel fb-create-post-card">
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div className="fb-feed-avatar">
-                      {profilePic ? <img src={profilePic} alt="User" /> : userName.charAt(0).toUpperCase()}
+                    <div className="fb-feed-avatar" style={{ overflow: 'hidden' }}>
+                      <UserAvatar src={profilePic} name={userName} size={40} />
                     </div>
                     <input 
                       type="text" 
