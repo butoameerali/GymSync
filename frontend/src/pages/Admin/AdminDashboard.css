@@ -1,5 +1,5 @@
 .admin-dashboard-page {
-  padding-top: 80px;
+  padding-top: 0;
   min-height: 100vh;
   background: var(--bg-color);
   padding-bottom: 60px;
@@ -170,7 +170,7 @@
 
 @media (max-width: 768px) {
   .admin-dashboard-page {
-    padding-top: 70px;
+    padding-top: 0;
   }
   .stats-grid {
     grid-template-columns: 1fr;

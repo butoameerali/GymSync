@@ -169,8 +169,8 @@ const Navbar = () => {
 
         <div className={`nav-links ${isMenuOpen ? 'active' : ''}`}>
           <Link to="/home" className="nav-link">Home</Link>
-          {!isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && <Link to="/explore" className="nav-link">Explore Gyms</Link>}
-          {!isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>}
+          <Link to="/explore" className="nav-link">Explore Gyms</Link>
+          <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>
           {isLoggedIn && !isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && hasGymSubscription && <Link to="/your-gym" className="nav-link">YourGym</Link>}
           {!isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && <Link to="/store" className="nav-link">Store</Link>}
           {isLoggedIn && isAdmin && <Link to="/admin" className="nav-link" style={{ color: 'var(--primary-accent)', fontWeight: 600 }}>Admin Panel</Link>}

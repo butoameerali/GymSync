@@ -8,8 +8,22 @@ import './GlobalChat.css';
 
 const CONTACTS = [
   { id: 'ai', name: 'AI Trainer', role: 'Personal Coach', avatar: '🤖', isPremium: true },
-  { id: 'gym', name: 'Iron Core Support', role: 'Gym Owner', avatar: '🏢', isPremium: false }
+  { id: 'gym', name: 'Gym Support', role: 'Platform Support', avatar: '🏢', isPremium: false }
 ];
+
+const SYSTEM_IDENTIFIERS = new Set([
+  'ai',
+  'gym',
+  'ai trainer',
+  'gym support',
+  'iron core support',
+  'support team'
+]);
+
+const isSystemContact = (name) => {
+  if (!name) return false;
+  return SYSTEM_IDENTIFIERS.has(String(name).toLowerCase().trim());
+};
 
 const GlobalChat = () => {
   const location = useLocation();
@@ -79,11 +93,18 @@ const GlobalChat = () => {
   };
 
   const handleContactClick = (contact) => {
-    setActiveContact(contact);
-    if (!messages[contact.id]) {
-      setMessages(prev => ({ ...prev, [contact.id]: [] }));
+    let effectiveContact = contact;
+    const lower = (contact.name || contact.id || '').toLowerCase().trim();
+    if (lower === 'ai' || lower === 'ai trainer') {
+      effectiveContact = CONTACTS[0];
+    } else if (lower === 'gym' || lower === 'gym support' || lower === 'iron core support') {
+      effectiveContact = CONTACTS[1];
     }
-    fetchConversation(contact.id);
+    setActiveContact(effectiveContact);
+    if (!messages[effectiveContact.id]) {
+      setMessages(prev => ({ ...prev, [effectiveContact.id]: [] }));
+    }
+    fetchConversation(effectiveContact.id);
   };
 
   // Data-fetching effect: runs only when login state or userName changes.
@@ -146,9 +167,16 @@ const GlobalChat = () => {
             // Backend returns conversation objects {id, name, lastMessage, ...} — extract the name string
             const convContactNames = convContacts.map(c => (c && typeof c === 'object' ? (c.name || c.id) : c)).filter(Boolean);
 
-            // Filter out friends and AI/Gym support
+            // Filter out friends, trusted trainers, self, and system accounts
             const userFriends = Array.isArray(user?.friends) ? user.friends : [];
-            const spamNames = convContactNames.filter(c => !userFriends.includes(c) && !trustedTrainerNames.includes(c) && c !== 'ai' && c !== 'gym' && c !== userName);
+            const spamNames = convContactNames.filter(c => {
+              if (!c) return false;
+              const lower = String(c).toLowerCase().trim();
+              if (isSystemContact(lower) || lower === userName.toLowerCase().trim()) return false;
+              if (userFriends.some(f => String(f).toLowerCase().trim() === lower)) return false;
+              if (trustedTrainerNames.some(t => String(t).toLowerCase().trim() === lower)) return false;
+              return true;
+            });
             const spamWithPics = await Promise.all(spamNames.map(async (spamName) => {
               const spamRes = await fetch(`/api/users/${encodeURIComponent(spamName)}`, { headers: authHeader });
               const spamData = spamRes.ok ? await spamRes.json() : {};
@@ -395,27 +423,37 @@ const GlobalChat = () => {
               </div>
             )}
 
-            {[...CONTACTS, ...gymTrainerContacts, ...dynamicFriends].map(contact => (
-              <div
-                key={contact.id}
-                onClick={() => handleContactClick(contact)}
-                style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', overflow: 'hidden' }}>
-                  {contact.isImage ? <img src={contact.avatar} alt={contact.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : contact.avatar}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <h4 style={{ margin: 0 }}>{contact.name}</h4>
+            {(() => {
+              const seen = new Set();
+              const allMainContacts = [...CONTACTS, ...gymTrainerContacts, ...dynamicFriends].filter(contact => {
+                const key = (contact.name || contact.id || '').toLowerCase().trim();
+                if (!key || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+
+              return allMainContacts.map(contact => (
+                <div
+                  key={contact.id}
+                  onClick={() => handleContactClick(contact)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', overflow: 'hidden' }}>
+                    {contact.isImage ? <img src={contact.avatar} alt={contact.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : contact.avatar}
                   </div>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    {contact.role}
-                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <h4 style={{ margin: 0 }}>{contact.name}</h4>
+                    </div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      {contact.role}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ));
+            })()}
           </div>
         ) : (
           <>

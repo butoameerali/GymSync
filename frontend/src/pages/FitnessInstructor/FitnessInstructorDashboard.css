@@ -93,3 +93,74 @@
     align-items: flex-start;
   }
 }
+
+/* Stats Cards Grid */
+.fitness-instructor-page .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.fitness-instructor-page .stat-card {
+  padding: 22px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-radius: 16px;
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.fitness-instructor-page .stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary-accent, #6366f1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.fitness-instructor-page .stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fitness-instructor-page .stat-icon.blue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.fitness-instructor-page .stat-icon.purple {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+}
+
+.fitness-instructor-page .stat-icon.green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.fitness-instructor-page .stat-icon.amber {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.fitness-instructor-page .stat-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: block;
+}
+
+.fitness-instructor-page .stat-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 4px 0 2px 0;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
