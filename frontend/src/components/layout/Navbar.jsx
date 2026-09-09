@@ -35,6 +35,7 @@ const Navbar = () => {
   const isFitnessInstructor = normalizedRole === 'fitnessinstructor';
   const isGymTrainer = normalizedRole === 'gymtrainer';
   const isStoreManager = normalizedRole === 'storemanager';
+  const isStaff = isAdmin || isGymOwner || isFitnessInstructor || isGymTrainer || isStoreManager;
   const userName = authName || user?.name || localStorage.getItem('gymsync_user_name') || 'User';
 
   const [notifications, setNotifications] = useState([]);
@@ -170,10 +171,10 @@ const Navbar = () => {
 
         <div className={`nav-links ${isMenuOpen ? 'active' : ''}`}>
           <Link to="/home" className="nav-link">Home</Link>
-          <Link to="/explore" className="nav-link">Explore Gyms</Link>
-          <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>
-          {isLoggedIn && !isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && hasGymSubscription && <Link to="/your-gym" className="nav-link">YourGym</Link>}
-          {!isAdmin && !isGymOwner && !isFitnessInstructor && !isGymTrainer && <Link to="/store" className="nav-link">Store</Link>}
+          {!isStaff && <Link to="/explore" className="nav-link">Explore Gyms</Link>}
+          {!isStaff && <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>}
+          {isLoggedIn && !isStaff && hasGymSubscription && <Link to="/your-gym" className="nav-link">YourGym</Link>}
+          {!isStaff && <Link to="/store" className="nav-link">Store</Link>}
           {isLoggedIn && isAdmin && <Link to="/admin" className="nav-link" style={{ color: 'var(--primary-accent)', fontWeight: 600 }}>Admin Panel</Link>}
           {isLoggedIn && isGymOwner && <Link to="/gym-owner" className="nav-link" style={{ color: '#8b5cf6', fontWeight: 600 }}>Gym Panel</Link>}
           {isLoggedIn && isFitnessInstructor && <Link to="/fitness-instructor" className="nav-link" style={{ color: '#10b981', fontWeight: 600 }}>Instructor Panel</Link>}
