@@ -230,6 +230,8 @@ preMadePlanSchema.pre('save', function() {
 });
 
 
+preMadePlanSchema.index({ type: 1, status: 1, _id: -1 });
+preMadePlanSchema.index({ type: 1, status: 1, goal: 1, _id: -1 });
 preMadePlanSchema.index({ type: 1, status: 1, category: 1 });
 preMadePlanSchema.index({ type: 1, status: 1, goal: 1, difficulty: 1, createdAt: -1 });
 preMadePlanSchema.index({ type: 1, status: 1, createdAt: -1 });

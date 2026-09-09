@@ -4,6 +4,7 @@ import { uploadToSupabaseStorage } from '../config/supabase.js';
 import exerciseRegistry from '../services/workout/exerciseRegistry.js';
 import { paginateQuery } from '../utils/pagination.js';
 import { apiCache } from '../utils/cache.js';
+import { safeRegex, safeExactRegex } from '../utils/validation.js';
 
 // GET /api/exercises - Public / User fetch with search, filters and optional cursor pagination
 export const getAllExercises = async (req, res) => {
@@ -13,27 +14,50 @@ export const getAllExercises = async (req, res) => {
     const isPaginated = paginate === 'true' || Boolean(cursor) || Boolean(page);
 
     if (isPaginated) {
-      let mongoQuery = {};
-      if (search) {
-        mongoQuery.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { targetMuscles: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } }
-        ];
+      const mongoQuery = {};
+      const andConditions = [];
+
+      if (search && search.trim()) {
+        const sRegex = safeRegex(search.trim());
+        if (sRegex) {
+          andConditions.push({
+            $or: [
+              { name: sRegex },
+              { targetMuscles: sRegex },
+              { description: sRegex }
+            ]
+          });
+        }
       }
+
       if (category && category !== 'All' && category !== 'Favorites') {
-        mongoQuery.$or = [
-          { category: new RegExp(`^${category}$`, 'i') },
-          { targetMuscles: new RegExp(category, 'i') }
-        ];
+        const cRegexExact = safeExactRegex(category);
+        const cRegex = safeRegex(category);
+        if (cRegexExact && cRegex) {
+          andConditions.push({
+            $or: [
+              { category: cRegexExact },
+              { targetMuscles: cRegex }
+            ]
+          });
+        }
       }
+
       if (equipment && equipment !== 'All') {
         if (equipment === 'No Equipment' || equipment === 'Bodyweight') {
           mongoQuery.equipmentRequired = { $regex: 'bodyweight|none', $options: 'i' };
+        } else if (equipment === 'With Equipment') {
+          mongoQuery.equipmentRequired = { $not: /bodyweight|none/i, $nin: [null, ''] };
         } else {
-          mongoQuery.equipmentRequired = { $regex: equipment, $options: 'i' };
+          const eqRegex = safeRegex(equipment);
+          if (eqRegex) mongoQuery.equipmentRequired = eqRegex;
         }
       }
+
+      if (andConditions.length > 0) {
+        mongoQuery.$and = andConditions;
+      }
+
       if (status) {
         mongoQuery.status = status;
       } else if (includeArchived !== 'true' && includeArchived !== true) {

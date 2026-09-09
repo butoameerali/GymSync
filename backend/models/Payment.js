@@ -27,7 +27,7 @@ const paymentSchema = new mongoose.Schema({
   startNextMonth: { type: Boolean, default: false },
   membershipType: { type: String, enum: ['Monthly', 'Yearly'], default: 'Monthly' },
   approvedBy: { type: String, default: '' },
-  trackingCode: { type: String, sparse: true, index: true },
+  trackingCode: { type: String },
   customerEmail: { type: String, default: '' },
   customerPhone: { type: String, default: '' },
   cardholderName: { type: String, default: '' }

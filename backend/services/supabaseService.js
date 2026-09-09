@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import Post from '../models/Post.js';
 import Exercise from '../models/Exercise.js';
 import User from '../models/User.js';
+import { safeRegex, safeExactRegex } from '../utils/validation.js';
 
 /**
  * Supabase Data Service
@@ -224,8 +225,12 @@ export const fetchAllExercises = async ({ search, category, equipment, status, i
         query = query.contains('target_muscles', [category]);
       }
       if (equipment && equipment !== 'All') {
-        if (equipment === 'No Equipment') {
+        if (equipment === 'No Equipment' || equipment === 'Bodyweight') {
           query = query.ilike('equipment_required', '%bodyweight%');
+        } else if (equipment === 'With Equipment') {
+          query = query.not('equipment_required', 'ilike', '%bodyweight%').not('equipment_required', 'ilike', '%none%');
+        } else {
+          query = query.ilike('equipment_required', `%${equipment}%`);
         }
       }
       if (status) {
@@ -266,22 +271,50 @@ export const fetchAllExercises = async ({ search, category, equipment, status, i
   }
 
   // MongoDB Fallback
-  let mongoQuery = {};
-  if (search) {
-    mongoQuery.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { targetMuscles: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
-    ];
-  }
-  if (category && category !== 'All' && category !== 'Favorites') {
-    mongoQuery.targetMuscles = { $regex: category, $options: 'i' };
-  }
-  if (equipment && equipment !== 'All') {
-    if (equipment === 'No Equipment') {
-      mongoQuery.equipmentRequired = { $regex: 'bodyweight|none', $options: 'i' };
+  const mongoQuery = {};
+  const andConditions = [];
+
+  if (search && search.trim()) {
+    const sRegex = safeRegex(search.trim());
+    if (sRegex) {
+      andConditions.push({
+        $or: [
+          { name: sRegex },
+          { targetMuscles: sRegex },
+          { description: sRegex }
+        ]
+      });
     }
   }
+
+  if (category && category !== 'All' && category !== 'Favorites') {
+    const cRegexExact = safeExactRegex(category);
+    const cRegex = safeRegex(category);
+    if (cRegexExact && cRegex) {
+      andConditions.push({
+        $or: [
+          { category: cRegexExact },
+          { targetMuscles: cRegex }
+        ]
+      });
+    }
+  }
+
+  if (equipment && equipment !== 'All') {
+    if (equipment === 'No Equipment' || equipment === 'Bodyweight') {
+      mongoQuery.equipmentRequired = { $regex: 'bodyweight|none', $options: 'i' };
+    } else if (equipment === 'With Equipment') {
+      mongoQuery.equipmentRequired = { $not: /bodyweight|none/i, $nin: [null, ''] };
+    } else {
+      const eqRegex = safeRegex(equipment);
+      if (eqRegex) mongoQuery.equipmentRequired = eqRegex;
+    }
+  }
+
+  if (andConditions.length > 0) {
+    mongoQuery.$and = andConditions;
+  }
+
   if (status) {
     mongoQuery.status = status;
   } else if (!includeArchived) {

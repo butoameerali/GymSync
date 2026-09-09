@@ -4,6 +4,7 @@ import UserDietPlan from '../models/UserDietPlan.js';
 import WorkoutProgress from '../models/WorkoutProgress.js';
 import { paginateQuery } from '../utils/pagination.js';
 import { apiCache } from '../utils/cache.js';
+import { safeRegex, safeExactRegex } from '../utils/validation.js';
 
 // Seed starter data with structured weeks & meals if database is fresh
 const INITIAL_PLANS = [
@@ -127,11 +128,18 @@ export const getPreMadePlans = async (req, res) => {
       query.status = 'published';
     }
 
+    const andConditions = [];
+
     if (goal && goal !== 'All') {
-      query.$or = [
-        { goal: new RegExp(goal, 'i') },
-        { category: new RegExp(goal, 'i') }
-      ];
+      const gRegex = safeRegex(goal);
+      if (gRegex) {
+        andConditions.push({
+          $or: [
+            { goal: gRegex },
+            { category: gRegex }
+          ]
+        });
+      }
     }
 
     if (difficulty && difficulty !== 'All') {
@@ -142,17 +150,26 @@ export const getPreMadePlans = async (req, res) => {
       if (dietaryType.toLowerCase().includes('keto') || dietaryType.toLowerCase().includes('low-carb')) {
         query.dietaryType = /keto|low-carb/i;
       } else {
-        query.dietaryType = new RegExp(`^${dietaryType.trim()}$`, 'i');
+        const dRegex = safeExactRegex(dietaryType);
+        if (dRegex) query.dietaryType = dRegex;
       }
     }
 
     if (search && search.trim()) {
-      const sRegex = new RegExp(search.trim(), 'i');
-      query.$or = [
-        { title: sRegex },
-        { description: sRegex },
-        { sportTags: sRegex }
-      ];
+      const sRegex = safeRegex(search.trim());
+      if (sRegex) {
+        andConditions.push({
+          $or: [
+            { title: sRegex },
+            { description: sRegex },
+            { sportTags: sRegex }
+          ]
+        });
+      }
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     // Cache key for non-search public queries

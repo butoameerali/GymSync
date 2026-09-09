@@ -2,6 +2,7 @@ import Article from '../models/Article.js';
 import { deleteFromSupabaseStorage } from '../config/supabase.js';
 import { paginateQuery } from '../utils/pagination.js';
 import { apiCache } from '../utils/cache.js';
+import { safeRegex, safeExactRegex } from '../utils/validation.js';
 
 const INITIAL_ARTICLES = [
   {
@@ -63,21 +64,25 @@ export const getArticles = async (req, res) => {
     }
 
     if (category && category !== 'All') {
-      filter.category = new RegExp(`^${category}$`, 'i');
+      const cRegex = safeExactRegex(category);
+      if (cRegex) filter.category = cRegex;
     }
 
     if (tag && tag !== 'All') {
-      filter.tags = new RegExp(`^${tag}$`, 'i');
+      const tRegex = safeExactRegex(tag);
+      if (tRegex) filter.tags = tRegex;
     }
 
     if (search && search.trim()) {
-      const sRegex = new RegExp(search.trim(), 'i');
-      filter.$or = [
-        { title: sRegex },
-        { content: sRegex },
-        { tags: sRegex },
-        { topics: sRegex }
-      ];
+      const sRegex = safeRegex(search.trim());
+      if (sRegex) {
+        filter.$or = [
+          { title: sRegex },
+          { content: sRegex },
+          { tags: sRegex },
+          { topics: sRegex }
+        ];
+      }
     }
 
     // Cache key for non-search public queries

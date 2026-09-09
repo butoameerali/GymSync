@@ -78,6 +78,8 @@ articleSchema.pre('save', function () {
   }
 });
 
+articleSchema.index({ status: 1, _id: -1 });
+articleSchema.index({ status: 1, category: 1, _id: -1 });
 articleSchema.index({ status: 1, category: 1, createdAt: -1 });
 articleSchema.index({ status: 1, createdAt: -1 });
 articleSchema.index({ status: 1, tags: 1 });

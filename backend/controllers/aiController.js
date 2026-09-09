@@ -390,11 +390,15 @@ How are you feeling today, and what would you like to work on?`;
 
 export const getSavedPlans = async (req, res) => {
   try {
-    const userName = req.user?.name || req.query.userName;
-    if (!userName) {
-      return res.status(400).json({ error: 'User identification required' });
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
-    const plans = await SavedAIPlan.find({ userName }).sort({ createdAt: -1 });
+    const plans = await SavedAIPlan.find({
+      $or: [
+        { userId: req.user._id },
+        { userName: req.user.name }
+      ]
+    }).sort({ createdAt: -1 });
     return res.status(200).json(plans);
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch saved plans', message: error.message });
@@ -403,15 +407,17 @@ export const getSavedPlans = async (req, res) => {
 
 export const saveAIPlan = async (req, res) => {
   try {
-    const userName = req.user?.name || req.body.userName;
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
     const { title, goal, fitnessLevel, workout, diet, calendar, notes } = req.body;
-    if (!userName || !title) {
-      return res.status(400).json({ error: 'userName and title are required' });
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Plan title is required' });
     }
 
     const newPlan = await SavedAIPlan.create({
-      userName,
-      userId: req.user?._id,
+      userName: req.user.name,
+      userId: req.user._id,
       title: title.trim(),
       goal: goal || 'General Fitness',
       fitnessLevel: fitnessLevel || 'Beginner',
@@ -430,9 +436,22 @@ export const saveAIPlan = async (req, res) => {
 
 export const deleteSavedPlan = async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
     const { id } = req.params;
-    const plan = await SavedAIPlan.findByIdAndDelete(id);
+    const plan = await SavedAIPlan.findById(id);
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
+
+    const isOwner = (plan.userId && String(plan.userId) === String(req.user._id)) ||
+                    (plan.userName && plan.userName === req.user.name);
+    const isStaff = ['Admin', 'SuperAdmin'].includes(req.user.role);
+
+    if (!isOwner && !isStaff) {
+      return res.status(403).json({ error: 'Forbidden', message: 'You are not authorized to delete this plan' });
+    }
+
+    await SavedAIPlan.findByIdAndDelete(id);
     return res.status(200).json({ message: 'Plan deleted successfully' });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to delete plan', message: error.message });
