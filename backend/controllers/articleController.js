@@ -142,7 +142,8 @@ export const getArticles = async (req, res) => {
     if (error.name === 'InvalidCursorError' || error.statusCode === 400) {
       return res.status(400).json({ error: 'Invalid cursor', message: error.message });
     }
-    res.status(500).json({ message: 'Failed to fetch articles', error: error.message });
+    console.error('getArticles error:', error);
+    res.status(500).json({ message: 'Failed to fetch articles' });
   }
 };
 
@@ -158,7 +159,8 @@ export const getArticleById = async (req, res) => {
     }
     res.json(article);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch article', error: error.message });
+    console.error('getArticleById error:', error);
+    res.status(500).json({ message: 'Failed to fetch article' });
   }
 };
 
@@ -220,7 +222,7 @@ export const createArticle = async (req, res) => {
     res.status(201).json(article);
   } catch (error) {
     console.error('createArticle Error:', error);
-    res.status(500).json({ message: 'Failed to create article', error: error.message });
+    res.status(500).json({ message: 'Failed to create article' });
   }
 };
 
@@ -272,7 +274,8 @@ export const updateArticle = async (req, res) => {
     apiCache.invalidatePattern('articles:*');
     res.json(article);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update article', error: error.message });
+    console.error('updateArticle error:', error);
+    res.status(500).json({ message: 'Failed to update article' });
   }
 };
 
@@ -301,7 +304,8 @@ export const deleteArticle = async (req, res) => {
     apiCache.invalidatePattern('articles:*');
     res.json({ message: 'Article deleted successfully', id });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to delete article', error: error.message });
+    console.error('deleteArticle error:', error);
+    res.status(500).json({ message: 'Failed to delete article' });
   }
 };
 

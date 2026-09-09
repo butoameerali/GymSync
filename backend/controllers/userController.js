@@ -78,12 +78,24 @@ export const getUserByName = async (req, res) => {
     }
 
     if (user) {
-      res.json(user);
+      const userObj = user.toObject();
+      const workoutCount = await WorkoutProgress.countDocuments({ 
+        $or: [{ userId: user._id }, { userName: user.name }] 
+      });
+      const postCount = await Post.countDocuments({ 
+        $or: [{ authorId: user._id }, { authorName: user.name }] 
+      });
+      userObj.points = userObj.points ?? (workoutCount * 10 + postCount * 5);
+      userObj.streak = userObj.streak ?? (workoutCount > 0 ? Math.min(workoutCount, 7) : 0);
+      userObj.postCount = postCount;
+      userObj.workoutCount = workoutCount;
+      res.json(userObj);
     } else {
       res.status(404).json({ message: 'User not found' });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getUserByName error:', error);
+    res.status(500).json({ message: 'Failed to fetch user profile' });
   }
 };
 

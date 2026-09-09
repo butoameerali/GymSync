@@ -106,7 +106,15 @@ const PublicProfile = () => {
     fetch(`/api/users/${userName}`)
       .then(res => res.ok ? res.json() : null)
       .then(target => {
-        if (target && target._id) setTargetUser(target);
+        if (target && target._id) {
+          setTargetUser(target);
+          if (target.points !== undefined || target.streak !== undefined) {
+            setStats({
+              points: Number(target.points) || 0,
+              streak: Number(target.streak) || 0
+            });
+          }
+        }
       })
       .catch(err => console.error("Error fetching target user info:", err));
 

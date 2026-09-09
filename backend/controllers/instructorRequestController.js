@@ -22,7 +22,8 @@ export const getInstructorRequests = async (req, res) => {
     const requests = await InstructorRequest.find(filter).sort({ createdAt: -1 });
     res.json(requests);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch instructor requests', error: error.message });
+    console.error('getInstructorRequests error:', error);
+    res.status(500).json({ message: 'Failed to fetch instructor requests' });
   }
 };
 
@@ -56,7 +57,7 @@ export const createInstructorRequest = async (req, res) => {
     res.status(201).json(newRequest);
   } catch (error) {
     console.error('createInstructorRequest Error:', error);
-    res.status(500).json({ message: 'Failed to create request', error: error.message });
+    res.status(500).json({ message: 'Failed to create request' });
   }
 };
 
@@ -66,7 +67,7 @@ export const createInstructorRequest = async (req, res) => {
 export const updateInstructorRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, responseNotes, priority, assignedTo } = req.body;
+    const { status, responseNotes } = req.body;
 
     const request = await InstructorRequest.findById(id);
     if (!request) {
@@ -75,11 +76,9 @@ export const updateInstructorRequest = async (req, res) => {
 
     if (status) request.status = status;
     if (responseNotes !== undefined) request.responseNotes = responseNotes;
-    if (priority) request.priority = priority;
-    if (assignedTo) request.assignedTo = assignedTo;
 
     if (status === 'Completed') {
-      request.completedBy = req.user?.name || 'Fitness Instructor';
+      request.completedBy = req.user?.name || 'Instructor';
       request.completedAt = new Date();
     } else if (status === 'Pending') {
       request.completedBy = null;
@@ -89,7 +88,8 @@ export const updateInstructorRequest = async (req, res) => {
     await request.save();
     res.json(request);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update request', error: error.message });
+    console.error('updateInstructorRequest error:', error);
+    res.status(500).json({ message: 'Failed to update request' });
   }
 };
 
@@ -107,6 +107,7 @@ export const deleteInstructorRequest = async (req, res) => {
     await request.deleteOne();
     res.json({ message: 'Request deleted successfully', id });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to delete request', error: error.message });
+    console.error('deleteInstructorRequest error:', error);
+    res.status(500).json({ message: 'Failed to delete request' });
   }
 };

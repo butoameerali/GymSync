@@ -204,12 +204,14 @@ async function runPhase4HardeningTests() {
       body: JSON.stringify({ email: otpUser.email, otp: testPlainOtp })
     });
     assert(verifyRes.status === 200, 'verifyOTP successfully validates plain OTP against stored SHA-256 hash using timingSafeEqual');
+    const verifyData = await verifyRes.json();
+    assert(Boolean(verifyData.resetToken), 'verifyOTP returns a secure single-use resetToken');
 
-    // Now reset password using verified OTP state
+    // Now reset password using verified single-use resetToken
     const resetRes = await fetch(`${BASE_URL}/api/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: otpUser.email, newPassword: 'NewPassword999!' })
+      body: JSON.stringify({ email: otpUser.email, newPassword: 'NewPassword999!', resetToken: verifyData.resetToken })
     });
     assert(resetRes.status === 200, 'resetPassword succeeds and returns 200 OK');
 

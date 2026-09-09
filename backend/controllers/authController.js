@@ -202,7 +202,7 @@ export const forgotPassword = async (req, res) => {
     try {
       const transporter = createTransporter();
       await transporter.verify();
-      const delivery = await transporter.sendMail({
+      await transporter.sendMail({
         from: `"GymSync" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: 'GymSync — Password Reset OTP',
@@ -218,10 +218,9 @@ export const forgotPassword = async (req, res) => {
           </div>
         `
       });
-      if (!delivery.messageId) throw new Error('The email provider did not accept the message.');
     } catch (eErr) {
+      // Non-blocking log to ensure timing/status enumeration protection
       console.error('Password-reset email delivery failed:', eErr.message);
-      return res.status(503).json({ message: 'We could not send the reset email. Please check the mail configuration and try again.' });
     }
 
     const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
@@ -233,10 +232,10 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordExpires = null;
     await user.save();
 
-    res.json({ message: 'If an account exists with this email address, a password reset code has been sent.' });
+    return res.json({ message: 'If an account exists with this email address, a password reset code has been sent.' });
   } catch (error) {
     console.error('Email send error:', error.message);
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: 'An unexpected error occurred. Please try again.' });
   }
 };
 
@@ -252,7 +251,7 @@ export const verifyOTP = async (req, res) => {
   }
 
   const user = await User.findOne({ email: normalizedEmail });
-  if (!user || !user.otpCode) return res.status(400).json({ message: 'No OTP requested for this email.' });
+  if (!user || !user.otpCode) return res.status(400).json({ message: 'No active OTP request found.' });
 
   const expiresAt = user.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
 
@@ -299,17 +298,21 @@ export const verifyOTP = async (req, res) => {
     return res.status(400).json({ message: `Incorrect OTP. ${5 - user.otpAttempts} attempts remaining.` });
   }
 
+  // Genuinely single-use: immediately wipe OTP code so it cannot be replayed
+  user.otpCode = null;
+  user.otpExpiresAt = null;
+  user.otpAttempts = 0;
+  user.otpVerified = false;
+
   // Issue cryptographically secure single-use reset token
   const resetToken = crypto.randomBytes(32).toString('hex');
   const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
 
-  user.otpVerified = true;
-  user.otpAttempts = 0;
   user.resetPasswordToken = resetTokenHash;
   user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
   await user.save();
 
-  res.json({ message: 'OTP verified successfully.', resetToken });
+  return res.json({ message: 'OTP verified successfully.', resetToken });
 };
 
 // @desc    Reset password after OTP verification
@@ -320,26 +323,25 @@ export const resetPassword = async (req, res) => {
   const normalizedEmail = email?.trim().toLowerCase();
 
   const user = await User.findOne({ email: normalizedEmail });
-  if (!user) return res.status(404).json({ message: 'User not found.' });
+  // Anti-enumeration: uniform invalid message
+  if (!user) {
+    return res.status(400).json({ message: 'Invalid or expired password reset request.' });
+  }
 
-  // If client provided a reset token, cryptographically verify it
-  if (resetToken) {
-    const tokenHash = crypto.createHash('sha256').update(resetToken.trim()).digest('hex');
-    const isTokenMatch = user.resetPasswordToken &&
-      tokenHash.length === user.resetPasswordToken.length &&
-      crypto.timingSafeEqual(Buffer.from(tokenHash), Buffer.from(user.resetPasswordToken));
+  // STRICT: ONLY valid resetToken is accepted — zero legacy fallback
+  if (!resetToken || typeof resetToken !== 'string') {
+    return res.status(400).json({ message: 'Invalid or expired password reset request.' });
+  }
 
-    const isTokenExpired = !user.resetPasswordExpires || new Date(user.resetPasswordExpires).getTime() < Date.now();
+  const tokenHash = crypto.createHash('sha256').update(resetToken.trim()).digest('hex');
+  const isTokenMatch = user.resetPasswordToken &&
+    tokenHash.length === user.resetPasswordToken.length &&
+    crypto.timingSafeEqual(Buffer.from(tokenHash), Buffer.from(user.resetPasswordToken));
 
-    if (!isTokenMatch || isTokenExpired) {
-      return res.status(400).json({ message: 'Reset token is invalid or has expired. Please complete OTP verification again.' });
-    }
-  } else {
-    // Legacy fallback for clients checking OTP verified state directly
-    const isOtpValid = user.otpVerified === true && user.otpExpiresAt && new Date(user.otpExpiresAt).getTime() > Date.now();
-    if (!isOtpValid) {
-      return res.status(400).json({ message: 'OTP not verified or has expired. Please complete OTP verification first.' });
-    }
+  const isTokenExpired = !user.resetPasswordExpires || new Date(user.resetPasswordExpires).getTime() < Date.now();
+
+  if (!isTokenMatch || isTokenExpired) {
+    return res.status(400).json({ message: 'Invalid or expired password reset request.' });
   }
 
   if (!newPassword || newPassword.length < 6) {
@@ -356,9 +358,10 @@ export const resetPassword = async (req, res) => {
     user.resetPasswordExpires = null;
     await user.save();
 
-    res.json({ message: 'Password reset successful. You may now log in.' });
+    return res.json({ message: 'Password reset successful. You may now log in.' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Password reset save error:', error.message);
+    return res.status(500).json({ message: 'An unexpected error occurred. Please try again.' });
   }
 };
 

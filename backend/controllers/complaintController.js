@@ -47,12 +47,12 @@ export const createComplaint = async (req, res) => {
     } catch (dbErr) {
       console.error('Complaint creation DB error:', dbErr);
       return res.status(503).json({
-        message: 'Unable to save complaint to database. Please try again.',
-        error: dbErr.message
+        message: 'Unable to save complaint to database. Please try again later.'
       });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Create complaint fatal error:', error);
+    res.status(500).json({ message: 'An unexpected error occurred while processing the complaint.' });
   }
 };
 
@@ -68,18 +68,19 @@ export const getAllComplaints = async (req, res) => {
     if (type && type !== 'All') filter.reportedEntityType = type;
 
     if (req.user && !['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase())) {
-      const userConditions = [{ reporterName: req.user.name }];
-      if (req.user._id) {
-        userConditions.push({ reporterId: req.user._id });
-      }
-      filter.$or = userConditions;
+      // Strictly bind to reporterId if present; fallback to reporterName only for legacy records without reporterId
+      filter.$or = [
+        { reporterId: req.user._id },
+        { reporterId: null, reporterName: req.user.name },
+        { reporterId: { $exists: false }, reporterName: req.user.name }
+      ];
     }
 
     const complaints = await Complaint.find(filter).sort({ createdAt: -1 });
     return res.json(complaints);
   } catch (error) {
     console.error('Fetch complaints error:', error);
-    return res.status(500).json({ message: 'Failed to fetch complaints from database', error: error.message });
+    return res.status(500).json({ message: 'Failed to fetch complaints from database' });
   }
 };
 
@@ -111,7 +112,7 @@ export const updateComplaintStatus = async (req, res) => {
     return res.json(complaint);
   } catch (error) {
     console.error('Update complaint status error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Failed to update complaint status' });
   }
 };
 
@@ -128,14 +129,20 @@ export const addComplaintChat = async (req, res) => {
     const complaint = await Complaint.findById(id);
     if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
 
+    // reporterId is authoritative; only unmigrated records without reporterId fallback to reporterName
     const isReporter = req.user && (
       (complaint.reporterId && String(req.user._id) === String(complaint.reporterId)) ||
-      req.user.name === complaint.reporterName
+      (!complaint.reporterId && req.user.name === complaint.reporterName)
     );
     const isStaff = req.user && ['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase());
 
     if (!isReporter && !isStaff) {
       return res.status(403).json({ message: 'Not authorized to post to this complaint ticket' });
+    }
+
+    // Auto-heal legacy records: assign reporterId if missing
+    if (!complaint.reporterId && req.user._id) {
+      complaint.reporterId = req.user._id;
     }
 
     const role = isStaff ? 'Admin' : 'User';
@@ -152,7 +159,32 @@ export const addComplaintChat = async (req, res) => {
     return res.json(complaint.chatMessages);
   } catch (error) {
     console.error('Add complaint chat error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Failed to post message to complaint' });
+  }
+};
+
+// @desc    Backfill reporterId for legacy complaints
+export const migrateLegacyComplaints = async () => {
+  try {
+    const unmigrated = await Complaint.find({ reporterId: null });
+    if (unmigrated.length === 0) return { migrated: 0 };
+
+    const User = (await import('../models/User.js')).default;
+    let count = 0;
+    for (const doc of unmigrated) {
+      if (doc.reporterName) {
+        const u = await User.findOne({ name: doc.reporterName }).select('_id');
+        if (u) {
+          doc.reporterId = u._id;
+          await doc.save();
+          count++;
+        }
+      }
+    }
+    return { migrated: count };
+  } catch (err) {
+    console.error('migrateLegacyComplaints error:', err);
+    return { error: err.message };
   }
 };
 
