@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 
 const savedAIPlanSchema = new mongoose.Schema({
-  userName: { type: String, required: true, index: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  userName: { type: String, default: '', index: true },
   title: { type: String, required: true },
   goal: { type: String, required: true, default: 'General Fitness' },
   fitnessLevel: { type: String, default: 'Beginner' },
@@ -15,6 +15,7 @@ const savedAIPlanSchema = new mongoose.Schema({
   timestamps: true
 });
 
+savedAIPlanSchema.index({ userId: 1, createdAt: -1 });
 savedAIPlanSchema.index({ userName: 1, createdAt: -1 });
 
 const SavedAIPlan = mongoose.model('SavedAIPlan', savedAIPlanSchema);

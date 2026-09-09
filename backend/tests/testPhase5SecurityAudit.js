@@ -14,6 +14,7 @@ import Complaint from '../models/Complaint.js';
 import MediaItem from '../models/MediaItem.js';
 import WorkoutProgress from '../models/WorkoutProgress.js';
 import Post from '../models/Post.js';
+import SavedAIPlan from '../models/SavedAIPlan.js';
 import { migrateLegacyComplaints } from '../controllers/complaintController.js';
 
 const TEST_PORT = 5119;
@@ -361,11 +362,144 @@ async function runPhase5SecurityAuditTests() {
     assert(statsData.points >= 15, `Real points dynamically calculated (${statsData.points})`);
     assert(statsData.streak >= 1, `Real streak dynamically calculated (${statsData.streak})`);
 
+    // 9. Saved AI Plans IDOR Protection
+    console.log('\n--- 9. Saved AI Plans IDOR Protection ---');
+    // User A saves a plan
+    const savePlanRes = await fetch(`${BASE_URL}/api/ai/saved-plans`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${loginData.token}`
+      },
+      body: JSON.stringify({
+        title: 'Hypertrophy Mastery A',
+        goal: 'Muscle Gain',
+        fitnessLevel: 'Intermediate',
+        workout: { sessions: 4 }
+      })
+    });
+    assert(savePlanRes.status === 201, `User A creates saved AI plan with HTTP 201 Created`);
+    const savedPlanData = await savePlanRes.json();
+    assert(savedPlanData.userId === String(resetUser._id), `Plan is authoritative bound to User A userId: ${savedPlanData.userId}`);
+
+    // User B fetches saved plans
+    const userBPlansRes = await fetch(`${BASE_URL}/api/ai/saved-plans`, {
+      headers: { 'Authorization': `Bearer ${userBToken}` }
+    });
+    assert(userBPlansRes.status === 200, `User B fetches saved plans with HTTP 200`);
+    const userBPlans = await userBPlansRes.json();
+    const hasUserAPlan = userBPlans.some(p => p._id === savedPlanData._id);
+    assert(!hasUserAPlan, `User B cannot see User A's saved plan (IDOR prevented)`);
+
+    // User B attempts to delete User A's plan
+    const intruderDeletePlanRes = await fetch(`${BASE_URL}/api/ai/saved-plans/${savedPlanData._id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${userBToken}` }
+    });
+    assert(intruderDeletePlanRes.status === 403, `User B deleting User A's plan is strictly rejected with HTTP 403 Forbidden`);
+
+    // User A successfully deletes own plan
+    const ownerDeletePlanRes = await fetch(`${BASE_URL}/api/ai/saved-plans/${savedPlanData._id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${loginData.token}` }
+    });
+    assert(ownerDeletePlanRes.status === 200, `User A authorized to delete own plan with HTTP 200`);
+
+    // 10. Concurrency on Password Reset (Single-Use Token Race Condition Immunity)
+    console.log('\n--- 10. Concurrency on Password Reset (Race Condition Immunity) ---');
+    // Set a fresh reset token on resetUser
+    const testResetToken = crypto.randomBytes(32).toString('hex');
+    const testResetTokenHash = crypto.createHash('sha256').update(testResetToken).digest('hex');
+    await User.findByIdAndUpdate(resetUser._id, {
+      resetPasswordToken: testResetTokenHash,
+      resetPasswordExpires: new Date(Date.now() + 15 * 60 * 1000)
+    });
+
+    // Fire 5 concurrent requests with identical token
+    const concurrentResetResults = await Promise.all([1, 2, 3, 4, 5].map(() =>
+      fetch(`${BASE_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: resetUser.email,
+          resetToken: testResetToken,
+          newPassword: 'BrandNewPassword123!'
+        })
+      })
+    ));
+
+    const resetStatuses = concurrentResetResults.map(r => r.status);
+    const resetSuccessCount = resetStatuses.filter(s => s === 200).length;
+    const resetBlockedCount = resetStatuses.filter(s => s === 400).length;
+
+    assert(resetSuccessCount === 1, `Exactly ONE concurrent password reset succeeded (HTTP 200 count = ${resetSuccessCount})`);
+    assert(resetBlockedCount === 4, `All 4 racing duplicate password reset requests were rejected (HTTP 400 count = ${resetBlockedCount})`);
+
+    // 11. Concurrency on OTP Verification (Single-Use Race Condition Immunity)
+    console.log('\n--- 11. Concurrency on OTP Verification (Race Condition Immunity) ---');
+    const testOTP = '654321';
+    const testOTPHash = crypto.createHash('sha256').update(testOTP).digest('hex');
+    await User.findByIdAndUpdate(resetUser._id, {
+      otpCode: testOTPHash,
+      otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      otpAttempts: 0,
+      resetPasswordToken: null,
+      resetPasswordExpires: null
+    });
+
+    // Fire 5 concurrent requests with the valid OTP
+    const concurrentOTPResults = await Promise.all([1, 2, 3, 4, 5].map(() =>
+      fetch(`${BASE_URL}/api/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: resetUser.email,
+          otp: testOTP
+        })
+      })
+    ));
+
+    const otpStatuses = concurrentOTPResults.map(r => r.status);
+    const otpSuccessCount = otpStatuses.filter(s => s === 200).length;
+    assert(otpSuccessCount === 1, `Exactly ONE concurrent OTP verification succeeded (HTTP 200 count = ${otpSuccessCount})`);
+
+    // 12. Authoritative AI User Context Protection
+    console.log('\n--- 12. Authoritative AI User Context Protection ---');
+    // Set authoritative bioData on resetUser
+    await User.findByIdAndUpdate(resetUser._id, {
+      bioData: {
+        mainGoalArea: 'Hypertrophy Powerlifting',
+        fitnessLevel: 'Advanced',
+        weight: 88,
+        equipmentAccess: 'Full Powerlifting Gym'
+      }
+    });
+
+    const aiChatRes = await fetch(`${BASE_URL}/api/ai/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${loginData.token}`
+      },
+      body: JSON.stringify({
+        message: 'Plan a heavy chest workout for me',
+        userContext: {
+          primaryGoal: 'Spoofed Beginner Yoga',
+          fitnessLevel: 'Beginner',
+          weight: 40
+        }
+      })
+    });
+    assert(aiChatRes.status === 200, `AI chat endpoint returns HTTP 200 with authenticated user`);
+    const aiChatData = await aiChatRes.json();
+    assert(aiChatData.content && typeof aiChatData.content === 'string', `AI coach generated structured response without error disclosure`);
+
     // Clean up created test data
     await User.deleteMany({ email: { $in: [allowedUserEmail, allowedOwnerEmail, resetUser.email, userB.email] } });
     await Complaint.deleteMany({ complaintId: { $in: [cmpData.complaintId, legacyCmp.complaintId] } });
     await WorkoutProgress.deleteMany({ userId: resetUser._id });
     await Post.deleteMany({ authorName: resetUser.name });
+    await SavedAIPlan.deleteMany({ userId: resetUser._id });
 
   } catch (err) {
     console.error('Fatal error during test execution:', err);

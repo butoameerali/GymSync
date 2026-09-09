@@ -95,7 +95,8 @@ export const getAdminStats = async (req, res) => {
       totalRevenue
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -109,7 +110,8 @@ export const getAllUsers = async (req, res) => {
     const users = await User.find().select('-password').sort({ createdAt: -1 });
     res.json(users || []);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -142,7 +144,8 @@ export const updateUserRole = async (req, res) => {
 
     res.json({ message: `Role updated to ${role} for user ${user.name}`, user });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -160,8 +163,10 @@ export const updateUserDetails = async (req, res) => {
     user.email = email.trim().toLowerCase();
     await user.save();
     logAuditTrail(req.user?.name || 'Admin', req.user?.role || 'Admin', 'Edited User Account', user._id.toString(), 'Updated name and email', req);
-    res.json({ user });
-  } catch (error) { res.status(500).json({ message: error.message }); }
+  } catch (error) {
+    console.error('editUserByAdmin error:', error);
+    res.status(500).json({ message: 'Failed to edit user account' });
+  }
 };
 
 // @desc    Delete an account and its messages safely (admin only)
@@ -174,7 +179,10 @@ export const deleteUserByAdmin = async (req, res) => {
     await user.deleteOne();
     logAuditTrail(req.user?.name || 'Admin', req.user?.role || 'Admin', 'Deleted User Account', req.params.id, `Deleted ${user.email}`, req);
     res.json({ message: 'User account deleted' });
-  } catch (error) { res.status(500).json({ message: error.message }); }
+  } catch (error) {
+    console.error('deleteUserByAdmin error:', error);
+    res.status(500).json({ message: 'Failed to delete user account' });
+  }
 };
 
 // @desc    Ban or Unban a user
@@ -200,7 +208,8 @@ export const toggleUserBan = async (req, res) => {
 
     res.json({ message: `User ban status set to ${isBanned}`, user });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -214,7 +223,8 @@ export const getPendingGymApprovals = async (req, res) => {
     const pendingGyms = await Gym.find({ approvalStatus: 'Pending' }).sort({ createdAt: -1 });
     return res.json(pendingGyms);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -266,7 +276,8 @@ export const updateGymApprovalStatus = async (req, res) => {
     return res.status(200).json({ message: `Gym status updated to ${status}`, gym });
   } catch (error) {
     console.error('updateGymApprovalStatus error:', error.message);
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -293,7 +304,8 @@ export const getReportedPosts = async (req, res) => {
       }
     ]);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -347,7 +359,8 @@ export const moderateReportedPost = async (req, res) => {
 
     res.json({ message: `Report action '${action}' completed` });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -388,7 +401,8 @@ export const createCashbackPost = async (req, res) => {
       approvalStatus
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -416,7 +430,8 @@ export const getPendingCashbackPosts = async (req, res) => {
       }
     ]);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -443,7 +458,8 @@ export const reviewCashbackPost = async (req, res) => {
 
     res.json({ message: `Cashback post review '${action}' recorded` });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -481,7 +497,8 @@ export const addComplaintChatMessage = async (req, res) => {
 
     res.status(201).json({ message: 'Message sent', messageObj });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -511,7 +528,8 @@ export const getComplaintChatsInspection = async (req, res) => {
       }
     ]);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -542,7 +560,8 @@ export const removePostWithReason = async (req, res) => {
       reason: reason || 'Violation of community guidelines' 
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -570,7 +589,8 @@ export const requestRefundCashback = async (req, res) => {
 
     res.json({ message: 'Refund cashback request submitted to Senior Super Admin' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -608,7 +628,8 @@ export const approveRefundCashback = async (req, res) => {
 
     res.json({ message: 'Refund cashback approved! User notified: Your refund will be given shortly.' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -641,7 +662,8 @@ export const sendSubscriberBroadcast = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -680,7 +702,8 @@ export const getAuditLogs = async (req, res) => {
       }
     ]);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
@@ -705,6 +728,7 @@ export const createInstructor = async (req, res) => {
     });
     res.status(201).json({ message: 'Fitness Instructor account created successfully', instructor });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };

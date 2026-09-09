@@ -33,7 +33,8 @@ export const getUnreadChatCount = async (req, res) => {
       totalUnreadMessages: unreadMessagesCount
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getUnreadChatCount error:', error);
+    res.status(500).json({ message: 'Failed to retrieve unread chat count' });
   }
 };
 
@@ -104,7 +105,8 @@ export const getConversation = async (req, res) => {
 
     return res.json(items);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getConversation error:', error);
+    res.status(500).json({ message: 'Failed to retrieve conversation' });
   }
 };
 
@@ -131,7 +133,8 @@ export const markConversationRead = async (req, res) => {
 
     res.json({ message: `Messages from ${contactName} marked as read` });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('markConversationRead error:', error);
+    res.status(500).json({ message: 'Failed to mark conversation as read' });
   }
 };
 
@@ -208,7 +211,8 @@ export const getConversations = async (req, res) => {
     const conversations = Array.from(conversationMap.values());
     res.json(conversations);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getConversations error:', error);
+    res.status(500).json({ message: 'Failed to fetch conversations' });
   }
 };
 
@@ -295,17 +299,17 @@ export const sendMessage = async (req, res) => {
       });
 
       // 2. Link or create real Support Ticket in Complaint collection
-      let ticket = await Complaint.findOne({
-        reporterName: sender,
-        reportedEntityType: 'User',
-        status: { $in: ['Pending', 'InReview'] }
-      }).sort({ createdAt: -1 });
+      const ticketQuery = req.user?._id
+        ? { reporterId: req.user._id, reportedEntityType: 'User', status: { $in: ['Pending', 'InReview'] } }
+        : { reporterName: sender, reportedEntityType: 'User', status: { $in: ['Pending', 'InReview'] } };
+      let ticket = await Complaint.findOne(ticketQuery).sort({ createdAt: -1 });
 
       if (!ticket) {
         const ticketId = `TICKET-${Math.floor(100000 + Math.random() * 900000)}`;
         ticket = await Complaint.create({
           complaintId: ticketId,
           reporterName: sender,
+          reporterId: req.user?._id || null,
           reportedEntityType: 'User',
           reportedEntityId: String(req.user?._id || sender),
           reportedEntityTitle: `Support Request from ${sender}`,
@@ -360,7 +364,8 @@ export const sendMessage = async (req, res) => {
 
     res.status(201).json(message);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('sendMessage error:', error);
+    res.status(500).json({ message: 'Failed to send message' });
   }
 };
 

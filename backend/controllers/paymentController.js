@@ -48,8 +48,8 @@ export const createPaymentIntent = async (req, res) => {
     
     res.json({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
-    console.error('Stripe error:', error.message);
-    res.status(500).json({ message: error.message });
+    console.error('Stripe error:', error);
+    res.status(500).json({ message: 'Failed to process payment gateway transaction' });
   }
 };
 
@@ -367,6 +367,7 @@ export const trackPaymentByCode = async (req, res) => {
       createdAt: payment.createdAt
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('verifyPaymentSlip error:', err);
+    res.status(500).json({ message: 'Failed to verify payment slip' });
   }
 };

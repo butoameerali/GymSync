@@ -45,7 +45,8 @@ export const getMyGym = async (req, res) => {
 
     return res.json(gym);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getGymDetails error:', error);
+    res.status(500).json({ message: 'Failed to fetch gym details' });
   }
 };
 
@@ -75,7 +76,8 @@ export const getGymById = async (req, res) => {
       ownerEmail: gym.ownerEmail
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getGymById error:', error);
+    res.status(500).json({ message: 'Failed to fetch gym details' });
   }
 };
 
@@ -98,7 +100,8 @@ export const getGymsList = async (req, res) => {
 
     return res.json(payload);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getGymsList error:', error);
+    res.status(500).json({ message: 'Failed to list gyms' });
   }
 };
 
@@ -151,7 +154,8 @@ export const getMyGymData = async (req, res) => {
       posts
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getMyGymData error:', error);
+    res.status(500).json({ message: 'Failed to fetch gym data' });
   }
 };
 
@@ -164,7 +168,10 @@ export const completeGymPlanDay = async (req, res) => {
     schedule.completedAt = schedule.completedAt ? null : new Date();
     await plan.save();
     res.json({ completedAt: schedule.completedAt });
-  } catch (error) { res.status(500).json({ message: error.message }); }
+  } catch (error) {
+    console.error('completeGymPlanDay error:', error);
+    res.status(500).json({ message: 'Failed to complete plan day' });
+  }
 };
 
 // @desc    Create a tour booking request for a facility
@@ -202,7 +209,7 @@ export const createTourRequest = async (req, res) => {
     res.status(201).json({ success: true, tour });
   } catch (error) {
     console.error('createTourRequest error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Failed to create tour booking request' });
   }
 };
 
@@ -214,6 +221,7 @@ export const getUserTourRequests = async (req, res) => {
     const tours = await TourRequest.find({ user: req.user._id }).sort({ tourDate: 1, createdAt: -1 });
     res.json(tours || []);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('getUserTourRequests error:', error);
+    res.status(500).json({ error: 'Failed to fetch tour requests' });
   }
 };

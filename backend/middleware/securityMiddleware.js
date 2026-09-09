@@ -20,28 +20,38 @@ export const rateLimiter = (options = { windowMs: 15 * 60 * 1000, max: 100, scop
       const now = new Date();
       const resetAt = new Date(now.getTime() + options.windowMs);
 
-      const existing = await RateLimit.findOne({ key });
-      if (!existing || existing.resetAt <= now) {
-        await RateLimit.findOneAndUpdate(
+      // ATOMIC INCREMENT: Attempt to atomically increment count if within current active window
+      let record = await RateLimit.findOneAndUpdate(
+        { key, resetAt: { $gt: now } },
+        { $inc: { count: 1 } },
+        { returnDocument: 'after' }
+      );
+
+      // If no active unexpired window exists, atomically upsert/reset a new window
+      if (!record) {
+        record = await RateLimit.findOneAndUpdate(
           { key },
           { $set: { count: 1, resetAt } },
           { upsert: true, returnDocument: 'after' }
         );
-      } else {
-        const updated = await RateLimit.findOneAndUpdate(
-          { key },
-          { $inc: { count: 1 } },
-          { returnDocument: 'after' }
-        );
-        if (updated && updated.count > options.max) {
-          return res.status(429).json({
-            message: 'Too many requests from this IP, please try again later.'
-          });
-        }
+      }
+
+      if (record && record.count > options.max) {
+        return res.status(429).json({
+          message: 'Too many requests, please try again later.'
+        });
       }
       next();
     } catch (err) {
-      // In case of DB error during rate limit check, allow request through gracefully
+      // Sensitive auth endpoints fail-closed to prevent brute-force attacks during DB disruption
+      if (options.scope && (options.scope.includes('auth') || options.failClosed)) {
+        console.error(`[Rate Limiter Failure on ${options.scope}]:`, err.message);
+        return res.status(503).json({
+          message: 'Security rate limit service temporarily unavailable. Please try again shortly.'
+        });
+      }
+      // For general non-sensitive endpoints, log warning and allow through gracefully
+      console.warn(`[Rate Limiter Error (${options.scope})]:`, err.message);
       next();
     }
   };

@@ -143,7 +143,8 @@ export const updateGymProfile = async (req, res) => {
 
     res.json(gym || { _id: id, name, location, monthlyFee: Number(monthlyFee), facilities, equipmentImages });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('updateGymProfile error:', error);
+    res.status(500).json({ message: 'Failed to update gym profile' });
   }
 };
 
@@ -228,7 +229,8 @@ export const checkInMember = async (req, res) => {
 
     return res.status(201).json(attendance);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('checkInMember error:', error);
+    res.status(500).json({ message: 'Failed to check in member' });
   }
 };
 
@@ -251,7 +253,8 @@ export const checkOutMember = async (req, res) => {
 
     res.json({ _id: id, status: 'CheckedOut', checkOutTime: new Date() });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('checkOutMember error:', error);
+    res.status(500).json({ message: 'Failed to check out member' });
   }
 };
 
@@ -338,10 +341,12 @@ export const createGymPlan = async (req, res) => {
       });
       return res.status(201).json(plan);
     } catch (error) {
-      return res.status(500).json({ message: error.message || 'Unable to save the member plan' });
+      console.error('saveMemberPlan error:', error);
+      return res.status(500).json({ message: 'Unable to save the member plan' });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('createGymPlan error:', error);
+    res.status(500).json({ message: 'Failed to create gym plan' });
   }
 };
 
@@ -369,7 +374,8 @@ export const getGymPlans = async (req, res) => {
     const plans = await GymPlan.find(query).sort({ createdAt: -1 });
     res.json(plans);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getGymPlans error:', error);
+    res.status(500).json({ message: 'Failed to fetch gym plans' });
   }
 };
 

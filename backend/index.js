@@ -89,8 +89,8 @@ app.use((req, res, next) => {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Apply rate limiter to auth & AI endpoints
-app.use('/api/auth', rateLimiter({ windowMs: 15 * 60 * 1000, max: 100 }));
-app.use('/api/ai', rateLimiter({ windowMs: 15 * 60 * 1000, max: 200 }));
+app.use('/api/auth', rateLimiter({ windowMs: 15 * 60 * 1000, max: 100, scope: 'auth' }));
+app.use('/api/ai', rateLimiter({ windowMs: 15 * 60 * 1000, max: 200, scope: 'ai' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -114,6 +114,20 @@ app.use('/api/media', mediaRoutes);
 
 app.get('/', (req, res) => {
   res.send('GymSync API is running...');
+});
+
+// Centralized Express Error Handler (Prevents raw stack/driver leaks)
+app.use((err, req, res, next) => {
+  console.error('[Unhandled Global Express Error]:', err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    message: status === 500
+      ? 'An unexpected internal error occurred. Please try again later.'
+      : (err.message || 'Error occurred')
+  });
 });
 
 const PORT = process.env.PORT || 5000;

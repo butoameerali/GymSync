@@ -18,7 +18,8 @@ export const getUnreadCount = async (req, res) => {
 
     res.json({ unreadCount });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getUnreadCount error:', error);
+    res.status(500).json({ message: 'Failed to retrieve unread notifications count' });
   }
 };
 
@@ -73,7 +74,8 @@ export const getNotifications = async (req, res) => {
       pages: Math.ceil(total / Number(limit)) || 1
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getNotifications error:', error);
+    res.status(500).json({ message: 'Failed to fetch notifications' });
   }
 };
 
@@ -99,7 +101,8 @@ export const createNotification = async (req, res) => {
     const saved = await notification.save();
     res.status(201).json(saved);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('createNotification error:', error);
+    res.status(500).json({ message: 'Failed to create notification' });
   }
 };
 
@@ -128,7 +131,8 @@ export const markSingleAsRead = async (req, res) => {
 
     res.json(notification);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('markSingleAsRead error:', error);
+    res.status(500).json({ message: 'Failed to mark notification as read' });
   }
 };
 
@@ -159,7 +163,8 @@ export const markAsRead = async (req, res) => {
 
     res.json({ message: 'All notifications marked as read', unreadCount: 0 });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('markAsRead error:', error);
+    res.status(500).json({ message: 'Failed to mark notifications as read' });
   }
 };
 
@@ -191,6 +196,7 @@ export const deleteNotification = async (req, res) => {
 
     res.json({ message: 'Notification deleted', unreadCount });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('deleteNotification error:', error);
+    res.status(500).json({ message: 'Failed to delete notification' });
   }
 };

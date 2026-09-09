@@ -46,7 +46,7 @@ export const getPosts = async (req, res) => {
     res.json(sanitizedPosts);
   } catch (error) {
     console.error('getPosts error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Failed to fetch posts' });
   }
 };
 
@@ -107,7 +107,7 @@ export const createPost = async (req, res) => {
     res.status(201).json(createdPost);
   } catch (error) {
     console.error('Error creating post:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Failed to create post' });
   }
 };
 
@@ -148,7 +148,8 @@ export const toggleLike = async (req, res) => {
 
     res.json({ likes: result.likes });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('toggleLike error:', error);
+    res.status(500).json({ message: 'Failed to update like status' });
   }
 };
 
@@ -167,7 +168,8 @@ export const addComment = async (req, res) => {
 
     res.json(comments);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('addComment error:', err);
+    res.status(500).json({ message: 'Failed to add comment' });
   }
 };
 
@@ -187,7 +189,8 @@ export const addReply = async (req, res) => {
 
     res.json(comments);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('addReply error:', err);
+    res.status(500).json({ message: 'Failed to add reply' });
   }
 };
 
@@ -205,7 +208,8 @@ export const deleteReply = async (req, res) => {
     if (err.message === 'Unauthorized') {
       return res.status(403).json({ message: 'You can only delete your own replies.' });
     }
-    res.status(500).json({ message: err.message });
+    console.error('deleteReply error:', err);
+    res.status(500).json({ message: 'Failed to delete reply' });
   }
 };
 
@@ -225,7 +229,8 @@ export const editReply = async (req, res) => {
     if (err.message === 'Unauthorized') {
       return res.status(403).json({ message: 'You can only edit your own replies.' });
     }
-    res.status(500).json({ message: err.message });
+    console.error('editReply error:', err);
+    res.status(500).json({ message: 'Failed to edit reply' });
   }
 };
 
@@ -241,7 +246,8 @@ export const reportPost = async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('reportPost error:', error);
+    res.status(500).json({ message: 'Failed to report post' });
   }
 };
 
@@ -260,6 +266,7 @@ export const deletePost = async (req, res) => {
     if (error.message === 'Unauthorized') {
       return res.status(403).json({ message: 'You can only delete your own posts.' });
     }
-    res.status(500).json({ message: error.message });
+    console.error('deletePost error:', error);
+    res.status(500).json({ message: 'Failed to delete post' });
   }
 };

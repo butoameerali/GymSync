@@ -26,7 +26,8 @@ export const getUsers = async (req, res) => {
     const users = await User.find({}).select('_id name profilePic role subscribedGymName friends followers');
     res.json(users);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getUsers error:', error);
+    res.status(500).json({ message: 'Failed to fetch users' });
   }
 };
 
@@ -57,7 +58,8 @@ export const getGymMembers = async (req, res) => {
     const members = await User.find({ subscribedGymName: gymName }).select('_id name email profilePic subscribedGymName gymMembershipType gymJoiningDate gymMembershipExpiresAt');
     res.json(members);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getGymMembers error:', error);
+    res.status(500).json({ message: 'Failed to fetch gym members' });
   }
 };
 
@@ -80,13 +82,33 @@ export const getUserByName = async (req, res) => {
     if (user) {
       const userObj = user.toObject();
       const workoutCount = await WorkoutProgress.countDocuments({ 
-        $or: [{ userId: user._id }, { userName: user.name }] 
+        $or: [{ userId: String(user._id) }, { userId: user.name }] 
       });
       const postCount = await Post.countDocuments({ 
         $or: [{ authorId: user._id }, { authorName: user.name }] 
       });
-      userObj.points = userObj.points ?? (workoutCount * 10 + postCount * 5);
-      userObj.streak = userObj.streak ?? (workoutCount > 0 ? Math.min(workoutCount, 7) : 0);
+
+      const progressDoc = await WorkoutProgress.findOne({
+        $or: [{ userId: String(user._id) }, { userId: user.name }]
+      });
+
+      // Calculate true consecutive calendar-day streak
+      let calculatedStreak = 0;
+      if (progressDoc && progressDoc.lastWorkoutCompletionTime) {
+        const lastCompletion = new Date(progressDoc.lastWorkoutCompletionTime);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - lastCompletion.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 1) {
+          calculatedStreak = progressDoc.streak || (workoutCount > 0 ? 1 : 0);
+        }
+      } else if (workoutCount > 0) {
+        calculatedStreak = 1;
+      }
+
+      userObj.points = (progressDoc?.totalPoints && progressDoc.totalPoints > 0)
+        ? progressDoc.totalPoints
+        : (userObj.points ?? (workoutCount * 10 + postCount * 5));
+      userObj.streak = calculatedStreak;
       userObj.postCount = postCount;
       userObj.workoutCount = workoutCount;
       res.json(userObj);
@@ -145,7 +167,8 @@ export const updateProfilePic = async (req, res) => {
 
     res.json({ message: 'Profile picture updated', profilePic: req.user.profilePic });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('updateProfilePic error:', error);
+    res.status(500).json({ message: 'Failed to update profile picture' });
   }
 };
 
@@ -154,7 +177,10 @@ export const updateGymMembershipSettings = async (req, res) => {
     req.user.gymAutoRenew = Boolean(req.body.autoRenew);
     await req.user.save();
     res.json({ gymAutoRenew: req.user.gymAutoRenew, gymMembershipExpiresAt: req.user.gymMembershipExpiresAt });
-  } catch (error) { res.status(500).json({ message: error.message }); }
+  } catch (error) {
+    console.error('updateGymMembershipSettings error:', error);
+    res.status(500).json({ message: 'Failed to update membership settings' });
+  }
 };
 
 // @desc    Delete the currently authenticated account and its personal content
@@ -180,7 +206,8 @@ export const deleteCurrentUser = async (req, res) => {
     await User.findByIdAndDelete(req.user._id);
     return res.json({ message: 'Account deleted successfully.' });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.error('deleteCurrentUser error:', error);
+    return res.status(500).json({ message: 'Failed to delete account' });
   }
 };
 
@@ -218,7 +245,8 @@ export const sendFriendRequest = async (req, res) => {
     }
     res.json({ message: 'Request sent' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('sendFriendRequest error:', error);
+    res.status(500).json({ message: 'Failed to send friend request' });
   }
 };
 
@@ -260,7 +288,8 @@ export const acceptFriendRequest = async (req, res) => {
 
     res.json({ message: 'Request accepted' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('acceptFriendRequest error:', error);
+    res.status(500).json({ message: 'Failed to accept friend request' });
   }
 };
 
@@ -284,7 +313,8 @@ export const unfriend = async (req, res) => {
 
     res.json({ message: 'Unfriended successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('unfriend error:', error);
+    res.status(500).json({ message: 'Failed to unfriend user' });
   }
 };
 
@@ -329,7 +359,8 @@ export const followUser = async (req, res) => {
 
     res.json({ message: `Successfully followed ${targetName}` });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('followUser error:', error);
+    res.status(500).json({ message: 'Failed to follow user' });
   }
 };
 
@@ -355,7 +386,8 @@ export const unfollowUser = async (req, res) => {
 
     res.json({ message: `Successfully unfollowed ${targetName}` });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('unfollowUser error:', error);
+    res.status(500).json({ message: 'Failed to unfollow user' });
   }
 };
 
@@ -390,7 +422,8 @@ export const getUserDashboardData = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getUserDashboardData error:', error);
+    res.status(500).json({ message: 'Failed to fetch user dashboard data' });
   }
 };
 
@@ -428,7 +461,8 @@ export const approveGmail = async (req, res) => {
 
     res.json({ message: 'Google Gmail approved successfully!', user });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('approveGmail error:', error);
+    res.status(500).json({ message: 'Failed to approve Google Gmail address' });
   }
 };
 
@@ -483,7 +517,8 @@ export const sendVerificationOTP = async (req, res) => {
     }
     res.json({ message: 'Verification OTP sent to your Gmail address.' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('sendGoogleVerificationOTP error:', error);
+    res.status(500).json({ message: 'Failed to send verification code' });
   }
 };
 
@@ -535,7 +570,8 @@ export const verifyEmailOTP = async (req, res) => {
 
     res.json({ message: '✅ Google Gmail authenticated & verified successfully!', user });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('verifyEmailOTP error:', error);
+    res.status(500).json({ message: 'Failed to verify OTP code' });
   }
 };
 
@@ -571,7 +607,7 @@ export const saveWorkoutProgressController = async (req, res) => {
     res.status(200).json({ success: true, progress: updatedMongo });
   } catch (err) {
     console.error('saveWorkoutProgressController Error:', err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to save workout progress' });
   }
 };
 
@@ -607,7 +643,7 @@ export const getWorkoutProgressController = async (req, res) => {
     res.status(200).json(progress || { completedDays: [], streak: 0, totalPoints: 0, planId: null });
   } catch (err) {
     console.error('getWorkoutProgressController Error:', err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to fetch workout progress' });
   }
 };
 
@@ -659,7 +695,7 @@ export const saveExerciseRecordController = async (req, res) => {
     res.status(201).json({ success: true, record: mongoRecord });
   } catch (err) {
     console.error('saveExerciseRecordController Error:', err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to save exercise record' });
   }
 };
 
@@ -688,7 +724,7 @@ export const getExerciseRecordsController = async (req, res) => {
     res.status(200).json(records || []);
   } catch (err) {
     console.error('getExerciseRecordsController Error:', err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to fetch exercise records' });
   }
 };
 
@@ -736,7 +772,7 @@ export const saveUserBioController = async (req, res) => {
     });
   } catch (err) {
     console.error('saveUserBioController Error:', err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to save bio data' });
   }
 };
 
@@ -757,7 +793,7 @@ export const getUserBioController = async (req, res) => {
     });
   } catch (err) {
     console.error('getUserBioController Error:', err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to fetch user bio' });
   }
 };
 

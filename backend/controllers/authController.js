@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { protect } from '../middleware/authMiddleware.js';
 import nodemailer from 'nodemailer';
@@ -53,8 +54,8 @@ export const registerUser = async (req, res) => {
     if (!name?.trim() || !email?.trim() || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required' });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters long' });
     }
     await checkDBConnection();
     const normalizedEmail = email.trim().toLowerCase();
@@ -114,7 +115,8 @@ export const registerUser = async (req, res) => {
       res.status(400).json({ message: 'Invalid user data' });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'An internal error occurred during registration. Please try again later.' });
   }
 };
 
@@ -143,7 +145,8 @@ export const loginUser = async (req, res) => {
       res.status(401).json({ message: 'Invalid email or password' });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'An internal error occurred during login. Please try again later.' });
   }
 };
 
@@ -157,8 +160,8 @@ export const changePassword = async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ message: 'Current password and new password are required' });
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters long' });
     }
 
     const user = await User.findById(req.user._id);
@@ -176,7 +179,8 @@ export const changePassword = async (req, res) => {
 
     return res.json({ message: 'Password updated successfully' });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.error('Password change error:', error);
+    return res.status(500).json({ message: 'An internal error occurred while changing password.' });
   }
 };
 
@@ -250,67 +254,67 @@ export const verifyOTP = async (req, res) => {
     return res.status(400).json({ message: 'Email and OTP are required.' });
   }
 
-  const user = await User.findOne({ email: normalizedEmail });
-  if (!user || !user.otpCode) return res.status(400).json({ message: 'No active OTP request found.' });
-
-  const expiresAt = user.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
-
-  if (Date.now() > expiresAt) {
-    user.otpCode = null;
-    user.otpExpiresAt = null;
-    user.otpVerified = false;
-    user.otpAttempts = 0;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
-    await user.save();
-    return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
-  }
-
-  if (user.otpAttempts >= 5) {
-    user.otpCode = null;
-    user.otpExpiresAt = null;
-    user.otpVerified = false;
-    user.otpAttempts = 0;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
-    await user.save();
-    return res.status(429).json({ message: 'Too many incorrect attempts. This OTP has been invalidated. Please request a new one.' });
-  }
-
   const inputHash = crypto.createHash('sha256').update(otp.toString().trim()).digest('hex');
-  const actualHash = user.otpCode.toString().trim();
-  const isMatch = inputHash.length === actualHash.length &&
-    crypto.timingSafeEqual(Buffer.from(inputHash), Buffer.from(actualHash));
+  const now = new Date();
 
-  if (!isMatch) {
-    user.otpAttempts = (user.otpAttempts || 0) + 1;
-    if (user.otpAttempts >= 5) {
-      user.otpCode = null;
-      user.otpExpiresAt = null;
-      user.otpVerified = false;
-      user.otpAttempts = 0;
-      user.resetPasswordToken = null;
-      user.resetPasswordExpires = null;
-      await user.save();
-      return res.status(429).json({ message: 'Too many incorrect attempts. This OTP has been invalidated. Please request a new one.' });
-    }
-    await user.save();
-    return res.status(400).json({ message: `Incorrect OTP. ${5 - user.otpAttempts} attempts remaining.` });
-  }
-
-  // Genuinely single-use: immediately wipe OTP code so it cannot be replayed
-  user.otpCode = null;
-  user.otpExpiresAt = null;
-  user.otpAttempts = 0;
-  user.otpVerified = false;
-
-  // Issue cryptographically secure single-use reset token
+  // Prepare cryptographically secure single-use reset token
   const resetToken = crypto.randomBytes(32).toString('hex');
   const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+  const resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
 
-  user.resetPasswordToken = resetTokenHash;
-  user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
-  await user.save();
+  // ATOMIC MATCH & CLAIM: Exactly ONE concurrent request can match and consume the active OTP
+  const matchedUser = await User.findOneAndUpdate(
+    {
+      email: normalizedEmail,
+      otpCode: inputHash,
+      otpExpiresAt: { $gt: now },
+      otpAttempts: { $lt: 5 }
+    },
+    {
+      $set: {
+        otpCode: null,
+        otpExpiresAt: null,
+        otpVerified: false,
+        otpAttempts: 0,
+        resetPasswordToken: resetTokenHash,
+        resetPasswordExpires: resetPasswordExpires
+      }
+    },
+    { returnDocument: 'after' }
+  );
+
+  if (!matchedUser) {
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (!existing || !existing.otpCode) {
+      return res.status(400).json({ message: 'No active OTP request found.' });
+    }
+
+    if (existing.otpExpiresAt && new Date(existing.otpExpiresAt).getTime() <= Date.now()) {
+      await User.updateOne(
+        { _id: existing._id },
+        { $set: { otpCode: null, otpExpiresAt: null, otpAttempts: 0, otpVerified: false } }
+      );
+      return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
+    }
+
+    // Atomically increment failed attempts
+    const failedUser = await User.findOneAndUpdate(
+      { _id: existing._id, otpCode: { $ne: null } },
+      { $inc: { otpAttempts: 1 } },
+      { returnDocument: 'after' }
+    );
+
+    const attempts = failedUser ? failedUser.otpAttempts : 5;
+    if (attempts >= 5) {
+      await User.updateOne(
+        { _id: existing._id },
+        { $set: { otpCode: null, otpExpiresAt: null, otpAttempts: 0, otpVerified: false, resetPasswordToken: null, resetPasswordExpires: null } }
+      );
+      return res.status(429).json({ message: 'Too many incorrect attempts. This OTP has been invalidated. Please request a new one.' });
+    }
+
+    return res.status(400).json({ message: `Incorrect OTP. ${5 - attempts} attempts remaining.` });
+  }
 
   return res.json({ message: 'OTP verified successfully.', resetToken });
 };
@@ -322,47 +326,50 @@ export const resetPassword = async (req, res) => {
   const { email, newPassword, resetToken } = req.body;
   const normalizedEmail = email?.trim().toLowerCase();
 
-  const user = await User.findOne({ email: normalizedEmail });
-  // Anti-enumeration: uniform invalid message
-  if (!user) {
+  // Anti-enumeration: uniform invalid message for missing/malformed parameters
+  if (!normalizedEmail || !resetToken || typeof resetToken !== 'string') {
     return res.status(400).json({ message: 'Invalid or expired password reset request.' });
   }
 
-  // STRICT: ONLY valid resetToken is accepted — zero legacy fallback
-  if (!resetToken || typeof resetToken !== 'string') {
-    return res.status(400).json({ message: 'Invalid or expired password reset request.' });
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ message: 'New password must be at least 8 characters long.' });
   }
 
   const tokenHash = crypto.createHash('sha256').update(resetToken.trim()).digest('hex');
-  const isTokenMatch = user.resetPasswordToken &&
-    tokenHash.length === user.resetPasswordToken.length &&
-    crypto.timingSafeEqual(Buffer.from(tokenHash), Buffer.from(user.resetPasswordToken));
+  const now = new Date();
 
-  const isTokenExpired = !user.resetPasswordExpires || new Date(user.resetPasswordExpires).getTime() < Date.now();
+  // Hash new password using bcrypt before atomic update
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-  if (!isTokenMatch || isTokenExpired) {
+  // ATOMIC SINGLE-USE TOKEN CONSUMPTION:
+  // Exactly ONE concurrent request can match resetPasswordToken and overwrite it to null.
+  // Any concurrent replay will find 0 matching records and fail safely.
+  const updatedUser = await User.findOneAndUpdate(
+    {
+      email: normalizedEmail,
+      resetPasswordToken: tokenHash,
+      resetPasswordExpires: { $gt: now }
+    },
+    {
+      $set: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+        otpCode: null,
+        otpExpiresAt: null,
+        otpAttempts: 0,
+        otpVerified: false
+      }
+    },
+    { returnDocument: 'after' }
+  );
+
+  if (!updatedUser) {
     return res.status(400).json({ message: 'Invalid or expired password reset request.' });
   }
 
-  if (!newPassword || newPassword.length < 6) {
-    return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
-  }
-
-  try {
-    user.password = newPassword;
-    user.otpCode = null;
-    user.otpExpiresAt = null;
-    user.otpVerified = false;
-    user.otpAttempts = 0;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
-    await user.save();
-
-    return res.json({ message: 'Password reset successful. You may now log in.' });
-  } catch (error) {
-    console.error('Password reset save error:', error.message);
-    return res.status(500).json({ message: 'An unexpected error occurred. Please try again.' });
-  }
+  return res.json({ message: 'Password reset successful. You may now log in.' });
 };
 
 // @desc    Google OAuth — login existing user OR signal new user needs registration
@@ -459,7 +466,8 @@ export const googleRegister = async (req, res) => {
       const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({ message: field === 'email' ? 'An account with this email already exists. Please log in instead.' : 'Unable to create this account.' });
     }
-    res.status(500).json({ message: error.message });
+    console.error('Google registration error:', error);
+    res.status(500).json({ message: 'An internal error occurred during Google registration.' });
   }
 };
 
@@ -483,6 +491,7 @@ export const getMe = async (req, res) => {
       isBanned: user.isBanned
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getMe error:', error);
+    res.status(500).json({ message: 'An internal error occurred while fetching user profile.' });
   }
 };
