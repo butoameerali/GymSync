@@ -146,6 +146,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const token = user?.token || localStorage.getItem('gymsync_token') || '';
   const userName = user?.name || '';
   const userRole = user?.role || 'User';
   const userId = user?._id || user?.id || '';
@@ -154,6 +155,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{
       user,
+      token,
       userName,
       userRole,
       userId,

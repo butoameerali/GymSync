@@ -255,3 +255,44 @@
   background: rgba(99, 102, 241, 0.2);
   color: #818cf8;
 }
+
+@media (max-width: 640px) {
+  .notifications-page-container {
+    padding: 0 14px;
+    margin: 80px auto 30px auto;
+    gap: 14px;
+  }
+
+  .notifications-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .header-actions-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .filter-tab-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .filter-tab {
+    text-align: center;
+  }
+
+  .header-action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .page-notif-card {
+    padding: 14px;
+    gap: 12px;
+  }
+}

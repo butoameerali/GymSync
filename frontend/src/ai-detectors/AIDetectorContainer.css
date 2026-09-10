@@ -153,3 +153,30 @@
 .mt-12 {
   margin-top: 12px;
 }
+
+@media (max-width: 600px) {
+  .ai-detector-container {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .ai-video-viewport {
+    height: 240px;
+    border-radius: 10px;
+  }
+
+  .ai-hud-overlay {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    padding: 6px 10px;
+  }
+
+  .hud-value {
+    font-size: 1.15rem;
+  }
+
+  .hud-label {
+    font-size: 0.6rem;
+  }
+}

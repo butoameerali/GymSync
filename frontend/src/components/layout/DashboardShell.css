@@ -219,3 +219,47 @@
   color: var(--text-primary);
   line-height: 1.2;
 }
+
+/* Shared Dashboard Data Table Styles */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.admin-table th {
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 14px;
+  border-bottom: 1px solid var(--card-border, rgba(255, 255, 255, 0.05));
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-pill.pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.status-pill.active, .status-pill.approved { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.status-pill.rejected, .status-pill.cancelled { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.status-pill.shipped { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }

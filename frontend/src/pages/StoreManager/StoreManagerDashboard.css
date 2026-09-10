@@ -4,8 +4,74 @@
   gap: 24px;
 }
 
+.store-manager-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.category-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.stock-action-group {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.stock-action-group button {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  min-width: 32px;
+}
+
+.product-row-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+}
+
+@media (max-width: 900px) {
+  .store-manager-page .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .store-manager-page {
     gap: 16px;
+  }
+
+  .store-manager-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .store-manager-header-actions .search-bar {
+    width: 100% !important;
+  }
+
+  .store-manager-page .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .store-manager-page .admin-table th,
+  .store-manager-page .admin-table td {
+    padding: 10px 8px;
+    font-size: 0.82rem;
   }
 }

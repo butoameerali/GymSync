@@ -62,6 +62,7 @@ export const getGymById = async (req, res) => {
     }
 
     return res.json({
+      _id: gym._id,
       id: gym._id,
       name: gym.name,
       location: gym.location,
@@ -71,6 +72,8 @@ export const getGymById = async (req, res) => {
       description: gym.description,
       facilities: gym.facilities || [],
       equipmentImages: gym.equipmentImages || [],
+      rating: gym.rating || 4.8,
+      timings: gym.timings || null,
       todayTrainingTip: gym.todayTrainingTip?.today || '',
       ownerName: gym.ownerName,
       ownerEmail: gym.ownerEmail
@@ -89,10 +92,17 @@ export const getGymsList = async (req, res) => {
     const gyms = await Gym.find({ approvalStatus: 'Approved' }).sort({ createdAt: -1 });
     // Map to lightweight response for Explore page
     const payload = gyms.map(g => ({
+      _id: g._id,
       id: g._id,
       name: g.name,
       location: g.location,
       monthlyFee: g.monthlyFee,
+      admissionFee: g.admissionFee,
+      description: g.description || '',
+      facilities: g.facilities || [],
+      equipmentImages: g.equipmentImages || [],
+      rating: g.rating || 4.8,
+      timings: g.timings || null,
       image: (g.equipmentImages && g.equipmentImages.length > 0) ? g.equipmentImages[0] : null,
       todayTrainingTip: g.todayTrainingTip?.today || '',
       ownerName: g.ownerName

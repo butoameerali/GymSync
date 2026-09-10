@@ -31,7 +31,8 @@ const PaymentModal = ({
   const [configs, setConfigs] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const { user, token, userName } = useAuth();
+  const { user, token: authContextToken, userName } = useAuth();
+  const token = authContextToken || user?.token || localStorage.getItem('gymsync_token') || '';
   const effectiveUserName = guestName || (userName && userName !== 'Guest User' ? userName : (guestName || 'Guest User'));
   const effectiveUserEmail = guestEmail || user?.email || '';
   const commission15Percent = (Number(amount) || 0) * 0.15;
@@ -70,6 +71,9 @@ const PaymentModal = ({
 
       const finalUserName = billingDetails?.cardholderName || effectiveUserName;
       const finalEmail = billingDetails?.email || effectiveUserEmail;
+      const rawProof = screenshotUrl.trim();
+      const isUrl = rawProof.startsWith('http://') || rawProof.startsWith('https://') || rawProof.startsWith('data:');
+      const resolvedRef = (transactionRef || (!isUrl ? rawProof : '')).trim();
 
       const payload = {
         paymentId: `PAY-${Date.now()}`,
@@ -82,8 +86,8 @@ const PaymentModal = ({
         paymentMethod,
         amount: Number(amount) || 50,
         commission15Percent,
-        screenshotUrl: screenshotUrl.trim(),
-        transactionRef: transactionRef,
+        screenshotUrl: rawProof,
+        transactionRef: resolvedRef,
         methodDetails: selectedConfig?.bankDetails || '',
         startNextMonth: startNextMonth,
         membershipType,
@@ -99,9 +103,9 @@ const PaymentModal = ({
         body: JSON.stringify(payload)
       });
 
-      if (res.ok) {
-        const paymentData = await res.json();
+      const paymentData = await res.json().catch(() => ({}));
 
+      if (res.ok) {
         if (onPaymentRecorded) {
           onPaymentRecorded(paymentData);
         }
@@ -127,9 +131,9 @@ const PaymentModal = ({
 
         onClose();
       } else {
-        toast.error('Payment processing failed');
+        toast.error(paymentData.message || 'Payment processing failed');
       }
-    } catch (err) {
+    } catch {
       toast.error('Error processing payment');
     } finally {
       setLoading(false);
@@ -236,7 +240,13 @@ const PaymentModal = ({
         {(paymentMethod === 'Easypaisa' || paymentMethod === 'JazzCash') && renderMobilePaymentInstructions()}
 
         {paymentMethod !== 'Stripe' && (
-          <button type="button" onClick={(e) => handlePaymentSubmit(e, '')} className="btn btn-primary" disabled={loading} style={{ padding: '12px' }}>
+          <button 
+            type="button" 
+            onClick={(e) => handlePaymentSubmit(e, screenshotUrl.trim())} 
+            className="btn btn-primary" 
+            disabled={loading} 
+            style={{ padding: '12px' }}
+          >
             {loading ? 'Processing...' : `Confirm & Pay $${amount}`}
           </button>
         )}
@@ -246,7 +256,8 @@ const PaymentModal = ({
 };
 
 const StripePaymentForm = ({ amount, defaultEmail, defaultName, onSuccess, setLoading, loading }) => {
-  const { token } = useAuth();
+  const auth = useAuth();
+  const token = auth?.token || auth?.user?.token || localStorage.getItem('gymsync_token') || '';
   const stripe = useStripe();
   const elements = useElements();
   const [email, setEmail] = useState(defaultEmail || '');
@@ -254,8 +265,8 @@ const StripePaymentForm = ({ amount, defaultEmail, defaultName, onSuccess, setLo
   const [cardError, setCardError] = useState('');
 
   useEffect(() => {
-    if (defaultEmail && !email) setEmail(defaultEmail);
-    if (defaultName && !cardholderName) setCardholderName(defaultName);
+    if (defaultEmail) setEmail(prev => prev || defaultEmail);
+    if (defaultName) setCardholderName(prev => prev || defaultName);
   }, [defaultEmail, defaultName]);
 
   const handleSubmit = async (e) => {
@@ -315,7 +326,7 @@ const StripePaymentForm = ({ amount, defaultEmail, defaultName, onSuccess, setLo
           onSuccess(result.paymentIntent.id, { email: email.trim(), cardholderName: cardholderName.trim() });
         }
       }
-    } catch (err) {
+    } catch {
       toast.error('Error confirming Stripe payment.');
     } finally {
       setLoading(false);

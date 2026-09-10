@@ -97,9 +97,14 @@ export const createPayment = async (req, res) => {
     let status = 'PendingApproval';
     let finalAmount = numericAmount;
 
+    let effectiveTransactionRef = (transactionRef || '').trim();
+    if (!effectiveTransactionRef && screenshotUrl && !screenshotUrl.startsWith('http://') && !screenshotUrl.startsWith('https://') && !screenshotUrl.startsWith('data:')) {
+      effectiveTransactionRef = screenshotUrl.trim();
+    }
+
     if (paymentMethod === 'Stripe') {
       const stripeSecret = process.env.STRIPE_SECRET_KEY;
-      const intentId = transactionRef || paymentId;
+      const intentId = effectiveTransactionRef || paymentId;
       const isTestBypass = process.env.NODE_ENV !== 'production' && process.env.ALLOW_TEST_PAYMENT_BYPASS === 'true';
 
       // Issue 5: Replay check
@@ -167,7 +172,7 @@ export const createPayment = async (req, res) => {
       commission15Percent: finalAmount * 0.15,
       status,
       screenshotUrl,
-      transactionRef,
+      transactionRef: effectiveTransactionRef || undefined,
       methodDetails,
       startNextMonth: Boolean(startNextMonth),
       membershipType: membershipType === 'Yearly' ? 'Yearly' : 'Monthly',

@@ -780,6 +780,25 @@ const FitnessInstructorDashboard = () => {
                           </div>
                         </div>
 
+                        {ex.mediaUrl && (
+                          <div style={{
+                            marginBottom: '10px',
+                            height: '140px',
+                            borderRadius: '10px',
+                            overflow: 'hidden',
+                            background: 'rgba(0,0,0,0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            {ex.mediaUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+                              <video src={ex.mediaUrl} autoPlay loop muted playsInline style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+                            ) : (
+                              <img src={ex.mediaUrl} alt={ex.name} loading="lazy" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+                            )}
+                          </div>
+                        )}
+
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
                           <span className={`category-badge ${ex.status === 'archived' ? 'archived-badge' : 'active-badge'}`}>
                             {ex.status === 'archived' ? 'Archived' : 'Active'}

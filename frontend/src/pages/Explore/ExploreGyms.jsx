@@ -84,7 +84,7 @@ const ExploreGyms = () => {
 
   // Keep selected gym aligned with filtered list
   useEffect(() => {
-    if (filteredGyms.length > 0 && (!selectedMapGym || !filteredGyms.find(g => g._id === selectedMapGym._id))) {
+    if (filteredGyms.length > 0 && (!selectedMapGym || !filteredGyms.find(g => (g._id || g.id) === (selectedMapGym._id || selectedMapGym.id)))) {
       setSelectedMapGym(filteredGyms[0]);
     }
   }, [filteredGyms]);
@@ -268,14 +268,14 @@ const ExploreGyms = () => {
                         <button 
                           className="btn btn-outline btn-sm"
                           style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                          onClick={() => navigate(`/gym/${selectedMapGym._id}?bookTour=true`)}
+                          onClick={() => navigate(`/gym/${selectedMapGym._id || selectedMapGym.id}?bookTour=true`)}
                         >
                           <Calendar size={12} /> Book Tour
                         </button>
                         <button 
                           className="btn btn-primary btn-sm"
                           style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                          onClick={() => navigate(`/gym/${selectedMapGym._id}`)}
+                          onClick={() => navigate(`/gym/${selectedMapGym._id || selectedMapGym.id}`)}
                         >
                           Details <ChevronRight size={12} />
                         </button>
@@ -311,65 +311,68 @@ const ExploreGyms = () => {
         ) : (
           <>
             <div className="gyms-grid">
-              {currentGyms.map((gym, idx) => (
-                <div key={gym._id || idx} className="gym-card glass-panel">
-                  <div className="gym-image-container">
-                    <img 
-                      src={gym.equipmentImages?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'} 
-                      alt={gym.name} 
-                      className="gym-card-img"
-                    />
-                    <div className="premium-badge">★ 4.8 Partner</div>
-                  </div>
-                  
-                  <div className="gym-details">
-                    <div className="gym-title-row">
-                      <h3>{gym.name}</h3>
-                      <div className="gym-price">
-                        <span className="price-val">${gym.monthlyFee}</span>
-                        <span className="price-period">/mo</span>
+              {currentGyms.map((gym, idx) => {
+                const gymId = gym._id || gym.id;
+                return (
+                  <div key={gymId || idx} className="gym-card glass-panel">
+                    <div className="gym-image-container">
+                      <img 
+                        src={gym.equipmentImages?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'} 
+                        alt={gym.name} 
+                        className="gym-card-img"
+                      />
+                      <div className="premium-badge">★ 4.8 Partner</div>
+                    </div>
+                    
+                    <div className="gym-details">
+                      <div className="gym-title-row">
+                        <h3>{gym.name}</h3>
+                        <div className="gym-price">
+                          <span className="price-val">${gym.monthlyFee}</span>
+                          <span className="price-period">/mo</span>
+                        </div>
+                      </div>
+                      
+                      <div className="gym-location">
+                        <MapPin size={16} />
+                        <span>{gym.location}</span>
+                      </div>
+                      
+                      <p className="gym-desc">
+                        {gym.description || 'Modern strength training facility equipped with certified free-weights and machines.'}
+                      </p>
+                      
+                      {gym.facilities && gym.facilities.length > 0 && (
+                        <div className="gym-facilities">
+                          {gym.facilities.slice(0, 3).map((f, i) => (
+                            <span key={i} className="facility-tag">{f}</span>
+                          ))}
+                          {gym.facilities.length > 3 && (
+                            <span className="facility-tag">+{gym.facilities.length - 3} more</span>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="gym-card-actions" style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '16px' }}>
+                        <button 
+                          className="btn btn-outline btn-sm"
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                          onClick={() => navigate(`/gym/${gymId}?bookTour=true`)}
+                        >
+                          <Calendar size={14} /> Book Tour
+                        </button>
+                        <button 
+                          className="btn btn-primary btn-sm"
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                          onClick={() => navigate(`/gym/${gymId}`)}
+                        >
+                          Details <ChevronRight size={14} />
+                        </button>
                       </div>
                     </div>
-                    
-                    <div className="gym-location">
-                      <MapPin size={16} />
-                      <span>{gym.location}</span>
-                    </div>
-                    
-                    <p className="gym-desc">
-                      {gym.description || 'Modern strength training facility equipped with certified free-weights and machines.'}
-                    </p>
-                    
-                    {gym.facilities && gym.facilities.length > 0 && (
-                      <div className="gym-facilities">
-                        {gym.facilities.slice(0, 3).map((f, i) => (
-                          <span key={i} className="facility-tag">{f}</span>
-                        ))}
-                        {gym.facilities.length > 3 && (
-                          <span className="facility-tag">+{gym.facilities.length - 3} more</span>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="gym-card-actions" style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '16px' }}>
-                      <button 
-                        className="btn btn-outline btn-sm"
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                        onClick={() => navigate(`/gym/${gym._id}?bookTour=true`)}
-                      >
-                        <Calendar size={14} /> Book Tour
-                      </button>
-                      <button 
-                        className="btn btn-primary btn-sm"
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                        onClick={() => navigate(`/gym/${gym._id}`)}
-                      >
-                        Details <ChevronRight size={14} />
-                      </button>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Pagination Controls */}

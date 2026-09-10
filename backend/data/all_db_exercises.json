@@ -1,0 +1,7220 @@
+[
+  {
+    "_id": "6a692bca4dc531168b8e4c3f",
+    "name": "Neck Circles",
+    "targetMuscles": [
+      "Head",
+      "Neck"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c40",
+    "name": "Shoulder Dislocations",
+    "targetMuscles": [
+      "Shoulders"
+    ],
+    "equipmentRequired": "Resistance Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c41",
+    "name": "Cat-Cow Stretch",
+    "targetMuscles": [
+      "Lowerback",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c42",
+    "name": "Wrist Rotations",
+    "targetMuscles": [
+      "Hands",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c43",
+    "name": "Ankle Rotations",
+    "targetMuscles": [
+      "Calves",
+      "Feet"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c44",
+    "name": "Hip Hinges",
+    "targetMuscles": [
+      "Hips",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c45",
+    "name": "Arm Circles",
+    "targetMuscles": [
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c46",
+    "name": "Torso Twists",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c47",
+    "name": "Leg Swings",
+    "targetMuscles": [
+      "Hips"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c48",
+    "name": "Child'S Pose",
+    "targetMuscles": [
+      "Knees",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c49",
+    "name": "Bear Crawls",
+    "targetMuscles": [
+      "Shoulders",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c4a",
+    "name": "Crab Walk",
+    "targetMuscles": [
+      "Abs",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c4b",
+    "name": "Frog Jumps",
+    "targetMuscles": [
+      "Knees"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c4c",
+    "name": "Star Jumps",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c4d",
+    "name": "Animal Flow - Ape",
+    "targetMuscles": [
+      "Hips",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c4e",
+    "name": "Chair Squats",
+    "targetMuscles": [
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c4f",
+    "name": "Wall Push-Ups",
+    "targetMuscles": [
+      "Chest",
+      "Arms"
+    ],
+    "equipmentRequired": "Wall"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c50",
+    "name": "Seated Knee Extensions",
+    "targetMuscles": [
+      "Knees",
+      "Thighs"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c51",
+    "name": "Water Aerobics Jogging",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Pool"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c52",
+    "name": "Seated Resistance Band Rows",
+    "targetMuscles": [
+      "Back",
+      "Arms"
+    ],
+    "equipmentRequired": "Resistance Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c53",
+    "name": "Toe Taps",
+    "targetMuscles": [
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c54",
+    "name": "Heel Raises (Holding Chair)",
+    "targetMuscles": [
+      "Calves",
+      "Feet"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c55",
+    "name": "Neck Circles (Variation 1)",
+    "targetMuscles": [
+      "Head",
+      "Neck"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c56",
+    "name": "Shoulder Dislocations (Variation 1)",
+    "targetMuscles": [
+      "Shoulders"
+    ],
+    "equipmentRequired": "Resistance Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c57",
+    "name": "Cat-Cow Stretch (Variation 1)",
+    "targetMuscles": [
+      "Lowerback",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c58",
+    "name": "Wrist Rotations (Variation 1)",
+    "targetMuscles": [
+      "Hands",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c59",
+    "name": "Ankle Rotations (Variation 1)",
+    "targetMuscles": [
+      "Calves",
+      "Feet"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c5a",
+    "name": "Hip Hinges (Variation 1)",
+    "targetMuscles": [
+      "Hips",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c5b",
+    "name": "Arm Circles (Variation 1)",
+    "targetMuscles": [
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c5c",
+    "name": "Torso Twists (Variation 1)",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c5d",
+    "name": "Leg Swings (Variation 1)",
+    "targetMuscles": [
+      "Hips"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c5e",
+    "name": "Child'S Pose (Variation 1)",
+    "targetMuscles": [
+      "Knees",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c5f",
+    "name": "Bear Crawls (Variation 1)",
+    "targetMuscles": [
+      "Shoulders",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c60",
+    "name": "Crab Walk (Variation 1)",
+    "targetMuscles": [
+      "Abs",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c61",
+    "name": "Frog Jumps (Variation 1)",
+    "targetMuscles": [
+      "Knees"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c62",
+    "name": "Star Jumps (Variation 1)",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c63",
+    "name": "Animal Flow - Ape (Variation 1)",
+    "targetMuscles": [
+      "Hips",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c64",
+    "name": "Chair Squats (Variation 1)",
+    "targetMuscles": [
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c65",
+    "name": "Wall Push-Ups (Variation 1)",
+    "targetMuscles": [
+      "Chest",
+      "Arms"
+    ],
+    "equipmentRequired": "Wall"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c66",
+    "name": "Seated Knee Extensions (Variation 1)",
+    "targetMuscles": [
+      "Knees",
+      "Thighs"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c67",
+    "name": "Water Aerobics Jogging (Variation 1)",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Pool"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c68",
+    "name": "Seated Resistance Band Rows (Variation 1)",
+    "targetMuscles": [
+      "Back",
+      "Arms"
+    ],
+    "equipmentRequired": "Resistance Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c69",
+    "name": "Toe Taps (Variation 1)",
+    "targetMuscles": [
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c6a",
+    "name": "Heel Raises (Holding Chair) (Variation 1)",
+    "targetMuscles": [
+      "Calves",
+      "Feet"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c6b",
+    "name": "Neck Circles (Variation 2)",
+    "targetMuscles": [
+      "Head",
+      "Neck"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c6c",
+    "name": "Shoulder Dislocations (Variation 2)",
+    "targetMuscles": [
+      "Shoulders"
+    ],
+    "equipmentRequired": "Resistance Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c6d",
+    "name": "Cat-Cow Stretch (Variation 2)",
+    "targetMuscles": [
+      "Lowerback",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c6e",
+    "name": "Wrist Rotations (Variation 2)",
+    "targetMuscles": [
+      "Hands",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c6f",
+    "name": "Ankle Rotations (Variation 2)",
+    "targetMuscles": [
+      "Calves",
+      "Feet"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c70",
+    "name": "Hip Hinges (Variation 2)",
+    "targetMuscles": [
+      "Hips",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c71",
+    "name": "Arm Circles (Variation 2)",
+    "targetMuscles": [
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c72",
+    "name": "Torso Twists (Variation 2)",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c73",
+    "name": "Leg Swings (Variation 2)",
+    "targetMuscles": [
+      "Hips"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c74",
+    "name": "Child'S Pose (Variation 2)",
+    "targetMuscles": [
+      "Knees",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c75",
+    "name": "Bear Crawls (Variation 2)",
+    "targetMuscles": [
+      "Shoulders",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c76",
+    "name": "Crab Walk (Variation 2)",
+    "targetMuscles": [
+      "Abs",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c77",
+    "name": "Frog Jumps (Variation 2)",
+    "targetMuscles": [
+      "Knees"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c78",
+    "name": "Star Jumps (Variation 2)",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c79",
+    "name": "Animal Flow - Ape (Variation 2)",
+    "targetMuscles": [
+      "Hips",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c7a",
+    "name": "Chair Squats (Variation 2)",
+    "targetMuscles": [
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c7b",
+    "name": "Wall Push-Ups (Variation 2)",
+    "targetMuscles": [
+      "Chest",
+      "Arms"
+    ],
+    "equipmentRequired": "Wall"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c7c",
+    "name": "Seated Knee Extensions (Variation 2)",
+    "targetMuscles": [
+      "Knees",
+      "Thighs"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c7d",
+    "name": "Water Aerobics Jogging (Variation 2)",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Pool"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c7e",
+    "name": "Seated Resistance Band Rows (Variation 2)",
+    "targetMuscles": [
+      "Back",
+      "Arms"
+    ],
+    "equipmentRequired": "Resistance Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c7f",
+    "name": "Toe Taps (Variation 2)",
+    "targetMuscles": [
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c80",
+    "name": "Heel Raises (Holding Chair) (Variation 2)",
+    "targetMuscles": [
+      "Calves",
+      "Feet"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c81",
+    "name": "Neck Circles (Variation 3)",
+    "targetMuscles": [
+      "Head",
+      "Neck"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c82",
+    "name": "Shoulder Dislocations (Variation 3)",
+    "targetMuscles": [
+      "Shoulders"
+    ],
+    "equipmentRequired": "Resistance Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c83",
+    "name": "Cat-Cow Stretch (Variation 3)",
+    "targetMuscles": [
+      "Lowerback",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c84",
+    "name": "Wrist Rotations (Variation 3)",
+    "targetMuscles": [
+      "Hands",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c85",
+    "name": "Ankle Rotations (Variation 3)",
+    "targetMuscles": [
+      "Calves",
+      "Feet"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c86",
+    "name": "Hip Hinges (Variation 3)",
+    "targetMuscles": [
+      "Hips",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c87",
+    "name": "Arm Circles (Variation 3)",
+    "targetMuscles": [
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c88",
+    "name": "Torso Twists (Variation 3)",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c89",
+    "name": "Leg Swings (Variation 3)",
+    "targetMuscles": [
+      "Hips"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c8a",
+    "name": "Child'S Pose (Variation 3)",
+    "targetMuscles": [
+      "Knees",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c8b",
+    "name": "Bear Crawls (Variation 3)",
+    "targetMuscles": [
+      "Shoulders",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c8c",
+    "name": "Crab Walk (Variation 3)",
+    "targetMuscles": [
+      "Abs",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c8d",
+    "name": "Frog Jumps (Variation 3)",
+    "targetMuscles": [
+      "Knees"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c8e",
+    "name": "Star Jumps (Variation 3)",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c8f",
+    "name": "Animal Flow - Ape (Variation 3)",
+    "targetMuscles": [
+      "Hips",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c90",
+    "name": "Chair Squats (Variation 3)",
+    "targetMuscles": [
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c91",
+    "name": "Wall Push-Ups (Variation 3)",
+    "targetMuscles": [
+      "Chest",
+      "Arms"
+    ],
+    "equipmentRequired": "Wall"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c92",
+    "name": "Seated Knee Extensions (Variation 3)",
+    "targetMuscles": [
+      "Knees",
+      "Thighs"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c93",
+    "name": "Water Aerobics Jogging (Variation 3)",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Pool"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c94",
+    "name": "Seated Resistance Band Rows (Variation 3)",
+    "targetMuscles": [
+      "Back",
+      "Arms"
+    ],
+    "equipmentRequired": "Resistance Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c95",
+    "name": "Toe Taps (Variation 3)",
+    "targetMuscles": [
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c96",
+    "name": "Heel Raises (Holding Chair) (Variation 3)",
+    "targetMuscles": [
+      "Calves",
+      "Feet"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c97",
+    "name": "Neck Circles (Variation 4)",
+    "targetMuscles": [
+      "Head",
+      "Neck"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c98",
+    "name": "Shoulder Dislocations (Variation 4)",
+    "targetMuscles": [
+      "Shoulders"
+    ],
+    "equipmentRequired": "Resistance Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c99",
+    "name": "Cat-Cow Stretch (Variation 4)",
+    "targetMuscles": [
+      "Lowerback",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c9a",
+    "name": "Wrist Rotations (Variation 4)",
+    "targetMuscles": [
+      "Hands",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c9b",
+    "name": "Ankle Rotations (Variation 4)",
+    "targetMuscles": [
+      "Calves",
+      "Feet"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c9c",
+    "name": "Hip Hinges (Variation 4)",
+    "targetMuscles": [
+      "Hips",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c9d",
+    "name": "Arm Circles (Variation 4)",
+    "targetMuscles": [
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c9e",
+    "name": "Torso Twists (Variation 4)",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4c9f",
+    "name": "Leg Swings (Variation 4)",
+    "targetMuscles": [
+      "Hips"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ca0",
+    "name": "Child'S Pose (Variation 4)",
+    "targetMuscles": [
+      "Knees",
+      "Back"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ca1",
+    "name": "Bear Crawls (Variation 4)",
+    "targetMuscles": [
+      "Shoulders",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ca2",
+    "name": "Crab Walk (Variation 4)",
+    "targetMuscles": [
+      "Abs",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ca3",
+    "name": "Frog Jumps (Variation 4)",
+    "targetMuscles": [
+      "Knees"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ca4",
+    "name": "Star Jumps (Variation 4)",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ca5",
+    "name": "Animal Flow - Ape (Variation 4)",
+    "targetMuscles": [
+      "Hips",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ca6",
+    "name": "Chair Squats (Variation 4)",
+    "targetMuscles": [
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ca7",
+    "name": "Wall Push-Ups (Variation 4)",
+    "targetMuscles": [
+      "Chest",
+      "Arms"
+    ],
+    "equipmentRequired": "Wall"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ca8",
+    "name": "Seated Knee Extensions (Variation 4)",
+    "targetMuscles": [
+      "Knees",
+      "Thighs"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ca9",
+    "name": "Water Aerobics Jogging (Variation 4)",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Pool"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4caa",
+    "name": "Seated Resistance Band Rows (Variation 4)",
+    "targetMuscles": [
+      "Back",
+      "Arms"
+    ],
+    "equipmentRequired": "Resistance Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cab",
+    "name": "Toe Taps (Variation 4)",
+    "targetMuscles": [
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cac",
+    "name": "Heel Raises (Holding Chair) (Variation 4)",
+    "targetMuscles": [
+      "Calves",
+      "Feet"
+    ],
+    "equipmentRequired": "Chair"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cad",
+    "name": "Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cae",
+    "name": "Incline Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4caf",
+    "name": "Decline Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cb0",
+    "name": "Single-Arm Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cb1",
+    "name": "Single-Leg Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cb2",
+    "name": "Pause Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cb3",
+    "name": "Explosive Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cb4",
+    "name": "Tempo (Slow) Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cb5",
+    "name": "Deficit Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cb6",
+    "name": "Close-Grip Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cb7",
+    "name": "Wide-Grip Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cb8",
+    "name": "Seated Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cb9",
+    "name": "Standing Barbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cba",
+    "name": "Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cbb",
+    "name": "Incline Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cbc",
+    "name": "Decline Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cbd",
+    "name": "Single-Arm Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cbe",
+    "name": "Single-Leg Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cbf",
+    "name": "Pause Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cc0",
+    "name": "Explosive Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cc1",
+    "name": "Tempo (Slow) Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cc2",
+    "name": "Deficit Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cc3",
+    "name": "Close-Grip Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cc4",
+    "name": "Wide-Grip Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cc5",
+    "name": "Seated Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cc6",
+    "name": "Standing Dumbbell Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cc7",
+    "name": "Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cc8",
+    "name": "Incline Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cc9",
+    "name": "Decline Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cca",
+    "name": "Single-Arm Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ccb",
+    "name": "Single-Leg Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ccc",
+    "name": "Pause Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ccd",
+    "name": "Explosive Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cce",
+    "name": "Tempo (Slow) Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ccf",
+    "name": "Deficit Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cd0",
+    "name": "Close-Grip Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cd1",
+    "name": "Wide-Grip Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cd2",
+    "name": "Seated Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cd3",
+    "name": "Standing Smith Machine Bench Press",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Smith Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cd4",
+    "name": "Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cd5",
+    "name": "Incline Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cd6",
+    "name": "Decline Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cd7",
+    "name": "Single-Arm Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cd8",
+    "name": "Single-Leg Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cd9",
+    "name": "Pause Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cda",
+    "name": "Explosive Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cdb",
+    "name": "Tempo (Slow) Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cdc",
+    "name": "Deficit Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cdd",
+    "name": "Close-Grip Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cde",
+    "name": "Wide-Grip Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cdf",
+    "name": "Seated Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ce0",
+    "name": "Standing Dumbbell Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ce1",
+    "name": "Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ce2",
+    "name": "Incline Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ce3",
+    "name": "Decline Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ce4",
+    "name": "Single-Arm Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ce5",
+    "name": "Single-Leg Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ce6",
+    "name": "Pause Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ce7",
+    "name": "Explosive Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ce8",
+    "name": "Tempo (Slow) Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ce9",
+    "name": "Deficit Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cea",
+    "name": "Close-Grip Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ceb",
+    "name": "Wide-Grip Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cec",
+    "name": "Seated Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4ced",
+    "name": "Standing Cable Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cee",
+    "name": "Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cef",
+    "name": "Incline Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cf0",
+    "name": "Decline Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cf1",
+    "name": "Single-Arm Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cf2",
+    "name": "Single-Leg Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cf3",
+    "name": "Pause Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cf4",
+    "name": "Explosive Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cf5",
+    "name": "Tempo (Slow) Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cf6",
+    "name": "Deficit Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cf7",
+    "name": "Close-Grip Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cf8",
+    "name": "Wide-Grip Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cf9",
+    "name": "Seated Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cfa",
+    "name": "Standing Machine Flyes",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cfb",
+    "name": "Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cfc",
+    "name": "Incline Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cfd",
+    "name": "Decline Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cfe",
+    "name": "Single-Arm Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4cff",
+    "name": "Single-Leg Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d00",
+    "name": "Pause Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d01",
+    "name": "Explosive Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d02",
+    "name": "Tempo (Slow) Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d03",
+    "name": "Deficit Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d04",
+    "name": "Close-Grip Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d05",
+    "name": "Wide-Grip Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d06",
+    "name": "Seated Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d07",
+    "name": "Standing Bodyweight Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d08",
+    "name": "Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d09",
+    "name": "Incline Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d0a",
+    "name": "Decline Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d0b",
+    "name": "Single-Arm Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d0c",
+    "name": "Single-Leg Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d0d",
+    "name": "Pause Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d0e",
+    "name": "Explosive Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d0f",
+    "name": "Tempo (Slow) Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d10",
+    "name": "Deficit Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d11",
+    "name": "Close-Grip Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d12",
+    "name": "Wide-Grip Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d13",
+    "name": "Seated Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d14",
+    "name": "Standing Weighted Push-Up",
+    "targetMuscles": [
+      "Chest",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d15",
+    "name": "Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d16",
+    "name": "Incline Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d17",
+    "name": "Decline Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d18",
+    "name": "Single-Arm Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d19",
+    "name": "Single-Leg Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d1a",
+    "name": "Pause Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d1b",
+    "name": "Explosive Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d1c",
+    "name": "Tempo (Slow) Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d1d",
+    "name": "Deficit Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d1e",
+    "name": "Close-Grip Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d1f",
+    "name": "Wide-Grip Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d20",
+    "name": "Seated Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d21",
+    "name": "Standing Barbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d22",
+    "name": "Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d23",
+    "name": "Incline Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d24",
+    "name": "Decline Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d25",
+    "name": "Single-Arm Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d26",
+    "name": "Single-Leg Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d27",
+    "name": "Pause Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d28",
+    "name": "Explosive Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d29",
+    "name": "Tempo (Slow) Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d2a",
+    "name": "Deficit Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d2b",
+    "name": "Close-Grip Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d2c",
+    "name": "Wide-Grip Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d2d",
+    "name": "Seated Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d2e",
+    "name": "Standing Dumbbell Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d2f",
+    "name": "Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d30",
+    "name": "Incline Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d31",
+    "name": "Decline Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d32",
+    "name": "Single-Arm Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d33",
+    "name": "Single-Leg Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d34",
+    "name": "Pause Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d35",
+    "name": "Explosive Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d36",
+    "name": "Tempo (Slow) Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d37",
+    "name": "Deficit Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d38",
+    "name": "Close-Grip Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d39",
+    "name": "Wide-Grip Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d3a",
+    "name": "Seated Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d3b",
+    "name": "Standing Cable Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d3c",
+    "name": "Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d3d",
+    "name": "Incline Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d3e",
+    "name": "Decline Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d3f",
+    "name": "Single-Arm Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d40",
+    "name": "Single-Leg Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d41",
+    "name": "Pause Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d42",
+    "name": "Explosive Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d43",
+    "name": "Tempo (Slow) Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d44",
+    "name": "Deficit Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d45",
+    "name": "Close-Grip Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d46",
+    "name": "Wide-Grip Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d47",
+    "name": "Seated Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d48",
+    "name": "Standing Machine Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d49",
+    "name": "Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d4a",
+    "name": "Incline Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d4b",
+    "name": "Decline Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d4c",
+    "name": "Single-Arm Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d4d",
+    "name": "Single-Leg Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d4e",
+    "name": "Pause Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d4f",
+    "name": "Explosive Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d50",
+    "name": "Tempo (Slow) Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d51",
+    "name": "Deficit Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d52",
+    "name": "Close-Grip Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d53",
+    "name": "Wide-Grip Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d54",
+    "name": "Seated Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d55",
+    "name": "Standing Band Row",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d56",
+    "name": "Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d57",
+    "name": "Incline Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d58",
+    "name": "Decline Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d59",
+    "name": "Single-Arm Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d5a",
+    "name": "Single-Leg Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d5b",
+    "name": "Pause Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d5c",
+    "name": "Explosive Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d5d",
+    "name": "Tempo (Slow) Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d5e",
+    "name": "Deficit Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d5f",
+    "name": "Close-Grip Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d60",
+    "name": "Wide-Grip Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d61",
+    "name": "Seated Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d62",
+    "name": "Standing Cable Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d63",
+    "name": "Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d64",
+    "name": "Incline Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d65",
+    "name": "Decline Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d66",
+    "name": "Single-Arm Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d67",
+    "name": "Single-Leg Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d68",
+    "name": "Pause Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d69",
+    "name": "Explosive Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d6a",
+    "name": "Tempo (Slow) Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d6b",
+    "name": "Deficit Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d6c",
+    "name": "Close-Grip Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d6d",
+    "name": "Wide-Grip Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d6e",
+    "name": "Seated Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d6f",
+    "name": "Standing Machine Pulldown",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d70",
+    "name": "Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d71",
+    "name": "Incline Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d72",
+    "name": "Decline Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d73",
+    "name": "Single-Arm Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d74",
+    "name": "Single-Leg Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d75",
+    "name": "Pause Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bca4dc531168b8e4d76",
+    "name": "Explosive Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d77",
+    "name": "Tempo (Slow) Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d78",
+    "name": "Deficit Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d79",
+    "name": "Close-Grip Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d7a",
+    "name": "Wide-Grip Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d7b",
+    "name": "Seated Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d7c",
+    "name": "Standing Bodyweight Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d7d",
+    "name": "Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d7e",
+    "name": "Incline Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d7f",
+    "name": "Decline Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d80",
+    "name": "Single-Arm Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d81",
+    "name": "Single-Leg Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d82",
+    "name": "Pause Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d83",
+    "name": "Explosive Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d84",
+    "name": "Tempo (Slow) Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d85",
+    "name": "Deficit Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d86",
+    "name": "Close-Grip Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d87",
+    "name": "Wide-Grip Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d88",
+    "name": "Seated Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d89",
+    "name": "Standing Weighted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d8a",
+    "name": "Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d8b",
+    "name": "Incline Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d8c",
+    "name": "Decline Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d8d",
+    "name": "Single-Arm Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d8e",
+    "name": "Single-Leg Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d8f",
+    "name": "Pause Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d90",
+    "name": "Explosive Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d91",
+    "name": "Tempo (Slow) Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d92",
+    "name": "Deficit Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d93",
+    "name": "Close-Grip Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d94",
+    "name": "Wide-Grip Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d95",
+    "name": "Seated Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d96",
+    "name": "Standing Assisted Pull-Up",
+    "targetMuscles": [
+      "Back",
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Assisted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d97",
+    "name": "Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d98",
+    "name": "Decline Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d99",
+    "name": "Single-Leg Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d9a",
+    "name": "Pause Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d9b",
+    "name": "Explosive Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d9c",
+    "name": "Tempo (Slow) Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d9d",
+    "name": "Deficit Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d9e",
+    "name": "Close-Grip Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4d9f",
+    "name": "Wide-Grip Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4da0",
+    "name": "Seated Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4da1",
+    "name": "Standing Barbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4da2",
+    "name": "Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4da3",
+    "name": "Decline Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4da4",
+    "name": "Single-Leg Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4da5",
+    "name": "Pause Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4da6",
+    "name": "Explosive Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4da7",
+    "name": "Tempo (Slow) Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4da8",
+    "name": "Deficit Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4da9",
+    "name": "Close-Grip Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4daa",
+    "name": "Wide-Grip Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dab",
+    "name": "Seated Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dac",
+    "name": "Standing Dumbbell Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dad",
+    "name": "Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dae",
+    "name": "Decline Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4daf",
+    "name": "Single-Leg Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4db0",
+    "name": "Pause Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4db1",
+    "name": "Explosive Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4db2",
+    "name": "Tempo (Slow) Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4db3",
+    "name": "Deficit Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4db4",
+    "name": "Close-Grip Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4db5",
+    "name": "Wide-Grip Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4db6",
+    "name": "Seated Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4db7",
+    "name": "Standing Machine Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4db8",
+    "name": "Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4db9",
+    "name": "Decline Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dba",
+    "name": "Single-Leg Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dbb",
+    "name": "Pause Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dbc",
+    "name": "Explosive Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dbd",
+    "name": "Tempo (Slow) Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dbe",
+    "name": "Deficit Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dbf",
+    "name": "Close-Grip Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dc0",
+    "name": "Wide-Grip Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dc1",
+    "name": "Seated Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dc2",
+    "name": "Standing Bodyweight Squat",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dc3",
+    "name": "Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dc4",
+    "name": "Incline Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dc5",
+    "name": "Decline Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dc6",
+    "name": "Single-Arm Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dc7",
+    "name": "Single-Leg Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dc8",
+    "name": "Pause Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dc9",
+    "name": "Explosive Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dca",
+    "name": "Tempo (Slow) Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dcb",
+    "name": "Deficit Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dcc",
+    "name": "Close-Grip Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dcd",
+    "name": "Wide-Grip Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dce",
+    "name": "Seated Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dcf",
+    "name": "Standing Barbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dd0",
+    "name": "Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dd1",
+    "name": "Incline Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dd2",
+    "name": "Decline Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dd3",
+    "name": "Single-Arm Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dd4",
+    "name": "Single-Leg Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dd5",
+    "name": "Pause Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dd6",
+    "name": "Explosive Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dd7",
+    "name": "Tempo (Slow) Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dd8",
+    "name": "Deficit Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dd9",
+    "name": "Close-Grip Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dda",
+    "name": "Wide-Grip Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ddb",
+    "name": "Seated Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ddc",
+    "name": "Standing Dumbbell Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ddd",
+    "name": "Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dde",
+    "name": "Incline Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ddf",
+    "name": "Decline Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4de0",
+    "name": "Single-Arm Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4de1",
+    "name": "Single-Leg Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4de2",
+    "name": "Pause Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4de3",
+    "name": "Explosive Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4de4",
+    "name": "Tempo (Slow) Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4de5",
+    "name": "Deficit Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4de6",
+    "name": "Close-Grip Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4de7",
+    "name": "Wide-Grip Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4de8",
+    "name": "Seated Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4de9",
+    "name": "Standing Bodyweight Lunge",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dea",
+    "name": "Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4deb",
+    "name": "Incline Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dec",
+    "name": "Decline Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ded",
+    "name": "Single-Leg Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dee",
+    "name": "Pause Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4def",
+    "name": "Explosive Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4df0",
+    "name": "Tempo (Slow) Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4df1",
+    "name": "Deficit Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4df2",
+    "name": "Close-Grip Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4df3",
+    "name": "Wide-Grip Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4df4",
+    "name": "Seated Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4df5",
+    "name": "Standing Machine Leg Press",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4df6",
+    "name": "Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4df7",
+    "name": "Decline Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4df8",
+    "name": "Single-Arm Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4df9",
+    "name": "Single-Leg Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dfa",
+    "name": "Pause Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dfb",
+    "name": "Explosive Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dfc",
+    "name": "Tempo (Slow) Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dfd",
+    "name": "Deficit Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dfe",
+    "name": "Close-Grip Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4dff",
+    "name": "Wide-Grip Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e00",
+    "name": "Seated Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e01",
+    "name": "Standing Barbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e02",
+    "name": "Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e03",
+    "name": "Decline Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e04",
+    "name": "Single-Arm Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e05",
+    "name": "Single-Leg Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e06",
+    "name": "Pause Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e07",
+    "name": "Explosive Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e08",
+    "name": "Tempo (Slow) Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e09",
+    "name": "Deficit Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e0a",
+    "name": "Close-Grip Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e0b",
+    "name": "Wide-Grip Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e0c",
+    "name": "Seated Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e0d",
+    "name": "Standing Dumbbell Deadlift",
+    "targetMuscles": [
+      "Calves",
+      "Knees",
+      "Thighs",
+      "Glutes"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e0e",
+    "name": "Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e0f",
+    "name": "Incline Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e10",
+    "name": "Decline Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e11",
+    "name": "Single-Arm Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e12",
+    "name": "Single-Leg Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e13",
+    "name": "Pause Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e14",
+    "name": "Explosive Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e15",
+    "name": "Tempo (Slow) Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e16",
+    "name": "Deficit Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e17",
+    "name": "Close-Grip Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e18",
+    "name": "Wide-Grip Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e19",
+    "name": "Seated Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e1a",
+    "name": "Standing Barbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e1b",
+    "name": "Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e1c",
+    "name": "Incline Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e1d",
+    "name": "Decline Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e1e",
+    "name": "Single-Arm Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e1f",
+    "name": "Single-Leg Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e20",
+    "name": "Pause Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e21",
+    "name": "Explosive Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e22",
+    "name": "Tempo (Slow) Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e23",
+    "name": "Deficit Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e24",
+    "name": "Close-Grip Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e25",
+    "name": "Wide-Grip Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e26",
+    "name": "Seated Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e27",
+    "name": "Standing Dumbbell Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e28",
+    "name": "Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e29",
+    "name": "Incline Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e2a",
+    "name": "Decline Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e2b",
+    "name": "Single-Arm Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e2c",
+    "name": "Single-Leg Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e2d",
+    "name": "Pause Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e2e",
+    "name": "Explosive Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e2f",
+    "name": "Tempo (Slow) Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e30",
+    "name": "Deficit Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e31",
+    "name": "Close-Grip Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e32",
+    "name": "Wide-Grip Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e33",
+    "name": "Seated Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e34",
+    "name": "Standing Machine Overhead Press",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e35",
+    "name": "Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e36",
+    "name": "Incline Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e37",
+    "name": "Decline Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e38",
+    "name": "Single-Arm Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e39",
+    "name": "Single-Leg Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e3a",
+    "name": "Pause Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e3b",
+    "name": "Explosive Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e3c",
+    "name": "Tempo (Slow) Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e3d",
+    "name": "Deficit Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e3e",
+    "name": "Close-Grip Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e3f",
+    "name": "Wide-Grip Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e40",
+    "name": "Seated Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e41",
+    "name": "Standing Dumbbell Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e42",
+    "name": "Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e43",
+    "name": "Incline Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e44",
+    "name": "Decline Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e45",
+    "name": "Single-Arm Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e46",
+    "name": "Single-Leg Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e47",
+    "name": "Pause Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e48",
+    "name": "Explosive Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e49",
+    "name": "Tempo (Slow) Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e4a",
+    "name": "Deficit Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e4b",
+    "name": "Close-Grip Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e4c",
+    "name": "Wide-Grip Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e4d",
+    "name": "Seated Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e4e",
+    "name": "Standing Cable Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e4f",
+    "name": "Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e50",
+    "name": "Incline Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e51",
+    "name": "Decline Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e52",
+    "name": "Single-Arm Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e53",
+    "name": "Single-Leg Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e54",
+    "name": "Pause Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e55",
+    "name": "Explosive Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e56",
+    "name": "Tempo (Slow) Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e57",
+    "name": "Deficit Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e58",
+    "name": "Close-Grip Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e59",
+    "name": "Wide-Grip Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e5a",
+    "name": "Seated Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e5b",
+    "name": "Standing Band Lateral Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Band"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e5c",
+    "name": "Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e5d",
+    "name": "Incline Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e5e",
+    "name": "Decline Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e5f",
+    "name": "Single-Arm Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e60",
+    "name": "Single-Leg Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e61",
+    "name": "Pause Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e62",
+    "name": "Explosive Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e63",
+    "name": "Tempo (Slow) Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e64",
+    "name": "Deficit Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e65",
+    "name": "Close-Grip Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e66",
+    "name": "Wide-Grip Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e67",
+    "name": "Seated Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e68",
+    "name": "Standing Dumbbell Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e69",
+    "name": "Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e6a",
+    "name": "Incline Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e6b",
+    "name": "Decline Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e6c",
+    "name": "Single-Arm Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e6d",
+    "name": "Single-Leg Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e6e",
+    "name": "Pause Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e6f",
+    "name": "Explosive Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e70",
+    "name": "Tempo (Slow) Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e71",
+    "name": "Deficit Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e72",
+    "name": "Close-Grip Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e73",
+    "name": "Wide-Grip Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e74",
+    "name": "Seated Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e75",
+    "name": "Standing Plate Front Raise",
+    "targetMuscles": [
+      "Neck",
+      "Shoulders",
+      "Arms"
+    ],
+    "equipmentRequired": "Plate"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e76",
+    "name": "Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e77",
+    "name": "Incline Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e78",
+    "name": "Decline Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e79",
+    "name": "Single-Arm Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e7a",
+    "name": "Single-Leg Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e7b",
+    "name": "Pause Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e7c",
+    "name": "Explosive Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e7d",
+    "name": "Tempo (Slow) Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e7e",
+    "name": "Deficit Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e7f",
+    "name": "Close-Grip Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e80",
+    "name": "Wide-Grip Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e81",
+    "name": "Seated Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e82",
+    "name": "Standing Barbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Barbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e83",
+    "name": "Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e84",
+    "name": "Incline Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e85",
+    "name": "Decline Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e86",
+    "name": "Single-Arm Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e87",
+    "name": "Single-Leg Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e88",
+    "name": "Pause Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e89",
+    "name": "Explosive Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e8a",
+    "name": "Tempo (Slow) Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e8b",
+    "name": "Deficit Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e8c",
+    "name": "Close-Grip Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e8d",
+    "name": "Wide-Grip Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e8e",
+    "name": "Seated Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e8f",
+    "name": "Standing Dumbbell Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e90",
+    "name": "Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e91",
+    "name": "Incline Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e92",
+    "name": "Decline Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e93",
+    "name": "Single-Arm Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e94",
+    "name": "Single-Leg Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e95",
+    "name": "Pause Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e96",
+    "name": "Explosive Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e97",
+    "name": "Tempo (Slow) Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e98",
+    "name": "Deficit Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e99",
+    "name": "Close-Grip Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e9a",
+    "name": "Wide-Grip Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e9b",
+    "name": "Seated Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e9c",
+    "name": "Standing Cable Bicep Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e9d",
+    "name": "Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e9e",
+    "name": "Incline Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4e9f",
+    "name": "Decline Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ea0",
+    "name": "Single-Arm Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ea1",
+    "name": "Single-Leg Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ea2",
+    "name": "Pause Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ea3",
+    "name": "Explosive Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ea4",
+    "name": "Tempo (Slow) Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ea5",
+    "name": "Deficit Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ea6",
+    "name": "Close-Grip Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ea7",
+    "name": "Wide-Grip Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ea8",
+    "name": "Seated Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ea9",
+    "name": "Standing Dumbbell Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eaa",
+    "name": "Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eab",
+    "name": "Incline Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eac",
+    "name": "Decline Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ead",
+    "name": "Single-Arm Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eae",
+    "name": "Single-Leg Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eaf",
+    "name": "Pause Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eb0",
+    "name": "Explosive Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eb1",
+    "name": "Tempo (Slow) Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eb2",
+    "name": "Deficit Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eb3",
+    "name": "Close-Grip Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eb4",
+    "name": "Wide-Grip Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eb5",
+    "name": "Seated Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eb6",
+    "name": "Standing Cable Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eb7",
+    "name": "Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eb8",
+    "name": "Incline Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eb9",
+    "name": "Decline Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eba",
+    "name": "Single-Arm Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ebb",
+    "name": "Single-Leg Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ebc",
+    "name": "Pause Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ebd",
+    "name": "Explosive Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ebe",
+    "name": "Tempo (Slow) Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ebf",
+    "name": "Deficit Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ec0",
+    "name": "Close-Grip Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ec1",
+    "name": "Wide-Grip Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ec2",
+    "name": "Seated Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ec3",
+    "name": "Standing Ez-Bar Tricep Extension",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Ez-Bar"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ec4",
+    "name": "Dumbbell Hammer Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ec5",
+    "name": "Incline Dumbbell Hammer Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ec6",
+    "name": "Decline Dumbbell Hammer Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ec7",
+    "name": "Single-Arm Dumbbell Hammer Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ec8",
+    "name": "Single-Leg Dumbbell Hammer Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ec9",
+    "name": "Cable Hammer Curl",
+    "targetMuscles": [
+      "Forearms",
+      "Arms"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4eca",
+    "name": "Bodyweight Crunch",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ecb",
+    "name": "Machine Crunch",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Machine"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ecc",
+    "name": "Cable Crunch",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Cable"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ecd",
+    "name": "Bodyweight Plank",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ece",
+    "name": "Weighted Plank",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Weighted"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ecf",
+    "name": "Bodyweight Leg Raise",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ed0",
+    "name": "Hanging Leg Raise",
+    "targetMuscles": [
+      "Back",
+      "Abs"
+    ],
+    "equipmentRequired": "Hanging"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ed1",
+    "name": "Bodyweight Burpee",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ed2",
+    "name": "Dumbbell Burpee",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ed3",
+    "name": "Kettlebell Kettlebell Swing",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Kettlebell"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ed4",
+    "name": "Treadmill Sprints",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ed5",
+    "name": "Track Sprints",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Track"
+  },
+  {
+    "_id": "6a692bcb4dc531168b8e4ed6",
+    "name": "Rowing Machine Rowing",
+    "targetMuscles": [
+      "Full Body"
+    ],
+    "equipmentRequired": "Rowing Machine"
+  },
+  {
+    "_id": "6a8129cea9bc1ad02525a83a",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8135ca03c128aa8886fecb",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a813c1770494c6b24d5264a",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8141bba7732d4a1ed0b540",
+    "name": "Instructor Exercise 1786855855467",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a8141dca7732d4a1ed0b54d",
+    "name": "Instructor Exercise 1786855895653",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a8144b22c148f5a55718276",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8144c72c148f5a55718290",
+    "name": "Instructor Exercise 1786856642632",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a814f83f05f7fcb246b55f6",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a814f84f05f7fcb246b55f9",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a814f90f05f7fcb246b5603",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a814fa3f05f7fcb246b561d",
+    "name": "Instructor Exercise 1786859423058",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a81534d31252d79dd682df5",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a81536231252d79dd682e05",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a81536331252d79dd682e08",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a81536e31252d79dd682e15",
+    "name": "Instructor Exercise 1786860393295",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a8154666cad9d884b9b523a",
+    "name": "Outdoor Running",
+    "targetMuscles": [
+      "Full Body",
+      "Cardio",
+      "Quads"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a8154ecaeac9c8ea301bf44",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a815501aeac9c8ea301bf54",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a815502aeac9c8ea301bf57",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a81550caeac9c8ea301bf64",
+    "name": "Instructor Exercise 1786860808158",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a840584e28a934f97d405ad",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a84077019f56f3cd2e46123",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a84078019f56f3cd2e46133",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a84078119f56f3cd2e46136",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a84078b19f56f3cd2e46143",
+    "name": "Instructor Exercise 1787037574901",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a840bc7702b340bfd658651",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a840be5702b340bfd658661",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a840be6702b340bfd658664",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a840bf7702b340bfd658671",
+    "name": "Instructor Exercise 1787038706838",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a8412b3f83cde46fd562f80",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8412c3f83cde46fd562f90",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a8412c4f83cde46fd562f93",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a8412d3f83cde46fd562fa0",
+    "name": "Instructor Exercise 1787040457503",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a8412f6f83cde46fd562fb2",
+    "name": "Instructor Exercise 1787040497609",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a8414d3a84d414c3fe5308a",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8414e7a84d414c3fe5309e",
+    "name": "Instructor Exercise 1787040991253",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841bf4ec96229a75d001d5",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a841c21ec96229a75d001e5",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a841c24ec96229a75d001e8",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a841c44ec96229a75d001f3",
+    "name": "Instructor Exercise 1787042873660",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841cc7ec96229a75d00205",
+    "name": "Instructor Exercise 1787043005217",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841cedec96229a75d00217",
+    "name": "Instructor Exercise 1787043045786",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841da79d608c604875a418",
+    "name": "Instructor Exercise 1787043180653",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841db99d608c604875a425",
+    "name": "Instructor Exercise 1787043236768",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841e279d608c604875a435",
+    "name": "Instructor Exercise 1787043345888",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841e679d608c604875a445",
+    "name": "Instructor Exercise 1787043414090",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841eb59d608c604875a455",
+    "name": "Instructor Exercise 1787043495791",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841f0b361651d1c2797d84",
+    "name": "Instructor Exercise 1787043567060",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841f25361651d1c2797d91",
+    "name": "Instructor Exercise 1787043609205",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841f8540f99ce513a82b97",
+    "name": "Instructor Exercise 1787043698637",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a841fca40f99ce513a82ba7",
+    "name": "Instructor Exercise 1787043772354",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a842018e3b30cf0e3ee5a86",
+    "name": "Instructor Exercise 1787043826542",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a842bc927c78ddbf5be011b",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a842d1c27c78ddbf5be012b",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a842d1d27c78ddbf5be012e",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a842d4327c78ddbf5be0139",
+    "name": "Instructor Exercise 1787047226211",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a8432d68687b131a71ff9ac",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a84334e8687b131a71ff9c3",
+    "name": "Standard Bench Press",
+    "targetMuscles": [
+      "Chest"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a84334f8687b131a71ff9c4",
+    "name": "AI Push-up",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a8433618687b131a71ff9c7",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a8433618687b131a71ff9ca",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a8433868687b131a71ff9d5",
+    "name": "Instructor Exercise 1787048830237",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a8434fd8687b131a71ff9e4",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8435178687b131a71ff9fb",
+    "name": "Standard Bench Press",
+    "targetMuscles": [
+      "Chest"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a8435178687b131a71ff9fc",
+    "name": "AI Push-up",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a84351f8687b131a71ff9ff",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a8435208687b131a71ffa02",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a8435308687b131a71ffa0d",
+    "name": "Instructor Exercise 1787049257803",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a8435d98687b131a71ffa27",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8436968687b131a71ffa38",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8436b58687b131a71ffa4f",
+    "name": "Standard Bench Press",
+    "targetMuscles": [
+      "Chest"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a8436b68687b131a71ffa50",
+    "name": "AI Push-up",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Bodyweight"
+  },
+  {
+    "_id": "6a8436c08687b131a71ffa53",
+    "name": "Outdoor Track Run Test",
+    "targetMuscles": [
+      "Quads",
+      "Hamstrings",
+      "Cardio"
+    ],
+    "equipmentRequired": "None"
+  },
+  {
+    "_id": "6a8436c18687b131a71ffa56",
+    "name": "Manual Treadmill Run Test",
+    "targetMuscles": [
+      "Cardio"
+    ],
+    "equipmentRequired": "Treadmill"
+  },
+  {
+    "_id": "6a8436d68687b131a71ffa61",
+    "name": "Instructor Exercise 1787049680072",
+    "targetMuscles": [
+      "Chest",
+      "Triceps"
+    ],
+    "equipmentRequired": "Dumbbells"
+  },
+  {
+    "_id": "6a843a1cf3a6846513c89cf4",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a844a84df238e3280ae26da",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a844e5edf238e3280ae26f6",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a844e91df238e3280ae2709",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a844ecedf238e3280ae271c",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a844f4bd37157b0f1e0c07e",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a844fa1c842a91c47bce7e8",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a84503039911a255584f1d0",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8450a0ef42e9b1e04d18e0",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8450fe17332a67d03f99c1",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a84513d926fa0929fee0e4d",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a84517da5b43ba0e8a7bb76",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  },
+  {
+    "_id": "6a8451aba5b43ba0e8a7bb8a",
+    "name": "Test Exercise Admin",
+    "targetMuscles": [],
+    "equipmentRequired": "Dumbbell"
+  }
+]

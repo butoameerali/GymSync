@@ -69,3 +69,28 @@
   transform: translateY(-3px);
   box-shadow: 0 12px 30px rgba(239, 68, 68, 0.5);
 }
+
+@media (max-width: 640px) {
+  .running-page {
+    padding: 70px 16px;
+  }
+
+  .running-card {
+    padding: 24px 16px;
+    border-radius: 16px;
+  }
+
+  .running-header h2 {
+    font-size: 1.8rem;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .metric h3 {
+    font-size: 2rem;
+  }
+}

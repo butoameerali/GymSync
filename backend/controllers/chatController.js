@@ -39,10 +39,15 @@ const resolveParticipant = async (identifier) => {
 // Uses ObjectId matching whenever the participant resolved to a real user (rename-safe).
 // Falls back to name matching only for system contacts, or legacy rows / unresolvable
 // users where an id genuinely isn't available.
-const oneWay = (from, to) => ({
-  ...(from.id ? { senderId: from.id } : { sender: from.name }),
-  ...(to.id ? { receiverId: to.id } : { receiver: to.name })
-});
+const oneWay = (from, to) => {
+  const senderClause = from.id
+    ? { $or: [{ senderId: from.id }, { sender: from.name, senderId: null }] }
+    : { sender: from.name };
+  const receiverClause = to.id
+    ? { $or: [{ receiverId: to.id }, { receiver: to.name, receiverId: null }] }
+    : { receiver: to.name };
+  return { $and: [senderClause, receiverClause] };
+};
 
 const isSameParticipant = (p, currentUserId, currentUserName) =>
   (p.id && currentUserId && String(p.id) === String(currentUserId)) || (!p.id && p.name === currentUserName);
