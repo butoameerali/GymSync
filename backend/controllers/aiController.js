@@ -4,9 +4,134 @@ import SavedAIPlan from '../models/SavedAIPlan.js';
 import User from '../models/User.js';
 import WorkoutProgress from '../models/WorkoutProgress.js';
 import ExerciseRecord from '../models/ExerciseRecord.js';
+import PreMadePlan from '../models/PreMadePlan.js';
 import coachConversationEngine from '../services/ai/coachConversationEngine.js';
 import fitnessContentService from '../services/fitnessContentService.js';
 import exerciseRegistry from '../services/workout/exerciseRegistry.js';
+
+// Allowed source attribution types
+export const ALLOWED_SOURCE_TYPES = ['instructor_program', 'instructor_diet', 'instructor_article', 'system_curated', 'community'];
+
+// Semantic reps parser and clamp to [1, 100]
+export const sanitizeReps = (reps) => {
+  if (typeof reps === 'number') {
+    const n = Math.max(1, Math.min(100, Math.round(reps)));
+    return String(n);
+  }
+  if (typeof reps !== 'string') {
+    return '10';
+  }
+
+  const trimmed = reps.trim();
+  if (!trimmed) return '10';
+
+  // Check for safe workout terms: AMRAP, To Failure, Max Effort
+  if (/^(amrap|to\s*failure|max\s*effort)$/i.test(trimmed)) {
+    return trimmed.slice(0, 15);
+  }
+
+  // Check for range patterns like "8-12", "8 - 12", "8 to 12"
+  const rangeMatch = trimmed.match(/^(\d+)\s*(?:-|to)\s*(\d+)(?:\s*(?:reps?|sec|seconds?|s))?$/i);
+  if (rangeMatch) {
+    const low = Math.max(1, Math.min(100, parseInt(rangeMatch[1], 10)));
+    const high = Math.max(low, Math.min(100, parseInt(rangeMatch[2], 10)));
+    return `${low}-${high}`;
+  }
+
+  // Check for single number with optional suffix like "15 reps", "1000", "30s"
+  const singleMatch = trimmed.match(/^(\d+)(?:\s*(reps?|sec|seconds?|s))?$/i);
+  if (singleMatch) {
+    const n = Math.max(1, Math.min(100, parseInt(singleMatch[1], 10)));
+    const suffix = singleMatch[2] ? ` ${singleMatch[2].toLowerCase()}` : '';
+    return `${n}${suffix}`;
+  }
+
+  // Fallback: extract first number found and clamp
+  const fallbackNum = trimmed.match(/\d+/);
+  if (fallbackNum) {
+    const n = Math.max(1, Math.min(100, parseInt(fallbackNum[0], 10)));
+    return String(n);
+  }
+
+  return '10';
+};
+
+// Validate exercise name against exercise registry allowlist; fallback safely if arbitrary or dangerous
+export const validateAndSanitizeExerciseName = (rawName, targetMuscles = []) => {
+  const clean = String(rawName || '').replace(/[<>{}]/g, '').trim().slice(0, 80);
+  if (!clean) return 'Push-Ups';
+
+  // 1. Exact or partial match in exerciseRegistry
+  const matched = exerciseRegistry.findByName(clean);
+  if (matched && matched.name) {
+    return matched.name;
+  }
+
+  // 2. Token / word-level match: check if key tokens match an existing exercise
+  const allExercises = exerciseRegistry.getAll();
+  const lowerClean = clean.toLowerCase();
+  const cleanTokens = lowerClean.split(/[\s-]+/).filter(t => t.length > 2);
+
+  let bestMatch = null;
+  let maxTokenOverlap = 0;
+
+  for (const ex of allExercises) {
+    const exLower = ex.name.toLowerCase();
+    if (exLower === lowerClean || exLower.includes(lowerClean) || lowerClean.includes(exLower)) {
+      bestMatch = ex.name;
+      break;
+    }
+    const exTokens = exLower.split(/[\s-]+/).filter(t => t.length > 2);
+    const overlap = cleanTokens.filter(t => exTokens.includes(t)).length;
+    if (overlap > maxTokenOverlap && overlap >= 2) {
+      maxTokenOverlap = overlap;
+      bestMatch = ex.name;
+    }
+  }
+
+  if (bestMatch) {
+    return bestMatch;
+  }
+
+  // 3. Fallback: If unrecognized or injected, map safely based on target muscle
+  const primaryMuscle = (Array.isArray(targetMuscles) && targetMuscles[0])
+    ? String(targetMuscles[0]).toLowerCase()
+    : 'chest';
+
+  if (primaryMuscle.includes('leg') || primaryMuscle.includes('quad') || primaryMuscle.includes('glute')) {
+    return 'Bodyweight Squats';
+  }
+  if (primaryMuscle.includes('back') || primaryMuscle.includes('lat')) {
+    return 'Pull-Ups';
+  }
+  if (primaryMuscle.includes('shoulder') || primaryMuscle.includes('deltoid')) {
+    return 'Dumbbell Overhead Press';
+  }
+  if (primaryMuscle.includes('core') || primaryMuscle.includes('ab')) {
+    return 'Plank';
+  }
+  if (primaryMuscle.includes('arm') || primaryMuscle.includes('bicep') || primaryMuscle.includes('tricep')) {
+    return 'Dumbbell Bicep Curl';
+  }
+
+  return 'Push-Ups';
+};
+
+// Strict sourceAttribution schema validation & property allowlist
+export const sanitizeSourceAttribution = (sourceAttribution) => {
+  if (!sourceAttribution || typeof sourceAttribution !== 'object') {
+    return null;
+  }
+  const sa = sourceAttribution;
+  const sourceType = ALLOWED_SOURCE_TYPES.includes(sa.sourceType) ? sa.sourceType : 'system_curated';
+
+  return {
+    sourceType,
+    sourceId: typeof sa.sourceId === 'string' ? sa.sourceId.replace(/[^\w-]/g, '').slice(0, 50) : null,
+    sourceTitle: String(sa.sourceTitle || '').replace(/[<>{}]/g, '').trim().slice(0, 120),
+    instructor: String(sa.instructor || 'GymSync Coach').replace(/[<>{}]/g, '').trim().slice(0, 80)
+  };
+};
 
 // Strict validator and clamp for AI structured actions
 export const validateAndSanitizeStructuredAction = (action) => {
@@ -19,7 +144,7 @@ export const validateAndSanitizeStructuredAction = (action) => {
     safetyFlags: Array.isArray(action.safetyFlags)
       ? action.safetyFlags.map(f => String(f).slice(0, 300)).filter(Boolean)
       : [],
-    sourceAttribution: action.sourceAttribution || null,
+    sourceAttribution: sanitizeSourceAttribution(action.sourceAttribution),
     workout: null,
     diet: null
   };
@@ -36,28 +161,25 @@ export const validateAndSanitizeStructuredAction = (action) => {
       ? w.mainWorkout.slice(0, 15).map(ex => {
           const numSets = Number(ex.sets);
           const sets = Math.max(1, Math.min(10, Math.round(Number.isFinite(numSets) ? numSets : 3)));
-          let reps = ex.reps;
-          if (typeof reps === 'number') {
-            reps = String(Math.max(1, Math.min(100, Math.round(reps))));
-          } else if (typeof reps === 'string') {
-            reps = reps.slice(0, 20);
-          } else {
-            reps = '10';
-          }
+          const reps = sanitizeReps(ex.reps);
           const numRest = Number(ex.restSeconds);
           const restSeconds = Math.max(0, Math.min(600, Math.round(Number.isFinite(numRest) ? numRest : 60)));
           const numRpe = Number(ex.rpe);
           const rpe = Math.max(1, Math.min(10, Math.round(Number.isFinite(numRpe) ? numRpe : 7)));
           const numCal = Number(ex.estimatedCalories);
           const estimatedCalories = Math.max(0, Math.min(2000, Math.round(Number.isFinite(numCal) ? numCal : 0)));
+          const exTargetMuscles = Array.isArray(ex.targetMuscles)
+            ? ex.targetMuscles.map(m => String(m).slice(0, 50)).slice(0, 5)
+            : ['Full Body'];
+          const name = validateAndSanitizeExerciseName(ex.name, exTargetMuscles);
 
           return {
-            name: String(ex.name || 'Standard Exercise').slice(0, 80),
+            name,
             sets,
             reps,
             restSeconds,
             rpe,
-            targetMuscles: Array.isArray(ex.targetMuscles) ? ex.targetMuscles.map(m => String(m).slice(0, 50)).slice(0, 5) : ['Full Body'],
+            targetMuscles: exTargetMuscles,
             equipment: String(ex.equipment || 'Gym Equipment').slice(0, 50),
             notes: String(ex.notes || '').slice(0, 300),
             estimatedCalories
@@ -136,58 +258,102 @@ export const executeCoachPipeline = async ({
     throw new Error('Message is required');
   }
 
-  const effectiveUserId = userId || userContext?.userId || userContext?._id;
-  let authoritativeContext = { ...userContext };
-  let authoritativeProgress = { ...currentProgress };
-  let authoritativeHistory = [...recentWorkoutHistory];
+  // Server-Authoritative Identity: ONLY trust server-provided userId.
+  // Never fall back to userContext.userId or userContext._id.
+  const effectiveUserId = userId || null;
 
-  // Load canonical DB facts if userId is available
+  let authoritativeContext = {};
+  let authoritativeProgress = {};
+  let authoritativeHistory = [];
+  let authoritativePlan = null;
+  let authoritativeWorkout = null;
+  let authoritativePreferences = {};
+
   if (effectiveUserId) {
-    try {
-      const dbUser = await User.findById(effectiveUserId).select('name role bioData');
-      if (dbUser) {
-        authoritativeContext = {
-          ...authoritativeContext,
-          userId: dbUser._id,
-          name: dbUser.name,
-          userName: dbUser.name,
-          role: dbUser.role,
-          primaryGoal: dbUser.bioData?.mainGoalArea || dbUser.bioData?.goals?.[0] || 'General Fitness',
-          fitnessLevel: dbUser.bioData?.fitnessLevel || 'Beginner',
-          equipmentAccess: dbUser.bioData?.equipmentAccess || 'Full Gym',
-          weight: dbUser.bioData?.weight || 70,
-          height: dbUser.bioData?.height || 170
-        };
-      }
-      const dbProgress = await WorkoutProgress.findOne({ userId: effectiveUserId }).lean();
-      if (dbProgress) {
-        authoritativeProgress = {
-          completedDays: dbProgress.completedDays || [],
-          streak: dbProgress.streak || 0,
-          planId: dbProgress.planId,
-          lastWorkoutCompletionTime: dbProgress.lastWorkoutCompletionTime
-        };
-      }
-      const dbRecords = await ExerciseRecord.find({ userId: effectiveUserId }).sort({ createdAt: -1 }).limit(5).lean();
-      if (dbRecords && dbRecords.length > 0) {
-        authoritativeHistory = dbRecords.map(r => ({
-          exerciseName: r.exerciseName,
-          sets: r.totalSets,
-          reps: r.repsCompleted,
-          points: r.pointsEarned,
-          date: r.createdAt
-        }));
-      }
-    } catch (dbErr) {
-      console.warn('Authoritative DB context load warning:', dbErr.message);
+    // Authenticated user: Load canonical truth directly from MongoDB
+    const dbUser = await User.findById(effectiveUserId).select('name role bioData');
+    if (!dbUser) {
+      const err = new Error('Athlete profile not found');
+      err.status = 401;
+      throw err;
     }
+
+    const bio = dbUser.bioData || {};
+    authoritativeContext = {
+      userId: dbUser._id,
+      name: dbUser.name,
+      userName: dbUser.name,
+      role: dbUser.role,
+      primaryGoal: bio.mainGoalArea || bio.goals?.[0] || 'General Fitness',
+      fitnessLevel: bio.fitnessLevel || 'Beginner',
+      equipmentAccess: bio.equipmentAccess || 'Full Gym',
+      weight: (typeof bio.weight === 'number' && bio.weight > 0) ? bio.weight : null,
+      height: (typeof bio.height === 'number' && bio.height > 0) ? bio.height : null,
+      jointPain: Array.isArray(bio.jointPain) ? bio.jointPain : [],
+      isGuest: false
+    };
+
+    authoritativePreferences = bio.preferences || {};
+
+    const dbProgress = await WorkoutProgress.findOne({ userId: effectiveUserId }).lean();
+    if (dbProgress) {
+      authoritativeProgress = {
+        completedDays: dbProgress.completedDays || [],
+        streak: dbProgress.streak || 0,
+        planId: dbProgress.planId,
+        lastWorkoutCompletionTime: dbProgress.lastWorkoutCompletionTime
+      };
+
+      if (dbProgress.planId) {
+        try {
+          const planDoc = await PreMadePlan.findById(dbProgress.planId).lean();
+          if (planDoc) {
+            authoritativePlan = planDoc;
+          }
+        } catch (planErr) {
+          console.warn('Could not load authoritative user plan:', planErr.message);
+        }
+      }
+    }
+
+    const dbRecords = await ExerciseRecord.find({ userId: effectiveUserId }).sort({ createdAt: -1 }).limit(5).lean();
+    if (dbRecords && dbRecords.length > 0) {
+      authoritativeHistory = dbRecords.map(r => ({
+        exerciseName: r.exerciseName,
+        sets: r.totalSets,
+        reps: r.repsCompleted,
+        points: r.pointsEarned,
+        date: r.createdAt
+      }));
+    }
+  } else {
+    // Unauthenticated Guest: ZERO DB lookup.
+    // Client-provided parameters are sanitized, but never grant access to any DB records.
+    authoritativeContext = {
+      userId: null,
+      name: (typeof userContext?.name === 'string' && userContext.name.trim()) ? userContext.name.trim().slice(0, 50) : 'Guest Athlete',
+      userName: (typeof userContext?.userName === 'string' && userContext.userName.trim()) ? userContext.userName.trim().slice(0, 50) : 'Guest Athlete',
+      role: 'User',
+      primaryGoal: (typeof userContext?.primaryGoal === 'string' && userContext.primaryGoal.trim()) ? userContext.primaryGoal.trim().slice(0, 50) : 'General Fitness',
+      fitnessLevel: (typeof userContext?.fitnessLevel === 'string' && userContext.fitnessLevel.trim()) ? userContext.fitnessLevel.trim().slice(0, 50) : 'Beginner',
+      equipmentAccess: (typeof userContext?.equipmentAccess === 'string' && userContext.equipmentAccess.trim()) ? userContext.equipmentAccess.trim().slice(0, 50) : 'Full Gym',
+      weight: (typeof userContext?.weight === 'number' && userContext.weight > 0) ? userContext.weight : null,
+      height: (typeof userContext?.height === 'number' && userContext.height > 0) ? userContext.height : null,
+      jointPain: Array.isArray(userContext?.jointPain) ? userContext.jointPain.slice(0, 5) : [],
+      isGuest: true
+    };
+    authoritativeProgress = currentProgress || {};
+    authoritativeHistory = Array.isArray(recentWorkoutHistory) ? recentWorkoutHistory.slice(0, 5) : [];
+    authoritativePlan = currentPlan || null;
+    authoritativeWorkout = currentWorkout || null;
+    authoritativePreferences = preferences || {};
   }
 
   const userName = authoritativeContext?.name || authoritativeContext?.userName || 'Athlete';
   const primaryGoal = authoritativeContext?.primaryGoal || 'General Fitness';
   const fitnessLevel = authoritativeContext?.fitnessLevel || 'Beginner';
   const equipment = authoritativeContext?.equipmentAccess || 'Full Gym';
-  const weight = authoritativeContext?.weight || authoritativeContext?.weightKg || 'Not specified';
+  const weight = authoritativeContext?.weight || null;
 
   const startTime = Date.now();
   let retrievalTimeMs = 0;
@@ -224,11 +390,11 @@ export const executeCoachPipeline = async ({
     message: rawMessage,
     userContext: authoritativeContext,
     history: Array.isArray(history) ? history.slice(-10) : [],
-    currentPlan,
-    currentWorkout,
+    currentPlan: authoritativePlan,
+    currentWorkout: authoritativeWorkout,
     recentWorkoutHistory: authoritativeHistory,
     currentProgress: authoritativeProgress,
-    preferences
+    preferences: authoritativePreferences
   });
   decisionTimeMs = Date.now() - decisionStart;
 
@@ -425,7 +591,8 @@ Directive: Recommend this instructor nutrition plan adapted to the user.`;
 - Primary Goal: ${primaryGoal}
 - Fitness Level: ${fitnessLevel}
 - Equipment: ${equipment}
-- Weight: ${weight} kg
+- Weight: ${weight ? `${weight} kg` : 'Not specified in profile'}
+${!weight ? `- NOTE: Athlete bodyweight is not specified in profile. Do not assume a fabricated weight; provide general coaching and ask for weight if they need precise calorie/macro targets.` : ''}
 ${safetyFlags.length > 0 ? `- SAFETY ALERT: ${safetyFlags.join(', ')}` : ''}
 
 [KNOWLEDGE CONTEXT]
@@ -620,37 +787,36 @@ export const deleteSavedPlan = async (req, res) => {
 
 export const handleChat = async (req, res) => {
   try {
-    const payload = { ...(req.body || {}) };
-
-    // Prevent client-side userContext spoofing: load authoritative profile if authenticated
-    if (req.user && req.user._id) {
-      try {
-        const authUser = await User.findById(req.user._id).select('name role bioData');
-        if (authUser) {
-          payload.userContext = {
-            ...(payload.userContext || {}),
-            name: authUser.name,
-            userName: authUser.name,
-            role: authUser.role,
-            primaryGoal: authUser.bioData?.mainGoalArea || authUser.bioData?.goals?.[0] || payload.userContext?.primaryGoal || 'General Fitness',
-            fitnessLevel: authUser.bioData?.fitnessLevel || payload.userContext?.fitnessLevel || 'Beginner',
-            equipmentAccess: authUser.bioData?.equipmentAccess || payload.userContext?.equipmentAccess || 'Full Gym',
-            weight: authUser.bioData?.weight || payload.userContext?.weight || 70,
-            height: authUser.bioData?.height || payload.userContext?.height || 170
-          };
-        }
-      } catch (userErr) {
-        console.warn('AI context user load warning:', userErr.message);
-      }
+    const rawMessage = req.body?.message;
+    if (!rawMessage || typeof rawMessage !== 'string' || !rawMessage.trim()) {
+      return res.status(400).json({
+        error: 'Message is required',
+        message: 'Message is required'
+      });
     }
 
+    // STRICT SERVER-AUTHORITATIVE IDENTITY:
+    // Only trust req.user._id when set by authentication middleware.
+    // Client-supplied req.body.userId, req.body.userContext.userId, or userContext._id are completely discarded.
+    const authenticatedUserId = (req.user && req.user._id) ? req.user._id : null;
+
     const result = await executeCoachPipeline({
-      ...payload,
-      userId: req.user?._id
+      userId: authenticatedUserId,
+      message: rawMessage,
+      userContext: req.body?.userContext || {},
+      history: Array.isArray(req.body?.history) ? req.body.history.slice(-10) : [],
+      preferences: req.body?.preferences || {}
     });
+
     return res.status(200).json(result);
   } catch (error) {
     console.error('AI Controller Error:', error);
+    if (error.status === 401 || error.message === 'Athlete profile not found') {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Athlete profile not found. Please log in again.'
+      });
+    }
     if (error.message === 'Message is required') {
       return res.status(400).json({
         error: 'Message is required',

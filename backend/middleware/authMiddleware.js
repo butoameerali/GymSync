@@ -39,20 +39,31 @@ export const protect = async (req, res, next) => {
   return res.status(401).json({ message: 'Not authorized, no authentication token provided' });
 };
 
-// Optional protect middleware - populates req.user if valid token provided, but allows guests
+// Optional protect middleware - populates req.user if valid token provided, allows unauthenticated guests without token
 export const optionalProtect = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       const token = req.headers.authorization.split(' ')[1];
-      if (token && process.env.JWT_SECRET) {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).select('-password');
-        if (user && !user.isBanned) {
-          req.user = user;
-        }
+      if (!token) {
+        return res.status(401).json({ message: 'Not authorized, invalid token format' });
       }
+
+      if (!process.env.JWT_SECRET) {
+        console.error('CRITICAL: JWT_SECRET environment variable is missing.');
+        return res.status(500).json({ message: 'Server configuration error' });
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id).select('-password');
+      if (!user) {
+        return res.status(401).json({ message: 'Not authorized, user not found' });
+      }
+      if (user.isBanned) {
+        return res.status(403).json({ message: 'Not authorized, user account is banned' });
+      }
+      req.user = user;
     } catch (error) {
-      // Allow guest to proceed without user attachment
+      return res.status(401).json({ message: 'Not authorized, invalid or expired token' });
     }
   }
   return next();
