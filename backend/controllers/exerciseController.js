@@ -89,10 +89,10 @@ export const getAllExercises = async (req, res) => {
     res.status(200).json(exercises);
   } catch (error) {
     if (error.name === 'InvalidCursorError' || error.statusCode === 400) {
-      return res.status(400).json({ error: 'Invalid cursor', message: error.message });
+      return res.status(400).json({ error: 'Invalid cursor', message: 'The provided pagination cursor is invalid or malformed.' });
     }
     console.error('getAllExercises Error:', error);
-    res.status(500).json({ error: 'Failed to fetch exercises', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch exercises', message: 'An internal error occurred while fetching exercises.' });
   }
 };
 
@@ -104,7 +104,8 @@ export const getExerciseById = async (req, res) => {
     if (!exercise) return res.status(404).json({ error: 'Exercise not found' });
     res.status(200).json(exercise);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch exercise', message: error.message });
+    console.error('getExerciseById Error:', error);
+    res.status(500).json({ error: 'Failed to fetch exercise', message: 'An internal error occurred while fetching the exercise.' });
   }
 };
 
@@ -251,7 +252,7 @@ export const createExercise = async (req, res) => {
     res.status(201).json(exercise);
   } catch (error) {
     console.error('createExercise Error:', error);
-    res.status(500).json({ error: 'Failed to create exercise', message: error.message });
+    res.status(500).json({ error: 'Failed to create exercise', message: 'An internal error occurred while creating the exercise.' });
   }
 };
 
@@ -389,7 +390,7 @@ export const updateExercise = async (req, res) => {
     res.status(200).json(updated);
   } catch (error) {
     console.error('updateExercise Error:', error);
-    res.status(500).json({ error: 'Failed to update exercise', message: error.message });
+    res.status(500).json({ error: 'Failed to update exercise', message: 'An internal error occurred while updating the exercise.' });
   }
 };
 
@@ -413,7 +414,7 @@ export const archiveExercise = async (req, res) => {
     });
   } catch (error) {
     console.error('archiveExercise Error:', error);
-    res.status(500).json({ error: 'Failed to archive/restore exercise', message: error.message });
+    res.status(500).json({ error: 'Failed to archive/restore exercise', message: 'An internal error occurred while updating exercise status.' });
   }
 };
 
@@ -428,7 +429,8 @@ export const deleteExercise = async (req, res) => {
 
     res.status(200).json({ message: 'Exercise deleted successfully', id: req.params.id });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete exercise', message: error.message });
+    console.error('deleteExercise Error:', error);
+    res.status(500).json({ error: 'Failed to delete exercise', message: 'An internal error occurred while deleting the exercise.' });
   }
 };
 
@@ -590,7 +592,7 @@ Respond ONLY with a valid raw JSON object (no markdown, no backticks, no text) c
     });
   } catch (err) {
     console.error('aiAssistExercise error:', err);
-    res.status(500).json({ error: 'AI exercise analysis failed', message: err.message });
+    res.status(500).json({ error: 'AI exercise analysis failed', message: 'An internal error occurred during exercise analysis.' });
   }
 };
 
@@ -625,6 +627,6 @@ export const uploadExerciseMedia = async (req, res) => {
     });
   } catch (err) {
     console.error('uploadExerciseMedia error:', err);
-    res.status(500).json({ error: 'Media upload failed', message: err.message });
+    res.status(500).json({ error: 'Media upload failed', message: 'An internal error occurred while uploading media.' });
   }
 };

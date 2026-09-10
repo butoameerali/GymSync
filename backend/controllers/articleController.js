@@ -140,7 +140,7 @@ export const getArticles = async (req, res) => {
     res.json(articles);
   } catch (error) {
     if (error.name === 'InvalidCursorError' || error.statusCode === 400) {
-      return res.status(400).json({ error: 'Invalid cursor', message: error.message });
+      return res.status(400).json({ error: 'Invalid cursor', message: 'The provided pagination cursor is invalid or malformed.' });
     }
     console.error('getArticles error:', error);
     res.status(500).json({ message: 'Failed to fetch articles' });

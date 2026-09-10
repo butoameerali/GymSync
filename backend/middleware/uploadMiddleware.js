@@ -42,9 +42,11 @@ export const handleSingleUpload = (fieldName = 'file') => {
             message: `File exceeds the 6MB memory upload threshold. Large files must use direct resumable upload.`
           });
         }
-        return res.status(400).json({ success: false, message: `Upload error: ${err.message}` });
+        console.error('Upload multer error:', err.message);
+        return res.status(400).json({ success: false, message: 'File upload format or size error. Please check your upload.' });
       } else if (err) {
-        return res.status(400).json({ success: false, message: err.message });
+        console.error('Upload validation error:', err.message);
+        return res.status(400).json({ success: false, message: 'Invalid file upload. Only authorized media formats are permitted.' });
       }
       next();
     });

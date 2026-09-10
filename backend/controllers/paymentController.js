@@ -137,7 +137,7 @@ export const createPayment = async (req, res) => {
           status = 'Completed';
         } catch (sErr) {
           console.error('Stripe verification error:', sErr.message);
-          return res.status(400).json({ message: `Stripe verification failed: ${sErr.message}` });
+          return res.status(400).json({ message: 'Stripe transaction verification failed. Please check payment details or try again.' });
         }
       } else if (!stripeSecret) {
         return res.status(500).json({ message: 'Payment processing is not configured on this server.' });

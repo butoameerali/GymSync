@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const complaintSchema = new mongoose.Schema({
   complaintId: { type: String, required: true, unique: true },
   reporterName: { type: String, required: true },
-  reporterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+  reporterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   reportedEntityType: { 
     type: String, 
     enum: ['User', 'Post', 'Comment', 'Gym', 'Product', 'SubscriptionRefund'], 

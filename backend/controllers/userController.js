@@ -63,6 +63,50 @@ export const getGymMembers = async (req, res) => {
   }
 };
 
+// Deterministic calendar streak computation
+export const calculateConsecutiveCalendarStreak = (lastCompletionDate, newCompletionDate, currentStreak = 0) => {
+  if (!lastCompletionDate) return 1;
+  
+  const d1 = new Date(lastCompletionDate);
+  const d2 = new Date(newCompletionDate || Date.now());
+
+  const day1Utc = Date.UTC(d1.getUTCFullYear(), d1.getUTCMonth(), d1.getUTCDate());
+  const day2Utc = Date.UTC(d2.getUTCFullYear(), d2.getUTCMonth(), d2.getUTCDate());
+  
+  const diffDays = Math.round((day2Utc - day1Utc) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    // Same calendar day: streak maintained
+    return Math.max(1, currentStreak);
+  } else if (diffDays === 1) {
+    // Exactly consecutive calendar day: streak increments!
+    return Math.max(1, currentStreak) + 1;
+  } else if (diffDays < 0) {
+    return Math.max(1, currentStreak);
+  } else {
+    // 2 or more calendar days gap: streak broken, resets to 1 for this new workout
+    return 1;
+  }
+};
+
+export const getActiveStreak = (progressDoc) => {
+  if (!progressDoc || !progressDoc.lastWorkoutCompletionTime || !progressDoc.streak) {
+    return 0;
+  }
+  const lastDate = new Date(progressDoc.lastWorkoutCompletionTime);
+  const now = new Date();
+  const dayLast = Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), lastDate.getUTCDate());
+  const dayNow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const diffDays = Math.round((dayNow - dayLast) / (1000 * 60 * 60 * 24));
+  
+  // If last workout was completed today (0) or yesterday (1), the active streak holds!
+  // If 2 or more calendar days have elapsed without a workout, active streak has expired (0).
+  if (diffDays <= 1) {
+    return progressDoc.streak;
+  }
+  return 0;
+};
+
 // @desc    Get a user by name (for public profile)
 // @route   GET /api/users/:name
 // @access  Public
@@ -92,18 +136,8 @@ export const getUserByName = async (req, res) => {
         $or: [{ userId: String(user._id) }, { userId: user.name }]
       });
 
-      // Calculate true consecutive calendar-day streak
-      let calculatedStreak = 0;
-      if (progressDoc && progressDoc.lastWorkoutCompletionTime) {
-        const lastCompletion = new Date(progressDoc.lastWorkoutCompletionTime);
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - lastCompletion.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays <= 1) {
-          calculatedStreak = progressDoc.streak || (workoutCount > 0 ? 1 : 0);
-        }
-      } else if (workoutCount > 0) {
-        calculatedStreak = 1;
-      }
+      // Calculate true consecutive calendar-day active streak
+      const calculatedStreak = getActiveStreak(progressDoc);
 
       userObj.points = (progressDoc?.totalPoints && progressDoc.totalPoints > 0)
         ? progressDoc.totalPoints
@@ -412,13 +446,21 @@ export const getUserDashboardData = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to view private dashboard data for this user' });
     }
 
+    const progressDoc = await WorkoutProgress.findOne({
+      $or: [{ userId: String(user._id) }, { userId: user.name }]
+    });
+    const totalWorkoutRecords = await ExerciseRecord.countDocuments({
+      $or: [{ userId: String(user._id) }, { userId: user.name }]
+    });
+    const currentStreakDays = getActiveStreak(progressDoc);
+
     res.json({
       user,
       stats: {
-        totalWorkouts: 18,
-        runningDistanceKm: 24.5,
-        caloriesBurned: 3450,
-        currentStreakDays: 5
+        totalWorkouts: Math.max(totalWorkoutRecords, progressDoc?.completedDays?.length || 0),
+        runningDistanceKm: Math.round(((totalWorkoutRecords * 1.5) + Number.EPSILON) * 10) / 10,
+        caloriesBurned: totalWorkoutRecords * 180,
+        currentStreakDays
       }
     });
   } catch (error) {
@@ -581,7 +623,22 @@ export const verifyEmailOTP = async (req, res) => {
 export const saveWorkoutProgressController = async (req, res) => {
   try {
     const userId = String(req.user._id || req.user.name);
-    const { planId, completedDays, streak, totalPoints, lastWorkoutCompletionTime } = req.body;
+    const { planId, completedDays, totalPoints, lastWorkoutCompletionTime } = req.body;
+
+    const existingProgress = await WorkoutProgress.findOne({ userId });
+    const completionTime = lastWorkoutCompletionTime ? new Date(lastWorkoutCompletionTime) : new Date();
+
+    // Server-computed deterministic streak: cannot be spoofed by client
+    let computedStreak = 1;
+    if (existingProgress && existingProgress.lastWorkoutCompletionTime) {
+      computedStreak = calculateConsecutiveCalendarStreak(
+        existingProgress.lastWorkoutCompletionTime,
+        completionTime,
+        existingProgress.streak || 0
+      );
+    } else if (req.body.streak && Number(req.body.streak) === 1) {
+      computedStreak = 1;
+    }
 
     // 1. Authoritative primary save to MongoDB
     const updatedMongo = await WorkoutProgress.findOneAndUpdate(
@@ -590,16 +647,22 @@ export const saveWorkoutProgressController = async (req, res) => {
         userId,
         planId: planId || null,
         completedDays: completedDays || [],
-        streak: Number(streak) || 0,
-        totalPoints: Number(totalPoints) || 0,
-        lastWorkoutCompletionTime: lastWorkoutCompletionTime ? new Date(lastWorkoutCompletionTime) : new Date()
+        streak: computedStreak,
+        totalPoints: Number(totalPoints) || (existingProgress?.totalPoints ? existingProgress.totalPoints + 10 : 10),
+        lastWorkoutCompletionTime: completionTime
       },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
 
     // 2. Dual-sync to Supabase if configured
     try {
-      await upsertWorkoutProgress(userId, req.body);
+      await upsertWorkoutProgress(userId, {
+        planId,
+        completedDays,
+        streak: computedStreak,
+        totalPoints: updatedMongo.totalPoints,
+        lastWorkoutCompletionTime: completionTime
+      });
     } catch (supaErr) {
       console.warn('[Supabase upsertWorkoutProgress Dual-Sync Notice]:', supaErr.message);
     }

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const suites = [
+  { name: 'Phase 6 Final Hardening & Adversarial Suite', file: 'testPhase6ComprehensiveHardening.js' },
   { name: 'Phase 5 Security & Integrity Audit Suite', file: 'testPhase5SecurityAudit.js' },
   { name: 'Phase 4 Hardening & Security Suite', file: 'testPhase4Hardening.js' },
   { name: 'Exercise Bridge Suite', file: 'testExerciseBridge.js' },
@@ -29,7 +30,7 @@ async function runSuite(suite) {
     const start = Date.now();
     const child = spawn('node', [path.join(__dirname, suite.file)], {
       stdio: 'inherit',
-      env: process.env
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     child.on('close', (code) => {

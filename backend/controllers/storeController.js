@@ -71,7 +71,8 @@ export const createProduct = async (req, res) => {
     logAuditTrail(actorName, actorRole, 'Created Product', name, `Price: $${price}`, req);
     res.status(201).json(product);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('createProduct error:', error);
+    res.status(500).json({ message: 'Failed to create product' });
   }
 };
 
@@ -96,7 +97,8 @@ export const updateProductStatus = async (req, res) => {
     logAuditTrail(actorName, actorRole, 'Updated Product Status', product.name, `New Status: ${status}`, req);
     res.json(product);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('updateProductStatus error:', error);
+    res.status(500).json({ message: 'Failed to update product status' });
   }
 };
 
@@ -127,7 +129,8 @@ export const updateProduct = async (req, res) => {
     logAuditTrail(actorName, actorRole, 'Updated Product Details', product.name, `Stock: ${product.stock}, Price: $${product.price}`, req);
     res.json(product);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('updateProduct error:', error);
+    res.status(500).json({ message: 'Failed to update product details' });
   }
 };
 
@@ -149,7 +152,8 @@ export const deleteProduct = async (req, res) => {
     logAuditTrail(actorName, actorRole, 'Deleted Product', product.name, `ID: ${id}`, req);
     res.json({ message: 'Product deleted successfully', id });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('deleteProduct error:', error);
+    res.status(500).json({ message: 'Failed to delete product' });
   }
 };
 
@@ -254,7 +258,8 @@ export const createOrder = async (req, res) => {
 
     res.status(201).json(order);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('createOrder error:', error);
+    res.status(500).json({ message: 'Failed to create order' });
   }
 };
 
@@ -266,7 +271,8 @@ export const getOrders = async (req, res) => {
     const orders = await Order.find().sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getOrders error:', error);
+    res.status(500).json({ message: 'Failed to fetch orders' });
   }
 };
 
@@ -276,7 +282,8 @@ export const getMyOrders = async (req, res) => {
     const orders = await Order.find({ userName: req.user.name }).sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('getMyOrders error:', error);
+    res.status(500).json({ message: 'Failed to fetch customer orders' });
   }
 };
 
@@ -306,7 +313,8 @@ export const cancelMyOrder = async (req, res) => {
 
     res.json(order);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('cancelMyOrder error:', error);
+    res.status(500).json({ message: 'Failed to cancel order' });
   }
 };
 
@@ -322,7 +330,10 @@ export const requestOrderRefund = async (req, res) => {
     order.refundReason = (req.body.reason || '').trim();
     await order.save();
     res.json(order);
-  } catch (error) { res.status(500).json({ message: error.message }); }
+  } catch (error) {
+    console.error('requestOrderRefund error:', error);
+    res.status(500).json({ message: 'Failed to request refund' });
+  }
 };
 
 // @desc    Update Order Status
@@ -352,7 +363,8 @@ export const updateOrderStatus = async (req, res) => {
     logAuditTrail(handledBy || req.user?.name || 'Store Manager', req.user?.role || 'StoreManager', 'Updated Order Status', order.orderId, `Status: ${orderStatus}; Refund: ${order.refundStatus}`, req);
     res.json(order);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('updateOrderStatus error:', error);
+    res.status(500).json({ message: 'Failed to update order status' });
   }
 };
 
@@ -393,6 +405,7 @@ export const trackOrderByCode = async (req, res) => {
       createdAt: order.createdAt
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('trackOrderByCode error:', err);
+    res.status(500).json({ message: 'Failed to track order' });
   }
 };

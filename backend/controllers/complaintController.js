@@ -6,9 +6,13 @@ import Complaint from '../models/Complaint.js';
 // @access  Private / User
 export const createComplaint = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Authentication required to submit a complaint' });
+    }
+
     const { reportedEntityType, reportedEntityId, reportedEntityTitle, reason, description } = req.body;
-    const reporterName = req.user?.name || req.body.reporterName;
-    const reporterId = req.user?._id || req.body.reporterId;
+    const reporterName = req.user.name;
+    const reporterId = req.user._id;
     let evidenceUrls = [];
     if (req.file) {
       if (req.file.buffer) {
@@ -18,7 +22,7 @@ export const createComplaint = async (req, res) => {
       }
     }
 
-    if (!reporterName || !reportedEntityType || !reportedEntityId || !reason || !description) {
+    if (!reportedEntityType || !reportedEntityId || !reason || !description) {
       return res.status(400).json({ message: 'All required complaint fields must be provided' });
     }
 
@@ -29,7 +33,7 @@ export const createComplaint = async (req, res) => {
       const complaint = await Complaint.create({
         complaintId,
         reporterName,
-        reporterId: reporterId || undefined,
+        reporterId,
         reportedEntityType,
         reportedEntityId,
         reportedEntityTitle: reportedEntityTitle || 'N/A',
@@ -68,12 +72,8 @@ export const getAllComplaints = async (req, res) => {
     if (type && type !== 'All') filter.reportedEntityType = type;
 
     if (req.user && !['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase())) {
-      // Strictly bind to reporterId if present; fallback to reporterName only for legacy records without reporterId
-      filter.$or = [
-        { reporterId: req.user._id },
-        { reporterId: null, reporterName: req.user.name },
-        { reporterId: { $exists: false }, reporterName: req.user.name }
-      ];
+      // Strictly bind to reporterId: completely eliminate name-based fallback
+      filter.reporterId = req.user._id;
     }
 
     const complaints = await Complaint.find(filter).sort({ createdAt: -1 });
@@ -129,20 +129,12 @@ export const addComplaintChat = async (req, res) => {
     const complaint = await Complaint.findById(id);
     if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
 
-    // reporterId is authoritative; only unmigrated records without reporterId fallback to reporterName
-    const isReporter = req.user && (
-      (complaint.reporterId && String(req.user._id) === String(complaint.reporterId)) ||
-      (!complaint.reporterId && req.user.name === complaint.reporterName)
-    );
+    // reporterId is strictly authoritative
+    const isReporter = req.user && complaint.reporterId && String(req.user._id) === String(complaint.reporterId);
     const isStaff = req.user && ['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase());
 
     if (!isReporter && !isStaff) {
       return res.status(403).json({ message: 'Not authorized to post to this complaint ticket' });
-    }
-
-    // Auto-heal legacy records: assign reporterId if missing
-    if (!complaint.reporterId && req.user._id) {
-      complaint.reporterId = req.user._id;
     }
 
     const role = isStaff ? 'Admin' : 'User';
@@ -166,25 +158,31 @@ export const addComplaintChat = async (req, res) => {
 // @desc    Backfill reporterId for legacy complaints
 export const migrateLegacyComplaints = async () => {
   try {
-    const unmigrated = await Complaint.find({ reporterId: null });
+    const unmigrated = await Complaint.find({ $or: [{ reporterId: null }, { reporterId: { $exists: false } }] });
     if (unmigrated.length === 0) return { migrated: 0 };
 
     const User = (await import('../models/User.js')).default;
     let count = 0;
     for (const doc of unmigrated) {
+      let assignedId = null;
       if (doc.reporterName) {
         const u = await User.findOne({ name: doc.reporterName }).select('_id');
-        if (u) {
-          doc.reporterId = u._id;
-          await doc.save();
-          count++;
-        }
+        if (u) assignedId = u._id;
+      }
+      if (!assignedId) {
+        const adminUser = await User.findOne({ role: { $in: ['Admin', 'SuperAdmin'] } }).select('_id');
+        if (adminUser) assignedId = adminUser._id;
+      }
+      if (assignedId) {
+        doc.reporterId = assignedId;
+        await doc.save();
+        count++;
       }
     }
     return { migrated: count };
   } catch (err) {
     console.error('migrateLegacyComplaints error:', err);
-    return { error: err.message };
+    return { error: 'Failed to migrate legacy complaints' };
   }
 };
 

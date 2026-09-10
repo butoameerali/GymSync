@@ -283,15 +283,20 @@ async function runPhase5SecurityAuditTests() {
     console.log('\n--- 7. Complaint reporterId Binding & Migration ---');
     const userAuthHeader = { 'Authorization': `Bearer ${loginData.token}` };
 
-    // Create legacy complaint with null reporterId
-    const legacyCmp = await Complaint.create({
+    // Create legacy complaint with null reporterId via raw collection insert
+    const legacyCmpId = new mongoose.Types.ObjectId();
+    await Complaint.collection.insertOne({
+      _id: legacyCmpId,
       complaintId: `CMP-LEGACY-${Date.now()}`,
       reporterName: resetUser.name,
       reportedEntityType: 'Post',
       reportedEntityId: 'legacy_post_1',
       reason: 'Spam',
-      description: 'Legacy unmigrated report'
+      description: 'Legacy unmigrated report',
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
+    const legacyCmp = await Complaint.findById(legacyCmpId);
     assert(legacyCmp.reporterId === undefined || legacyCmp.reporterId === null, `Legacy complaint created without reporterId`);
 
     // Run migration
@@ -344,7 +349,9 @@ async function runPhase5SecurityAuditTests() {
       userName: resetUser.name,
       planName: 'Strength Builder',
       completedExercises: ['bench-press', 'squat'],
-      date: new Date()
+      date: new Date(),
+      lastWorkoutCompletionTime: new Date(),
+      streak: 1
     });
     await Post.create({
       author: resetUser._id,

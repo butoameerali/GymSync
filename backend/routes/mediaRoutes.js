@@ -143,7 +143,7 @@ router.post('/signed-upload-url', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('signed-upload-url Error:', error);
-    res.status(500).json({ success: false, message: error.message || 'Failed to generate signed upload URL' });
+    res.status(500).json({ success: false, message: 'Failed to generate signed upload URL' });
   }
 });
 
@@ -201,7 +201,7 @@ router.post('/resumable-ticket', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('resumable-ticket Error:', error);
-    res.status(500).json({ success: false, message: error.message || 'Failed to generate resumable upload ticket' });
+    res.status(500).json({ success: false, message: 'Failed to generate resumable upload ticket' });
   }
 });
 
@@ -295,7 +295,7 @@ router.post('/upload', protect, handleSingleUpload('file'), async (req, res) => 
     });
   } catch (error) {
     console.error('Media upload error:', error);
-    res.status(500).json({ success: false, message: error.message || 'Media upload failed' });
+    res.status(500).json({ success: false, message: 'Media upload failed' });
   }
 });
 
@@ -425,7 +425,7 @@ router.delete('/delete', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Media delete error:', error);
-    res.status(500).json({ success: false, message: error.message || 'Media deletion failed' });
+    res.status(500).json({ success: false, message: 'Media deletion failed' });
   }
 });
 

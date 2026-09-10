@@ -229,10 +229,10 @@ export const getPreMadePlans = async (req, res) => {
     res.status(200).json(plans);
   } catch (error) {
     if (error.name === 'InvalidCursorError' || error.statusCode === 400) {
-      return res.status(400).json({ error: 'Invalid cursor', message: error.message });
+      return res.status(400).json({ error: 'Invalid cursor', message: 'The provided pagination cursor is invalid or malformed.' });
     }
     console.error('getPreMadePlans Error:', error);
-    res.status(500).json({ error: 'Failed to fetch pre-made plans', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch pre-made plans', message: 'An internal error occurred while fetching pre-made plans.' });
   }
 };
 
@@ -244,7 +244,8 @@ export const getPreMadePlanById = async (req, res) => {
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
     res.status(200).json(plan);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch plan', message: error.message });
+    console.error('getPreMadePlanById Error:', error);
+    res.status(500).json({ error: 'Failed to fetch plan', message: 'An internal error occurred while fetching the plan.' });
   }
 };
 
@@ -320,7 +321,7 @@ export const createPreMadePlan = async (req, res) => {
     res.status(201).json(newPlan);
   } catch (error) {
     console.error('createPreMadePlan Error:', error);
-    res.status(500).json({ error: 'Failed to create pre-made plan', message: error.message });
+    res.status(500).json({ error: 'Failed to create pre-made plan', message: 'An internal error occurred while creating the pre-made plan.' });
   }
 };
 
@@ -357,7 +358,7 @@ export const updatePreMadePlan = async (req, res) => {
     res.status(200).json(plan);
   } catch (error) {
     console.error('updatePreMadePlan Error:', error);
-    res.status(500).json({ error: 'Failed to update plan', message: error.message });
+    res.status(500).json({ error: 'Failed to update plan', message: 'An internal error occurred while updating the plan.' });
   }
 };
 
@@ -380,7 +381,7 @@ export const deletePreMadePlan = async (req, res) => {
     res.status(200).json({ message: 'Pre-made plan deleted successfully', id: req.params.id });
   } catch (error) {
     console.error('deletePreMadePlan Error:', error);
-    res.status(500).json({ error: 'Failed to delete pre-made plan', message: error.message });
+    res.status(500).json({ error: 'Failed to delete pre-made plan', message: 'An internal error occurred while deleting the pre-made plan.' });
   }
 };
 
@@ -439,7 +440,7 @@ export const applyProgramToUser = async (req, res) => {
     });
   } catch (error) {
     console.error('applyProgramToUser Error:', error);
-    res.status(500).json({ error: 'Failed to apply program to user routine', message: error.message });
+    res.status(500).json({ error: 'Failed to apply program to user routine', message: 'An internal error occurred while applying the program.' });
   }
 };
 
@@ -461,7 +462,7 @@ export const getUserActiveProgram = async (req, res) => {
     res.status(200).json(activeProgram || null);
   } catch (error) {
     console.error('getUserActiveProgram Error:', error);
-    res.status(500).json({ error: 'Failed to fetch active program', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch active program', message: 'An internal error occurred while fetching the active program.' });
   }
 };
 
@@ -590,7 +591,7 @@ export const logUserProgramProgress = async (req, res) => {
     });
   } catch (error) {
     console.error('logUserProgramProgress Error:', error);
-    res.status(500).json({ error: 'Failed to log program progress', message: error.message });
+    res.status(500).json({ error: 'Failed to log program progress', message: 'An internal error occurred while logging program progress.' });
   }
 };
 
@@ -647,7 +648,7 @@ export const applyDietToUser = async (req, res) => {
     });
   } catch (error) {
     console.error('applyDietToUser Error:', error);
-    res.status(500).json({ error: 'Failed to apply diet template', message: error.message });
+    res.status(500).json({ error: 'Failed to apply diet template', message: 'An internal error occurred while applying the diet template.' });
   }
 };
 
@@ -669,7 +670,7 @@ export const getUserActiveDiet = async (req, res) => {
     res.status(200).json(activeDiet || null);
   } catch (error) {
     console.error('getUserActiveDiet Error:', error);
-    res.status(500).json({ error: 'Failed to fetch active diet', message: error.message });
+    res.status(500).json({ error: 'Failed to fetch active diet', message: 'An internal error occurred while fetching the active diet.' });
   }
 };
 
@@ -706,7 +707,7 @@ export const logUserDietMeal = async (req, res) => {
     });
   } catch (error) {
     console.error('logUserDietMeal Error:', error);
-    res.status(500).json({ error: 'Failed to log diet meal adherence', message: error.message });
+    res.status(500).json({ error: 'Failed to log diet meal adherence', message: 'An internal error occurred while logging meal adherence.' });
   }
 };
 

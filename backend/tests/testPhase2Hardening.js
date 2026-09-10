@@ -240,6 +240,7 @@ async function runPhase2HardeningTests() {
       testComplaint = await Complaint.create({
         complaintId: `CMP-${Date.now()}`,
         reporterName: userA.name,
+        reporterId: userA._id,
         reportedEntityType: 'Post',
         reportedEntityId: 'post_123',
         reportedEntityTitle: 'Offensive Post',

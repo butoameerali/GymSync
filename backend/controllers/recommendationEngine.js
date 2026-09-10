@@ -166,7 +166,7 @@ export const generatePlan = async (req, res) => {
 
   } catch (error) {
     console.error('Generate Plan Error:', error);
-    res.status(500).json({ error: 'Failed to generate reasoned plan.', message: error.message });
+    res.status(500).json({ error: 'Failed to generate reasoned plan.', message: 'An internal error occurred while generating the plan.' });
   }
 };
 

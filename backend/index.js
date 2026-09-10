@@ -40,9 +40,9 @@ app.use(async (req, res, next) => {
     await connectDB();
     next();
   } catch (err) {
-    res.status(500).json({
-      message: 'Database is not connected. Please check MONGO_URI environment variable on Vercel and MongoDB Atlas status.',
-      error: err.message
+    console.error('[Database Connection Error]:', err.message);
+    res.status(503).json({
+      message: 'Database service is currently unavailable. Please try again shortly.'
     });
   }
 });
@@ -88,7 +88,7 @@ app.use((req, res, next) => {
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Apply rate limiter to auth & AI endpoints
+// Apply rate limiter to auth & AI endpoints (MongoDB-backed, test-elevated dynamically)
 app.use('/api/auth', rateLimiter({ windowMs: 15 * 60 * 1000, max: 100, scope: 'auth' }));
 app.use('/api/ai', rateLimiter({ windowMs: 15 * 60 * 1000, max: 200, scope: 'ai' }));
 
