@@ -26,6 +26,14 @@
   display: flex;
   gap: 8px;
   margin-top: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.owner-nav-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .stats-grid {
@@ -71,3 +79,56 @@
   font-size: 0.8rem;
   font-weight: 600;
 }
+
+/* ── Tablet ───────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Mobile ───────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .gym-owner-header {
+    padding: 20px 0 0 0;
+    margin-bottom: 20px;
+    border-radius: 0 0 16px 16px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .owner-table {
+    font-size: 0.85rem;
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .owner-table th,
+  .owner-table td {
+    padding: 10px 12px;
+    white-space: nowrap;
+  }
+
+  .gym-owner-icon {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ── Small Mobile ─────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .status-pill.active,
+  .status-pill.inactive {
+    padding: 3px 8px;
+    font-size: 0.75rem;
+  }
+}
+

@@ -10,20 +10,26 @@ const getStripe = () => {
   return new Stripe(secretKey);
 };
 
-const getDefaultConfigs = () => ([
-  {
-    method: 'Easypaisa',
-    accountNumber: process.env.PAYMENT_ACCOUNT_NUMBER || '03272450136',
-    bankDetails: 'Easypaisa Account - GymSync Payments',
-    notes: 'Send proof screenshot after transfer. Admin approval is required.'
-  },
-  {
-    method: 'JazzCash',
-    accountNumber: process.env.PAYMENT_ACCOUNT_NUMBER || '03272450136',
-    bankDetails: 'JazzCash Account - GymSync Payments',
-    notes: 'Send proof screenshot after transfer. Admin approval is required.'
+const getDefaultConfigs = () => {
+  const accountNumber = process.env.PAYMENT_ACCOUNT_NUMBER;
+  if (!accountNumber) {
+    console.warn('[PaymentConfig] PAYMENT_ACCOUNT_NUMBER env var is not set. Manual payment methods will show without an account number until configured via Admin > Payment Config.');
   }
-]);
+  return [
+    {
+      method: 'Easypaisa',
+      accountNumber: accountNumber || '',
+      bankDetails: 'Easypaisa Account - GymSync Payments',
+      notes: 'Send proof screenshot after transfer. Admin approval is required.'
+    },
+    {
+      method: 'JazzCash',
+      accountNumber: accountNumber || '',
+      bankDetails: 'JazzCash Account - GymSync Payments',
+      notes: 'Send proof screenshot after transfer. Admin approval is required.'
+    }
+  ];
+};
 
 export const createPaymentIntent = async (req, res) => {
   try {

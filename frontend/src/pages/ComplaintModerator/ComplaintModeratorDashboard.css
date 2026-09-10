@@ -80,3 +80,53 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+/* ── Tablet ───────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .moderator-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Mobile ───────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .moderator-dashboard-page {
+    gap: 14px;
+  }
+
+  .moderator-header {
+    padding: 16px;
+    border-radius: 12px;
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .moderator-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .moderator-stat-card {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .moderator-stat-value {
+    font-size: 1.3rem;
+  }
+}
+
+/* ── Small Mobile ─────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .moderator-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .moderator-stat-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+  }
+}
+

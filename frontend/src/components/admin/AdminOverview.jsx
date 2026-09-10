@@ -1,5 +1,6 @@
 import React from 'react';
-import { DollarSign, Users, Building, AlertTriangle, ShieldCheck, FileText, CheckCircle } from 'lucide-react';
+import { DollarSign, Users, Building, AlertTriangle, ShieldCheck, FileText, CheckCircle, BarChart2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const AdminOverview = ({ stats, isModerator = false, onNavigateTab }) => {
   if (isModerator) {
@@ -138,6 +139,66 @@ const AdminOverview = ({ stats, isModerator = false, onNavigateTab }) => {
           </div>
         </div>
       </div>
+
+      {/* Platform Metrics Chart */}
+      {stats && (
+        <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', marginTop: '24px' }}>
+          <h4 style={{ margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BarChart2 size={18} color="var(--primary-accent)" /> Platform Metrics Overview
+          </h4>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart
+              data={[
+                { name: 'Users', value: stats.totalUsers || 0, color: '#3b82f6' },
+                { name: 'Gyms', value: stats.totalGyms || 0, color: '#8b5cf6' },
+                { name: 'Pending\nComplaints', value: stats.pendingComplaints || 0, color: '#f59e0b' },
+                { name: 'Resolved', value: stats.resolvedComplaints || 0, color: '#10b981' },
+                { name: 'Reported\nPosts', value: stats.reportedPosts || 0, color: '#ef4444' },
+                { name: 'Revenue ($)', value: Math.round((stats.totalRevenue || 0) / 100), color: '#06b6d4' },
+              ]}
+              margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
+            >
+              <XAxis
+                dataKey="name"
+                tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                width={36}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: 'var(--panel-bg)',
+                  border: '1px solid var(--card-border)',
+                  borderRadius: '10px',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.85rem'
+                }}
+                cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+              />
+              <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                {[
+                  { color: '#3b82f6' },
+                  { color: '#8b5cf6' },
+                  { color: '#f59e0b' },
+                  { color: '#10b981' },
+                  { color: '#ef4444' },
+                  { color: '#06b6d4' },
+                ].map((entry, i) => (
+                  <Cell key={i} fill={entry.color} fillOpacity={0.85} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <p style={{ margin: '10px 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+            Revenue shown in \$100 units for scale. Click stat cards above to navigate to each section.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
