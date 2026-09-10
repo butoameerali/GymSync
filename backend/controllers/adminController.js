@@ -159,10 +159,57 @@ export const updateUserDetails = async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
     const duplicate = await User.findOne({ email: email.trim().toLowerCase(), _id: { $ne: user._id } });
     if (duplicate) return res.status(400).json({ message: 'This email is already used by another account' });
-    user.name = name.trim();
+
+    const oldName = user.name;
+    const newName = name.trim();
+    const isRename = oldName !== newName;
+
+    if (isRename) {
+      const nameTaken = await User.findOne({ name: newName, _id: { $ne: user._id } })
+        .collation({ locale: 'en', strength: 2 });
+      if (nameTaken) return res.status(400).json({ message: 'This name is already taken by another account' });
+    }
+
+    user.name = newName;
     user.email = email.trim().toLowerCase();
     await user.save();
-    logAuditTrail(req.user?.name || 'Admin', req.user?.role || 'Admin', 'Edited User Account', user._id.toString(), 'Updated name and email', req);
+
+    // The social graph (friends/followers/requests) and notification sender labels are
+    // still keyed by display name rather than ObjectId — without this cascade, a rename
+    // silently orphans every existing friendship/follow relationship and old notifications
+    // referencing this user under their previous name. Messages are unaffected: they are
+    // matched by ObjectId (see chatController.js) and intentionally keep the historical name.
+    if (isRename) {
+      await User.updateMany(
+        { friends: oldName },
+        { $set: { 'friends.$[elem]': newName } },
+        { arrayFilters: [{ elem: oldName }] }
+      );
+      await User.updateMany(
+        { followers: oldName },
+        { $set: { 'followers.$[elem]': newName } },
+        { arrayFilters: [{ elem: oldName }] }
+      );
+      await User.updateMany(
+        { following: oldName },
+        { $set: { 'following.$[elem]': newName } },
+        { arrayFilters: [{ elem: oldName }] }
+      );
+      await User.updateMany(
+        { sentRequests: oldName },
+        { $set: { 'sentRequests.$[elem]': newName } },
+        { arrayFilters: [{ elem: oldName }] }
+      );
+      await User.updateMany(
+        { receivedRequests: oldName },
+        { $set: { 'receivedRequests.$[elem]': newName } },
+        { arrayFilters: [{ elem: oldName }] }
+      );
+      await Notification.updateMany({ sender: oldName }, { $set: { sender: newName } });
+    }
+
+    logAuditTrail(req.user?.name || 'Admin', req.user?.role || 'Admin', 'Edited User Account', user._id.toString(), isRename ? `Renamed ${oldName} to ${newName}` : 'Updated email', req);
+    res.json({ message: isRename ? `User renamed from ${oldName} to ${newName}` : 'User email updated successfully', user });
   } catch (error) {
     console.error('editUserByAdmin error:', error);
     res.status(500).json({ message: 'Failed to edit user account' });

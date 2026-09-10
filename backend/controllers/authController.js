@@ -66,7 +66,18 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    const nameExists = await User.findOne({ name: { $regex: new RegExp(`^${trimmedName}$`, 'i') } });
+    // Reserved identities used by the chat system for virtual contacts (no User document
+    // backs these names). Letting a real account claim one would let it impersonate,
+    // or be confused with, the AI Trainer / Gym Support conversation threads.
+    const RESERVED_NAMES = ['ai trainer', 'gym support'];
+    if (RESERVED_NAMES.includes(trimmedName.toLowerCase())) {
+      return res.status(400).json({ message: 'This name is reserved. Please choose a different name.' });
+    }
+
+    // Case-insensitive uniqueness check via collation, matching the unique index on
+    // User.name — avoids building a RegExp out of raw user input (regex-injection/ReDoS risk).
+    const nameExists = await User.findOne({ name: trimmedName })
+      .collation({ locale: 'en', strength: 2 });
     if (nameExists) {
       return res.status(400).json({ message: 'Username is already taken. Please choose a different name.' });
     }

@@ -1,7 +1,13 @@
 import Message from '../models/Message.js';
+import User from '../models/User.js';
 import Complaint from '../models/Complaint.js';
 import { executeCoachPipeline } from './aiController.js';
 import { isValidObjectId } from '../utils/validation.js';
+
+// 'AI Trainer' and 'Gym Support' are virtual system contacts — no User document exists
+// for them. registerUser() blocks real accounts from claiming these names (see
+// authController.js), so name-matching is safe ONLY for these two reserved identities.
+const SYSTEM_CONTACTS = new Set(['AI Trainer', 'Gym Support']);
 
 const normalizeContact = (c) => {
   if (!c) return '';
@@ -10,26 +16,57 @@ const normalizeContact = (c) => {
   return c;
 };
 
+// Resolves a chat participant (a name OR an ObjectId string) into a stable identity.
+// Real users are matched by ObjectId going forward, so a user's conversation history
+// survives being renamed by an admin. System contacts have no ObjectId and stay name-only.
+const resolveParticipant = async (identifier) => {
+  const normalized = normalizeContact(identifier);
+  if (SYSTEM_CONTACTS.has(normalized)) {
+    return { name: normalized, id: null, isSystem: true };
+  }
+  if (isValidObjectId(normalized)) {
+    const u = await User.findById(normalized).select('name').lean();
+    if (u) return { name: u.name, id: u._id, isSystem: false };
+  }
+  const u = await User.findOne({ name: normalized })
+    .collation({ locale: 'en', strength: 2 })
+    .select('name')
+    .lean();
+  return { name: u ? u.name : normalized, id: u ? u._id : null, isSystem: false };
+};
+
+// Match clause for messages sent FROM `from` TO `to`.
+// Uses ObjectId matching whenever the participant resolved to a real user (rename-safe).
+// Falls back to name matching only for system contacts, or legacy rows / unresolvable
+// users where an id genuinely isn't available.
+const oneWay = (from, to) => ({
+  ...(from.id ? { senderId: from.id } : { sender: from.name }),
+  ...(to.id ? { receiverId: to.id } : { receiver: to.name })
+});
+
+const isSameParticipant = (p, currentUserId, currentUserName) =>
+  (p.id && currentUserId && String(p.id) === String(currentUserId)) || (!p.id && p.name === currentUserName);
+
 // @desc    Get total unread messages/conversations count for current user
 // @route   GET /api/chat/unread-count
 // @access  Private
 export const getUnreadChatCount = async (req, res) => {
   try {
+    const currentUserId = req.user?._id;
     const currentUserName = req.user?.name;
-    if (!currentUserName) return res.json({ unreadCount: 0 });
+    if (!currentUserId && !currentUserName) return res.json({ unreadCount: 0 });
 
-    const unreadMessagesCount = await Message.countDocuments({
-      receiver: currentUserName,
-      isRead: false
-    });
+    const match = {
+      isRead: false,
+      $or: [{ receiverId: currentUserId || null }, { receiverId: null, receiver: currentUserName }]
+    };
 
-    const unreadConversations = await Message.distinct('sender', {
-      receiver: currentUserName,
-      isRead: false
-    });
+    const unreadMessagesCount = await Message.countDocuments(match);
+    const idConversations = await Message.distinct('senderId', { ...match, senderId: { $ne: null } });
+    const legacyConversations = await Message.distinct('sender', { ...match, senderId: null });
 
     res.json({
-      unreadCount: unreadConversations.length,
+      unreadCount: idConversations.length + legacyConversations.length,
       totalUnreadMessages: unreadMessagesCount
     });
   } catch (error) {
@@ -42,12 +79,16 @@ export const getUnreadChatCount = async (req, res) => {
 // @route   GET /api/chat/:user1/:user2
 // @access  Private
 export const getConversation = async (req, res) => {
-  const user1 = normalizeContact(req.params.user1);
-  const user2 = normalizeContact(req.params.user2);
+  const p1 = await resolveParticipant(req.params.user1);
+  const p2 = await resolveParticipant(req.params.user2);
+  const currentUserId = req.user?._id;
   const currentUserName = req.user?.name;
   const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user?.role);
 
-  if (!isAdmin && currentUserName !== user1 && currentUserName !== user2) {
+  const meIsP1 = isSameParticipant(p1, currentUserId, currentUserName);
+  const meIsP2 = isSameParticipant(p2, currentUserId, currentUserName);
+
+  if (!isAdmin && !meIsP1 && !meIsP2) {
     return res.status(403).json({ message: 'Not authorized to view this private conversation' });
   }
 
@@ -55,12 +96,7 @@ export const getConversation = async (req, res) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
     const before = req.query.before;
 
-    const query = {
-      $or: [
-        { sender: user1, receiver: user2 },
-        { sender: user2, receiver: user1 }
-      ]
-    };
+    const query = { $or: [oneWay(p1, p2), oneWay(p2, p1)] };
 
     if (before) {
       if (isValidObjectId(before)) {
@@ -70,7 +106,6 @@ export const getConversation = async (req, res) => {
       }
     }
 
-    // Fetch in descending order to get the most recent messages up to limit
     const rawMessages = await Message.find(query)
       .sort({ createdAt: -1 })
       .limit(limit + 1)
@@ -78,18 +113,13 @@ export const getConversation = async (req, res) => {
 
     const hasMore = rawMessages.length > limit;
     const items = hasMore ? rawMessages.slice(0, limit) : rawMessages;
-
-    // Chronological order (oldest to newest)
     items.reverse();
 
     // Auto-mark incoming messages to current user as read when opening conversation
-    if (currentUserName) {
-      const otherUser = currentUserName === user1 ? user2 : user1;
-      Message.updateMany({
-        sender: otherUser,
-        receiver: currentUserName,
-        isRead: false
-      }, {
+    if (currentUserId || currentUserName) {
+      const me = meIsP1 ? p1 : p2;
+      const other = meIsP1 ? p2 : p1;
+      Message.updateMany({ ...oneWay(other, me), isRead: false }, {
         isRead: true,
         readAt: new Date()
       }).catch(() => {});
@@ -114,24 +144,25 @@ export const getConversation = async (req, res) => {
 // @route   PATCH /api/chat/read/:contactName
 // @access  Private
 export const markConversationRead = async (req, res) => {
-  const contactName = normalizeContact(req.params.contactName);
+  const contact = await resolveParticipant(req.params.contactName);
+  const currentUserId = req.user?._id;
   const currentUserName = req.user?.name;
 
-  if (!currentUserName || !contactName) {
+  if (!currentUserId && !currentUserName) {
+    return res.status(400).json({ message: 'Not authorized' });
+  }
+  if (!contact.name && !contact.id) {
     return res.status(400).json({ message: 'Contact name is required' });
   }
 
   try {
-    await Message.updateMany({
-      sender: contactName,
-      receiver: currentUserName,
-      isRead: false
-    }, {
+    const me = { id: currentUserId || null, name: currentUserName };
+    await Message.updateMany({ ...oneWay(contact, me), isRead: false }, {
       isRead: true,
       readAt: new Date()
     });
 
-    res.json({ message: `Messages from ${contactName} marked as read` });
+    res.json({ message: `Messages from ${contact.name} marked as read` });
   } catch (error) {
     console.error('markConversationRead error:', error);
     res.status(500).json({ message: 'Failed to mark conversation as read' });
@@ -142,43 +173,48 @@ export const markConversationRead = async (req, res) => {
 // @route   GET /api/chat/conversations/:userName
 // @access  Private
 export const getConversations = async (req, res) => {
-  const paramUserName = req.params.userName || req.user?.name;
+  const currentUserId = req.user?._id;
   const currentUserName = req.user?.name;
   const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user?.role);
 
-  if (!isAdmin && currentUserName !== paramUserName) {
+  const target = await resolveParticipant(req.params.userName || currentUserName);
+  const isSelf = isSameParticipant(target, currentUserId, currentUserName);
+
+  if (!isAdmin && !isSelf) {
     return res.status(403).json({ message: 'Not authorized to view these conversations' });
   }
 
   try {
-    const messages = await Message.find({
-      $or: [{ sender: paramUserName }, { receiver: paramUserName }]
-    }).sort({ createdAt: -1 });
+    const matchMine = target.id
+      ? { $or: [{ senderId: target.id }, { receiverId: target.id }] }
+      : { $or: [{ sender: target.name }, { receiver: target.name }] };
 
-    // Calculate unread counts for all senders targeting paramUserName in a single aggregation query
-    const unreadAgg = await Message.aggregate([
-      { $match: { receiver: paramUserName, isRead: false } },
-      { $group: { _id: '$sender', count: { $sum: 1 } } }
-    ]);
-    const unreadMap = new Map((unreadAgg || []).map(u => [u._id, u.count]));
+    const messages = await Message.find(matchMine).sort({ createdAt: -1 }).lean();
 
     const conversationMap = new Map();
 
     for (const msg of messages) {
-      const contactName = msg.sender === paramUserName ? msg.receiver : msg.sender;
-      if (!contactName) continue;
+      const iAmSender = target.id
+        ? String(msg.senderId) === String(target.id)
+        : msg.sender === target.name;
 
-      if (!conversationMap.has(contactName)) {
-        const unreadCount = unreadMap.get(contactName) || 0;
+      const counterpartId = iAmSender ? msg.receiverId : msg.senderId;
+      const counterpartName = iAmSender ? msg.receiver : msg.sender;
+      const key = counterpartId ? String(counterpartId) : counterpartName;
+      if (!key) continue;
 
-        conversationMap.set(contactName, {
-          id: contactName,
-          name: contactName,
+      if (!conversationMap.has(key)) {
+        conversationMap.set(key, {
+          id: counterpartId ? String(counterpartId) : counterpartName,
+          name: counterpartName,
           lastMessage: msg.text,
           lastMessageTime: msg.createdAt,
-          isRead: msg.sender === paramUserName ? true : msg.isRead,
-          unreadCount
+          isRead: iAmSender ? true : msg.isRead,
+          unreadCount: 0
         });
+      }
+      if (!iAmSender && !msg.isRead) {
+        conversationMap.get(key).unreadCount += 1;
       }
     }
 
@@ -208,8 +244,7 @@ export const getConversations = async (req, res) => {
       });
     }
 
-    const conversations = Array.from(conversationMap.values());
-    res.json(conversations);
+    res.json(Array.from(conversationMap.values()));
   } catch (error) {
     console.error('getConversations error:', error);
     res.status(500).json({ message: 'Failed to fetch conversations' });
@@ -234,7 +269,6 @@ export const sendMessage = async (req, res) => {
 
   try {
     if (isAi) {
-      // 1. Save user's message in Message collection
       const userMessage = await Message.create({
         sender,
         senderId: req.user?._id || null,
@@ -243,20 +277,18 @@ export const sendMessage = async (req, res) => {
         isRead: true
       });
 
-      // 2. Load recent conversation history between user and AI Trainer
       const pastMessages = await Message.find({
         $or: [
-          { sender, receiver: 'AI Trainer' },
-          { sender: 'AI Trainer', receiver: sender }
+          { senderId: req.user?._id || null, receiver: 'AI Trainer' },
+          { sender: 'AI Trainer', receiverId: req.user?._id || null }
         ]
       }).sort({ createdAt: 1 }).limit(12);
 
       const historyFormatted = pastMessages.map(m => ({
-        role: m.sender === sender ? 'user' : 'assistant',
+        role: m.sender === 'AI Trainer' ? 'assistant' : 'user',
         content: m.text
       }));
 
-      // 3. Generate Coach Response
       const mergedContext = {
         name: req.user?.name,
         email: req.user?.email,
@@ -271,7 +303,6 @@ export const sendMessage = async (req, res) => {
         currentWorkout
       });
 
-      // 4. Save AI's response to Message collection
       const aiMessage = await Message.create({
         sender: 'AI Trainer',
         receiver: sender,
@@ -289,7 +320,6 @@ export const sendMessage = async (req, res) => {
     }
 
     if (isGymSupport) {
-      // 1. Save user inquiry
       const userMessage = await Message.create({
         sender,
         senderId: req.user?._id || null,
@@ -298,7 +328,6 @@ export const sendMessage = async (req, res) => {
         isRead: true
       });
 
-      // 2. Link or create real Support Ticket in Complaint collection
       const ticketQuery = req.user?._id
         ? { reporterId: req.user._id, reportedEntityType: 'User', status: { $in: ['Pending', 'InReview'] } }
         : { reporterName: sender, reportedEntityType: 'User', status: { $in: ['Pending', 'InReview'] } };
@@ -337,7 +366,6 @@ export const sendMessage = async (req, res) => {
 
       const replyText = `Thanks for reaching out! Your inquiry has been logged as Support Ticket #${ticket.complaintId}. Our staff has been notified and will respond to you shortly.`;
 
-      // 3. Save automated confirmation response
       const supportReply = await Message.create({
         sender: 'Gym Support',
         receiver: sender,
@@ -353,11 +381,21 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Standard peer-to-peer message
+    // Standard peer-to-peer message — resolve the recipient's ObjectId so the
+    // conversation stays intact even if either party is renamed later.
+    const recipientUser = await User.findOne({ name: normalizedReceiver })
+      .collation({ locale: 'en', strength: 2 })
+      .select('_id');
+
+    if (!recipientUser) {
+      return res.status(404).json({ message: 'Recipient not found' });
+    }
+
     const message = await Message.create({
       sender,
       senderId: req.user?._id || null,
       receiver: normalizedReceiver,
+      receiverId: recipientUser._id,
       text: rawText,
       isRead: false
     });
