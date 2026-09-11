@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { getRoleRedirectPath } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { toast } from 'react-toastify';
+import LoginOTPStep from './LoginOTPStep';
 import './AuthPortal.css';
 
 // ------------------------------------------------------------------
@@ -191,6 +192,11 @@ const AuthPortal = () => {
   const [showPass, setShowPass] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'user' });
   const [googleData, setGoogleData] = useState(null);
+
+  // 2FA State
+  const [needs2FA, setNeeds2FA] = useState(false);
+  const [twoFaData, setTwoFaData] = useState({ email: '', tempToken: '' });
+
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -256,6 +262,13 @@ const AuthPortal = () => {
       const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Authentication failed');
+      
+      if (data.requiresOtp) {
+        setTwoFaData({ email: data.email, tempToken: data.tempToken });
+        setNeeds2FA(true);
+        return;
+      }
+      
       if (data.needsRegistration) {
         setGoogleData(data.googleData);
         setFormData(current => ({
@@ -352,11 +365,19 @@ const AuthPortal = () => {
           </div>
 
           {/* Right Side: Auth Card */}
-          <div className="auth-card glass-panel">
-            <div className="auth-header">
-              <h2>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
-              <p>{isLogin ? 'Log in to access your fitness hub' : 'Join GymSync today'}</p>
-            </div>
+          {needs2FA ? (
+            <LoginOTPStep 
+              email={twoFaData.email} 
+              tempToken={twoFaData.tempToken} 
+              onVerify={storeAndRedirect} 
+              onCancel={() => setNeeds2FA(false)} 
+            />
+          ) : (
+            <div className="auth-card glass-panel">
+              <div className="auth-header">
+                <h2>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
+                <p>{isLogin ? 'Log in to access your fitness hub' : 'Join GymSync today'}</p>
+              </div>
 
             {error && <div className="auth-error-banner">{error}</div>}
 
@@ -492,6 +513,7 @@ const AuthPortal = () => {
               )}
             </div>
           </div>
+          )}
         </div>
 
         {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}

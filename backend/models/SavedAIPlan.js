@@ -10,7 +10,33 @@ const savedAIPlanSchema = new mongoose.Schema({
   diet: { type: mongoose.Schema.Types.Mixed, default: null },
   calendar: { type: Array, default: [] },
   notes: { type: String, default: '' },
-  isActive: { type: Boolean, default: false }
+  isActive: { type: Boolean, default: false },
+  goalGroupId: { type: mongoose.Schema.Types.ObjectId, ref: 'GoalGroup', default: null, index: true },
+  planKind: { type: String, enum: ['Workout', 'Diet', 'Combined'], default: 'Combined' },
+  supersededBy: { type: mongoose.Schema.Types.ObjectId, ref: 'SavedAIPlan', default: null },
+  missedSessions: [{
+    dayNumber: Number,
+    handled: { type: Boolean, default: false },
+    reasonCode: String,
+    detectedAt: { type: Date, default: Date.now }
+  }],
+  progress: {
+    currentWeek: { type: Number, default: 1 },
+    currentDay: { type: Number, default: 1 },
+    completedSessions: [{
+      dayNumber: Number,
+      weekNumber: Number,
+      completedAt: { type: Date, default: Date.now },
+      reportedIssue: {
+        status: { type: String, enum: ['Pending', 'Resolved', 'Dismissed'], default: null },
+        issueType: { type: String, enum: ['MinorIssue', 'FormFraud', 'CalorieFraud'], default: null },
+        description: String,
+        reportedAt: { type: Date, default: null },
+        resolvedAt: { type: Date, default: null },
+        caloriesAdjusted: { type: Number, default: 0 }
+      }
+    }]
+  }
 }, {
   timestamps: true
 });

@@ -20,7 +20,9 @@ import {
   requestRefundCashback,
   approveRefundCashback,
   sendSubscriberBroadcast,
-  createInstructor
+  createInstructor,
+  createDiscountCampaign,
+  getDiscountCampaigns
 } from '../controllers/adminController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -63,5 +65,9 @@ router.get('/complaints/chats-inspection', authorizeRoles('SuperAdmin'), getComp
 
 // Senior Admin Audit Logs
 router.get('/audit-logs', authorizeRoles('SuperAdmin'), getAuditLogs);
+
+// Discount Campaigns
+router.post('/discount-campaigns', authorizeRoles('SuperAdmin', 'Admin'), createDiscountCampaign);
+router.get('/discount-campaigns', authorizeRoles('SuperAdmin', 'Admin'), getDiscountCampaigns);
 
 export default router;

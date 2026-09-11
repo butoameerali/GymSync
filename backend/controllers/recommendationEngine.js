@@ -1,7 +1,12 @@
 import workoutDecisionEngine from '../services/workout/workoutDecisionEngine.js';
 import dietBuilder from '../services/nutrition/dietBuilder.js';
 import dietValidator from '../services/nutrition/dietValidator.js';
+import exerciseLibrary from '../models/Exercise.js';
 import sportProfileEngine from '../services/workout/sportProfileEngine.js';
+import { computeMissingBioFields } from '../services/ai/intentClassifier.js';
+import planMergeEngine from '../services/ai/planMergeEngine.js';
+import SavedAIPlan from '../models/SavedAIPlan.js';
+import GoalGroup from '../models/GoalGroup.js';
 
 /**
  * AI Plan Generation Controller
@@ -12,6 +17,67 @@ import sportProfileEngine from '../services/workout/sportProfileEngine.js';
 export const generatePlan = async (req, res) => {
   try {
     const bio = req.body || {};
+
+    const missingFields = computeMissingBioFields(bio);
+    const needsMiniCoach = missingFields.length > 0 || !bio.mainGoalArea || !bio.planDuration || !bio.trainingDaysPerWeek;
+
+    if (needsMiniCoach) {
+      const steps = [];
+      if (!bio.mainGoalArea) {
+        steps.push({ key: 'mainGoalArea', label: 'What is your goal?', kind: 'single_select', options: ['Lose Weight', 'Build Muscle', 'Gain Strength', 'Improve Stamina', 'Sports Performance', 'General Fitness'], prefillValue: null, isPrefilled: false });
+      }
+      if (!bio.planDuration) {
+        steps.push({ key: 'planDuration', label: 'Plan Duration', kind: 'single_select', options: ['4 Weeks', '8 Weeks', '12 Weeks'], prefillValue: '4 Weeks', isPrefilled: true });
+      }
+      if (!bio.trainingDaysPerWeek) {
+        steps.push({ key: 'trainingDaysPerWeek', label: 'Smart Intake & Stamina', kind: 'single_select', options: [2, 3, 4, 5, 6], prefillValue: 3, isPrefilled: true });
+      }
+      if (missingFields.length > 0) {
+        steps.push({ key: 'missingBioFields', label: 'Health & Fitness Bio', kind: 'form', fields: missingFields });
+      }
+      
+      return res.status(200).json({
+        structuredAction: {
+          type: 'mini_coach_interview',
+          steps,
+          currentStepIndex: 0
+        }
+      });
+    }
+
+    // PHASE 4: MULTI-GOAL DETECTION & PLAN MERGE ENGINE
+    if (req.user && !bio.mergeDecision) {
+      const existingPlan = await planMergeEngine.detectExistingActivePlan(req.user._id, SavedAIPlan);
+      
+      if (existingPlan && existingPlan.goal !== bio.mainGoalArea) {
+        return res.status(200).json({
+          structuredAction: {
+            type: 'merge_offer',
+            existingPlanTitle: existingPlan.title,
+            existingGoal: existingPlan.goal,
+            newGoal: bio.mainGoalArea,
+            options: ['Merge Plans', 'Keep Separate', 'Cancel Old Plan']
+          }
+        });
+      }
+    }
+    
+    let effectiveGoal = bio.mainGoalArea || 'General Fitness';
+    if (req.user && bio.mergeDecision === 'Merge Plans') {
+      const existingPlan = await planMergeEngine.detectExistingActivePlan(req.user._id, SavedAIPlan);
+      if (existingPlan) {
+         const mergeRes = await planMergeEngine.mergePlans({ existingPlan, newGoalRequest: bio });
+         effectiveGoal = mergeRes.combinedGoal;
+         existingPlan.isActive = false;
+         await existingPlan.save();
+      }
+    } else if (req.user && bio.mergeDecision === 'Cancel Old Plan') {
+      const existingPlan = await planMergeEngine.detectExistingActivePlan(req.user._id, SavedAIPlan);
+      if (existingPlan) {
+         existingPlan.isActive = false;
+         await existingPlan.save();
+      }
+    }
 
     // 1. INTAKE & BENCHMARKS
     const trainingDaysPerWeek = parseInt(bio.trainingDaysPerWeek || bio.daysPerWeek || 3, 10);

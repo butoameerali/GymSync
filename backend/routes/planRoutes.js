@@ -12,9 +12,22 @@ import {
   getUserActiveDiet,
   logUserDietMeal
 } from '../controllers/preMadePlanController.js';
-import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
+import { protect, authorizeRoles, optionalProtect } from '../middleware/authMiddleware.js';
+import { findRelevantPrograms, rankProgramCandidates } from '../services/fitnessContentService.js';
 
 const router = express.Router();
+
+// Part 17 — Program search endpoint (reuses existing ranking engine, same logic as AI auto-suggest)
+router.get('/programs/search', optionalProtect, async (req, res) => {
+  try {
+    const { query = '', goal = '', equipment = '', fitnessLevel = '' } = req.query;
+    const results = await findRelevantPrograms({ query, goal, equipment, fitnessLevel, limit: 20 });
+    return res.status(200).json({ programs: results });
+  } catch (err) {
+    console.error('programs/search error:', err);
+    return res.status(500).json({ error: 'Failed to search programs' });
+  }
+});
 
 // User program & diet execution & tracking routes (placed before parameterized /:id routes)
 router.get('/user-programs/active', protect, getUserActiveProgram);

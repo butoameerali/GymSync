@@ -13,6 +13,13 @@ const gymSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   facilities: [String],
   equipmentImages: [String],
+  equipmentStatus: [{
+    name: String,
+    status: { type: String, enum: ['Available', 'Maintenance', 'Unavailable'], default: 'Available' },
+    quantity: { type: Number, default: 1 },
+    notes: String
+  }],
+  trainerIncluded: { type: Boolean, default: false },
   approvalStatus: { 
     type: String, 
     enum: ['Approved', 'Pending', 'Rejected'], 

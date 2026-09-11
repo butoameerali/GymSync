@@ -3,8 +3,10 @@ import Gym from '../models/Gym.js';
 import Complaint from '../models/Complaint.js';
 import Post from '../models/Post.js';
 import Payment from '../models/Payment.js';
+import PreMadePlan from '../models/PreMadePlan.js';
 import AuditLog from '../models/AuditLog.js';
 import Notification from '../models/Notification.js';
+import Coupon from '../models/Coupon.js';
 import { logAuditTrail } from '../middleware/securityMiddleware.js';
 
 // Helper to verify admin role
@@ -777,5 +779,75 @@ export const createInstructor = async (req, res) => {
   } catch (error) {
     console.error('Admin controller error:', error);
     res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
+  }
+};
+// To be concatenated with adminController.js
+
+export const createDiscountCampaign = async (req, res) => {
+  if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+  try {
+    const { campaignName, discountType, discountValue, validUntil, usageLimit, targetGymIds } = req.body;
+    
+    // Auto-generate a unique code
+    const baseCode = campaignName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 10);
+    const campaignId = `CAMP-${Date.now()}`;
+    
+    // Find target gyms or all gyms
+    const query = targetGymIds && targetGymIds.length > 0 ? { _id: { $in: targetGymIds } } : {};
+    const gyms = await Gym.find(query);
+    
+    if (gyms.length === 0) {
+      return res.status(400).json({ message: 'No gyms found for this campaign' });
+    }
+
+    const couponsToInsert = gyms.map(gym => ({
+      code: `${baseCode}-${Math.floor(Math.random() * 10000)}`,
+      gymId: gym._id,
+      discountType,
+      discountValue,
+      audience: 'AllUsers',
+      usageLimit: usageLimit || 0,
+      validUntil,
+      scope: 'PlatformLevel',
+      platformCampaignId: campaignId,
+      approvalStatus: 'Approved'
+    }));
+
+    await Coupon.insertMany(couponsToInsert);
+    
+    res.status(201).json({ message: `Campaign created and dispatched to ${gyms.length} gyms`, campaignId });
+  } catch (error) {
+    console.error('createDiscountCampaign error:', error);
+    res.status(500).json({ message: 'Failed to create discount campaign' });
+  }
+};
+
+export const getDiscountCampaigns = async (req, res) => {
+  if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+  try {
+    const coupons = await Coupon.find({ scope: 'PlatformLevel' }).populate('gymId', 'name');
+    
+    // Aggregate by campaign
+    const campaigns = coupons.reduce((acc, coupon) => {
+      const cid = coupon.platformCampaignId;
+      if (!acc[cid]) {
+        acc[cid] = {
+          campaignId: cid,
+          discountType: coupon.discountType,
+          discountValue: coupon.discountValue,
+          validUntil: coupon.validUntil,
+          totalUsage: 0,
+          coupons: []
+        };
+      }
+      acc[cid].totalUsage += coupon.timesUsed;
+      acc[cid].coupons.push({ code: coupon.code, gym: coupon.gymId?.name, timesUsed: coupon.timesUsed });
+      return acc;
+    }, {});
+    
+    res.json(Object.values(campaigns));
+  } catch (error) {
+    console.error('getDiscountCampaigns error:', error);
+    res.status(500).json({ message: 'Failed to fetch discount campaigns' });
   }
 };

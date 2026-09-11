@@ -1,13 +1,21 @@
 import express from 'express';
 import AICache from '../models/AICache.js';
+import Exercise from '../models/Exercise.js';
+import Article from '../models/Article.js';
+import PreMadePlan from '../models/PreMadePlan.js';
 import SavedAIPlan from '../models/SavedAIPlan.js';
+import GoalGroup from '../models/GoalGroup.js';
+import Gym from '../models/Gym.js';
 import User from '../models/User.js';
 import WorkoutProgress from '../models/WorkoutProgress.js';
 import ExerciseRecord from '../models/ExerciseRecord.js';
-import PreMadePlan from '../models/PreMadePlan.js';
-import coachConversationEngine from '../services/ai/coachConversationEngine.js';
+import { coachConversationEngine, resolveTrainerContext } from '../services/ai/coachConversationEngine.js';
 import fitnessContentService from '../services/fitnessContentService.js';
 import exerciseRegistry from '../services/workout/exerciseRegistry.js';
+import { detectMissedSessions } from '../services/workout/missedSessionDetector.js';
+import { routeSlashCommand } from '../services/ai/slashCommandRouter.js';
+import DailyCheckIn from '../models/DailyCheckIn.js';
+import { computeRecoveryAdjustment } from '../services/workout/recoveryStateEngine.js';
 
 // Allowed source attribution types
 export const ALLOWED_SOURCE_TYPES = ['instructor_program', 'instructor_diet', 'instructor_article', 'system_curated', 'community'];
@@ -140,6 +148,9 @@ export const validateAndSanitizeStructuredAction = (action) => {
   }
 
   const sanitized = {
+    type: action.type,
+    steps: action.steps,
+    currentStepIndex: action.currentStepIndex,
     intent: typeof action.intent === 'string' ? action.intent.slice(0, 50) : 'general',
     safetyFlags: Array.isArray(action.safetyFlags)
       ? action.safetyFlags.map(f => String(f).slice(0, 300)).filter(Boolean)
@@ -192,6 +203,7 @@ export const validateAndSanitizeStructuredAction = (action) => {
       timeBudget,
       targetMuscles,
       mainWorkout,
+      appliedRecoveryNote: w.appliedRecoveryNote ? String(w.appliedRecoveryNote).slice(0, 200) : null,
       estimatedTotalCalories: Math.max(0, Math.min(5000, Math.round(Number(w.estimatedTotalCalories) || 0)))
     };
   }
@@ -258,6 +270,12 @@ export const executeCoachPipeline = async ({
     throw new Error('Message is required');
   }
 
+  // PART 15: Chat Shortcut Commands
+  if (rawMessage.startsWith('/')) {
+    const slashRes = await routeSlashCommand(rawMessage, { userId });
+    if (slashRes) return slashRes;
+  }
+
   // Server-Authoritative Identity: ONLY trust server-provided userId.
   // Never fall back to userContext.userId or userContext._id.
   const effectiveUserId = userId || null;
@@ -287,11 +305,20 @@ export const executeCoachPipeline = async ({
       primaryGoal: bio.mainGoalArea || bio.goals?.[0] || 'General Fitness',
       fitnessLevel: bio.fitnessLevel || 'Beginner',
       equipmentAccess: bio.equipmentAccess || 'Full Gym',
+      homeEquipmentAccess: bio.homeEquipmentAccess || '',
+      gymTrainerOptIn: bio.gymTrainerOptIn || false,
       weight: (typeof bio.weight === 'number' && bio.weight > 0) ? bio.weight : null,
       height: (typeof bio.height === 'number' && bio.height > 0) ? bio.height : null,
       jointPain: Array.isArray(bio.jointPain) ? bio.jointPain : [],
       isGuest: false
     };
+
+    let dbGym = null;
+    if (dbUser.assignedGymName) {
+      dbGym = await Gym.findOne({ name: dbUser.assignedGymName });
+    }
+    const trainerContext = resolveTrainerContext(dbUser, dbGym);
+    authoritativeContext.trainerContext = trainerContext;
 
     authoritativePreferences = bio.preferences || {};
 
@@ -315,6 +342,10 @@ export const executeCoachPipeline = async ({
         }
       }
     }
+
+    const checkIns = await DailyCheckIn.find({ userId: effectiveUserId }).sort({ date: -1 }).limit(7).lean();
+    const { recoveryFlag } = computeRecoveryAdjustment({ recentCheckIns: checkIns });
+    authoritativeContext.recoveryFlag = recoveryFlag;
 
     const dbRecords = await ExerciseRecord.find({ userId: effectiveUserId }).sort({ createdAt: -1 }).limit(5).lean();
     if (dbRecords && dbRecords.length > 0) {
@@ -721,8 +752,23 @@ export const getSavedPlans = async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    // Strict IDOR protection: query ONLY by authoritative req.user._id
     const plans = await SavedAIPlan.find({ userId: req.user._id }).sort({ createdAt: -1 });
+
+    // Phase 5: Lazy detection of missed sessions
+    let anySaved = false;
+    for (const plan of plans) {
+      if (plan.isActive) {
+        const missed = detectMissedSessions(plan);
+        if (missed.length > 0) {
+          const newMissed = missed.map(m => ({ dayNumber: m.dayNumber, handled: false, detectedAt: new Date() }));
+          plan.missedSessions = plan.missedSessions || [];
+          plan.missedSessions.push(...newMissed);
+          await plan.save();
+          anySaved = true;
+        }
+      }
+    }
+
     return res.status(200).json(plans);
   } catch (error) {
     console.error('getSavedPlans error:', error);
@@ -739,6 +785,15 @@ export const saveAIPlan = async (req, res) => {
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Plan title is required' });
     }
+    
+    // Find active GoalGroup for linking
+    let activeGoalGroup = await GoalGroup.findOne({
+      userId: req.user._id,
+      status: { $in: ['Active', 'PendingReview'] }
+    }).sort({ createdAt: -1 });
+    
+    // The user might not have one if they didn't go through Part 2's explicit goal wizard
+    // For Phase 4, we link to activeGoalGroup if it exists.
 
     const newPlan = await SavedAIPlan.create({
       userName: req.user.name,
@@ -750,7 +805,8 @@ export const saveAIPlan = async (req, res) => {
       diet: diet || null,
       calendar: Array.isArray(calendar) ? calendar : [],
       notes: notes || '',
-      isActive: true
+      isActive: true,
+      goalGroupId: activeGoalGroup ? activeGoalGroup._id : null
     });
 
     return res.status(201).json(newPlan);
@@ -778,10 +834,62 @@ export const deleteSavedPlan = async (req, res) => {
     }
 
     await SavedAIPlan.findByIdAndDelete(id);
+    
+    // Check remaining plans linked to this GoalGroup
+    if (plan.goalGroupId) {
+      const remaining = await SavedAIPlan.countDocuments({ goalGroupId: plan.goalGroupId, isActive: true });
+      if (remaining === 0) {
+        await GoalGroup.findByIdAndUpdate(plan.goalGroupId, { status: 'Abandoned' });
+      }
+    }
+    
     return res.status(200).json({ message: 'Plan deleted successfully' });
   } catch (error) {
     console.error('deleteSavedPlan error:', error);
     return res.status(500).json({ error: 'Failed to delete plan', message: 'An internal error occurred while deleting the plan.' });
+  }
+};
+
+export const handleMissedSessionResolution = async (req, res) => {
+  try {
+    const { planId, dayNumber } = req.params;
+    const { reasonCode } = req.body;
+    
+    const plan = await SavedAIPlan.findOne({ _id: planId, userId: req.user._id });
+    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+    
+    const sessionIndex = plan.missedSessions.findIndex(s => String(s.dayNumber) === String(dayNumber));
+    if (sessionIndex === -1) return res.status(404).json({ error: 'Missed session not found' });
+    
+    plan.missedSessions[sessionIndex].handled = true;
+    plan.missedSessions[sessionIndex].reasonCode = reasonCode;
+    
+    // Auto-reschedule: find next available rest day
+    const cal = plan.workout?.interactive_calendar || plan.calendar || [];
+    const restDay = cal.find(d => d.dayNumber > Number(dayNumber) && (d.isRestDay || d.dayType === 'rest'));
+    
+    if (restDay) {
+      const missedDay = cal.find(d => d.dayNumber === Number(dayNumber));
+      if (missedDay) {
+        restDay.dayType = missedDay.dayType;
+        restDay.isRestDay = false;
+        restDay.exercises = missedDay.exercises;
+        restDay.rescheduledFrom = Number(dayNumber);
+        if (restDay.exercises && Array.isArray(restDay.exercises)) {
+            restDay.exercises.forEach(ex => { if (ex.sets && ex.sets > 1) ex.sets -= 1; });
+        }
+      }
+    }
+    
+    plan.markModified('missedSessions');
+    plan.markModified('calendar');
+    plan.markModified('workout');
+    await plan.save();
+    
+    return res.status(200).json({ message: 'Session rescheduled successfully', plan });
+  } catch (error) {
+    console.error('handleMissedSessionResolution error:', error);
+    return res.status(500).json({ error: 'Failed to resolve missed session' });
   }
 };
 

@@ -4,6 +4,7 @@ import PaymentConfig from '../models/PaymentConfig.js';
 import Gym from '../models/Gym.js';
 import Order from '../models/Order.js';
 import Stripe from 'stripe';
+import { validateAndApplyCoupon } from './couponController.js';
 const getStripe = () => {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) throw new Error('Stripe is not configured on this server.');
@@ -154,6 +155,29 @@ export const createPayment = async (req, res) => {
         return res.status(500).json({ message: 'Payment processing is not configured on this server.' });
       } else {
         return res.status(400).json({ message: 'Valid Stripe transaction reference (pi_...) is required.' });
+      }
+    }
+
+    // Apply Coupon if provided
+    let appliedCoupon = null;
+    const couponCode = req.body.couponCode;
+    if (couponCode && gymName) {
+      const gym = await Gym.findOne({ name: gymName });
+      if (gym) {
+        try {
+          const user = await User.findById(userId);
+          const isNewMember = !user.subscribedGymName;
+          appliedCoupon = await validateAndApplyCoupon(couponCode, gym._id, userId, isNewMember);
+        } catch (e) {
+          console.warn(`Failed to apply coupon ${couponCode}: ${e.message}`);
+          // Don't fail the payment, just ignore the coupon or maybe we should fail? 
+          // Task description: "Server-side validateAndApplyCoupon() utility with gym-scope, expiry, usage-limit, audience, and race-condition-safe $inc after confirmed payment."
+          // But since payment is already processed by Stripe at this point, failing now would mean they paid but didn't get the membership. 
+          // Wait, the client already discounted the Stripe amount. We need to validate the amount matched Stripe.
+          // The `numericAmount` is the amount sent from client (discounted). So if coupon fails now, Stripe amount and numericAmount match, but coupon is invalid. That's a scam!
+          // We should ideally throw an error, but they already paid Stripe. Let's throw anyway so it can be refunded manually or handled.
+          throw new Error(`Coupon validation failed during checkout: ${e.message}`);
+        }
       }
     }
 

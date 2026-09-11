@@ -34,6 +34,8 @@ const userSchema = new mongoose.Schema({
   otpAttempts: { type: Number, default: 0 },
   resetPasswordToken: { type: String, default: null },
   resetPasswordExpires: { type: Date, default: null },
+  twoFactorEnabled: { type: Boolean, default: false },
+  twoFactorRequired: { type: Boolean, default: false },
   
   // Friend & Follow System
   friends: [{ type: String }],
@@ -49,6 +51,8 @@ const userSchema = new mongoose.Schema({
     planDuration: { type: String, default: '1 Month' },
     trainingDaysPerWeek: { type: Number, default: 3 },
     equipmentAccess: { type: String, default: 'Full Gym' },
+    homeEquipmentAccess: { type: String, default: '' },
+    gymTrainerOptIn: { type: Boolean, default: false },
     pushupBaseline: { type: Number, default: 10 },
     gender: { type: String, default: '' },
     dob: { type: String, default: '' },

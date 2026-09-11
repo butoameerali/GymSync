@@ -1,11 +1,14 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Dumbbell, Sparkles, Utensils, BookOpen } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import aiPlanService from '../../services/aiPlanService';
 import ExerciseDetailView from './ExerciseDetailView';
 import AITrainerAIMode from './AITrainerAIMode';
 import AITrainerAssignedMode from './AITrainerAssignedMode';
+import { MiniCoachModal } from './MiniCoachModal';
+import { MergeOfferCard } from './MergeOfferCard';
+import { BrowseProgramsTab } from './BrowseProgramsTab';
 import './AITrainer.css';
 
 // Code-split catalogue & library tabs for optimal initial bundle size and zero static exercise bloat
@@ -26,6 +29,7 @@ const AITrainer = () => {
   const [setLogs, setSetLogs] = useState([]);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
   const [isBioFilled, setIsBioFilled] = useState(false);
@@ -94,6 +98,25 @@ const AITrainer = () => {
     window.addEventListener('gymsync_bio_updated', checkBioState);
     return () => window.removeEventListener('gymsync_bio_updated', checkBioState);
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    const exercise = params.get('exercise');
+    
+    if (tab && ['library', 'ai', 'assigned', 'diets', 'learn'].includes(tab)) {
+      setActiveMode(tab);
+    }
+    
+    if (exercise) {
+      setActiveMode('library'); // Assuming we want to show it in library or just open it
+      // we need to set current exercise
+      setTimeout(() => {
+        // Since DB fetch is lazy, we might need a dummy obj that gets filled later, or wait.
+        setCurrentExercise({ name: exercise, sets: 3, reps: 10, isPlaceholder: true });
+      }, 500);
+    }
+  }, [location.search]);
 
   // Lazily fetch exercises from MongoDB on-demand only when Library tab is opened
   useEffect(() => {
@@ -177,6 +200,9 @@ const AITrainer = () => {
   const [showSavedPlansModal, setShowSavedPlansModal] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [isLoadingSavedPlans, setIsLoadingSavedPlans] = useState(false);
+  
+  const [mergeOfferData, setMergeOfferData] = useState(null);
+  const [miniCoachSteps, setMiniCoachSteps] = useState(null);
 
   const loadSavedPlans = async () => {
     if (isGuest) return;
@@ -272,13 +298,18 @@ const AITrainer = () => {
   const [workoutProgress, setWorkoutProgress] = useState({ completedDays: [], completedExercises: [], lastWorkoutCompletionTime: null });
   const [activeWorkoutDay, setActiveWorkoutDay] = useState(null);
 
-  const fetchPlanWithBenchmarks = () => {
+  const fetchPlanWithBenchmarks = (additionalData = null) => {
     setIsGeneratingPlan(true);
     const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
     const bioData = JSON.parse(localStorage.getItem(`gymsync_${userKey}_bio_data`) || '{}');
 
+    let mergedBio = { ...bioData };
+    if (additionalData) {
+      mergedBio = { ...mergedBio, ...additionalData, ...(additionalData.missingBioFields || {}) };
+    }
+
     const payload = {
-      ...bioData,
+      ...mergedBio,
       trainingDaysPerWeek: bioData.trainingDaysPerWeek || 3,
       equipmentAccess: bioData.equipmentAccess || 'Full Gym',
       pushupBaseline: bioData.pushupBaseline || 10
@@ -299,6 +330,18 @@ const AITrainer = () => {
       return data;
     })
     .then(data => {
+      if (data.structuredAction && data.structuredAction.type === 'merge_offer') {
+        setMergeOfferData(data.structuredAction);
+        setIsGeneratingPlan(false);
+        return;
+      }
+      
+      if (data.structuredAction && data.structuredAction.type === 'mini_coach_interview') {
+        setMiniCoachSteps(data.structuredAction.steps);
+        setIsGeneratingPlan(false);
+        return;
+      }
+
       const formattedPlan = {
         ...data,
         planId: `PLAN_${Date.now()}`,
@@ -310,6 +353,14 @@ const AITrainer = () => {
       if (formattedPlan.interactive_calendar && formattedPlan.interactive_calendar.length > 0) {
         setSelectedCalendarDay(formattedPlan.interactive_calendar[0]);
       }
+      
+      // Save the merged data back to bioData to persist memory across sessions!
+      if (additionalData) {
+        localStorage.setItem(`gymsync_${userKey}_bio_data`, JSON.stringify(mergedBio));
+        localStorage.setItem(`gymsync_${userKey}_bio`, JSON.stringify(mergedBio));
+        window.dispatchEvent(new Event('gymsync_bio_updated'));
+      }
+      
     })
     .catch(err => {
       console.error(err);
@@ -726,6 +777,23 @@ const AITrainer = () => {
           <p>Explore 100+ exercises, view detailed execution guides, video demonstrations &amp; track your progress.</p>
         </div>
 
+        {miniCoachSteps && (
+          <MiniCoachModal
+            steps={miniCoachSteps}
+            onClose={() => setMiniCoachSteps(null)}
+            onSubmitAll={(answers) => { setMiniCoachSteps(null); fetchPlanWithBenchmarks(answers); }}
+          />
+        )}
+        
+        {mergeOfferData && (
+          <MergeOfferCard
+            existingPlanTitle={mergeOfferData.existingPlanTitle}
+            existingGoal={mergeOfferData.existingGoal}
+            newGoal={mergeOfferData.newGoal}
+            onDecision={(decision) => { setMergeOfferData(null); fetchPlanWithBenchmarks({ mergeDecision: decision }); }}
+          />
+        )}
+
         {/* ── TAB BAR ───────────────────────────────────────────────────── */}
         <div className="trainer-tabs">
           <button
@@ -756,7 +824,7 @@ const AITrainer = () => {
             className={`tab-btn ${activeMode === 'ai' ? 'active' : ''}`}
             onClick={() => setActiveMode('ai')}
           >
-            <Sparkles size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> My AI Plan
+            <Sparkles size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> My AI Workouts
           </button>
           <button
             className={`tab-btn ${activeMode === 'assigned' ? 'active' : ''}`}
@@ -800,17 +868,14 @@ const AITrainer = () => {
           />
         )}
 
-        {/* ── PROGRAMS MODE ─────────────────────────────────────────────── */}
+        {/* ── PROGRAMS MODE (Part 17 — Browse Instructor Programs) ──────── */}
         {activeMode === 'programs' && !currentExercise && (
-          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading workout programs...</div>}>
-            <ProgramCatalogue
-              onSelectExercise={(exercise) => startExercise(exercise)}
-              onApplied={() => {
-                fetchActiveProgram();
-                setActiveMode('ai');
-              }}
-            />
-          </Suspense>
+          <BrowseProgramsTab
+            onProgramApplied={() => {
+              fetchActiveProgram();
+              setActiveMode('ai');
+            }}
+          />
         )}
 
         {/* ── DIETS MODE ────────────────────────────────────────────────── */}

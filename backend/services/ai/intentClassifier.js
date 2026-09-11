@@ -1,4 +1,5 @@
 import eventAwarenessEngine, { EVENT_TYPES } from '../workout/eventAwarenessEngine.js';
+import { getMissingFields } from './userKnowledgeState.js';
 
 /**
  * NLP Intent Classifier & Entity Extractor for GymSync AI Coach
@@ -22,8 +23,14 @@ export const INTENTS = {
   WEIGHT_MANAGEMENT: 'weight_management',
   WORKLOAD_CONFLICT: 'workload_conflict',
   CLARIFICATION_RESPONSE: 'clarification_response',
-  FITNESS_QUESTION: 'fitness_question'
+  FITNESS_QUESTION: 'fitness_question',
+  HOME_ALTERNATIVE: 'home_alternative'
 };
+
+export function computeMissingBioFields(bio) {
+  const allBioKeys = ['height', 'weight', 'gender', 'jointPain', 'medicalConditions', 'injuries', 'limitations', 'foodPreferences', 'trainingDaysPerWeek', 'equipmentAccess'];
+  return getMissingFields({ bioData: bio }, allBioKeys);
+}
 
 export const intentClassifier = {
   /**

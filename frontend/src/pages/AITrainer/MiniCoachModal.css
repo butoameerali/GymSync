@@ -1,0 +1,129 @@
+.mini-coach-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.mini-coach-window {
+  background: var(--panel-bg, #1e293b);
+  border: 1px solid #3b82f6;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.mini-coach-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  color: #3b82f6;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+}
+
+.mini-coach-header button {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.mini-coach-header button:hover {
+  color: white;
+}
+
+.mini-coach-progress {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.mini-coach-window h3 {
+  font-size: 1.3rem;
+  margin-bottom: 20px;
+  color: var(--text-primary, #f8fafc);
+}
+
+.mini-coach-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.mini-coach-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary, #f8fafc);
+  padding: 10px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  flex: 1 1 calc(50% - 10px);
+  text-align: center;
+}
+
+.mini-coach-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mini-coach-pill.selected {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.mini-coach-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--card-border, rgba(255,255,255,0.1));
+}
+
+.mini-coach-nav button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.mini-coach-nav button:hover {
+  color: white;
+}
+
+.mini-coach-nav .btn-primary {
+  background: #3b82f6;
+  color: white;
+  margin-left: auto;
+}
+
+.mini-coach-nav .btn-primary:hover {
+  background: #2563eb;
+}

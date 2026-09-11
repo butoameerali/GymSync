@@ -1,71 +1,18 @@
-import React, { useState } from 'react';
-import { X, ChevronRight, ChevronLeft, Target, Briefcase, Activity, Heart, User, Dumbbell, Clock, CheckCircle, Sliders } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ChevronRight, ChevronLeft, Target, Briefcase, Activity, Heart, User, Dumbbell, Clock, CheckCircle, Sliders, Shield, AlertTriangle } from 'lucide-react';
+import { HealthChipSection } from "./OnboardingHelpers";
 import Body from 'react-muscle-highlighter';
 import './OnboardingWizard.css';
 
-const GOALS_DATA = [
-  {
-    category: "Career & Professional Training",
-    icon: <Briefcase size={22} />,
-    subs: [
-      "Military & Armed Forces Prep",
-      "Law Enforcement & Police Academy",
-      "Combat Sports Conditioning",
-      "Athletic Performance"
-    ]
-  },
-  {
-    category: "Body Transformation",
-    icon: <Dumbbell size={22} />,
-    subs: [
-      "Weight Loss & Fat Burn",
-      "Muscle Building (Hypertrophy)",
-      "Healthy Weight Gain (Bulking)",
-      "Lean & Shredded Definition",
-      "Body Recomposition"
-    ]
-  },
-  {
-    category: "General Fitness & Physical Capability",
-    icon: <Activity size={22} />,
-    subs: [
-      "Stamina & Endurance Boost",
-      "Raw Strength & Power",
-      "Flexibility & Mobility",
-      "Agility & Reflexes",
-      "Cardiovascular Health"
-    ]
-  },
-  {
-    category: "Lifestyle & Wellness",
-    icon: <Heart size={22} />,
-    subs: [
-      "Sedentary to Active",
-      "Stress Relief & Mental Wellness",
-      "Daily Energy Enhancement",
-      "Posture Correction"
-    ]
-  },
-  {
-    category: "Age-Specific Milestones",
-    icon: <User size={22} />,
-    subs: [
-      "Youth & Teenage Growth",
-      "Healthy Aging (Seniors)"
-    ]
-  }
-];
-
-const PLAN_DURATIONS = [
-  { id: '1 Month', label: '1 Month', sub: '30 Days Quick Start' },
-  { id: '3 Months', label: '3 Months', sub: '90 Days (Recommended)', recommended: true },
-  { id: '6 Months', label: '6 Months', sub: '180 Days Overload' },
-  { id: '1 Year', label: '1 Year', sub: '12 Months Full Transformation' }
-];
+const JOINT_PAIN_OPTIONS = ['Knee', 'Lower Back', 'Shoulder', 'Wrist', 'Ankle', 'Neck', 'Hip', 'None'];
+const INJURY_OPTIONS = ['Rotator Cuff', 'Herniated Disc', 'ACL/Meniscus', 'Tennis Elbow', 'Hamstring Tear', 'None'];
+const CONDITION_OPTIONS = ['Asthma', 'High Blood Pressure', 'Diabetes', 'Heart Condition', 'Arthritis', 'None'];
+const LIMITATION_OPTIONS = ['No Heavy Overhead Press', 'No Deep Squats', 'No High Impact', 'No Spinal Loading', 'None'];
+const DIETARY_OPTIONS = ['Halal only', 'Vegetarian', 'Vegan', 'High Protein', 'Lactose Intolerant', 'Gluten Free', 'No Beef', 'No Seafood', 'No Restrictions'];
 
 const OnboardingWizard = ({ onComplete, onSkip }) => {
   const [step, setStep] = useState(1);
-  const totalSteps = 6;
+  const totalSteps = 5;
 
   // Form Data State
   const [data, setData] = useState({
@@ -80,25 +27,90 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
     units: 'metric',
     height: 170,
     weight: 70,
-    targetMuscles: []
+    targetMuscles: [],
+    jointPain: [],
+    injuries: [],
+    medicalConditions: [],
+    limitations: [],
+    foodPreferences: ''
   });
 
-  const [expandedCategory, setExpandedCategory] = useState(0);
+  useEffect(() => {
+    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+    const localBioStr = localStorage.getItem(`gymsync_${userKey}_bio_data`) || localStorage.getItem(`gymsync_${userKey}_bio`);
+    if (localBioStr) {
+      try {
+        const parsed = JSON.parse(localBioStr);
+        if (parsed && typeof parsed === 'object') {
+          setData(prev => ({
+            ...prev,
+            ...parsed,
+            jointPain: Array.isArray(parsed.jointPain) ? parsed.jointPain : (prev.jointPain || []),
+            injuries: Array.isArray(parsed.injuries) ? parsed.injuries : (prev.injuries || []),
+            medicalConditions: Array.isArray(parsed.medicalConditions) ? parsed.medicalConditions : (prev.medicalConditions || []),
+            limitations: Array.isArray(parsed.limitations) ? parsed.limitations : (prev.limitations || []),
+            foodPreferences: typeof parsed.foodPreferences === 'string' ? parsed.foodPreferences : (Array.isArray(parsed.foodPreferences) ? parsed.foodPreferences.join(', ') : '')
+          }));
+        }
+      } catch (e) {
+        console.warn('Failed parsing local bio:', e);
+      }
+    }
+  }, []);
 
   const updateData = (key, val) => setData(prev => ({ ...prev, [key]: val }));
 
   const nextStep = () => { if (step < totalSteps) setStep(step + 1); };
   const prevStep = () => { if (step > 1) setStep(step - 1); };
 
-  const handleGoalToggle = (goal, categoryName) => {
-    if (data.mainGoalArea !== categoryName) {
-      updateData('mainGoalArea', categoryName);
-      updateData('goals', [goal]);
-    } else {
-      updateData('goals', data.goals.includes(goal) 
-        ? data.goals.filter(g => g !== goal) 
-        : [...data.goals, goal]);
-    }
+  const toggleArrayItem = (field, item) => {
+    setData(prev => {
+      const current = Array.isArray(prev[field]) ? prev[field] : [];
+      if (item === 'None') {
+        return { ...prev, [field]: current.includes('None') ? [] : ['None'] };
+      }
+      const filtered = current.filter(x => x !== 'None');
+      const updated = filtered.includes(item)
+        ? filtered.filter(x => x !== item)
+        : [...filtered, item];
+      return { ...prev, [field]: updated };
+    });
+  };
+
+  const toggleFoodPreference = (pref) => {
+    setData(prev => {
+      const current = (prev.foodPreferences || '').split(',').map(s => s.trim()).filter(Boolean);
+      if (pref === 'No Restrictions') {
+        return { ...prev, foodPreferences: current.includes('No Restrictions') ? '' : 'No Restrictions' };
+      }
+      const filtered = current.filter(x => x !== 'No Restrictions');
+      const updated = filtered.includes(pref)
+        ? filtered.filter(x => x !== pref)
+        : [...filtered, pref];
+      return { ...prev, foodPreferences: updated.join(', ') };
+    });
+  };
+
+  const addCustomItem = (field, item) => {
+    const val = item.trim();
+    if (!val) return;
+    setData(prev => {
+      const current = Array.isArray(prev[field]) ? prev[field] : [];
+      const filtered = current.filter(x => x !== 'None');
+      if (filtered.some(x => x.toLowerCase() === val.toLowerCase())) return prev;
+      return { ...prev, [field]: [...filtered, val] };
+    });
+  };
+
+  const addCustomFoodPreference = (pref) => {
+    const val = pref.trim();
+    if (!val) return;
+    setData(prev => {
+      const current = (prev.foodPreferences || '').split(',').map(s => s.trim()).filter(Boolean);
+      const filtered = current.filter(x => x !== 'No Restrictions');
+      if (filtered.some(x => x.toLowerCase() === val.toLowerCase())) return prev;
+      return { ...prev, foodPreferences: [...filtered, val].join(', ') };
+    });
   };
 
   const handleMuscleToggle = (muscle) => {
@@ -154,7 +166,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
   };
 
   const activeHighlighterMuscles = [];
-  data.targetMuscles.forEach(m => {
+  (data.targetMuscles || []).forEach(m => {
     if (muscleMapping[m]) {
        activeHighlighterMuscles.push(...muscleMapping[m]);
     }
@@ -165,7 +177,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
     color: '#10b981'
   }));
 
-  const isFullBody = data.targetMuscles.length === userMuscles.length;
+  const isFullBody = (data.targetMuscles || []).length === userMuscles.length;
   const toggleFullBody = () => updateData('targetMuscles', isFullBody ? [] : [...userMuscles]);
 
   const handleModelClick = (part) => {
@@ -179,72 +191,6 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
   const renderStepContent = () => {
     switch (step) {
       case 1:
-        return (
-          <div className="wiz-step">
-            <h2>Primary Fitness Path</h2>
-            <p className="wiz-subtitle">Select ONE primary training path and your specific goals.</p>
-            
-            {data.mainGoalArea && (
-              <div className="goal-summary-banner" style={{ marginBottom: '15px' }}>
-                <Target size={16} color="var(--primary-accent)" />
-                <span><strong>Selected Path:</strong> {data.mainGoalArea} ({data.goals.length} goals selected)</span>
-              </div>
-            )}
-
-            <div className="goals-container">
-              {GOALS_DATA.map((cat, idx) => (
-                <div key={idx} className={`goal-category ${data.mainGoalArea === cat.category ? 'active-area' : ''} ${expandedCategory === idx ? 'expanded' : ''}`}>
-                  <div className="goal-cat-header" onClick={() => setExpandedCategory(expandedCategory === idx ? null : idx)}>
-                    <div className="cat-title">
-                      <div className="cat-icon">{cat.icon}</div>
-                      <span>{cat.category}</span>
-                    </div>
-                    <ChevronRight className="expand-icon" />
-                  </div>
-                  {expandedCategory === idx && (
-                    <div className="goal-subs">
-                      {cat.subs.map(sub => (
-                        <div key={sub} className={`sub-pill ${data.goals.includes(sub) ? 'selected' : ''}`} onClick={() => handleGoalToggle(sub, cat.category)}>
-                          {sub}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 2:
-        return (
-          <div className="wiz-step">
-            <h2>Exercise Plan Duration</h2>
-            <p className="wiz-subtitle">How long of a customized workout plan do you require?</p>
-
-            <div className="duration-grid" style={{ marginTop: '20px' }}>
-              {PLAN_DURATIONS.map(dur => (
-                <div 
-                  key={dur.id} 
-                  className={`duration-card ${data.planDuration === dur.id ? 'selected' : ''}`}
-                  onClick={() => updateData('planDuration', dur.id)}
-                  style={{ padding: '24px 16px' }}
-                >
-                  <Clock size={28} color={data.planDuration === dur.id ? 'var(--primary-accent)' : 'var(--text-secondary)'} style={{ marginBottom: '8px' }} />
-                  <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{dur.label}</span>
-                  <span style={{ fontSize: '0.8rem', opacity: 0.85, marginTop: '4px' }}>{dur.sub}</span>
-                  {dur.recommended && (
-                    <span className="category-badge" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', fontSize: '0.75rem', marginTop: '8px', padding: '3px 10px', borderRadius: '12px' }}>
-                      ⭐ Best Value
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 3:
         return (
           <div className="wiz-step">
             <h2>Smart Intake & Stamina Calibration</h2>
@@ -293,7 +239,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
           </div>
         );
 
-      case 4:
+      case 2:
         return (
           <div className="wiz-step">
             <h2>Biological Profile</h2>
@@ -316,7 +262,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
           </div>
         );
 
-      case 5:
+      case 3:
         return (
           <div className="wiz-step">
             <h2>Physical Metrics</h2>
@@ -324,6 +270,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
 
             <div className="unit-switcher" style={{ marginBottom: '24px' }}>
               <button 
+                type="button"
                 className={data.units === 'metric' ? 'active' : ''} 
                 onClick={() => {
                   if (data.units === 'imperial') {
@@ -336,6 +283,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
                 Metric (kg/cm)
               </button>
               <button 
+                type="button"
                 className={data.units === 'imperial' ? 'active' : ''} 
                 onClick={() => {
                   if (data.units === 'metric') {
@@ -369,7 +317,64 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
           </div>
         );
 
-      case 6:
+      case 4: {
+        const currentDietList = (data.foodPreferences || '').split(',').map(s => s.trim()).filter(Boolean);
+        return (
+          <div className="wiz-step">
+            <h2>Health, Medical & Dietary Bio</h2>
+            <p className="wiz-subtitle">This helps ensure your AI exercises and nutritional guidance remain medically safe.</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <HealthChipSection
+                label="Joint Pain or Discomfort Areas"
+                options={JOINT_PAIN_OPTIONS}
+                selected={data.jointPain || []}
+                onToggle={area => toggleArrayItem('jointPain', area)}
+                onAddCustom={custom => addCustomItem('jointPain', custom)}
+                customPlaceholder="+ Add custom joint area (e.g. Elbow, Hip flexor)"
+              />
+
+              <HealthChipSection
+                label="Past Injuries"
+                options={INJURY_OPTIONS}
+                selected={data.injuries || []}
+                onToggle={inj => toggleArrayItem('injuries', inj)}
+                onAddCustom={custom => addCustomItem('injuries', custom)}
+                customPlaceholder="+ Add custom past injury (e.g. Meniscus repair)"
+              />
+
+              <HealthChipSection
+                label="Medical Conditions"
+                options={CONDITION_OPTIONS}
+                selected={data.medicalConditions || []}
+                onToggle={cond => toggleArrayItem('medicalConditions', cond)}
+                onAddCustom={custom => addCustomItem('medicalConditions', custom)}
+                customPlaceholder="+ Add custom medical condition (e.g. Mild scoliosis)"
+              />
+
+              <HealthChipSection
+                label="Physical Limitations"
+                options={LIMITATION_OPTIONS}
+                selected={data.limitations || []}
+                onToggle={lim => toggleArrayItem('limitations', lim)}
+                onAddCustom={custom => addCustomItem('limitations', custom)}
+                customPlaceholder="+ Add custom limitation (e.g. No jumping, No heavy deadlifts)"
+              />
+
+              <HealthChipSection
+                label="Dietary Preferences & Restrictions"
+                options={DIETARY_OPTIONS}
+                selected={currentDietList}
+                onToggle={diet => toggleFoodPreference(diet)}
+                onAddCustom={custom => addCustomFoodPreference(custom)}
+                customPlaceholder="+ Add custom dietary preference or allergy (e.g. Nut allergy)"
+              />
+            </div>
+          </div>
+        );
+      }
+
+      case 5:
         return (
           <div className="wiz-step">
             <h2>Target Muscle Focus</h2>
@@ -405,7 +410,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
               </div>
 
               <div style={{display: 'flex', justifyContent: 'center', marginTop: '10px'}}>
-                <button className={`btn btn-sm ${isFullBody ? 'btn-primary' : 'btn-outline'}`} onClick={toggleFullBody} style={{borderRadius: '20px'}}>
+                <button type="button" className={`btn btn-sm ${isFullBody ? 'btn-primary' : 'btn-outline'}`} onClick={toggleFullBody} style={{borderRadius: '20px'}}>
                   {isFullBody ? 'Deselect All' : 'Select Full Body Focus'}
                 </button>
               </div>
@@ -413,9 +418,10 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
               <div className="muscle-btn-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px', width: '100%', marginTop: '10px' }}>
                 {userMuscles.map(m => (
                   <button
+                    type="button"
                     key={m}
                     onClick={() => handleMuscleToggle(m)}
-                    className={`btn btn-sm ${data.targetMuscles.includes(m) ? 'btn-primary' : 'btn-outline'}`}
+                    className={`btn btn-sm ${(data.targetMuscles || []).includes(m) ? 'btn-primary' : 'btn-outline'}`}
                     style={{ padding: '6px 2px', fontSize: '0.75rem', borderRadius: '8px' }}
                   >
                     {m}
@@ -433,7 +439,7 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
   return (
     <div className="onboarding-overlay">
       <div className="onboarding-modal" style={{ maxWidth: '640px' }}>
-        <button className="skip-btn" onClick={onSkip}>Skip for now <X size={16} /></button>
+        <button type="button" className="skip-btn" onClick={onSkip}>Skip for now <X size={16} /></button>
         
         <div className="progress-bar-container">
           <div className="progress-bar" style={{ width: `${(step / totalSteps) * 100}%` }}></div>
@@ -446,13 +452,13 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
 
         <div className="onboarding-footer">
           {step > 1 ? (
-            <button className="btn btn-outline" onClick={prevStep}><ChevronLeft size={20} /> Back</button>
+            <button type="button" className="btn btn-outline" onClick={prevStep}><ChevronLeft size={20} /> Back</button>
           ) : <div></div>}
           
           {step < totalSteps ? (
-            <button className="btn btn-primary" onClick={nextStep}>Next <ChevronRight size={20} /></button>
+            <button type="button" className="btn btn-primary" onClick={nextStep}>Next <ChevronRight size={20} /></button>
           ) : (
-            <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={submitOnboarding}>
+            <button type="button" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={submitOnboarding}>
               <CheckCircle size={18} /> Save & Complete Bio
             </button>
           )}

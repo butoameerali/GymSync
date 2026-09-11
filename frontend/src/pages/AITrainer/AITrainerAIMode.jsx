@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Bot,
   CheckCircle,
@@ -11,8 +11,17 @@ import {
   Layers,
   Trash2,
   Play,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { MissedSessionCard } from './MissedSessionCard';
+import { TodaysEnergyCard } from './TodaysEnergyCard';
+import { MissionRunner } from './MissionRunner';
+import { SwapMealItemModal } from './SwapMealItemModal';
+import { AchievementCard } from './AchievementCard';
+import { NextGoalPrompt } from './NextGoalPrompt';
+import PlanVsRealityCard from './PlanVsRealityCard';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -78,9 +87,17 @@ const AITrainerAIMode = ({
   handleLogProgramSession,
 }) => {
   const navigate = useNavigate();
+  const [showMissionRunner, setShowMissionRunner] = useState(false);
+  const [swapModalInfo, setSwapModalInfo] = useState(null);
+  const [completedGoalGroup, setCompletedGoalGroup] = useState(null); // Part 19
+  const [showNextGoalPrompt, setShowNextGoalPrompt] = useState(false); // Part 20
 
   return (
     <div className="ai-plan-view glass-panel">
+      {/* ── TODAY'S ENERGY DASHBOARD ─────────────────────────────────────── */}
+      <TodaysEnergyCard />
+      <PlanVsRealityCard />
+
       {/* ── ACTIVE INSTRUCTOR PROGRAM BANNER ─────────────────────────────── */}
       {activeUserProgram && (
         <div
@@ -179,15 +196,10 @@ const AITrainerAIMode = ({
                   </div>
                   <button
                     className="btn btn-sm btn-primary"
-                    onClick={() =>
-                      handleLogProgramSession(
-                        activeUserProgram._id,
-                        activeUserProgram.progress?.currentWeek || 1,
-                        activeUserProgram.progress?.currentDay || 1
-                      )
-                    }
+                    style={{ background: '#10b981', borderColor: '#10b981' }}
+                    onClick={() => setShowMissionRunner(true)}
                   >
-                    <CheckCircle size={14} style={{ marginRight: '4px' }} /> Complete Session
+                    <Play size={14} style={{ marginRight: '4px' }} /> Start Mission
                   </button>
                 </div>
 
@@ -226,9 +238,21 @@ const AITrainerAIMode = ({
                         >
                           {ex.exerciseId?.name || ex.name || `Exercise ${idx + 1}`}
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                          {ex.sets} sets × {ex.reps} reps {ex.rpe ? `• RPE ${ex.rpe}` : ''}
-                        </div>
+                        {(() => {
+                          const completedSession = (activeUserProgram.progress?.completedSessions || []).find(
+                            s => s.weekNumber === (activeUserProgram.progress?.currentWeek || 1) && s.dayNumber === (activeUserProgram.progress?.currentDay || 1)
+                          );
+                          const loggedEx = completedSession?.exerciseLogs?.find(
+                            l => (l.exerciseId && (l.exerciseId === ex.exerciseId?._id || l.exerciseId === ex.exerciseId)) ||
+                                 (l.exerciseName && l.exerciseName === (ex.exerciseId?.name || ex.name))
+                          );
+                          const burned = Number(ex.caloriesBurned) > 0 ? Number(ex.caloriesBurned) : (Number(loggedEx?.caloriesBurned) > 0 ? Number(loggedEx?.caloriesBurned) : null);
+                          return (
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                              {ex.sets} sets × {ex.reps} reps {ex.rpe ? `• RPE ${ex.rpe}` : ''} • {burned ? `~${Math.round(burned)} kcal estimated` : 'Calorie estimate unavailable'}
+                            </div>
+                          );
+                        })()}
                       </div>
                       {ex.exerciseId && <Play size={14} color="#3b82f6" />}
                     </div>
@@ -345,7 +369,7 @@ const AITrainerAIMode = ({
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
                 >
-                  <Layers size={14} /> My Saved Plans ({savedPlans.length})
+                  <Layers size={14} /> My AI Workouts ({savedPlans.filter(p => p.planKind !== 'Diet').length})
                 </button>
               )}
             </div>
@@ -371,6 +395,18 @@ const AITrainerAIMode = ({
             </div>
           ) : aiPlan ? (
             <div className="ai-structured-plan">
+              {aiPlan.missedSessions && aiPlan.missedSessions.some(m => !m.handled) && (
+                <MissedSessionCard 
+                  planId={aiPlan._id} 
+                  missedSession={aiPlan.missedSessions.find(m => !m.handled)} 
+                  onResolved={() => {
+                    // Trigger a re-fetch of saved plans to clear the modal
+                    window.dispatchEvent(new Event('gymsync_bio_updated'));
+                    // Wait 500ms and reload the page as fallback
+                    setTimeout(() => window.location.reload(), 500);
+                  }} 
+                />
+              )}
               {/* ── MEDICAL SAFETY HARD FILTERS ─────────────────────────── */}
               {aiPlan.medical_warnings && aiPlan.medical_warnings.length > 0 && (
                 <div
@@ -706,6 +742,15 @@ const AITrainerAIMode = ({
                               selectedCalendarDay.focusArea}
                           </div>
                         </div>
+
+                        {selectedCalendarDay.appliedRecoveryNote && (
+                          <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '10px 14px', borderRadius: '10px', marginBottom: '14px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                            <span style={{ fontWeight: 600, display: 'block', color: '#ef4444', marginBottom: '4px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                              <AlertCircle size={14} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }} /> Recovery Adjustment
+                            </span>
+                            {selectedCalendarDay.appliedRecoveryNote}
+                          </div>
+                        )}
 
                         {/* 1B. COACH RATIONALE & EVENT AWARENESS */}
                         {selectedCalendarDay.rationale && (
@@ -1286,19 +1331,27 @@ const AITrainerAIMode = ({
                             overflowY: 'auto',
                           }}
                         >
-                          {(aiPlan.daily_diet_plan || []).map((diet, dIdx) => (
-                            <div
-                              key={dIdx}
-                              style={{
-                                background: 'var(--card-bg)',
-                                padding: '8px 12px',
-                                borderRadius: '8px',
-                                fontSize: '0.85rem',
-                              }}
-                            >
-                              <strong style={{ color: 'var(--primary-accent)' }}>
-                                {diet.meal}:{' '}
-                              </strong>
+                          {aiPlan.structuredDiet?.meals ? aiPlan.structuredDiet.meals.map((meal, mIdx) => (
+                            <div key={mIdx} style={{ background: 'var(--card-bg)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem' }}>
+                              <strong style={{ color: 'var(--primary-accent)' }}>{meal.mealName}: </strong>
+                              <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {(meal.items || []).map((item, iIdx) => (
+                                  <div key={iIdx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>{item.food} ({item.portion})</span>
+                                    <button 
+                                      onClick={() => setSwapModalInfo({ itemName: item.food || item.name, mealId: meal._id || meal.mealNumber, planId: aiPlan._id })}
+                                      disabled={!aiPlan._id}
+                                      style={{ background: 'transparent', border: '1px solid #475569', color: '#94a3b8', borderRadius: '4px', fontSize: '0.7rem', padding: '2px 6px', cursor: aiPlan._id ? 'pointer' : 'not-allowed' }}
+                                    >
+                                      {aiPlan._id ? 'Swap' : 'Save Plan to Swap'}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )) : (aiPlan.daily_diet_plan || []).map((diet, dIdx) => (
+                            <div key={dIdx} style={{ background: 'var(--card-bg)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem' }}>
+                              <strong style={{ color: 'var(--primary-accent)' }}>{diet.meal}: </strong>
                               <span style={{ color: 'var(--text-secondary)' }}>{diet.food}</span>
                             </div>
                           ))}
@@ -1490,11 +1543,12 @@ const AITrainerAIMode = ({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {savedPlans.map((plan) => {
+                {savedPlans.filter(p => p.planKind !== 'Diet').map((plan) => {
                   const daysCount =
                     plan.calendar?.length ||
                     plan.workout?.interactive_calendar?.length ||
                     0;
+                  const linkedCount = plan.goalGroupId ? savedPlans.filter(p => p.goalGroupId === plan.goalGroupId && p.isActive).length : 0;
                   return (
                     <div
                       key={plan._id}
@@ -1520,6 +1574,9 @@ const AITrainerAIMode = ({
                         >
                           {plan.title}
                         </h4>
+                        {linkedCount > 1 && (
+                          <span style={{ fontSize: '0.75rem', background: 'rgba(59,130,246,0.2)', color: '#60a5fa', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px' }}>🔗 Linked Load</span>
+                        )}
                         <div
                           style={{
                             display: 'flex',
@@ -1566,6 +1623,93 @@ const AITrainerAIMode = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* ── GAMIFIED MISSION RUNNER OVERLAY ─────────────────────────────────── */}
+      {showMissionRunner && activeUserProgram && (
+        <MissionRunner
+          dayTitle={(activeUserProgram.progress?.currentDay || 1) + ' Routine'}
+          exercises={activeUserProgram.weeks?.[0]?.days?.find(d => d.dayNumber === activeUserProgram.progress?.currentDay)?.exercises || []}
+          onCancel={() => setShowMissionRunner(false)}
+          onComplete={() => {
+            setShowMissionRunner(false);
+            handleLogProgramSession(
+              activeUserProgram._id,
+              activeUserProgram.progress?.currentWeek || 1,
+              activeUserProgram.progress?.currentDay || 1
+            );
+          }}
+        />
+      )}
+
+      {/* ── INTERACTIVE DIET SWAP MODAL ────────────────────────────────────── */}
+      <SwapMealItemModal
+        isOpen={!!swapModalInfo}
+        itemName={swapModalInfo?.itemName}
+        mealId={swapModalInfo?.mealId}
+        planId={swapModalInfo?.planId}
+        onClose={() => setSwapModalInfo(null)}
+        onSwapComplete={(updatedPlan, message) => {
+          toast.success(message);
+          // A full refresh would be ideal or triggering parent update:
+          setTimeout(() => window.location.reload(), 2000);
+        }}
+      />
+
+      {/* ── GOAL COMPLETION (Parts 19 & 20) ──────────────────────────────── */}
+      {aiPlan && !completedGoalGroup && (
+        <div style={{ textAlign: 'center', marginTop: '12px', paddingBottom: '8px' }}>
+          <button
+            onClick={async () => {
+              try {
+                const token = localStorage.getItem('gymsync_token') || '';
+                // Fetch active GoalGroup
+                const goalRes = await fetch('/api/goals/active', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (goalRes.ok) {
+                  const goalData = await goalRes.json();
+                  if (goalData?.goalGroup?._id) {
+                    const complRes = await fetch(`/api/goals/${goalData.goalGroup._id}/complete`, {
+                      method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (complRes.ok) {
+                      const complData = await complRes.json();
+                      setCompletedGoalGroup(complData.goalGroup);
+                    }
+                  } else {
+                    toast.info('No active goal found. Set a goal in the Mini-Coach first.');
+                  }
+                }
+              } catch { toast.error('Failed to complete goal. Please try again.'); }
+            }}
+            style={{ background: 'none', border: '1px solid rgba(245,158,11,0.4)', color: '#f59e0b', borderRadius: '8px', padding: '6px 16px', cursor: 'pointer', fontSize: '0.8rem' }}
+          >
+            🏆 Mark Goal as Complete
+          </button>
+        </div>
+      )}
+
+      {completedGoalGroup && !showNextGoalPrompt && (
+        <AchievementCard
+          goalGroup={completedGoalGroup}
+          onDismiss={() => {
+            setShowNextGoalPrompt(true);
+          }}
+        />
+      )}
+
+      {showNextGoalPrompt && (
+        <NextGoalPrompt
+          onSelectGoal={(goalType) => {
+            setShowNextGoalPrompt(false);
+            setCompletedGoalGroup(null);
+            // Open MiniCoach with pre-selected goal type
+            window.dispatchEvent(new CustomEvent('gymsync_open_minicoach', { detail: { preselectedGoal: goalType } }));
+          }}
+          onSkip={() => {
+            setShowNextGoalPrompt(false);
+            setCompletedGoalGroup(null);
+          }}
+        />
       )}
     </div>
   );

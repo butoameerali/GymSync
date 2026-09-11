@@ -1,11 +1,13 @@
 import React from 'react';
-import { Target } from 'lucide-react';
+import { Target, Activity, Shield, AlertTriangle, Heart } from 'lucide-react';
 
-const ProfileBioTab = ({ bio }) => {
+const ProfileBioTab = ({ bio = {} }) => {
+  const isProfileStarted = Boolean(bio.height || bio.gender || bio.trainingDaysPerWeek || bio.weight || bio.equipmentAccess || bio.mainGoalArea);
+
   return (
     <div className="glass-panel section-panel bio-panel">
       <div style={{display:'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-        <h3 className="section-title"><Target size={20}/> Health Bio</h3>
+        <h3 className="section-title"><Target size={20}/> Health & Biological Profile</h3>
         <button
           className="btn btn-outline btn-sm"
           onClick={() => {
@@ -17,7 +19,7 @@ const ProfileBioTab = ({ bio }) => {
         </button>
       </div>
 
-      {!bio.mainGoalArea ? (
+      {!isProfileStarted ? (
         <div style={{textAlign: 'center', padding: '30px 0'}}>
           <p className="empty-text">Your comprehensive biological profile is incomplete.</p>
           <button
@@ -33,18 +35,6 @@ const ProfileBioTab = ({ bio }) => {
         </div>
       ) : (
         <div className="bio-summary-grid">
-          <div className="bio-stat-card full">
-            <h4>Primary Fitness Path</h4>
-            <p>{bio.mainGoalArea || 'Not Set'}</p>
-          </div>
-          <div className="bio-stat-card">
-            <h4>Specific Goals</h4>
-            <p>{bio.goals?.length > 0 ? bio.goals.join(', ') : 'Not Set'}</p>
-          </div>
-          <div className="bio-stat-card">
-            <h4>Plan Duration</h4>
-            <p style={{ color: 'var(--primary-accent)', fontWeight: 'bold' }}>{bio.planDuration || '1 Month'}</p>
-          </div>
           <div className="bio-stat-card">
             <h4>Weekly Frequency</h4>
             <p>{bio.trainingDaysPerWeek || 3} Days / Week</p>
@@ -72,6 +62,40 @@ const ProfileBioTab = ({ bio }) => {
           <div className="bio-stat-card">
             <h4>Current Weight</h4>
             <p>{bio.weight ? `${bio.weight} ${bio.units === 'imperial' ? 'lbs' : 'kg'}` : 'Not Set'}</p>
+          </div>
+
+          {/* Health, Medical & Dietary Facts */}
+          <div className="bio-stat-card">
+            <h4>Joint Pain / Discomfort</h4>
+            <p style={{ color: bio.jointPain?.length > 0 && !bio.jointPain.includes('None') ? '#f59e0b' : 'var(--text-primary)' }}>
+              {bio.jointPain?.length > 0 ? bio.jointPain.join(', ') : 'None Reported'}
+            </p>
+          </div>
+          <div className="bio-stat-card">
+            <h4>Past Injuries</h4>
+            <p style={{ color: bio.injuries?.length > 0 && !bio.injuries.includes('None') ? '#f59e0b' : 'var(--text-primary)' }}>
+              {bio.injuries?.length > 0 ? bio.injuries.join(', ') : 'None Reported'}
+            </p>
+          </div>
+          <div className="bio-stat-card">
+            <h4>Medical Conditions</h4>
+            <p style={{ color: bio.medicalConditions?.length > 0 && !bio.medicalConditions.includes('None') ? '#ef4444' : 'var(--text-primary)' }}>
+              {bio.medicalConditions?.length > 0 ? bio.medicalConditions.join(', ') : 'None Reported'}
+            </p>
+          </div>
+          <div className="bio-stat-card">
+            <h4>Physical Limitations</h4>
+            <p style={{ color: bio.limitations?.length > 0 && !bio.limitations.includes('None') ? '#f59e0b' : 'var(--text-primary)' }}>
+              {bio.limitations?.length > 0 ? bio.limitations.join(', ') : 'None Reported'}
+            </p>
+          </div>
+          <div className="bio-stat-card">
+            <h4>Dietary Preferences</h4>
+            <p style={{ color: '#10b981' }}>
+              {Array.isArray(bio.foodPreferences)
+                ? (bio.foodPreferences.length > 0 ? bio.foodPreferences.join(', ') : 'Standard / No restrictions')
+                : (bio.foodPreferences ? bio.foodPreferences : 'Standard / No restrictions')}
+            </p>
           </div>
         </div>
       )}

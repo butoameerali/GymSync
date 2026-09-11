@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Dumbbell, Calendar, FileText, Activity } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Dumbbell, Calendar, FileText, Activity, MessageSquare, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const YourGym = () => {
@@ -11,7 +11,10 @@ const YourGym = () => {
   const [membership, setMembership] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelSuccessMsg, setCancelSuccessMsg] = useState('');
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [isSubscribed, setIsSubscribed] = useState(() => Boolean(localStorage.getItem('gymsync_user_gym')));
 
@@ -127,7 +130,28 @@ const YourGym = () => {
       const res = await fetch('/api/users/membership-settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ autoRenew }) });
       if (!res.ok) throw new Error('Could not update renewal preference');
       setMembership(current => ({ ...current, autoRenew }));
+      setCancelSuccessMsg('');
     } catch (err) { setError(err.message); }
+  };
+
+  const handleCancelRenewal = async () => {
+    try {
+      const token = localStorage.getItem('gymsync_token');
+      const res = await fetch('/api/users/membership-settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ cancelRenewal: true })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Could not cancel renewal');
+      setMembership(current => ({ ...current, autoRenew: false }));
+      setCancelSuccessMsg(data.message || 'Auto-renewal cancelled successfully.');
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const daysToExpiry = membership?.expiresAt ? Math.ceil((new Date(membership.expiresAt) - new Date()) / 86400000) : null;
@@ -135,20 +159,114 @@ const YourGym = () => {
   return (
     <div className="container" style={{ paddingTop: '100px', minHeight: '100vh', paddingBottom: '60px' }}>
       <div className="glass-panel" style={{ padding: '40px', marginBottom: '30px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <div style={{ background: 'var(--accent-gradient)', padding: '20px', borderRadius: '12px' }}>
             <Dumbbell size={40} color="white" />
           </div>
-          <div>
-            <h1>{gymData.name || 'Your Premium Gym'}</h1>
-            <p style={{ color: 'var(--primary-accent)', fontWeight: 'bold' }}>Active Membership</p>
+          <div style={{ flex: 1, minWidth: '240px' }}>
+            <h1 style={{ margin: '0 0 5px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {gymData.name || 'Your Premium Gym'}
+              {gymData.trainerIncluded && (
+                <span style={{ fontSize: '0.85rem', padding: '4px 8px', borderRadius: '20px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                  Trainer Included ✅
+                </span>
+              )}
+            </h1>
+            <p style={{ color: 'var(--primary-accent)', fontWeight: 'bold', margin: '0 0 12px 0' }}>Active Membership</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              <Link to="/ai-trainer" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <Dumbbell size={16} /> GO TO WORKOUT HUB
+              </Link>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                onClick={() => navigate(`/messages?contact=${encodeURIComponent(gymData.ownerName || gymData.name || 'Gym Support')}`)}
+              >
+                <MessageSquare size={16} /> MESSAGE GYM
+              </button>
+            </div>
           </div>
         </div>
-        {membership?.expiresAt && <div style={{ padding: '14px', borderRadius: '10px', background: daysToExpiry <= 7 ? 'rgba(245, 158, 11, .15)' : 'rgba(16, 185, 129, .1)' }}>
-          <strong>{membership.type || 'Membership'} membership</strong> · expires {new Date(membership.expiresAt).toLocaleDateString()}{daysToExpiry <= 7 && ` (${Math.max(daysToExpiry, 0)} days left)`}
-          <label style={{ display: 'block', marginTop: '8px', fontSize: '.9rem' }}><input type="checkbox" checked={Boolean(membership.autoRenew)} onChange={event => updateAutoRenew(event.target.checked)} /> Auto-renew my membership</label>
-        </div>}
+
+        {membership?.expiresAt && (
+          <div style={{ padding: '16px', borderRadius: '12px', background: daysToExpiry <= 7 ? 'rgba(245, 158, 11, .15)' : 'rgba(16, 185, 129, .1)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <strong style={{ fontSize: '1.05rem' }}>{membership.type || 'Membership'} membership</strong> · expires {new Date(membership.expiresAt).toLocaleDateString()}{daysToExpiry <= 7 && ` (${Math.max(daysToExpiry, 0)} days left)`}
+                <div style={{ marginTop: '6px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  Auto-renew status: {membership.autoRenew ? <span style={{ color: '#10b981', fontWeight: 600 }}>Active</span> : <span style={{ color: '#94a3b8' }}>Turned Off (No upcoming charges)</span>}
+                </div>
+              </div>
+              <div>
+                {membership.autoRenew ? (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline"
+                    style={{ borderColor: '#ef4444', color: '#ef4444' }}
+                    onClick={() => setShowCancelModal(true)}
+                  >
+                    CANCEL RENEWAL
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline"
+                    style={{ borderColor: '#10b981', color: '#10b981' }}
+                    onClick={() => updateAutoRenew(true)}
+                  >
+                    Re-enable Auto-Renew
+                  </button>
+                )}
+              </div>
+            </div>
+            {cancelSuccessMsg && (
+              <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CheckCircle size={14} /> {cancelSuccessMsg}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {showCancelModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div className="glass-panel" style={{ maxWidth: '480px', width: '100%', padding: '28px', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.35)', background: 'var(--panel-bg)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', color: '#ef4444' }}>
+              <AlertCircle size={26} />
+              <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Cancel Membership Renewal</h3>
+            </div>
+            <p style={{ lineHeight: '1.5', color: 'var(--text-primary)', marginBottom: '12px' }}>
+              Your membership will <strong>remain active until {membership?.expiresAt ? new Date(membership.expiresAt).toLocaleDateString() : 'the end of your billing cycle'}</strong>.
+            </p>
+            <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', marginBottom: '20px', fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+              • Auto-renew will be turned off immediately.<br/>
+              • You will <strong>not</strong> be charged for the next renewal.<br/>
+              • Your gym access and training plans will <strong>not</strong> disappear today.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setShowCancelModal(false)}
+              >
+                Keep Active
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                style={{ background: '#ef4444', borderColor: '#ef4444', color: 'white' }}
+                onClick={async () => {
+                  await handleCancelRenewal();
+                  setShowCancelModal(false);
+                }}
+              >
+                Confirm Cancel Renewal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
         
@@ -167,6 +285,37 @@ const YourGym = () => {
                   <small style={{ color: 'var(--text-secondary)', display: 'block', marginTop: '10px' }}>
                     {new Date(post.createdAt).toLocaleDateString()}
                   </small>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Gym Equipment Status */}
+        <div className="glass-panel" style={{ padding: '30px' }}>
+          <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Dumbbell size={24} color="#f59e0b" /> Equipment Status
+          </h2>
+          {!gymData.equipmentStatus || gymData.equipmentStatus.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>No equipment tracked.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '10px' }}>
+              {gymData.equipmentStatus.map((eq, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '1.05rem' }}>{eq.name}</strong>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Qty: {eq.quantity} {eq.notes && `· ${eq.notes}`}</span>
+                  </div>
+                  <span style={{ 
+                    padding: '4px 10px', 
+                    borderRadius: '20px', 
+                    fontSize: '0.8rem',
+                    fontWeight: 'bold',
+                    background: eq.status === 'Available' ? 'rgba(16, 185, 129, 0.15)' : eq.status === 'Maintenance' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                    color: eq.status === 'Available' ? '#10b981' : eq.status === 'Maintenance' ? '#f59e0b' : '#ef4444'
+                  }}>
+                    {eq.status}
+                  </span>
                 </div>
               ))}
             </div>

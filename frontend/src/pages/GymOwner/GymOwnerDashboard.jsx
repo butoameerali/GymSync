@@ -6,6 +6,8 @@ import Modal from '../../components/common/Modal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import DashboardShell from '../../components/layout/DashboardShell';
 import StatCard from '../../components/ui/StatCard';
+import EquipmentManager from './EquipmentManager';
+import OffersManager from './OffersManager';
 import './GymOwnerDashboard.css';
 
 const GymOwnerDashboard = () => {
@@ -450,6 +452,18 @@ const GymOwnerDashboard = () => {
               onClick={() => setActiveTab('settings')}
             >
               <Edit size={16} /> Facility Info
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'equipment' ? 'active' : ''}`}
+              onClick={() => setActiveTab('equipment')}
+            >
+              <Dumbbell size={16} /> Equipment
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'offers' ? 'active' : ''}`}
+              onClick={() => setActiveTab('offers')}
+            >
+              <DollarSign size={16} /> My Offers
             </button>
           </div>
         </div>
@@ -990,6 +1004,14 @@ const GymOwnerDashboard = () => {
               </div>
             )}
           </>
+        )}
+        
+        {activeTab === 'equipment' && dashboardData && (
+          <EquipmentManager gymData={dashboardData.gym} />
+        )}
+        
+        {activeTab === 'offers' && (
+          <OffersManager />
         )}
       </div>
     </div>

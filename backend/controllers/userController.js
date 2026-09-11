@@ -208,9 +208,20 @@ export const updateProfilePic = async (req, res) => {
 
 export const updateGymMembershipSettings = async (req, res) => {
   try {
-    req.user.gymAutoRenew = Boolean(req.body.autoRenew);
+    if (req.body.cancelRenewal === true) {
+      req.user.gymAutoRenew = false;
+    } else if (req.body.autoRenew !== undefined) {
+      req.user.gymAutoRenew = Boolean(req.body.autoRenew);
+    }
     await req.user.save();
-    res.json({ gymAutoRenew: req.user.gymAutoRenew, gymMembershipExpiresAt: req.user.gymMembershipExpiresAt });
+    res.json({
+      success: true,
+      gymAutoRenew: req.user.gymAutoRenew,
+      gymMembershipExpiresAt: req.user.gymMembershipExpiresAt,
+      message: req.body.cancelRenewal
+        ? `Auto-renewal cancelled. Your membership remains active until ${req.user.gymMembershipExpiresAt ? new Date(req.user.gymMembershipExpiresAt).toLocaleDateString() : 'expiry'}.`
+        : 'Membership settings updated'
+    });
   } catch (error) {
     console.error('updateGymMembershipSettings error:', error);
     res.status(500).json({ message: 'Failed to update membership settings' });
@@ -818,11 +829,21 @@ export const saveUserBioController = async (req, res) => {
       sport: bio.sport || user.bioData?.sport || '',
       fitnessLevel: bio.fitnessLevel || user.bioData?.fitnessLevel || 'Beginner',
       sessionDurationMins: Number(bio.sessionDurationMins) || user.bioData?.sessionDurationMins || 45,
-      medicalConditions: Array.isArray(bio.medicalConditions) ? bio.medicalConditions : user.bioData?.medicalConditions || [],
-      jointPain: Array.isArray(bio.jointPain) ? bio.jointPain : user.bioData?.jointPain || [],
-      injuries: Array.isArray(bio.injuries) ? bio.injuries : user.bioData?.injuries || [],
-      limitations: Array.isArray(bio.limitations) ? bio.limitations : user.bioData?.limitations || [],
-      foodPreferences: bio.foodPreferences || user.bioData?.foodPreferences || ''
+      medicalConditions: Array.isArray(bio.medicalConditions) 
+        ? bio.medicalConditions.map(s => String(s).trim()).filter(Boolean)
+        : (typeof bio.medicalConditions === 'string' && bio.medicalConditions.trim() ? [bio.medicalConditions.trim()] : user.bioData?.medicalConditions || []),
+      jointPain: Array.isArray(bio.jointPain) 
+        ? bio.jointPain.map(s => String(s).trim()).filter(Boolean)
+        : user.bioData?.jointPain || [],
+      injuries: Array.isArray(bio.injuries) 
+        ? bio.injuries.map(s => String(s).trim()).filter(Boolean)
+        : user.bioData?.injuries || [],
+      limitations: Array.isArray(bio.limitations) 
+        ? bio.limitations.map(s => String(s).trim()).filter(Boolean)
+        : user.bioData?.limitations || [],
+      foodPreferences: Array.isArray(bio.foodPreferences) 
+        ? bio.foodPreferences.map(s => String(s).trim()).filter(Boolean).join(', ')
+        : (bio.foodPreferences != null ? String(bio.foodPreferences).trim() : user.bioData?.foodPreferences || '')
     };
     user.isOnboardingCompleted = true;
 

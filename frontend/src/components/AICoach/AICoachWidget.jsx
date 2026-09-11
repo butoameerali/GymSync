@@ -108,6 +108,20 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
 
       setMessages(prev => [...prev, assistantMsg]);
 
+      if (data.structuredAction?.type === 'navigate') {
+        const payload = data.structuredAction.payload;
+        setIsOpen(false);
+        const tab = payload.query?.tab || payload.params?.tab;
+        if (tab) {
+          navigate(payload.route + '?tab=' + tab);
+        } else {
+          navigate(payload.route);
+        }
+      } else if (data.structuredAction?.type === 'start_exercise') {
+        setIsOpen(false);
+        navigate('/ai-trainer?exercise=' + encodeURIComponent(data.structuredAction.payload.exerciseName));
+      }
+
       // If a structured workout was produced, store active session
       if (data.structuredAction?.workout) {
         localStorage.setItem(`gymsync_${userKey}_active_session`, JSON.stringify(data.structuredAction.workout));

@@ -1,0 +1,98 @@
+.todays-energy-card {
+  background: var(--panel-bg, #1e293b);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  color: var(--text-primary, #f8fafc);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.energy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 12px;
+}
+
+.energy-title {
+  margin: 0;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #3b82f6;
+}
+
+.energy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.energy-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: rgba(0,0,0,0.2);
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.energy-stat.balance-positive {
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.energy-stat.balance-amber {
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.energy-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 5px;
+}
+
+.energy-val {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.energy-val.burned { color: #f59e0b; }
+.energy-val.eaten { color: #3b82f6; }
+.energy-val.balance-green { color: #10b981; }
+.energy-val.balance-amber { color: #f59e0b; }
+
+.goal-progress-section {
+  background: rgba(255,255,255,0.03);
+  padding: 15px;
+  border-radius: 10px;
+}
+
+.goal-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+}
+
+.goal-progress-bar-container {
+  height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.goal-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}

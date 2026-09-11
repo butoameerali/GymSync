@@ -1,4 +1,4 @@
-import intentClassifier, { INTENTS } from './intentClassifier.js';
+import intentClassifier, { INTENTS, computeMissingBioFields } from './intentClassifier.js';
 import workoutDecisionEngine from '../workout/workoutDecisionEngine.js';
 import dietBuilder from '../nutrition/dietBuilder.js';
 import dietValidator from '../nutrition/dietValidator.js';
@@ -12,6 +12,29 @@ import eventAwarenessEngine, { EVENT_TYPES } from '../workout/eventAwarenessEngi
  * Implements the Dynamic Clarification Loop, External Event Awareness,
  * Cumulative Fatigue Reasoning, and Plain-Language Coaching.
  */
+
+/**
+ * Determines whether the user should be treated as having a human trainer
+ * based on their gym membership and personal opt-in.
+ * Part 21.
+ * 
+ * @param {Object} user - The user document (or context object)
+ * @param {Object} gym - The gym document
+ * @returns {Object} { hasHumanTrainer: Boolean, mode: 'ai_full' | 'ai_supportive' }
+ */
+export function resolveTrainerContext(user, gym) {
+  if (!gym) return { hasHumanTrainer: false, mode: 'ai_full' };
+  
+  if (gym.trainerIncluded) {
+    return { hasHumanTrainer: true, mode: 'ai_supportive' };
+  }
+  
+  if (user?.bioData?.gymTrainerOptIn || user?.gymTrainerOptIn) {
+    return { hasHumanTrainer: true, mode: 'ai_supportive' };
+  }
+  
+  return { hasHumanTrainer: false, mode: 'ai_full' };
+}
 
 export const coachConversationEngine = {
   /**
@@ -223,6 +246,7 @@ For example: running, push-ups, pull-ups, marching, obstacle work, strength trai
       // User clarified military training activities (e.g. "Running, push-ups, pull-ups and obstacle course")
       if (topic === 'training_activities' || text.includes('obstacle') || (text.includes('push-up') && text.includes('pull-up')) || (text.includes('running') && text.includes('push-up'))) {
         const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
           userProfile: effectiveProfile,
           recentWorkoutHistory,
           contextMessage: 'army training tomorrow running pushups pullups obstacle course',
@@ -265,6 +289,7 @@ Your session is ready in the AI Trainer! Click **Apply to AI Trainer** below to 
       if (topic === 'race_details' || text === '5k' || text === '5k.' || text === '10k' || text.includes('5k')) {
         const distance = (text.match(/\b(5k|10k|21k|42k|half marathon|marathon)\b/i) || ['5K'])[0].toUpperCase();
         const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
           userProfile: effectiveProfile,
           recentWorkoutHistory,
           contextMessage: `${distance} race tomorrow`,
@@ -313,6 +338,7 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
         }
 
         const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
           userProfile: effectiveProfile,
           recentWorkoutHistory,
           contextMessage: effectiveProfile.primaryGoal,
@@ -342,6 +368,7 @@ Let's begin this journey together! Click **Apply to AI Trainer** to start.`;
       if (topic === 'experience_frequency') {
         effectiveProfile.primaryGoal = 'Muscle Building & Hypertrophy';
         const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
           userProfile: effectiveProfile,
           recentWorkoutHistory,
           contextMessage: 'muscle building progressive resistance hypertrophy',
@@ -371,6 +398,7 @@ Click **Apply to AI Trainer** below to lock in today's resistance training!`;
     // =====================================================================
     if (entities.morningHeavyLegs || (text.includes('heavy legs') && (text.includes('subah') || text.includes('morning') || text.includes('aaj')))) {
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'heavy legs this morning army training tomorrow restorative recovery mobility',
@@ -453,6 +481,7 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
     // =====================================================================
     if (intent === INTENTS.WORKLOAD_CONFLICT || (fullContext.includes('trained legs') && fullContext.includes('football'))) {
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'trained legs heavily yesterday tomorrow football practice',
@@ -492,6 +521,7 @@ This will keep you moving, build your upper-body and core resilience, and let yo
     // =====================================================================
     if (externalEvent && externalEvent.type === EVENT_TYPES.PHYSICAL_LABOR) {
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'heavy physical construction job today active recovery spinal decompression',
@@ -526,6 +556,7 @@ Hydrate well, enjoy a wholesome dinner, and let your body restore tonight!`;
     // =====================================================================
     if (externalEvent && externalEvent.type === EVENT_TYPES.CRICKET_MATCH && externalEvent.proximityDays >= 5) {
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'cricket match in 1 week stamina conditioning rotational power',
@@ -555,6 +586,7 @@ This will maintain your aerobic and anaerobic stamina while keeping your shoulde
     // Cricket Match Tomorrow (Pre-Match Priming)
     if (externalEvent && externalEvent.type === EVENT_TYPES.CRICKET_MATCH && externalEvent.proximityDays <= 1) {
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'cricket match tomorrow thoracic mobility rotational core priming',
@@ -590,6 +622,7 @@ Hydrate well, rest up tonight, and play hard tomorrow!`;
     // =====================================================================
     if (externalEvent && externalEvent.type === EVENT_TYPES.FOOTBALL_MATCH && externalEvent.proximityDays <= 1) {
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'football match tomorrow upper body core mobility',
@@ -622,6 +655,7 @@ Load this into the AI Trainer and leave the heavy running for match day tomorrow
     if (externalEvent && externalEvent.type === EVENT_TYPES.RUNNING_RACE && externalEvent.proximityDays <= 1) {
       const distance = externalEvent.distance || 'Race';
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: `${distance} race tomorrow`,
@@ -668,6 +702,7 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
       });
 
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'weight loss joint friendly metabolic conditioning',
@@ -707,6 +742,7 @@ Let's begin today with confidence!`;
       const alternative = exerciseSafetyValidator.suggestSafeAlternative('Compound Exercise', painArea);
 
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: `pain in ${painArea}`,
@@ -735,6 +771,7 @@ I've noted that your **${painArea}** is uncomfortable today. As your coach, safe
     // =====================================================================
     if (intent === INTENTS.MODIFY_WORKOUT || entities.equipmentChange || entities.sessionDurationChange) {
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: raw,
@@ -783,6 +820,48 @@ Click **Apply to AI Trainer** below to start this workout right now!`;
     }
 
     // =====================================================================
+    // STEP J: HOME ALTERNATIVE FOR GYM-TRAINED ATHLETES (PART 21)
+    // =====================================================================
+    if (intent === 'home_alternative' || (text.includes('home') && text.includes('gym') && text.includes('nahi'))) {
+      const mode = userContext.trainerContext?.mode || 'ai_full';
+      
+      const homeAccess = userContext.homeEquipmentAccess || 'Bodyweight only';
+      effectiveProfile.equipmentAccess = homeAccess;
+
+      const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
+        userProfile: effectiveProfile,
+        recentWorkoutHistory,
+        contextMessage: `home alternative workout using ${homeAccess}`,
+        dayNumber: 1
+      });
+
+      if (mode === 'ai_supportive') {
+        responseContent = `I see you can't make it to the gym today! Since you have a human trainer programming your main lifts, I won't mess with your heavy days.
+        
+Instead, I've built a **Home Alternative Session** using your available home equipment (${homeAccess}). This focuses on active recovery, core, and mobility so you stay on track without throwing off your trainer's plan!
+
+### 🏡 Home Supportive Session:
+${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} sets × ${ex.reps} reps`).join('\n')}
+
+Let's get it done!`;
+      } else {
+        responseContent = `No gym today? No problem! I've adapted today's progression into a **Home Alternative Workout** using ${homeAccess}.
+
+### 🏡 Home AI Session:
+${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} sets × ${ex.reps} reps`).join('\n')}
+
+Click Apply to log this instead.`;
+      }
+
+      structuredAction.type = 'UPDATE_WORKOUT';
+      structuredAction.workout = session;
+      structuredAction.rationale = session.rationale;
+      structuredAction.explanation = `Generated home alternative for ${mode} using ${homeAccess}.`;
+      return { role: 'assistant', content: responseContent, structuredAction };
+    }
+
+    // =====================================================================
     // STEP I: NUTRITION & DIET GENERATION
     // =====================================================================
     if (intent === INTENTS.GENERATE_DIET || intent === INTENTS.MODIFY_DIET) {
@@ -824,7 +903,36 @@ ${diet.substitutionsGuide.map(s => `• *${s.original}* can be replaced with *${
     // STEP J: DEFAULT WORKOUT GENERATION / TODAY'S WORKOUT
     // =====================================================================
     if (intent === INTENTS.GENERATE_WORKOUT || intent === INTENTS.TODAY_WORKOUT || intent === INTENTS.SPORT_SPECIFIC_TRAINING) {
+      // Mini-Coach Interception (Part 5 & 6)
+      const missingFields = computeMissingBioFields(effectiveProfile);
+      // If there are missing fields or goal is missing, we trigger the mini_coach_interview
+      const needsMiniCoach = missingFields.length > 0 || !effectiveProfile.mainGoalArea || !effectiveProfile.planDuration || !effectiveProfile.trainingDaysPerWeek;
+
+      if (needsMiniCoach) {
+        const steps = [];
+        if (!effectiveProfile.mainGoalArea) {
+          steps.push({ key: 'mainGoalArea', label: 'What is your goal?', kind: 'single_select', options: ['Lose Weight', 'Build Muscle', 'Gain Strength', 'Improve Stamina', 'Sports Performance', 'General Fitness'], prefillValue: null, isPrefilled: false });
+        }
+        if (!effectiveProfile.planDuration) {
+          steps.push({ key: 'planDuration', label: 'Plan Duration', kind: 'single_select', options: ['4 Weeks', '8 Weeks', '12 Weeks'], prefillValue: '4 Weeks', isPrefilled: true });
+        }
+        if (!effectiveProfile.trainingDaysPerWeek) {
+          steps.push({ key: 'trainingDaysPerWeek', label: 'Smart Intake & Stamina', kind: 'single_select', options: [2, 3, 4, 5, 6], prefillValue: 3, isPrefilled: true });
+        }
+        if (missingFields.length > 0) {
+          steps.push({ key: 'missingBioFields', label: 'Health & Fitness Bio', kind: 'form', fields: missingFields });
+        }
+        
+        structuredAction.type = 'mini_coach_interview';
+        structuredAction.steps = steps;
+        structuredAction.currentStepIndex = 0;
+        
+        responseContent = `I'd love to build that for you, but I need a few quick details first.`;
+        return { role: 'assistant', content: responseContent, structuredAction };
+      }
+
       const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: context.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: raw,

@@ -87,6 +87,13 @@ const userWorkoutProgramSchema = new mongoose.Schema({
     default: true,
     index: true
   },
+  missedSessions: [{
+    weekNumber: Number,
+    dayNumber: Number,
+    handled: { type: Boolean, default: false },
+    reasonCode: String,
+    detectedAt: { type: Date, default: Date.now }
+  }],
   progress: {
     currentWeek: { type: Number, default: 1 },
     currentDay: { type: Number, default: 1 },
@@ -94,12 +101,14 @@ const userWorkoutProgramSchema = new mongoose.Schema({
       weekNumber: Number,
       dayNumber: Number,
       completedAt: { type: Date, default: Date.now },
+      caloriesBurned: { type: Number, default: 0 },
       exerciseLogs: [{
         exerciseId: String,
         name: String,
         completedSets: Number,
         reps: String,
         weightKg: Number,
+        caloriesBurned: { type: Number, default: 0 },
         notes: String
       }]
     }]

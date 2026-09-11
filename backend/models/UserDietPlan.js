@@ -79,7 +79,7 @@ const userDietPlanSchema = new mongoose.Schema({
       allergens: [String],
       localAlternative: String
     }],
-    substitutions: [String]
+    substitutions: [mongoose.Schema.Types.Mixed]
   }],
   startDate: {
     type: Date,

@@ -14,7 +14,9 @@ const suites = [
   { name: 'Phase 2 Access & Inventory Hardening Suite', file: 'testPhase2Hardening.js' },
   { name: 'Filter & Security Hardening Suite', file: 'testFilterAndSecurityHardening.js' },
   { name: 'AI Decision Engine Unit Suite', file: 'aiTrainerDecisionEngine.test.js' },
-  { name: 'Conversational Coach Adaptive Suite', file: 'conversationalCoachAdaptive.test.js' }
+  { name: 'Conversational Coach Adaptive Suite', file: 'conversationalCoachAdaptive.test.js' },
+  { name: 'Phase 1 Health Bio & Calorie Persistence Suite', file: 'testPhase1HealthAndCalories.js' },
+  { name: 'Phase 2 Goal Engine, Safety & Trainer Review Suite', file: 'testPhase2GoalAndSafety.js' }
 ];
 
 console.log('===============================================================');

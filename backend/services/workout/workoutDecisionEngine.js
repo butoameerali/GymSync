@@ -34,7 +34,8 @@ export const workoutDecisionEngine = {
     contextMessage = '',
     externalActivity = null,
     microcyclePhase = 'base',
-    dayNumber = 1
+    dayNumber = 1,
+    recoveryFlag = 'Normal'
   } = {}) {
     const rawContext = (contextMessage || '').toLowerCase();
 
@@ -71,8 +72,16 @@ export const workoutDecisionEngine = {
     let sessionObjective = 'General Muscular & Postural Conditioning';
     let sessionType = 'full'; // 'upper', 'lower', 'full', 'core_cardio'
     let decisionRejectedExercises = [];
+    let appliedRecoveryNote = null;
 
-    if (trainedLegsYesterday && hasEventTomorrow) {
+    if (recoveryFlag === 'LowSleep' || recoveryFlag === 'HighFatigue') {
+      appliedRecoveryNote = `Adjusted for recovery: you reported ${recoveryFlag === 'LowSleep' ? 'low sleep' : 'high effort yesterday'}.`;
+      sessionObjective = `Active Recovery & Mobility (${recoveryFlag === 'LowSleep' ? 'Low Sleep' : 'High Fatigue'} Detected)`;
+      sessionType = 'core_cardio'; // default to lighter session
+      decisionRejectedExercises.push(
+        { name: 'Heavy Compounds & High CNS Load', reason: `Rejected: ${recoveryFlag} reported in daily check-in.` }
+      );
+    } else if (trainedLegsYesterday && hasEventTomorrow) {
       // Conflict resolution: Legs yesterday + sport tomorrow -> Strictly Upper Body / Core / Mobility
       sessionObjective = detectedEvent
         ? `Upper Body & Core Stability (${detectedEvent.name} Preparation - Lower Body Protected)`
@@ -391,6 +400,7 @@ export const workoutDecisionEngine = {
       sessionTitle: `Day ${dayNumber}: ${sessionObjective}`,
       sessionObjective,
       sessionType,
+      appliedRecoveryNote,
       sport: detectedEvent ? detectedEvent.name : sportProfile.sportName,
       timeBudget: {
         requestedDurationMinutes: sessionDurationMins,

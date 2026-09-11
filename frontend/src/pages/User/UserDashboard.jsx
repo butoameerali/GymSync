@@ -6,6 +6,8 @@ import SkeletonLoader from '../../components/common/SkeletonLoader';
 import ComplaintModal from '../../components/common/ComplaintModal';
 import DashboardShell from '../../components/layout/DashboardShell';
 import StatCard from '../../components/ui/StatCard';
+import { ActivityTrackerCard } from './ActivityTrackerCard';
+import DailyCheckInCard from '../../components/wellbeing/DailyCheckInCard';
 import './UserDashboard.css';
 
 const UserDashboard = () => {
@@ -18,6 +20,7 @@ const UserDashboard = () => {
   const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [chatInput, setChatInput] = useState('');
+  const [showDailyCheckIn, setShowDailyCheckIn] = useState(false);
 
   const navigate = useNavigate();
   const userName = localStorage.getItem('gymsync_user_name') || 'Fitness User';
@@ -56,8 +59,18 @@ const UserDashboard = () => {
       // Fetch user submitted complaints
       const complaintsRes = await fetch('/api/complaints', { headers });
       if (complaintsRes.ok) {
-        const allComplaints = await complaintsRes.json();
-        setUserComplaints(Array.isArray(allComplaints) ? allComplaints.filter(c => c && c.reporterName === userName) : []);
+        const cData = await complaintsRes.json();
+        setUserComplaints(cData);
+      }
+
+      // Check if user needs to do daily check-in
+      const checkInRes = await fetch('/api/wellbeing/check-in', { headers });
+      if (checkInRes.ok) {
+        const checkIns = await checkInRes.json();
+        const today = new Date().toISOString().split('T')[0];
+        if (!checkIns.some(c => c.date === today)) {
+          setShowDailyCheckIn(true);
+        }
       }
     } catch (err) {
       console.error('Error fetching user dashboard:', err);
@@ -185,6 +198,11 @@ const UserDashboard = () => {
 
               return (
                 <div className="overview-container">
+                  {showDailyCheckIn && (
+                    <DailyCheckInCard onDismiss={() => setShowDailyCheckIn(false)} />
+                  )}
+                  
+                  <ActivityTrackerCard />
                   {/* Stats Grid */}
                   <div className="stats-grid">
                     <div className="stat-card glass-panel">

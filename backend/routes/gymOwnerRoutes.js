@@ -12,14 +12,23 @@ import {
   createGymTrainer,
   getGymTrainers,
   getGymTourRequests,
-  updateTourRequestStatus
+  updateTourRequestStatus,
+  updateEquipmentStatus
 } from '../controllers/gymOwnerController.js';
+import { createCoupon, getCoupons, deactivateCoupon } from '../controllers/couponController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // Apply protection to all gym owner endpoints
 router.use(protect);
+
+router.route('/coupons')
+  .post(authorizeRoles('GymOwner'), createCoupon)
+  .get(authorizeRoles('GymOwner'), getCoupons);
+router.route('/coupons/:id/deactivate').put(authorizeRoles('GymOwner'), deactivateCoupon);
+
+router.route('/equipment').put(authorizeRoles('GymOwner', 'Admin'), updateEquipmentStatus);
 
 // Trainers may assign and view plans, but cannot modify a gym or owner-managed accounts.
 router.route('/plans')

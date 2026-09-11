@@ -26,6 +26,11 @@ import planRoutes from './routes/planRoutes.js';
 import articleRoutes from './routes/articleRoutes.js';
 import instructorRequestRoutes from './routes/instructorRequestRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
+import goalRoutes from './routes/goalRoutes.js';
+import activityRoutes from './routes/activityRoutes.js';
+import dietRoutes from './routes/dietRoutes.js';
+import completionReportRoutes from './routes/completionReportRoutes.js';
+import wellbeingRoutes from './routes/wellbeingRoutes.js';
 
 import { fileURLToPath } from 'url';
 
@@ -111,6 +116,11 @@ app.use('/api/plans', planRoutes);
 app.use('/api/articles', articleRoutes);
 app.use('/api/instructor-requests', instructorRequestRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/goals', goalRoutes);
+app.use('/api/activity', activityRoutes);
+app.use('/api/diet', dietRoutes);
+app.use('/api/plans', completionReportRoutes);
+app.use('/api/wellbeing', wellbeingRoutes);
 
 app.get('/', (req, res) => {
   res.send('GymSync API is running...');

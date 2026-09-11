@@ -145,6 +145,41 @@ export const loginUser = async (req, res) => {
     const user = await User.findOne({ email: email.trim().toLowerCase() });
 
     if (user && (await user.matchPassword(password))) {
+      const requires2FA = ['Admin', 'SuperAdmin', 'GymOwner', 'StoreManager'].includes(user.role) || user.twoFactorEnabled;
+      
+      if (requires2FA) {
+        const otp = crypto.randomInt(100000, 999999).toString();
+        try {
+          const transporter = createTransporter();
+          await transporter.sendMail({
+            from: `"GymSync" <${process.env.EMAIL_USER}>`,
+            to: user.email,
+            subject: 'GymSync — 2FA Login Code',
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;background:#0f172a;color:#f8fafc;padding:40px;border-radius:16px;border:1px solid #1e293b;">
+                <h2 style="color:#3b82f6;margin-bottom:8px;">GymSync Login</h2>
+                <p style="color:#94a3b8;margin-bottom:24px;">Your secure two-factor authentication code is below.</p>
+                <div style="background:#1e293b;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px;">
+                  <span style="font-size:2.5rem;font-weight:bold;color:#10b981;letter-spacing:8px;">${otp}</span>
+                </div>
+                <p style="color:#94a3b8;font-size:0.85rem;">This code expires in <strong style="color:#f59e0b;">5 minutes</strong>.</p>
+              </div>
+            `
+          });
+        } catch (e) {
+          console.error('2FA email delivery failed:', e.message);
+        }
+
+        const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+        user.otpCode = hashedOtp;
+        user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+        user.otpVerified = false;
+        user.otpAttempts = 0;
+        await user.save();
+
+        return res.json({ requiresOtp: true, email: user.email, tempToken: generateToken(user._id, '5m') });
+      }
+
       res.json({
         _id: user._id,
         name: user.name,
@@ -504,5 +539,65 @@ export const getMe = async (req, res) => {
   } catch (error) {
     console.error('getMe error:', error);
     res.status(500).json({ message: 'An internal error occurred while fetching user profile.' });
+  }
+};
+// To be concatenated with authController.js
+
+// @desc    Verify 2FA OTP and issue final JWT
+// @route   POST /api/auth/verify-login-otp
+// @access  Public
+export const verifyLoginOtp = async (req, res) => {
+  const { email, otp, tempToken } = req.body;
+  if (!email || !otp) {
+    return res.status(400).json({ message: 'Email and OTP are required' });
+  }
+
+  try {
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user || !user.otpCode) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    if (user.otpExpiresAt && new Date(user.otpExpiresAt).getTime() <= Date.now()) {
+      user.otpCode = null;
+      user.otpExpiresAt = null;
+      user.otpAttempts = 0;
+      await user.save();
+      return res.status(400).json({ message: 'OTP has expired. Please log in again.' });
+    }
+
+    const inputHash = crypto.createHash('sha256').update(otp.toString().trim()).digest('hex');
+    
+    if (user.otpCode !== inputHash) {
+      user.otpAttempts = (user.otpAttempts || 0) + 1;
+      if (user.otpAttempts >= 5) {
+        user.otpCode = null;
+        user.otpExpiresAt = null;
+        user.otpAttempts = 0;
+        await user.save();
+        return res.status(400).json({ message: 'Too many failed attempts. Please log in again.' });
+      }
+      await user.save();
+      return res.status(400).json({ message: 'Invalid OTP code' });
+    }
+
+    // Success
+    user.otpCode = null;
+    user.otpExpiresAt = null;
+    user.otpAttempts = 0;
+    user.otpVerified = true;
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token: generateToken(user._id),
+    });
+
+  } catch (error) {
+    console.error('verifyLoginOtp error:', error);
+    res.status(500).json({ message: 'Failed to verify OTP' });
   }
 };

@@ -77,7 +77,7 @@ const isAuthorizedGymOwner = (gym, user) => {
 export const updateGymProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, location, monthlyFee, admissionFee, bankDetails, description, facilities, equipmentImages, equipmentList, timings, todayTrainingTip, dailyTip } = req.body;
+    const { name, location, monthlyFee, admissionFee, bankDetails, description, facilities, equipmentImages, equipmentList, timings, todayTrainingTip, dailyTip, trainerIncluded } = req.body;
     const tipPayload = todayTrainingTip || dailyTip;
 
     try {
@@ -111,6 +111,7 @@ export const updateGymProfile = async (req, res) => {
         if (Array.isArray(facilities)) gym.facilities = facilities;
         if (Array.isArray(equipmentImages)) gym.equipmentImages = equipmentImages;
         if (Array.isArray(equipmentList)) gym.equipmentList = equipmentList;
+        if (trainerIncluded !== undefined) gym.trainerIncluded = trainerIncluded;
         if (timings) gym.timings = timings;
         if (typeof tipPayload !== 'undefined') gym.todayTrainingTip = tipPayload;
         await gym.save();
@@ -132,6 +133,7 @@ export const updateGymProfile = async (req, res) => {
         description: description || '',
         facilities: Array.isArray(facilities) ? facilities : [],
         equipmentImages: Array.isArray(equipmentImages) ? equipmentImages : [],
+        trainerIncluded: typeof trainerIncluded !== 'undefined' ? trainerIncluded : false,
         approvalStatus: 'Pending',
         todayTrainingTip: tipPayload || { today: '' }
       });
@@ -145,6 +147,25 @@ export const updateGymProfile = async (req, res) => {
   } catch (error) {
     console.error('updateGymProfile error:', error);
     res.status(500).json({ message: 'Failed to update gym profile' });
+  }
+};
+
+// @desc    Update Gym Equipment Status
+// @route   PUT /api/gym-owner/equipment
+// @access  Private / GymOwner
+export const updateEquipmentStatus = async (req, res) => {
+  try {
+    const { equipmentStatus } = req.body;
+    const gym = await Gym.findOne({ owner: req.user._id });
+    if (!gym) {
+      return res.status(404).json({ message: 'Gym not found' });
+    }
+    gym.equipmentStatus = Array.isArray(equipmentStatus) ? equipmentStatus : [];
+    await gym.save();
+    res.json({ message: 'Equipment status updated successfully', equipmentStatus: gym.equipmentStatus });
+  } catch (error) {
+    console.error('updateEquipmentStatus error:', error);
+    res.status(500).json({ message: 'Failed to update equipment status' });
   }
 };
 

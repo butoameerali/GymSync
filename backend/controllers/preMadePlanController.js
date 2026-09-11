@@ -2,6 +2,8 @@ import PreMadePlan from '../models/PreMadePlan.js';
 import UserWorkoutProgram from '../models/UserWorkoutProgram.js';
 import UserDietPlan from '../models/UserDietPlan.js';
 import WorkoutProgress from '../models/WorkoutProgress.js';
+import User from '../models/User.js';
+import { estimateExerciseCalories } from '../services/workout/exerciseRegistry.js';
 import { paginateQuery } from '../utils/pagination.js';
 import { apiCache } from '../utils/cache.js';
 import { safeRegex, safeExactRegex } from '../utils/validation.js';
@@ -490,6 +492,21 @@ export const logUserProgramProgress = async (req, res) => {
       return res.status(400).json({ error: 'Invalid weekNumber or dayNumber provided' });
     }
 
+    // Retrieve authoritative user bodyweight for ACSM calorie calculation
+    let bodyweightKg = req.user?.bioData?.weight;
+    if (!bodyweightKg && userId) {
+      const userRecord = await User.findById(userId).select('bioData.weight').lean();
+      bodyweightKg = userRecord?.bioData?.weight;
+    }
+    bodyweightKg = Number(bodyweightKg) > 0 ? Number(bodyweightKg) : 70;
+
+    // Helper: Calculate calories for an exercise log item with duration and bodyweight fallbacks
+    const calculateLogCalories = (log, defaultDuration = 10) => {
+      const rawDuration = Number(log.durationMinutes || log.duration);
+      const duration = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : defaultDuration;
+      return estimateExerciseCalories(log.name || log.exerciseId, duration, bodyweightKg);
+    };
+
     // 1. Idempotency Check: Avoid double logging and prevent duplicate streak/points
     const completedList = userProgram.progress.completedSessions || [];
     const alreadyCompletedIndex = completedList.findIndex(
@@ -498,7 +515,18 @@ export const logUserProgramProgress = async (req, res) => {
 
     if (alreadyCompletedIndex !== -1) {
       if (exerciseLogs && exerciseLogs.length > 0) {
-        userProgram.progress.completedSessions[alreadyCompletedIndex].exerciseLogs = exerciseLogs;
+        const totalSessionMinutes = Number(req.body.durationMinutes) || (exerciseLogs.length * 10) || 45;
+        const defaultDuration = Math.max(5, Math.round(totalSessionMinutes / exerciseLogs.length));
+        const updatedLogs = exerciseLogs.map(log => ({
+          ...log,
+          caloriesBurned: Number(log.caloriesBurned) > 0
+            ? Number(log.caloriesBurned)
+            : calculateLogCalories(log, defaultDuration)
+        }));
+        userProgram.progress.completedSessions[alreadyCompletedIndex].exerciseLogs = updatedLogs;
+        userProgram.progress.completedSessions[alreadyCompletedIndex].caloriesBurned = updatedLogs.reduce(
+          (sum, l) => sum + (Number(l.caloriesBurned) || 0), 0
+        );
         await userProgram.save();
       }
       return res.status(200).json({
@@ -519,12 +547,48 @@ export const logUserProgramProgress = async (req, res) => {
       });
     }
 
+    // Resolve exercises from program schedule if not explicitly provided in request
+    const targetWeek = (userProgram.weeks || []).find(w => w.weekNumber === requestedWeek);
+    const targetDay = (targetWeek?.days || []).find(d => d.dayNumber === requestedDay);
+    let finalExerciseLogs = Array.isArray(exerciseLogs) && exerciseLogs.length > 0 ? [...exerciseLogs] : [];
+
+    if (finalExerciseLogs.length === 0 && targetDay?.exercises?.length > 0) {
+      const totalSessionMinutes = Number(req.body.durationMinutes) || 45;
+      const durationPerEx = Math.max(5, Math.round(totalSessionMinutes / targetDay.exercises.length));
+      finalExerciseLogs = targetDay.exercises.map(ex => {
+        const exId = ex.exerciseId?._id || ex.exerciseId || ex.name || 'EX-GEN';
+        const exName = ex.exerciseId?.name || ex.name || 'Exercise';
+        const duration = Number(ex.duration) || durationPerEx;
+        return {
+          exerciseId: String(exId),
+          name: exName,
+          completedSets: Number(ex.sets) || 3,
+          reps: String(ex.reps || '10'),
+          weightKg: 0,
+          caloriesBurned: estimateExerciseCalories(exName || exId, duration, bodyweightKg),
+          notes: ''
+        };
+      });
+    } else {
+      const totalSessionMinutes = Number(req.body.durationMinutes) || (finalExerciseLogs.length * 10) || 45;
+      const defaultDuration = Math.max(5, Math.round(totalSessionMinutes / (finalExerciseLogs.length || 1)));
+      finalExerciseLogs = finalExerciseLogs.map(log => ({
+        ...log,
+        caloriesBurned: Number(log.caloriesBurned) > 0
+          ? Number(log.caloriesBurned)
+          : calculateLogCalories(log, defaultDuration)
+      }));
+    }
+
+    const sessionCaloriesBurned = finalExerciseLogs.reduce((sum, item) => sum + (Number(item.caloriesBurned) || 0), 0);
+
     // 3. Add session to completed sessions
     userProgram.progress.completedSessions.push({
       weekNumber: requestedWeek,
       dayNumber: requestedDay,
       completedAt: new Date(),
-      exerciseLogs
+      caloriesBurned: sessionCaloriesBurned,
+      exerciseLogs: finalExerciseLogs
     });
 
     // 4. Advance current day & week pointers
