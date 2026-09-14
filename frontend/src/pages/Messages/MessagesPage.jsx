@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Send, ArrowLeft, MessageSquare, Search, UserCheck, Trash2, Sparkles, ExternalLink } from 'lucide-react';
+import { Send, ArrowLeft, MessageSquare, Search, UserCheck, Trash2, Sparkles, ExternalLink, Dumbbell, Utensils, TrendingUp, Zap, Target, CheckCircle2, Flame } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { messageService } from '../../features/messages/services/messageService';
@@ -436,6 +436,159 @@ const MessagesPage = () => {
                             onClick={() => navigate(msg.structuredAction.payload.route)}>
                             <ExternalLink size={12} /> Open {msg.structuredAction.payload.route.replace(/\//g, '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </button>
+                        )}
+
+                        {/* GREETING Action Card — Profile Snapshot & 4-Pill Action Row (Issue 10) */}
+                        {!isMine && (msg.structuredAction?.type === 'GREETING' || (idx === 0 && msg.text?.includes('Ready to train today'))) && (
+                          <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(30,41,59,0.95) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(99,102,241,0.3)', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#a5b4fc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Zap size={14} color="#818cf8" /> Athlete Profile Snapshot
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: '#10b981', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>Active</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                              <div>
+                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Primary Goal</div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc' }}>{user?.bioData?.mainGoalArea || user?.bioData?.goals?.[0] || 'General Fitness'}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fitness Level</div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc' }}>{user?.bioData?.fitnessLevel || 'Beginner'}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Equipment</div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc' }}>{user?.bioData?.equipmentAccess || 'Full Gym'}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Weight</div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc' }}>{user?.bioData?.weight ? `${user.bioData.weight} kg` : 'Tracked in App'}</div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginTop: '2px' }}>
+                              <button type="button" onClick={() => handleSendSuggested('🏋️ Generate Workout')}
+                                style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(59,130,246,0.18)', border: '1px solid rgba(59,130,246,0.4)', color: '#93c5fd', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
+                                <Dumbbell size={13} /> Generate Workout
+                              </button>
+                              <button type="button" onClick={() => handleSendSuggested('🥗 Custom Diet')}
+                                style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.4)', color: '#6ee7b7', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
+                                <Utensils size={13} /> Custom Diet
+                              </button>
+                              <button type="button" onClick={() => handleSendSuggested('⚡ 20-Min Workout')}
+                                style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(245,158,11,0.18)', border: '1px solid rgba(245,158,11,0.4)', color: '#fcd34d', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
+                                <Zap size={13} /> 20-Min Workout
+                              </button>
+                              <button type="button" onClick={() => handleSendSuggested('📊 View Progress')}
+                                style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(168,85,247,0.18)', border: '1px solid rgba(168,85,247,0.4)', color: '#d8b4fe', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
+                                <TrendingUp size={13} /> View Progress
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* MINI-COACH QUESTIONNAIRE INTERVIEW CARD (Issue 2) */}
+                        {!isMine && msg.structuredAction?.type === 'PLAN_QUESTIONNAIRE' && (
+                          <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(30,41,59,0.98) 0%, rgba(15,23,42,0.98) 100%)', border: '1px solid rgba(59,130,246,0.35)', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Target size={15} color="#3b82f6" />
+                                {msg.structuredAction.step === 'goal' ? 'Mini-Coach • Step 1: Target Goal' : 'Mini-Coach • Step 2: Duration'}
+                              </span>
+                              <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>
+                                {msg.structuredAction.step === 'goal' ? '1 of 2' : '2 of 2'}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                              {msg.structuredAction.step === 'goal'
+                                ? 'Select your primary objective to calibrate sets, reps, and energy burn:'
+                                : 'Select how many weeks or months your periodized cycle should run:'}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {(msg.suggestions || []).map((sug, sIdx) => (
+                                <button key={sIdx} type="button" onClick={() => handleSendSuggested(sug)}
+                                  style={{ padding: '9px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#f8fafc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.15s' }}>
+                                  <span>{sug}</span>
+                                  <CheckCircle2 size={13} color="#3b82f6" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* PROGRESS_CARD (Issue 9) */}
+                        {!isMine && msg.structuredAction?.type === 'PROGRESS_CARD' && msg.structuredAction.stats && (
+                          <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(30,41,59,0.95) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(168,85,247,0.35)', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#c084fc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <TrendingUp size={15} color="#a855f7" /> Plan vs Reality Progress
+                              </span>
+                              <span style={{ fontSize: '0.72rem', color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '2px 8px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                                <Flame size={12} color="#f59e0b" /> {msg.structuredAction.stats.streak || 0} Day Streak
+                              </span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '10px' }}>
+                              <div>
+                                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>WORKOUTS COMPLETED</div>
+                                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
+                                  {msg.structuredAction.stats.completedSessions} / {msg.structuredAction.stats.totalSessions} ({msg.structuredAction.stats.progressPercent}%)
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>STEPS LOGGED TODAY</div>
+                                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
+                                  {(msg.structuredAction.stats.stepsToday || 0).toLocaleString()} steps
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>DAILY CALORIE BURN</div>
+                                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
+                                  ~{msg.structuredAction.stats.caloriesBurnedToday || 0} kcal
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>ACTIVE GOAL</div>
+                                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#60a5fa' }}>
+                                  {msg.structuredAction.stats.goalTitle || 'Fitness'}
+                                </div>
+                              </div>
+                            </div>
+                            <button type="button" onClick={() => navigate('/dashboard')}
+                              style={{ padding: '8px 12px', borderRadius: '8px', background: 'linear-gradient(135deg, #a855f7, #7c3aed)', border: 'none', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                              <ExternalLink size={13} /> Open Full Dashboard
+                            </button>
+                          </div>
+                        )}
+
+                        {/* DIET_CARD (Issue 8) */}
+                        {!isMine && msg.structuredAction?.type === 'DIET_CARD' && (
+                          <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(30,41,59,0.95) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(16,185,129,0.35)', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Utensils size={15} color="#10b981" /> Today's Meal Plan & Macros
+                              </span>
+                              <span style={{ fontSize: '0.72rem', color: '#6ee7b7', background: 'rgba(16,185,129,0.12)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
+                                {msg.structuredAction.targetCalories || 2100} kcal
+                              </span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', background: 'rgba(255,255,255,0.03)', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
+                              <div>
+                                <div style={{ fontSize: '0.66rem', color: '#94a3b8' }}>PROTEIN</div>
+                                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#38bdf8' }}>{msg.structuredAction.targetProtein || 140}g</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.66rem', color: '#94a3b8' }}>CARBS</div>
+                                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#facc15' }}>{msg.structuredAction.targetCarbs || 230}g</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.66rem', color: '#94a3b8' }}>FAT</div>
+                                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f87171' }}>{msg.structuredAction.targetFat || 65}g</div>
+                              </div>
+                            </div>
+                            <button type="button" onClick={() => navigate('/ai-trainer')}
+                              style={{ padding: '8px 12px', borderRadius: '8px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                              <ExternalLink size={13} /> Open Nutrition Hub & Food Swapper
+                            </button>
+                          </div>
                         )}
 
                         {/* Suggestion Chips */}

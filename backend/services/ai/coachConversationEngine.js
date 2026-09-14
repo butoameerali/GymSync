@@ -949,11 +949,12 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
       responseContent = `I am completely with you! Starting at **${weight} kg** with a goal to lose weight is an empowering step. 💪
 
 We will do it sustainably with joint-friendly conditioning and a high-protein nutrition target.
+Your everyday meal portions: 2-3 **boiled eggs** or a bowl of **daal** with whole wheat **rotis** for balanced fullness and steady energy.
 
 How would you like to proceed? Choose an option below:`;
 
       const suggestions = ['🏋️ Build Full Workout Plan', '🥗 View Matching Diet', '⚡ Today\'s Starter Workout'];
-      structuredAction.type = 'WEIGHT_CHOICE';
+      structuredAction.type = 'UPDATE_WORKOUT';
       structuredAction.workout = session;
       structuredAction.diet = diet;
       structuredAction.suggestions = suggestions;

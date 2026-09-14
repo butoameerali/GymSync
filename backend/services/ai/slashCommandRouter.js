@@ -1,4 +1,8 @@
 import SavedAIPlan from '../../models/SavedAIPlan.js';
+import UserDietPlan from '../../models/UserDietPlan.js';
+import WorkoutProgress from '../../models/WorkoutProgress.js';
+import ActivityLog from '../../models/ActivityLog.js';
+import GoalGroup from '../../models/GoalGroup.js';
 import { applyPlanEdits } from './planEditor.js';
 
 const STATIC_COMMANDS = {
@@ -9,20 +13,147 @@ const STATIC_COMMANDS = {
     structuredAction: { type: 'navigate', payload: { route: '/ai-trainer' } },
     sourceAttribution: { sourceType: 'system' }
   }),
-  '/progress': async (ctx) => ({
-    role: 'assistant',
-    content: "📊 Here is your progress overview — streaks, completed sessions, and goal milestones.",
-    suggestions: ['🏆 View Streaks', '📅 Full Calendar', '🎯 Goal Status'],
-    structuredAction: { type: 'navigate', payload: { route: '/dashboard' } },
-    sourceAttribution: { sourceType: 'system' }
-  }),
-  '/diet': async (ctx) => ({
-    role: 'assistant',
-    content: "🥗 Taking you to your Diet Plan. You can view meals, swap food items, and check your macros.",
-    suggestions: ['📊 View Macros', '🔄 Swap a Food Item', '🛒 Shopping List'],
-    structuredAction: { type: 'navigate', payload: { route: '/ai-trainer', query: { tab: 'diets' } } },
-    sourceAttribution: { sourceType: 'system' }
-  }),
+  '/progress': async (ctx) => {
+    let stats = {
+      completedSessions: 0,
+      totalSessions: 28,
+      streak: 0,
+      stepsToday: 0,
+      caloriesBurnedToday: 0,
+      goalTitle: 'Fitness Journey',
+      currentWeight: null,
+      targetWeight: null,
+      progressPercent: 0
+    };
+
+    if (ctx.userId) {
+      try {
+        const [activePlan, progress, activity, goalGroup] = await Promise.all([
+          SavedAIPlan.findOne({ userId: ctx.userId, isActive: true }).lean(),
+          WorkoutProgress.findOne({ userId: ctx.userId }).lean(),
+          ActivityLog.findOne({ userId: ctx.userId, date: new Date().toISOString().split('T')[0] }).lean(),
+          GoalGroup.findOne({ userId: ctx.userId, status: 'Active' }).lean()
+        ]);
+
+        if (activePlan) {
+          stats.totalSessions = (activePlan.calendar || activePlan.workout?.interactive_calendar || []).length || 28;
+          stats.completedSessions = activePlan.progress?.completedSessions?.length || progress?.completedDays?.length || 0;
+        }
+        if (progress) {
+          stats.streak = progress.streak || 0;
+        }
+        if (activity) {
+          stats.stepsToday = activity.steps || 0;
+          stats.caloriesBurnedToday = activity.totalCaloriesBurned || 0;
+        }
+        if (goalGroup) {
+          stats.goalTitle = goalGroup.title;
+          stats.targetWeight = goalGroup.targetWeightKg;
+          stats.startWeight = goalGroup.startWeightKg;
+        }
+        stats.progressPercent = stats.totalSessions > 0 ? Math.round((stats.completedSessions / stats.totalSessions) * 100) : 0;
+      } catch (err) {
+        console.warn('Progress lookup warning:', err.message);
+      }
+    }
+
+    const evaluationText = stats.progressPercent >= 50
+      ? '🔥 **Outstanding Consistency!** You are over halfway through your scheduled training cycle. Progressive overload is taking effect.'
+      : '📈 **Solid Momentum!** Continue adhering to scheduled training days. Remember adequate sleep and protein recovery drive cellular adaptations.';
+
+    const content = `📊 **Plan vs Reality Progress Overview**
+
+| Metric | Target / Scheduled | Current Actual |
+|--------|-------------------|----------------|
+| 🏋️ **Workouts** | ${stats.totalSessions} Sessions | **${stats.completedSessions} Completed** (${stats.progressPercent}%) |
+| 🔥 **Streak** | Daily Consistency | **${stats.streak} Days Streak** |
+| 🚶 **Steps Today** | 8,000 - 10,000 | **${stats.stepsToday.toLocaleString()} Steps** |
+| ⚡ **Energy Burn** | Daily Burn Target | **~${stats.caloriesBurnedToday} kcal** |
+${stats.targetWeight ? `| 🎯 **Weight Target** | ${stats.targetWeight} kg | **Current: ${stats.startWeight || 'Tracked'} kg** |` : ''}
+
+> 🧠 *Coach Insight*: ${evaluationText}`;
+
+    return {
+      role: 'assistant',
+      content,
+      suggestions: ['📅 View Full Calendar', '🏋️ Today\'s Workout', '🎯 Goal Settings', '🚀 Open Dashboard'],
+      structuredAction: {
+        type: 'PROGRESS_CARD',
+        stats,
+        payload: { route: '/dashboard' }
+      },
+      sourceAttribution: { sourceType: 'system' }
+    };
+  },
+  '/diet': async (ctx) => {
+    let dietData = null;
+    let targetCalories = 2100;
+    let targetProtein = 140;
+    let targetCarbs = 230;
+    let targetFat = 65;
+    let meals = [];
+
+    if (ctx.userId) {
+      try {
+        const [userDiet, activePlan] = await Promise.all([
+          UserDietPlan.findOne({ userId: ctx.userId }).sort({ createdAt: -1 }).lean(),
+          SavedAIPlan.findOne({ userId: ctx.userId, isActive: true }).lean()
+        ]);
+
+        dietData = userDiet || activePlan?.diet;
+        if (dietData) {
+          targetCalories = dietData.targetCalories || dietData.actualTotals?.totalDailyCalories || targetCalories;
+          targetProtein = dietData.targetProtein || dietData.actualTotals?.totalProtein || targetProtein;
+          targetCarbs = dietData.targetCarbs || dietData.actualTotals?.totalCarbs || targetCarbs;
+          targetFat = dietData.targetFat || dietData.actualTotals?.totalFat || targetFat;
+          meals = dietData.meals || [];
+        }
+      } catch (err) {
+        console.warn('Diet lookup error:', err.message);
+      }
+    }
+
+    if (!meals || meals.length === 0) {
+      meals = [
+        { mealName: 'Breakfast', foods: '3 Boiled Eggs + 60g Rolled Oats with Banana' },
+        { mealName: 'Lunch', foods: '150g Grilled Chicken Breast + 150g Steamed Brown Rice + Salad' },
+        { mealName: 'Snack', foods: '1 Scoop Whey Protein / Greek Yogurt + Handful Almonds' },
+        { mealName: 'Dinner', foods: '150g White Fish / Paneer + 2 Whole Wheat Rotis + Daal' }
+      ];
+    }
+
+    const mealList = meals.map((m, idx) => {
+      const items = m.foodItems ? m.foodItems.map(f => `${f.quantity || ''} ${f.name}`).join(', ') : (m.foods || m.food || 'Balanced portion');
+      return `**${idx + 1}. ${m.mealName || `Meal ${idx + 1}`}**: ${items}`;
+    }).join('\n');
+
+    const content = `🥗 **Today's Nutrition & Macro Targets**
+
+🎯 **Daily Goals:**
+• **Calories**: **${targetCalories} kcal**
+• **Protein**: **${targetProtein}g** | **Carbs**: **${targetCarbs}g** | **Fat**: **${targetFat}g**
+
+📋 **Meal Breakdown:**
+${mealList}
+
+💡 *Need to swap an item? Tap any swap option below or say "swap [food] for [substitute]"!*`;
+
+    return {
+      role: 'assistant',
+      content,
+      suggestions: ['🔄 Swap Chicken for Fish', '🔄 Swap Rice for Sweet Potato', '🥚 Swap Eggs for Paneer', '📊 View Macro Breakdown', '🚀 Open Diet Hub'],
+      structuredAction: {
+        type: 'DIET_CARD',
+        targetCalories,
+        targetProtein,
+        targetCarbs,
+        targetFat,
+        meals,
+        payload: { route: '/ai-trainer', query: { tab: 'diets' } }
+      },
+      sourceAttribution: { sourceType: 'system' }
+    };
+  },
   '/running': async (ctx) => ({
     role: 'assistant',
     content: "🏃 Opening your GPS Running Tracker! Your route will be plotted live and calories calculated using your weight.",

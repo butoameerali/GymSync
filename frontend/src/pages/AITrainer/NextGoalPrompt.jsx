@@ -2,11 +2,11 @@ import React from 'react';
 import { Dumbbell, Activity, Scale, Zap, Target } from 'lucide-react';
 
 const NEXT_GOALS = [
-  { key: 'MuscleBuilding', icon: <Dumbbell size={28} color="#6366f1" />, label: '💪 Build Muscle', desc: 'Hypertrophy & strength training' },
-  { key: 'Endurance', icon: <Activity size={28} color="#22d3ee" />, label: '🏃 Improve Endurance', desc: 'Cardio capacity & stamina' },
-  { key: 'WeightLoss', icon: <Scale size={28} color="#10b981" />, label: '🔥 Maintain / Lose Weight', desc: 'Calorie balance & maintenance' },
-  { key: 'Strength', icon: <Zap size={28} color="#f59e0b" />, label: '🏋️ Increase Strength', desc: 'Power & compound lifts' },
-  { key: 'GeneralFitness', icon: <Target size={28} color="#f472b6" />, label: '🎯 Custom Goal', desc: 'Build a tailored plan with the AI Coach' }
+  { key: 'MuscleBuilding', icon: <Dumbbell size={28} color="#6366f1" />, label: '💪 Build Muscle', desc: 'Hypertrophy & progressive overload' },
+  { key: 'Endurance', icon: <Activity size={28} color="#22d3ee" />, label: '🏃 Improve Endurance', desc: 'Cardiovascular capacity & stamina' },
+  { key: 'MaintainWeight', icon: <Scale size={28} color="#10b981" />, label: '⚖️ Maintain Weight', desc: 'Metabolic equilibrium & healthy habits' },
+  { key: 'Strength', icon: <Zap size={28} color="#f59e0b" />, label: '⚡ Increase Strength', desc: 'Maximum power & compound strength' },
+  { key: 'CustomGoal', icon: <Target size={28} color="#f472b6" />, label: '🎯 Custom Goal', desc: 'Personalized adaptive roadmap with AI Coach' }
 ];
 
 /**

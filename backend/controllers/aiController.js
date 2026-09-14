@@ -19,6 +19,9 @@ import DailyCheckIn from '../models/DailyCheckIn.js';
 import ActivityLog from '../models/ActivityLog.js';
 import UserDietPlan from '../models/UserDietPlan.js';
 import { computeRecoveryAdjustment } from '../services/workout/recoveryStateEngine.js';
+import { exerciseSafetyValidator } from '../services/safety/exerciseSafetyValidator.js';
+import { goalCompletionEngine } from '../services/workout/goalCompletionEngine.js';
+import { planMergeEngine } from '../services/ai/planMergeEngine.js';
 
 // Allowed source attribution types
 export const ALLOWED_SOURCE_TYPES = ['instructor_program', 'instructor_diet', 'instructor_article', 'system_curated', 'community'];
@@ -288,14 +291,56 @@ export const executeCoachPipeline = async ({
       const userPlans = await SavedAIPlan.find({ userId }).sort({ updatedAt: -1 });
       if (userPlans.length > 0) {
         const targetPlan = userPlans[0];
+        const dbUser = await User.findById(userId).select('name bioData assignedGymName').lean();
+        let dbGym = null;
+        if (dbUser?.assignedGymName) {
+          dbGym = await Gym.findOne({ name: dbUser.assignedGymName }).lean();
+        }
+        const trainerCtx = resolveTrainerContext(dbUser, dbGym);
+
+        // HUMAN TRAINER GUARD (Issue 7): AI Supportive Mode blocks direct arbitrary plan overhauls
+        if (trainerCtx.mode === 'ai_supportive') {
+          return {
+            role: 'assistant',
+            content: `🛡️ **Trainer Guard Active**: Your plan is managed by Coach **${trainerCtx.trainerName || 'your assigned trainer'}**. To maintain training progression and avoid conflicting periodization, core plan modifications should be reviewed by your trainer.\n\nI can still assist with form technique, safe 1-day home adjustments, or nutrition tips!`,
+            suggestions: ['🏋️ Home Workout for Today', '🥗 Nutrition Advice', '📖 Exercise Form Tips'],
+            sourceAttribution: { sourceType: 'trainer_guard' }
+          };
+        }
+
+        // ARCHITECTURAL PIPELINE (Issue 11): AI Proposes -> Backend Validates -> Activation
         const editResult = applyPlanEdits(targetPlan, rawMessage);
         if (editResult.success) {
+          // 1. Validate proposed exercises against orthopedic safety & joint pain
+          const candidateExercises = (targetPlan.calendar || []).flatMap(d => d.exercises || []);
+          const safetyCheck = exerciseSafetyValidator.filterSafeExercises(candidateExercises, dbUser?.bioData || {});
+          
+          if (safetyCheck.excludedExercises && safetyCheck.excludedExercises.length > 0) {
+            const excludedNames = safetyCheck.excludedExercises.map(e => e.name).join(', ');
+            return {
+              role: 'assistant',
+              content: `⚠️ **Safety Guard Warning**: The requested modification includes **${excludedNames}**, which conflicts with your reported health limitations or joint pain (${(dbUser?.bioData?.jointPain || []).join(', ')}).\n\nFor your safety, this modification was not applied to your active schedule. Would you like a joint-friendly alternative?`,
+              suggestions: ['🔄 Propose Joint-Safe Alternative', '💬 Ask Coach About Form'],
+              structuredAction: { type: 'SAFETY_REJECTED', safetyWarnings: safetyCheck.safetyWarnings }
+            };
+          }
+
+          // 2. Validate and clamp reps and sets within sports-science bounds
+          (targetPlan.calendar || []).forEach(day => {
+            (day.exercises || []).forEach(ex => {
+              if (ex.reps) ex.reps = sanitizeReps(ex.reps);
+              if (ex.sets) ex.sets = Math.max(1, Math.min(6, parseInt(ex.sets, 10) || 3));
+            });
+          });
+
+          // 3. Activation phase — commit to DB only after passing all validation gates
           targetPlan.markModified('calendar');
           targetPlan.markModified('workout');
           await targetPlan.save();
+
           return {
             role: 'assistant',
-            content: `✅ **Updated Plan: ${targetPlan.title}**\n\n${editResult.summary}\n\nYour changes have been saved to your plan. Check your **Workout Hub** calendar!`,
+            content: `✅ **Updated Plan: ${targetPlan.title}**\n\n${editResult.summary}\n\n*Validated against orthopedic safety and volume caps.* Your changes have been activated and saved to your **Workout Hub**!`,
             structuredAction: {
               type: 'PLAN_UPDATED',
               planId: targetPlan._id,
@@ -1100,10 +1145,51 @@ export const handleChat = async (req, res) => {
   }
 };
 
+export const getGoalStatus = async (req, res) => {
+  try {
+    const evaluation = await goalCompletionEngine.evaluateGoalCompletion(req.user?._id);
+    return res.status(200).json(evaluation);
+  } catch (err) {
+    console.error('getGoalStatus error:', err);
+    return res.status(500).json({ error: 'Failed to evaluate goal status' });
+  }
+};
+
+export const completeActiveGoal = async (req, res) => {
+  try {
+    const result = await goalCompletionEngine.finalizeGoalCompletion({
+      userId: req.user?._id,
+      notes: req.body?.notes || ''
+    });
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('completeActiveGoal error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to complete goal' });
+  }
+};
+
+export const startNextGoal = async (req, res) => {
+  try {
+    const result = await goalCompletionEngine.initiateNextGoal({
+      userId: req.user?._id,
+      nextGoalKey: req.body?.nextGoalKey || 'MuscleBuilding',
+      customDetails: req.body?.customDetails || {}
+    });
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('startNextGoal error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to start next goal' });
+  }
+};
+
 export default {
   handleChat,
   executeCoachPipeline,
   getSavedPlans,
   saveAIPlan,
-  deleteSavedPlan
+  deleteSavedPlan,
+  handleMissedSessionResolution,
+  getGoalStatus,
+  completeActiveGoal,
+  startNextGoal
 };

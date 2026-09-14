@@ -1,5 +1,14 @@
 import express from 'express';
-import { handleChat, getSavedPlans, saveAIPlan, deleteSavedPlan, handleMissedSessionResolution } from '../controllers/aiController.js';
+import {
+  handleChat,
+  getSavedPlans,
+  saveAIPlan,
+  deleteSavedPlan,
+  handleMissedSessionResolution,
+  getGoalStatus,
+  completeActiveGoal,
+  startNextGoal
+} from '../controllers/aiController.js';
 import { generatePlan } from '../controllers/recommendationEngine.js';
 import { optionalProtect, protect, authorizeRoles } from '../middleware/authMiddleware.js';
 import {
@@ -22,6 +31,11 @@ router.get('/saved-plans', protect, getSavedPlans);
 router.post('/saved-plans', protect, saveAIPlan);
 router.delete('/saved-plans/:id', protect, deleteSavedPlan);
 router.put('/saved-plans/:planId/missed-sessions/:dayNumber', protect, handleMissedSessionResolution);
+
+// Goal Lifecycle & Next Goal Endpoints
+router.get('/goal-status', protect, getGoalStatus);
+router.post('/complete-goal', protect, completeActiveGoal);
+router.post('/next-goal', protect, startNextGoal);
 
 // Trainer Review Queue (Human Escalation Gate)
 router.get('/trainer-reviews', protect, authorizeRoles('GymTrainer', 'Admin', 'SuperAdmin'), getPendingReviewsController);
