@@ -238,7 +238,15 @@ test('TEST 10: Bio Respect: Never asks for height/weight/equipment if already pr
     gender: 'Male',
     fitnessLevel: 'Intermediate',
     equipmentAccess: 'Full Gym',
-    primaryGoal: 'Muscle Gain'
+    primaryGoal: 'Muscle Gain',
+    mainGoalArea: 'Muscle Gain',
+    planDuration: '4 weeks',
+    trainingDaysPerWeek: 4,
+    jointPain: ['None'],
+    medicalConditions: ['None'],
+    injuries: ['None'],
+    limitations: ['None'],
+    foodPreferences: 'None'
   };
 
   const result = coachConversationEngine.processTurn({

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Send, ArrowLeft, MessageSquare, Search, UserCheck } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Send, ArrowLeft, MessageSquare, Search, UserCheck, Trash2, Sparkles, ExternalLink } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { messageService } from '../../features/messages/services/messageService';
 import './MessagesPage.css';
@@ -13,6 +14,7 @@ const formatTime = (dateString) => {
 
 const MessagesPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialContact = searchParams.get('contact') || '';
 
@@ -107,12 +109,14 @@ const MessagesPage = () => {
     return () => clearInterval(interval);
   }, [activeContact, currentUserName]);
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!inputText.trim() || !activeContact) return;
+  const handleSendMessage = async (e, textOverride = null) => {
+    if (e) e.preventDefault();
+    const textToSend = (textOverride !== null ? textOverride : inputText).trim();
+    if (!textToSend || !activeContact) return;
 
-    const textToSend = inputText.trim();
-    setInputText('');
+    if (textOverride === null) {
+      setInputText('');
+    }
 
     const optimisticId = `temp-${Date.now()}`;
     const optimisticMsg = {
@@ -141,7 +145,11 @@ const MessagesPage = () => {
       incoming.push(userMsg);
 
       if (sent.aiReply) {
-        incoming.push(sent.aiReply);
+        incoming.push({
+          ...sent.aiReply,
+          suggestions: sent.suggestions || sent.aiReply.suggestions || [],
+          structuredAction: sent.structuredAction || sent.aiReply.structuredAction || null
+        });
       } else if (sent.supportReply) {
         incoming.push(sent.supportReply);
       }
@@ -158,6 +166,22 @@ const MessagesPage = () => {
     } catch (err) {
       console.error('Failed to send message:', err);
       setMessages(prev => prev.filter(m => m._id !== optimisticId));
+    }
+  };
+
+  const handleClearChat = async () => {
+    if (!activeContact) return;
+    const confirmClear = window.confirm(`Clear all chat history with ${activeContact}?`);
+    if (!confirmClear) return;
+
+    try {
+      await messageService.clearConversation(activeContact);
+      setMessages([]);
+      toast.success(`Chat history with ${activeContact} cleared!`);
+      loadConversations();
+    } catch (err) {
+      console.error('Clear chat error:', err);
+      toast.error('Failed to clear chat history');
     }
   };
 
@@ -229,17 +253,40 @@ const MessagesPage = () => {
           {activeContact ? (
             <>
               {/* Chat Header */}
-              <div className="chat-area-header">
-                <button className="mobile-back-btn" onClick={() => setActiveContact('')}>
-                  <ArrowLeft size={20} />
+              <div className="chat-area-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <button className="mobile-back-btn" onClick={() => setActiveContact('')}>
+                    <ArrowLeft size={20} />
+                  </button>
+                  <div className="header-contact-avatar">
+                    {activeContact.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="header-contact-details">
+                    <h4>{activeContact}</h4>
+                    <span className="contact-status-text">Active Chat</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleClearChat}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    padding: '8px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'color 0.2s'
+                  }}
+                  title="Clear chat history"
+                  onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <Trash2 size={18} />
                 </button>
-                <div className="header-contact-avatar">
-                  {activeContact.charAt(0).toUpperCase()}
-                </div>
-                <div className="header-contact-details">
-                  <h4>{activeContact}</h4>
-                  <span className="contact-status-text">Active Chat</span>
-                </div>
               </div>
 
               {/* Chat History Messages */}
@@ -262,6 +309,184 @@ const MessagesPage = () => {
                             {isMine && msg.isRead && <UserCheck size={14} className="read-receipt-icon" title="Read" />}
                           </div>
                         </div>
+
+                        {/* Plan Action Card if generated */}
+                        {msg.structuredAction?.plan && (
+                          <div
+                            className="portal-plan-action-card"
+                            style={{
+                              margin: '8px 0',
+                              padding: '12px 14px',
+                              borderRadius: '12px',
+                              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.12) 100%)',
+                              border: '1px solid rgba(59, 130, 246, 0.35)',
+                              maxWidth: '85%',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '6px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                              <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Sparkles size={14} /> {msg.structuredAction.plan.title || 'AI Workout Plan'}
+                              </span>
+                              <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>
+                                {msg.structuredAction.plan.planDuration || 'Active'}
+                              </span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                              {msg.structuredAction.plan.goal || 'Fitness'} · {msg.structuredAction.plan.trainingDaysPerWeek || 4} Days/Week · {msg.structuredAction.plan.equipmentAccess || 'Full Gym'}
+                            </p>
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              style={{
+                                marginTop: '4px',
+                                padding: '6px 12px',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                borderRadius: '8px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                border: 'none',
+                                color: '#fff',
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => navigate('/ai-trainer')}
+                            >
+                              <ExternalLink size={13} /> Open in AI Trainer / Workout Hub
+                            </button>
+                          </div>
+                        )}
+
+                        {/* START_EXERCISE Action Card */}
+                        {!isMine && (msg.structuredAction?.type === 'START_EXERCISE' || msg.structuredAction?.type === 'EXERCISE_ALREADY_DONE') && msg.structuredAction?.exerciseName && (
+                          <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#4ade80' }}>🏋️ {msg.structuredAction.exerciseName}</span>
+                            {msg.structuredAction.sets && <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{msg.structuredAction.sets} sets × {msg.structuredAction.reps} reps | Rest: {msg.structuredAction.restSec}s</span>}
+                            {msg.structuredAction.type !== 'EXERCISE_ALREADY_DONE' && (
+                              <button type="button" style={{ padding: '5px 12px', borderRadius: '8px', background: '#22c55e', border: 'none', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}
+                                onClick={() => navigate('/ai-trainer')}>
+                                ▶️ Start Now
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* MISSED_WORKOUT_RESOLVE Action Card */}
+                        {!isMine && msg.structuredAction?.type === 'MISSED_WORKOUT_RESOLVE' && (
+                          <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fbbf24' }}>📋 Missed Workout</span>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+                              {['Option A: Compress Today', 'Option B: Shift +1 Day', 'Option C: Rest Day'].map((opt, i) => (
+                                <button key={i} type="button"
+                                  style={{ padding: '5px 10px', borderRadius: '16px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', color: '#fcd34d', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                  onClick={() => { setInputText(opt); }}>
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* FOOD_SUBSTITUTE Action Card */}
+                        {!isMine && msg.structuredAction?.type === 'FOOD_SUBSTITUTE' && msg.structuredAction?.foodItem && (
+                          <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#34d399' }}>🥗 Substitute: {msg.structuredAction.foodItem}</span>
+                            {msg.structuredAction.alternatives?.slice(0, 3).map((alt, i) => (
+                              <button key={i} type="button"
+                                style={{ padding: '4px 10px', borderRadius: '14px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#6ee7b7', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start' }}
+                                onClick={() => setInputText(`✅ ${alt.name}`)}>
+                                ✅ {alt.name.split(' ').slice(0, 3).join(' ')} ({alt.protein}g protein)
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* RECOVERY_ADAPTED Card */}
+                        {!isMine && msg.structuredAction?.type === 'RECOVERY_ADAPTED' && (
+                          <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#818cf8' }}>😴 Recovery Session Adapted</span>
+                            {msg.structuredAction.explanation && <span style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>{msg.structuredAction.explanation}</span>}
+                            <button type="button" style={{ padding: '5px 12px', borderRadius: '8px', background: '#6366f1', border: 'none', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}
+                              onClick={() => navigate('/ai-trainer')}>
+                              🚀 Load Recovery Session
+                            </button>
+                          </div>
+                        )}
+
+                        {/* GOAL_LIFECYCLE Card */}
+                        {!isMine && msg.structuredAction?.type === 'GOAL_LIFECYCLE' && (
+                          <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,113,36,0.10))', border: '1px solid rgba(251,191,36,0.35)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fbbf24' }}>🏆 {msg.structuredAction.phase === 'goal_completed' ? 'Goal Complete!' : 'Select Next Goal'}</span>
+                            <button type="button" style={{ padding: '5px 12px', borderRadius: '8px', background: 'rgba(251,191,36,0.2)', border: '1px solid rgba(251,191,36,0.5)', color: '#fbbf24', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}
+                              onClick={() => navigate('/dashboard')}>
+                              🎯 Set Next Goal
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Navigate Action Indicator */}
+                        {!isMine && msg.structuredAction?.type === 'navigate' && msg.structuredAction?.payload?.route && (
+                          <button type="button"
+                            style={{ margin: '4px 0', padding: '6px 12px', borderRadius: '8px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', fontSize: '0.76rem', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                            onClick={() => navigate(msg.structuredAction.payload.route)}>
+                            <ExternalLink size={12} /> Open {msg.structuredAction.payload.route.replace(/\//g, '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </button>
+                        )}
+
+                        {/* Suggestion Chips */}
+                        {!isMine && msg.suggestions && msg.suggestions.length > 0 && (
+                          <div
+                            className="portal-suggestion-chips"
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '6px',
+                              marginTop: '6px',
+                              marginBottom: '8px',
+                              maxWidth: '90%'
+                            }}
+                          >
+                            {msg.suggestions.map((sug, sIdx) => (
+                              <button
+                                key={sIdx}
+                                type="button"
+                                className="suggestion-chip-btn"
+                                style={{
+                                  background: 'rgba(59, 130, 246, 0.14)',
+                                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                                  color: '#93c5fd',
+                                  padding: '5px 12px',
+                                  borderRadius: '20px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                onClick={() => handleSendMessage(null, sug)}
+                                onMouseEnter={e => {
+                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.28)';
+                                  e.currentTarget.style.borderColor = '#60a5fa';
+                                  e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.14)';
+                                  e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                                  e.currentTarget.style.transform = 'none';
+                                }}
+                              >
+                                {sug}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })

@@ -14,7 +14,10 @@ import fitnessContentService from '../services/fitnessContentService.js';
 import exerciseRegistry from '../services/workout/exerciseRegistry.js';
 import { detectMissedSessions } from '../services/workout/missedSessionDetector.js';
 import { routeSlashCommand } from '../services/ai/slashCommandRouter.js';
+import { applyPlanEdits } from '../services/ai/planEditor.js';
 import DailyCheckIn from '../models/DailyCheckIn.js';
+import ActivityLog from '../models/ActivityLog.js';
+import UserDietPlan from '../models/UserDietPlan.js';
 import { computeRecoveryAdjustment } from '../services/workout/recoveryStateEngine.js';
 
 // Allowed source attribution types
@@ -152,6 +155,8 @@ export const validateAndSanitizeStructuredAction = (action) => {
     steps: action.steps,
     currentStepIndex: action.currentStepIndex,
     intent: typeof action.intent === 'string' ? action.intent.slice(0, 50) : 'general',
+    suggestions: Array.isArray(action.suggestions) ? action.suggestions.slice(0, 10).map(s => String(s).slice(0, 80)) : [],
+    plan: action.plan || null,
     safetyFlags: Array.isArray(action.safetyFlags)
       ? action.safetyFlags.map(f => String(f).slice(0, 300)).filter(Boolean)
       : [],
@@ -276,6 +281,36 @@ export const executeCoachPipeline = async ({
     if (slashRes) return slashRes;
   }
 
+  // Conversational Plan Editing (e.g. "swap pushups for dips" or "change to 3 sets of 12")
+  const isEditInstruction = /(?:swap|replace|substitute)\s+[a-zA-Z0-9\s]+?\s+(?:for|with|to)|(?:\d+\s*(?:sets|reps))/i.test(rawMessage);
+  if (isEditInstruction && userId) {
+    try {
+      const userPlans = await SavedAIPlan.find({ userId }).sort({ updatedAt: -1 });
+      if (userPlans.length > 0) {
+        const targetPlan = userPlans[0];
+        const editResult = applyPlanEdits(targetPlan, rawMessage);
+        if (editResult.success) {
+          targetPlan.markModified('calendar');
+          targetPlan.markModified('workout');
+          await targetPlan.save();
+          return {
+            role: 'assistant',
+            content: `✅ **Updated Plan: ${targetPlan.title}**\n\n${editResult.summary}\n\nYour changes have been saved to your plan. Check your **Workout Hub** calendar!`,
+            structuredAction: {
+              type: 'PLAN_UPDATED',
+              planId: targetPlan._id,
+              planTitle: targetPlan.title,
+              plan: targetPlan
+            },
+            sourceAttribution: { sourceType: 'ai_plan_update' }
+          };
+        }
+      }
+    } catch (editErr) {
+      console.warn('Conversational plan edit error:', editErr.message);
+    }
+  }
+
   // Server-Authoritative Identity: ONLY trust server-provided userId.
   // Never fall back to userContext.userId or userContext._id.
   const effectiveUserId = userId || null;
@@ -346,6 +381,84 @@ export const executeCoachPipeline = async ({
     const checkIns = await DailyCheckIn.find({ userId: effectiveUserId }).sort({ date: -1 }).limit(7).lean();
     const { recoveryFlag } = computeRecoveryAdjustment({ recentCheckIns: checkIns });
     authoritativeContext.recoveryFlag = recoveryFlag;
+    // Pass recent check-in data for transparent recovery explanations
+    authoritativeContext.recentCheckIns = checkIns.slice(0, 3).map(c => ({
+      date: c.date,
+      sleepHours: c.sleepHours,
+      energyLevel: c.energyLevel,
+      mood: c.mood,
+      lastSessionRPE: c.lastSessionRPE,
+      painNote: c.painNote
+    }));
+
+    // PILLAR 14 & 13: Load today's activity log (steps, calories burned) for plan-vs-reality
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayActivity = await ActivityLog.findOne({ userId: effectiveUserId, date: todayStr }).lean();
+      authoritativeContext.todayActivity = todayActivity ? {
+        steps: todayActivity.steps || 0,
+        distanceKm: todayActivity.distanceKm || 0,
+        activeMinutes: todayActivity.activeMinutes || 0,
+        estimatedWalkingCalories: todayActivity.estimatedWalkingCalories || 0,
+        workoutCalories: todayActivity.workoutCalories || 0,
+        totalCaloriesBurned: todayActivity.totalCaloriesBurned || 0,
+        exercises: todayActivity.exercises || []
+      } : null;
+    } catch (actErr) {
+      console.warn('Could not load activity log:', actErr.message);
+    }
+
+    // PILLAR 16: GoalGroup as central source of truth for current goal
+    try {
+      const activeGoalGroup = await GoalGroup.findOne({ userId: effectiveUserId, status: 'Active' }).lean();
+      if (activeGoalGroup) {
+        // Override bio.mainGoalArea with live GoalGroup goal
+        authoritativeContext.activeGoalGroup = activeGoalGroup;
+        authoritativeContext.primaryGoal = activeGoalGroup.primaryGoalType === 'WeightLoss' ? 'Fat Loss & Weight Reduction'
+          : activeGoalGroup.primaryGoalType === 'MuscleBuilding' ? 'Muscle Building & Hypertrophy'
+          : activeGoalGroup.primaryGoalType === 'Endurance' ? 'Stamina & Athletic Conditioning'
+          : activeGoalGroup.primaryGoalType === 'Strength' ? 'Gain Strength'
+          : activeGoalGroup.primaryGoalType === 'WeightGain' ? 'Weight Gain & Muscle Building'
+          : activeGoalGroup.primaryGoalType === 'SportsPerformance' ? 'Sports Performance'
+          : authoritativeContext.primaryGoal || 'General Fitness';
+        authoritativeContext.goalTargetWeight = activeGoalGroup.targetWeightKg || null;
+        authoritativeContext.goalStartWeight = activeGoalGroup.startWeightKg || null;
+        authoritativeContext.goalDeadline = activeGoalGroup.deadline || null;
+        authoritativeContext.goalLinkedPlans = activeGoalGroup.linkedPlanIds || [];
+      }
+    } catch (ggErr) {
+      console.warn('Could not load GoalGroup:', ggErr.message);
+    }
+
+    // PILLAR 10: Load user's active SavedAIPlan for food substitution and plan context
+    try {
+      const activePlan = await SavedAIPlan.findOne({ userId: effectiveUserId, isActive: true }).lean();
+      if (activePlan) {
+        authoritativeContext.activeSavedPlan = {
+          _id: activePlan._id,
+          title: activePlan.title,
+          goal: activePlan.goal,
+          diet: activePlan.diet,
+          missedSessions: activePlan.missedSessions || [],
+          progress: activePlan.progress || {}
+        };
+        // Detect unhandled missed sessions for PILLAR 11
+        const unhandledMissed = (activePlan.missedSessions || []).filter(s => !s.handled);
+        authoritativeContext.unhandledMissedSessions = unhandledMissed;
+      }
+    } catch (planErr) {
+      console.warn('Could not load active SavedAIPlan:', planErr.message);
+    }
+
+    // Load today's diet plan for food substitution context
+    try {
+      const todayDietPlan = await UserDietPlan.findOne({ userId: effectiveUserId }).sort({ createdAt: -1 }).lean();
+      if (todayDietPlan) {
+        authoritativeContext.currentDietPlan = todayDietPlan;
+      }
+    } catch (dietErr) {
+      console.warn('Could not load diet plan:', dietErr.message);
+    }
 
     const dbRecords = await ExerciseRecord.find({ userId: effectiveUserId }).sort({ createdAt: -1 }).limit(5).lean();
     if (dbRecords && dbRecords.length > 0) {
@@ -431,6 +544,45 @@ export const executeCoachPipeline = async ({
 
   const structuredAction = decisionResult.structuredAction || {};
   structuredAction.safetyFlags = structuredAction.safetyFlags || [];
+
+  // Intercept structured plan questionnaires and periodized plan generation immediately
+  if (structuredAction.type === 'PLAN_QUESTIONNAIRE' || structuredAction.type === 'PLAN_GENERATED') {
+    if (userId && structuredAction.type === 'PLAN_GENERATED' && structuredAction.plan) {
+      try {
+        const p = structuredAction.plan;
+        await SavedAIPlan.updateMany({ userId, isActive: true }, { isActive: false });
+        const savedDoc = await SavedAIPlan.create({
+          userId,
+          userName: authoritativeContext.name || '',
+          title: p.title || `${p.planDuration} ${p.goal} Program`,
+          goal: p.goal || 'General Fitness',
+          fitnessLevel: authoritativeContext.fitnessLevel || 'Beginner',
+          workout: p,
+          diet: p.structuredDiet || null,
+          calendar: p.interactive_calendar || [],
+          isActive: true,
+          planKind: 'Combined'
+        });
+        structuredAction.plan._id = savedDoc._id;
+        structuredAction.plan.planId = savedDoc._id;
+      } catch (saveErr) {
+        console.warn('Could not save AI plan to database:', saveErr.message);
+      }
+    }
+
+    return {
+      role: 'assistant',
+      content: decisionResult.content,
+      suggestions: decisionResult.suggestions || structuredAction.suggestions || [],
+      structuredAction: validateAndSanitizeStructuredAction(structuredAction),
+      meta: {
+        retrievalTimeMs,
+        decisionTimeMs,
+        qwenTimeMs: 0,
+        totalTimeMs: Date.now() - startTime
+      }
+    };
+  }
 
 
   const isInjuryOrMedical = /sharp pain|hurt bad|injured|injury|popped|torn|severe pain|dislocated|swelling|doctor|sprain|cannot bend/i.test(rawMessage);
@@ -665,6 +817,7 @@ ${knowledgeContext}
           return {
             role: 'assistant',
             content: reply,
+            suggestions: decisionResult.suggestions || structuredAction.suggestions || [],
             structuredAction: validateAndSanitizeStructuredAction(structuredAction),
             meta: {
               retrievalTimeMs,
@@ -698,20 +851,24 @@ Your profile is active. I can assist you with:
 
 How are you feeling today, and what would you like to work on?`;
 
+    const suggestions = ['🏋️ Build a Workout Plan', '🥗 Custom Diet Plan', '⚡ Quick 20-Min Workout', '🩺 Injury / Safety Advice'];
     return {
       role: 'assistant',
       content: greeting,
-      structuredAction: validateAndSanitizeStructuredAction({ intent: 'greeting', workout: null, diet: null, safetyFlags: [], sourceAttribution }),
+      suggestions,
+      structuredAction: validateAndSanitizeStructuredAction({ intent: 'greeting', workout: null, diet: null, safetyFlags: [], sourceAttribution, suggestions }),
       meta: performanceMeta
     };
   }
 
   // Medical safety alert takes precedence over workout/program recommendations
   if (isInjuryOrMedical) {
+    const suggestions = ['🩺 Rest & Recovery Advice', '🔄 Low-Impact Exercises', '🏃 Gentle Cardio'];
     return {
       role: 'assistant',
       content: `⚠️ **Medical Safety Alert**: I am an AI coach, not a doctor. If you are experiencing acute pain, swelling, or potential injury, stop the exercise immediately. Do not load the affected area. Rest, elevate, and please consult a physician or sports physiotherapist before resuming training.`,
-      structuredAction: validateAndSanitizeStructuredAction(structuredAction),
+      suggestions,
+      structuredAction: validateAndSanitizeStructuredAction({ ...structuredAction, suggestions }),
       meta: performanceMeta
     };
   }
@@ -719,10 +876,12 @@ How are you feeling today, and what would you like to work on?`;
   // If a relevant article was found in fallback mode, synthesize a concise coaching answer
   if (sourceAttribution.sourceType === 'instructor_article') {
     const a = relevantArticles[0];
+    const suggestions = ['🏋️ Apply Workout', '📖 Full Article Details', '🔄 Ask Another Question'];
     return {
       role: 'assistant',
       content: `💡 **Expert Form Insight** (from "${a.sourceTitle}" by ${a.instructor}):\n\n${a.contentSnippet || a.content}\n\n*Review the full guide below for complete biomechanics.*`,
-      structuredAction: validateAndSanitizeStructuredAction(structuredAction),
+      suggestions,
+      structuredAction: validateAndSanitizeStructuredAction({ ...structuredAction, suggestions }),
       meta: performanceMeta
     };
   }
@@ -730,10 +889,12 @@ How are you feeling today, and what would you like to work on?`;
   // If a relevant program was found in fallback mode
   if (sourceAttribution.sourceType === 'instructor_program') {
     const p = relevantPrograms[0];
+    const suggestions = ['🏋️ Apply Program', '🥗 Matching Diet', '🔄 Other Programs'];
     return {
       role: 'assistant',
       content: `🏋️ **Verified Instructor Program**: I recommend **"${p.sourceTitle}"** authored by ${p.instructor} (${p.difficulty} • ${p.durationWeeks} weeks • ${p.daysPerWeek} days/week).\n\n${p.description}\n\nYou can apply this routine directly to your calendar below!`,
-      structuredAction: validateAndSanitizeStructuredAction(structuredAction),
+      suggestions,
+      structuredAction: validateAndSanitizeStructuredAction({ ...structuredAction, suggestions }),
       meta: performanceMeta
     };
   }
@@ -741,6 +902,7 @@ How are you feeling today, and what would you like to work on?`;
   return {
     role: 'assistant',
     content: decisionResult.content,
+    suggestions: decisionResult.suggestions || structuredAction.suggestions || [],
     structuredAction: validateAndSanitizeStructuredAction(structuredAction),
     meta: performanceMeta
   };

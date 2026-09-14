@@ -81,12 +81,19 @@ const YourGym = () => {
 
   if (!isSubscribed) {
     return (
-      <div className="container" style={{paddingTop: '150px', minHeight: '100vh', textAlign: 'center'}}>
-        <div className="glass-panel" style={{padding: '50px', maxWidth: '600px', margin: '0 auto'}}>
-          <Dumbbell size={64} color="var(--text-secondary)" style={{marginBottom: '20px'}}/>
-          <h2 style={{marginBottom: '15px'}}>No Active Subscription</h2>
-          <p style={{color: 'var(--text-secondary)', marginBottom: '30px'}}>You are not currently subscribed to any Gym on GymSync. Discover local gyms to unlock custom training plans and equipment guides.</p>
-          <Link to="/explore" className="btn btn-primary">Explore Gyms Near You</Link>
+      <div className="container" style={{paddingTop: '130px', minHeight: '100vh', textAlign: 'center'}}>
+        <div className="glass-panel" style={{padding: '50px 30px', maxWidth: '580px', margin: '0 auto', borderRadius: '16px'}}>
+          <Dumbbell size={56} color="var(--primary-accent)" style={{marginBottom: '16px'}}/>
+          <h2 style={{marginBottom: '10px', fontSize: '1.6rem'}}>Your Gym</h2>
+          <p style={{color: '#10b981', fontWeight: 600, fontSize: '0.95rem', marginBottom: '8px'}}>
+            No gym currently joined.
+          </p>
+          <p style={{color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '28px', fontSize: '0.92rem'}}>
+            You haven't joined a gym yet. Discover registered fitness centers on GymSync to unlock custom training routines, trainer consultations, and gym facilities.
+          </p>
+          <Link to="/explore" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 28px', borderRadius: '10px', fontSize: '0.95rem' }}>
+            Explore Gyms to Join
+          </Link>
         </div>
       </div>
     );

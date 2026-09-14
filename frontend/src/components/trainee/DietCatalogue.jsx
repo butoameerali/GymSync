@@ -114,11 +114,49 @@ const DietCatalogue = ({ onDietAdopted }) => {
   const [goalFilter, setGoalFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
 
+  // Active Diet State
+  const [activeUserDiet, setActiveUserDiet] = useState(null);
+  const [showCatalogue, setShowCatalogue] = useState(false);
+
   // Preview Modal
   const [previewDiet, setPreviewDiet] = useState(null);
   const [loadingPreviewDetails, setLoadingPreviewDetails] = useState(false);
 
   const abortControllerRef = useRef(null);
+
+  // Fetch active adopted diet
+  const fetchActiveUserDiet = useCallback(async () => {
+    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+    const local = localStorage.getItem(`gymsync_${userKey}_active_diet`);
+    if (local) {
+      try {
+        const parsed = JSON.parse(local);
+        if (parsed && parsed.title) setActiveUserDiet(parsed);
+      } catch {}
+    }
+
+    const token = localStorage.getItem('gymsync_token');
+    if (token) {
+      try {
+        const res = await fetch('/api/plans/user-diets/active', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const serverDiet = await res.json();
+          if (serverDiet && serverDiet.title) {
+            setActiveUserDiet(serverDiet);
+            localStorage.setItem(`gymsync_${userKey}_active_diet`, JSON.stringify(serverDiet));
+          }
+        }
+      } catch (err) {
+        console.warn('Error loading active user diet:', err);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActiveUserDiet();
+  }, [fetchActiveUserDiet]);
 
   const fetchDiets = useCallback(async (isLoadMore = false, cursorParam = null) => {
     if (abortControllerRef.current && !isLoadMore) {
@@ -202,9 +240,27 @@ const DietCatalogue = ({ onDietAdopted }) => {
     }
   };
 
-  const handleAdopt = (diet) => {
+  const handleAdopt = async (diet) => {
     const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
     localStorage.setItem(`gymsync_${userKey}_active_diet`, JSON.stringify(diet));
+    setActiveUserDiet(diet);
+    setShowCatalogue(false);
+
+    const token = localStorage.getItem('gymsync_token');
+    if (token) {
+      try {
+        await fetch(`/api/plans/premade/${diet._id}/apply-diet`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      } catch (err) {
+        console.warn('Failed to sync adopted diet to server:', err);
+      }
+    }
+
     toast.success(`Adopted "${diet.title}" as your active nutritional protocol!`);
     if (setPreviewDiet) setPreviewDiet(null);
     if (onDietAdopted) onDietAdopted(diet);
@@ -212,9 +268,158 @@ const DietCatalogue = ({ onDietAdopted }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Search and Filters Bar */}
-      <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div className="search-bar" style={{ flex: 1, minWidth: '240px' }}>
+      
+      {/* ── 1. ACTIVE USER DIET SECTION ── */}
+      {activeUserDiet ? (
+        <div 
+          className="glass-panel"
+          style={{
+            padding: '24px',
+            borderRadius: '20px',
+            border: '1px solid #10b981',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.7) 100%)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+            <div>
+              <span 
+                style={{
+                  background: 'rgba(16, 185, 129, 0.2)',
+                  color: '#10b981',
+                  padding: '4px 12px',
+                  borderRadius: '12px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  letterSpacing: '1px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginBottom: '8px'
+                }}
+              >
+                <CheckCircle size={14} /> ACTIVE NUTRITIONAL PROTOCOL
+              </span>
+              <h2 style={{ fontSize: '1.6rem', color: '#ffffff', margin: '0 0 6px 0' }}>
+                {activeUserDiet.title}
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
+                {activeUserDiet.dietaryType || 'Balanced'} • Goal: {activeUserDiet.goal || 'General Fitness'} • Formulated by {activeUserDiet.instructorName || activeUserDiet.createdBy || 'Fitness Instructor'}
+              </p>
+            </div>
+
+            <button
+              className="btn btn-sm btn-outline"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              onClick={() => setShowCatalogue(!showCatalogue)}
+            >
+              <Utensils size={14} /> {showCatalogue ? 'Hide Other Diets' : 'Browse & Swap Diets'}
+            </button>
+          </div>
+
+          {/* Daily Macros Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+            gap: '10px',
+            background: 'rgba(0, 0, 0, 0.25)',
+            padding: '14px 16px',
+            borderRadius: '14px',
+            textAlign: 'center',
+            marginBottom: '20px'
+          }}>
+            <div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>DAILY CALORIES</span>
+              <strong style={{ fontSize: '1.3rem', color: '#10b981' }}>{activeUserDiet.calories || 2000} kcal</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>PROTEIN</span>
+              <strong style={{ fontSize: '1.3rem', color: '#3b82f6' }}>{activeUserDiet.protein || 150}g</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>CARBOHYDRATES</span>
+              <strong style={{ fontSize: '1.3rem', color: '#f59e0b' }}>{activeUserDiet.carbs || 200}g</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>HEALTHY FATS</span>
+              <strong style={{ fontSize: '1.3rem', color: '#ec4899' }}>{activeUserDiet.fat || 65}g</strong>
+            </div>
+          </div>
+
+          {/* Meals Breakdown */}
+          {Array.isArray(activeUserDiet.meals) && activeUserDiet.meals.length > 0 && (
+            <div>
+              <h4 style={{ fontSize: '0.95rem', letterSpacing: '1px', color: '#cbd5e1', marginBottom: '12px' }}>
+                DAILY MEAL BREAKDOWN ({activeUserDiet.meals.length} MEALS)
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                {activeUserDiet.meals.map((meal, mIdx) => (
+                  <div 
+                    key={mIdx}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      borderRadius: '12px',
+                      padding: '12px 14px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <strong style={{ color: '#ffffff', fontSize: '0.92rem' }}>{meal.name || `Meal ${mIdx + 1}`}</strong>
+                      <span style={{ color: '#10b981', fontSize: '0.8rem', fontWeight: 600 }}>{meal.calories ? `${meal.calories} kcal` : ''}</span>
+                    </div>
+                    {meal.description && (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 6px 0' }}>{meal.description}</p>
+                    )}
+                    {Array.isArray(meal.items) && meal.items.length > 0 && (
+                      <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                        {meal.items.map(item => item.name || item).join(' • ')}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div 
+          className="glass-panel"
+          style={{
+            padding: '24px',
+            borderRadius: '16px',
+            border: '1px solid var(--card-border)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}
+        >
+          <div>
+            <h3 style={{ margin: '0 0 4px 0', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+              No Active Diet Plan Selected
+            </h3>
+            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+              Adopt a verified instructor meal template below, or connect one automatically when selecting a workout program.
+            </p>
+          </div>
+          <span style={{ color: '#10b981', fontWeight: 700, fontSize: '0.88rem' }}>
+            Browse Templates Below ↓
+          </span>
+        </div>
+      )}
+
+      {/* ── 2. INSTRUCTOR DIET CATALOGUE (Collapsible if diet is active) ── */}
+      {(!activeUserDiet || showCatalogue) && (
+        <>
+          <div style={{ borderTop: activeUserDiet ? '1px solid var(--card-border)' : 'none', paddingTop: activeUserDiet ? '16px' : '0' }}>
+            <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)', margin: '0 0 14px 0' }}>
+              {activeUserDiet ? 'Available Nutrition Templates (Swap Diet)' : 'Browse Instructor Nutrition Templates'}
+            </h3>
+          </div>
+
+          {/* Search and Filters Bar */}
+          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="search-bar" style={{ flex: 1, minWidth: '240px' }}>
           <Search size={18} color="var(--text-secondary)" />
           <input
             type="text"
@@ -294,6 +499,8 @@ const DietCatalogue = ({ onDietAdopted }) => {
               </span>
             )}
           </div>
+        </>
+      )}
         </>
       )}
 

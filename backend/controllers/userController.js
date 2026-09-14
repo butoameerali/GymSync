@@ -6,6 +6,7 @@ import Post from '../models/Post.js';
 import Message from '../models/Message.js';
 import WorkoutProgress from '../models/WorkoutProgress.js';
 import ExerciseRecord from '../models/ExerciseRecord.js';
+import ActivityLog from '../models/ActivityLog.js';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { 
@@ -759,7 +760,41 @@ export const saveExerciseRecordController = async (req, res) => {
       aiResult: aiResult || {}
     });
 
-    // 2. Dual-sync to Supabase if configured
+    // 2. Synchronize to daily ActivityLog for unified history and calories
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const caloriesEst = Math.max(12, Math.round((Number(repsCompleted) || 10) * 0.4));
+      let actLog = await ActivityLog.findOne({ userId: req.user._id, date: today });
+      if (!actLog) {
+        actLog = new ActivityLog({
+          userId: req.user._id,
+          date: today,
+          steps: 0,
+          distanceKm: 0,
+          activeMinutes: 0,
+          estimatedWalkingCalories: 0,
+          workoutCalories: 0,
+          totalCaloriesBurned: 0,
+          exercises: []
+        });
+      }
+      actLog.exercises.push({
+        name: exerciseName || 'Exercise',
+        sets: Number(setNumber) || 1,
+        reps: Number(repsCompleted) || 0,
+        caloriesBurned: caloriesEst,
+        mode: mode === 'ai' ? 'ai' : 'manual',
+        completedAt: new Date()
+      });
+      actLog.workoutCalories = (actLog.workoutCalories || 0) + caloriesEst;
+      actLog.totalCaloriesBurned = (actLog.estimatedWalkingCalories || 0) + actLog.workoutCalories;
+      actLog.lastSyncedAt = new Date();
+      await actLog.save();
+    } catch (actErr) {
+      console.warn('ActivityLog sync notice:', actErr.message);
+    }
+
+    // 3. Dual-sync to Supabase if configured
     try {
       await saveUserExerciseRecord({ ...req.body, userId });
     } catch (supaErr) {

@@ -12,6 +12,7 @@ import ProfileBioTab from './ProfileBioTab';
 import ProfileSettingsPanel from './ProfileSettingsPanel';
 import ProfileGigTab from './ProfileGigTab';
 import ProfileVerifyEmailModal from './ProfileVerifyEmailModal';
+import TodaysEnergyCard from './TodaysEnergyCard';
 
 const Profile = () => {
   const userRole = localStorage.getItem('gymsync_role') || 'User';
@@ -348,6 +349,11 @@ const Profile = () => {
           setVerifyEmailInput={setVerifyEmailInput}
           setIsVerifyModalOpen={setIsVerifyModalOpen}
         />
+
+        {/* Today's Energy & Unified Calorie Tracker */}
+        {isTrainee && (
+          <TodaysEnergyCard bio={bio} currentWeight={userData?.bioData?.weight} />
+        )}
 
         {/* Navigation Tabs */}
         <div className="profile-tabs glass-panel">

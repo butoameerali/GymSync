@@ -4,7 +4,8 @@ import {
   sendMessage,
   getConversations,
   getUnreadChatCount,
-  markConversationRead
+  markConversationRead,
+  clearConversation
 } from '../controllers/chatController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -14,6 +15,7 @@ router.use(protect);
 
 router.get('/unread-count', getUnreadChatCount);
 router.patch('/read/:contactName', markConversationRead);
+router.delete('/conversation/:contactName', clearConversation);
 
 router.route('/')
   .post(sendMessage);

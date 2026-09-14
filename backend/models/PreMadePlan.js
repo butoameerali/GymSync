@@ -66,6 +66,17 @@ const preMadePlanSchema = new mongoose.Schema({
     default: 1
   },
 
+  // Connected Diet Plan (Directly linked by trainer/instructor)
+  connectedDietPlanId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PreMadePlan',
+    default: null
+  },
+  connectedDietPlanTitle: {
+    type: String,
+    default: null
+  },
+
   // 1. Structured Workout Programs (Multi-week progression)
   weeks: [{
     weekNumber: { type: Number, required: true },

@@ -174,6 +174,35 @@ export const markConversationRead = async (req, res) => {
   }
 };
 
+// @desc    Clear / delete conversation history with a contact (with IDOR protection)
+// @route   DELETE /api/chat/conversation/:contactName
+// @access  Private
+export const clearConversation = async (req, res) => {
+  const contact = await resolveParticipant(req.params.contactName);
+  const currentUserId = req.user?._id;
+  const currentUserName = req.user?.name;
+
+  if (!currentUserId && !currentUserName) {
+    return res.status(401).json({ message: 'Not authorized' });
+  }
+
+  try {
+    const p1 = { id: currentUserId || null, name: currentUserName };
+    const p2 = contact;
+    const query = { $or: [oneWay(p1, p2), oneWay(p2, p1)] };
+
+    const result = await Message.deleteMany(query);
+    res.json({
+      success: true,
+      message: `Conversation with ${contact.name || req.params.contactName} cleared`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error('clearConversation error:', error);
+    res.status(500).json({ message: 'Failed to clear conversation history' });
+  }
+};
+
 // @desc    Get all unique conversations for a user with last message & unread count
 // @route   GET /api/chat/conversations/:userName
 // @access  Private
@@ -274,6 +303,23 @@ export const sendMessage = async (req, res) => {
 
   try {
     if (isAi) {
+      // Fetch recent history before saving new turn
+      const pastMessages = await Message.find({
+        $or: [
+          { senderId: req.user?._id || null, receiver: 'AI Trainer' },
+          { sender: 'AI Trainer', receiverId: req.user?._id || null },
+          { sender: sender, receiver: 'AI Trainer' },
+          { sender: 'AI Trainer', receiver: sender }
+        ]
+      }).sort({ createdAt: -1 }).limit(12).lean();
+
+      pastMessages.reverse();
+
+      const historyFormatted = pastMessages.map(m => ({
+        role: m.sender === 'AI Trainer' ? 'assistant' : 'user',
+        content: m.text
+      }));
+
       const userMessage = await Message.create({
         sender,
         senderId: req.user?._id || null,
@@ -282,18 +328,6 @@ export const sendMessage = async (req, res) => {
         isRead: true
       });
 
-      const pastMessages = await Message.find({
-        $or: [
-          { senderId: req.user?._id || null, receiver: 'AI Trainer' },
-          { sender: 'AI Trainer', receiverId: req.user?._id || null }
-        ]
-      }).sort({ createdAt: 1 }).limit(12);
-
-      const historyFormatted = pastMessages.map(m => ({
-        role: m.sender === 'AI Trainer' ? 'assistant' : 'user',
-        content: m.text
-      }));
-
       const mergedContext = {
         name: req.user?.name,
         email: req.user?.email,
@@ -301,6 +335,7 @@ export const sendMessage = async (req, res) => {
       };
 
       const aiResult = await executeCoachPipeline({
+        userId: req.user?._id || null,
         message: rawText,
         userContext: mergedContext,
         history: historyFormatted,
@@ -308,11 +343,15 @@ export const sendMessage = async (req, res) => {
         currentWorkout
       });
 
+      const suggestions = aiResult.suggestions || aiResult.structuredAction?.suggestions || [];
+
       const aiMessage = await Message.create({
         sender: 'AI Trainer',
         receiver: sender,
         receiverId: req.user?._id || null,
         text: aiResult.content,
+        suggestions,
+        structuredAction: aiResult.structuredAction || null,
         isRead: false
       });
 
@@ -320,6 +359,7 @@ export const sendMessage = async (req, res) => {
         ...userMessage.toObject(),
         aiReply: aiMessage,
         content: aiResult.content,
+        suggestions,
         structuredAction: aiResult.structuredAction
       });
     }

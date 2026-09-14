@@ -73,6 +73,23 @@ const ProgramCard = memo(({ prog, onPreview, onApply, applyingId }) => {
             <strong style={{ fontSize: '0.92rem' }}>{exerciseCount || 'Structured'}</strong>
           </div>
         </div>
+
+        {prog.connectedDietPlanTitle && (
+          <div style={{
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            borderRadius: '8px',
+            padding: '6px 10px',
+            marginBottom: '14px',
+            fontSize: '0.78rem',
+            color: '#10b981',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            🥗 <span>Includes Connected Diet: <strong>{prog.connectedDietPlanTitle}</strong></span>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
@@ -349,6 +366,22 @@ const ProgramCatalogue = ({ onProgramApplied, onApplied }) => {
             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
               {previewProgram.description}
             </p>
+
+            {previewProgram.connectedDietPlanTitle && (
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                fontSize: '0.85rem',
+                color: '#10b981'
+              }}>
+                🥗 <strong>Linked Diet Plan: {previewProgram.connectedDietPlanTitle}</strong>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  This diet plan will automatically activate in your Nutrition Hub when you apply this program.
+                </p>
+              </div>
+            )}
 
             {loadingPreviewDetails ? (
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>

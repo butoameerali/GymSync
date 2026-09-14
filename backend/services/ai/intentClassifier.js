@@ -24,7 +24,21 @@ export const INTENTS = {
   WORKLOAD_CONFLICT: 'workload_conflict',
   CLARIFICATION_RESPONSE: 'clarification_response',
   FITNESS_QUESTION: 'fitness_question',
-  HOME_ALTERNATIVE: 'home_alternative'
+  HOME_ALTERNATIVE: 'home_alternative',
+  // PILLAR 10: Food / diet item substitution
+  FOOD_SUBSTITUTE: 'food_substitute',
+  // PILLAR 11: Missed workout resolve
+  MISSED_WORKOUT: 'missed_workout',
+  // PILLAR 12: Recovery - proactive adaptation
+  RECOVERY_ADAPTATION: 'recovery_adaptation',
+  // PILLAR 13: Retroactive workout adjustment
+  RETROACTIVE_ADJUST: 'retroactive_adjust',
+  // PILLAR 14+13: Activity / step context query
+  ACTIVITY_CONTEXT: 'activity_context',
+  // PILLAR 15: Goal lifecycle (completion, next goal)
+  GOAL_LIFECYCLE: 'goal_lifecycle',
+  // PILLAR 20: Multi-goal add / merge request
+  MULTI_GOAL_ADD: 'multi_goal_add'
 };
 
 export function computeMissingBioFields(bio) {
@@ -295,8 +309,15 @@ export const intentClassifier = {
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }
 
+    // Workout / Exercise generation for weight loss or muscle building
+    const isPlanOrWorkoutRequest = /(?:generate|build|create|make|give|suggest|plan|routine|program|exercises?|excercices?)/i.test(text);
+    if (isPlanOrWorkoutRequest && (/los(?:e|ing|t)?\s*weight|weight\s*los(?:e|ing|t|s)?|fat\s*loss/i.test(text) || /build\s*muscle|body\s*development/i.test(text))) {
+      intent = INTENTS.GENERATE_WORKOUT;
+      return { intent, entities, clarificationNeeded: false, missingContext: null };
+    }
+
     // Weight loss statement with or without weight
-    if (entities.weightMentioned || (text.includes('lose') && (text.includes('weight') || text.includes('fat') || text.includes('it'))) ||
+    if (entities.weightMentioned || (/los(?:e|ing|t)?\s*(?:weight|fat)|weight\s*los(?:e|ing|t|s)?|fat\s*loss/i.test(text)) ||
         (text.includes('weight') && (text.includes('kam') || text.includes('ghatana') || text.includes('reduce')))) {
       intent = INTENTS.WEIGHT_MANAGEMENT;
       return { intent, entities, clarificationNeeded: false, missingContext: null };
@@ -345,6 +366,53 @@ export const intentClassifier = {
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }
 
+    // PILLAR 10: Food Substitution — "aaj chicken nahi hai", "beef nahi hai", "eggs nahi hain"
+    const foodSubWords = ['chicken', 'beef', 'fish', 'egg', 'eggs', 'daal', 'dal', 'paneer', 'tofu', 'rice', 'roti', 'oats', 'meat', 'protein', 'mutton', 'salmon'];
+    const notAvailableSignals = ['nahi hai', 'nahi hain', 'nahi', 'not available', 'don\'t have', "don't have", 'available nahi', 'khatam', 'available nhi', 'nhi hai'];
+    const hasFoodItem = foodSubWords.some(f => text.includes(f));
+    const hasNotAvailable = notAvailableSignals.some(s => text.includes(s));
+    if (hasFoodItem && hasNotAvailable) {
+      // Extract the food item mentioned
+      entities.foodItemNotAvailable = foodSubWords.find(f => text.includes(f)) || null;
+      intent = INTENTS.FOOD_SUBSTITUTE;
+      return { intent, entities, clarificationNeeded: false, missingContext: null };
+    }
+
+    // PILLAR 11: Missed Workout — "kal workout miss ho gaya", "session miss kar gaya", "workout miss ho gaya"
+    const missedSignals = ['miss ho gaya', 'miss kar gaya', 'miss ho gyi', 'miss hogaya', 'nahi kiya', 'workout miss', 'session miss', 'skip kar gaya', 'skip kar dia', 'skip ho gaya', 'missed workout', 'missed session', 'missed it', 'could not workout', "couldn't workout", 'workout nahi ho saka'];
+    if (missedSignals.some(s => text.includes(s)) || (text.includes('miss') && (text.includes('workout') || text.includes('session') || text.includes('exercise')))) {
+      intent = INTENTS.MISSED_WORKOUT;
+      return { intent, entities, clarificationNeeded: false, missingContext: null };
+    }
+
+    // PILLAR 13: Retroactive Adjust — "maine galat complete mark kar diya", "sahi nahi kiye", "jhoot bola"
+    const retroSignals = ['galat mark', 'galat complete', 'sahi nahi kiye', 'sahi nhi kiye', 'jhoot bola', 'maine jhoot', 'actually nahi kiya', 'properly nahi kiya', 'wrong complete', 'incorrectly marked', 'should not have', 'didn\'t actually', "didn't complete", 'maine galat', 'actually miss', 'form sahi nahi thi'];
+    if (retroSignals.some(s => text.includes(s))) {
+      intent = INTENTS.RETROACTIVE_ADJUST;
+      return { intent, entities, clarificationNeeded: false, missingContext: null };
+    }
+
+    // PILLAR 14: Activity Context — steps, walk, gym + calories, energy summary
+    const activitySummarySignals = ['8000 steps', '5000 steps', '10000 steps', 'steps bhi', 'walk bhi', 'gym bhi kiya', 'running bhi kiya', 'calories burn', 'kitna burn', 'energy balance', 'plan vs reality', 'aaj kitna'];
+    if (activitySummarySignals.some(s => text.includes(s)) || (text.includes('steps') && (text.includes('bhi') || text.includes('and') || text.includes('plus')))) {
+      intent = INTENTS.ACTIVITY_CONTEXT;
+      return { intent, entities, clarificationNeeded: false, missingContext: null };
+    }
+
+    // PILLAR 15: Goal Lifecycle — goal complete, next goal, mera goal complete hua
+    const goalCompleteSignals = ['goal complete', 'target achieve', 'weight lose kar liya', 'weight gain kar liya', 'mera goal', 'goal achieve', 'target pura', 'next goal', 'new goal', 'nayi goal', 'naya goal', 'goal khatam'];
+    if (goalCompleteSignals.some(s => text.includes(s))) {
+      intent = INTENTS.GOAL_LIFECYCLE;
+      return { intent, entities, clarificationNeeded: false, missingContext: null };
+    }
+
+    // PILLAR 20: Multi-Goal — add running plan, merge plans, add another goal
+    const multiGoalSignals = ['running bhi add', 'dono plans', 'second plan', 'ek aur plan', 'combine plan', 'merge plan', 'weight gain bhi', 'muscle bhi', 'running bhi chahiye', 'add another goal', 'add another plan', 'dusra goal'];
+    if (multiGoalSignals.some(s => text.includes(s))) {
+      intent = INTENTS.MULTI_GOAL_ADD;
+      return { intent, entities, clarificationNeeded: false, missingContext: null };
+    }
+
     // Modify workout (equipment/time changes)
     if (text.includes('replace this') || text.includes('change exercise') || text.includes('swap exercise') ||
         (entities.equipmentChange && (text.includes('dumbbell') || text.includes('bodyweight') || text.includes('gym'))) ||
@@ -376,13 +444,13 @@ export const intentClassifier = {
     }
 
     // General workout request
-    if (text.includes('workout') || text.includes('routine') || text.includes('schedule') || text.includes('plan') || text.includes('train')) {
+    if (text.includes('workout') || text.includes('routine') || text.includes('schedule') || text.includes('plan') || text.includes('train') || text.includes('exercise') || text.includes('excercice')) {
       intent = INTENTS.GENERATE_WORKOUT;
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }
 
     // Recovery advice
-    if (text.includes('recovery') || text.includes('rest') || text.includes('sore') || text.includes('tired') || text.includes('fatigue')) {
+    if (text.includes('recovery') || text.includes('rest') || text.includes('sore') || text.includes('tired') || text.includes('fatigue') || text.includes('thak gaya') || text.includes('neend')) {
       intent = INTENTS.RECOVERY_ADVICE;
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }

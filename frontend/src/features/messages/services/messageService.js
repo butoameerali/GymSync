@@ -1,4 +1,4 @@
-import { get, post, patch } from '../../../services/api';
+import { get, post, patch, del } from '../../../services/api';
 
 export const messageService = {
   getUnreadCount: async () => {
@@ -24,5 +24,9 @@ export const messageService = {
 
   markConversationAsRead: async (contactName) => {
     return await patch(`/chat/read/${encodeURIComponent(contactName)}`, {});
+  },
+
+  clearConversation: async (contactName) => {
+    return await del(`/chat/conversation/${encodeURIComponent(contactName)}`);
   }
 };

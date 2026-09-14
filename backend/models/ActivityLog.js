@@ -7,6 +7,16 @@ const activityLogSchema = new mongoose.Schema({
   distanceKm: { type: Number, default: 0 },
   activeMinutes: { type: Number, default: 0 },
   estimatedWalkingCalories: { type: Number, default: 0 },
+  workoutCalories: { type: Number, default: 0 },
+  totalCaloriesBurned: { type: Number, default: 0 },
+  exercises: [{
+    name: { type: String, required: true },
+    sets: { type: Number, default: 1 },
+    reps: { type: Number, default: 0 },
+    caloriesBurned: { type: Number, default: 0 },
+    mode: { type: String, enum: ['ai', 'manual'], default: 'manual' },
+    completedAt: { type: Date, default: Date.now }
+  }],
   lastSyncedAt: { type: Date, default: Date.now }
 }, {
   timestamps: true

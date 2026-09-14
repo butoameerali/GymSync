@@ -22,6 +22,22 @@ const WorkoutProgramBuilderModal = ({
   const [sportTags, setSportTags] = useState('General, Bodybuilding');
   const [equipmentRequired, setEquipmentRequired] = useState('Barbell, Dumbbells');
   const [status, setStatus] = useState('published');
+  const [connectedDietPlanId, setConnectedDietPlanId] = useState('');
+  const [connectedDietPlanTitle, setConnectedDietPlanTitle] = useState('');
+  const [availableDiets, setAvailableDiets] = useState([]);
+
+  // Fetch available certified diet templates for linking
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/plans/premade?type=Diet&limit=50')
+        .then(res => res.json())
+        .then(data => {
+          const diets = data.items || (Array.isArray(data) ? data : []);
+          setAvailableDiets(diets);
+        })
+        .catch(err => console.warn('Failed to fetch diets for program linking:', err));
+    }
+  }, [isOpen]);
 
   // Structured Weeks & Days
   const [weeks, setWeeks] = useState([
@@ -53,6 +69,8 @@ const WorkoutProgramBuilderModal = ({
       setSportTags(Array.isArray(editingProgram.sportTags) ? editingProgram.sportTags.join(', ') : (editingProgram.sportTags || ''));
       setEquipmentRequired(Array.isArray(editingProgram.equipmentRequired) ? editingProgram.equipmentRequired.join(', ') : (editingProgram.equipmentRequired || ''));
       setStatus(editingProgram.status || 'published');
+      setConnectedDietPlanId(editingProgram.connectedDietPlanId || '');
+      setConnectedDietPlanTitle(editingProgram.connectedDietPlanTitle || '');
 
       if (Array.isArray(editingProgram.weeks) && editingProgram.weeks.length > 0) {
         setWeeks(editingProgram.weeks);
@@ -85,6 +103,8 @@ const WorkoutProgramBuilderModal = ({
       setSportTags('General, Bodybuilding');
       setEquipmentRequired('Barbell, Dumbbells');
       setStatus('published');
+      setConnectedDietPlanId('');
+      setConnectedDietPlanTitle('');
       setWeeks([
         {
           weekNumber: 1,
@@ -239,6 +259,8 @@ const WorkoutProgramBuilderModal = ({
       description: description.trim(),
       status,
       weeks,
+      connectedDietPlanId: connectedDietPlanId || null,
+      connectedDietPlanTitle: connectedDietPlanTitle || '',
       details: {
         days: Number(daysPerWeek) || 4,
         level: difficulty,
@@ -328,33 +350,84 @@ const WorkoutProgramBuilderModal = ({
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>
-                  Duration in Weeks
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="16"
-                  className="search-input"
-                  value={durationWeeks}
-                  onChange={e => setDurationWeeks(parseInt(e.target.value) || 1)}
-                />
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', fontWeight: 600 }}>
+                Program Duration & Breakdown
+              </label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                {[
+                  { label: '1 Month (4w)', weeks: 4 },
+                  { label: '3 Months (12w)', weeks: 12 },
+                  { label: '6 Months (24w)', weeks: 24 },
+                  { label: '1 Year (52w)', weeks: 52 }
+                ].map(p => (
+                  <button
+                    key={p.weeks}
+                    type="button"
+                    className={`btn btn-sm ${durationWeeks === p.weeks ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ fontSize: '0.78rem', padding: '4px 10px' }}
+                    onClick={() => setDurationWeeks(p.weeks)}
+                  >
+                    {p.label}
+                  </button>
+                ))}
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', fontWeight: 600 }}>
-                  Days per Week
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="7"
-                  className="search-input"
-                  value={daysPerWeek}
-                  onChange={e => setDaysPerWeek(parseInt(e.target.value) || 1)}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                    Custom Weeks (1 - 52)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="52"
+                    className="search-input"
+                    value={durationWeeks}
+                    onChange={e => setDurationWeeks(Math.max(1, Math.min(52, parseInt(e.target.value) || 1)))}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                    Days per Week (1 - 7)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="7"
+                    className="search-input"
+                    value={daysPerWeek}
+                    onChange={e => setDaysPerWeek(parseInt(e.target.value) || 1)}
+                  />
+                </div>
               </div>
+            </div>
+
+            {/* Directly Connected Diet Plan */}
+            <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '10px', padding: '12px 14px' }}>
+              <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 600, color: '#10b981', marginBottom: '4px' }}>
+                🥗 Connected Diet Plan (Auto-Activates on Program Selection)
+              </label>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 8px 0' }}>
+                When a trainee chooses this workout program, the connected diet plan will automatically activate as their nutrition routine.
+              </p>
+              <select
+                className="search-input"
+                style={{ width: '100%', background: 'var(--card-bg)' }}
+                value={connectedDietPlanId}
+                onChange={e => {
+                  const selectedId = e.target.value;
+                  setConnectedDietPlanId(selectedId);
+                  const selected = availableDiets.find(d => d._id === selectedId);
+                  setConnectedDietPlanTitle(selected ? selected.title : '');
+                }}
+              >
+                <option value="">-- No Direct Diet Plan (Trainee Manages Nutrition Separately) --</option>
+                {availableDiets.map(d => (
+                  <option key={d._id} value={d._id}>
+                    {d.title} ({d.goal || d.category || 'Nutrition'} • {d.calories || 2000} kcal • {d.protein || 150}g P)
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

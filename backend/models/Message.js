@@ -6,6 +6,8 @@ const messageSchema = new mongoose.Schema({
   senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
   receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
   text: { type: String, required: true },
+  suggestions: { type: [String], default: [] },
+  structuredAction: { type: mongoose.Schema.Types.Mixed, default: null },
   isRead: { type: Boolean, default: false, index: true },
   readAt: { type: Date, default: null }
 }, {

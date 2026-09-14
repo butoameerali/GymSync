@@ -7,14 +7,14 @@ import { useAuth } from '../../context/AuthContext';
 import './AICoachWidget.css';
 
 const QUICK_PROMPTS = [
-  '🎖️ Army Training Tomorrow',
-  '🏃 5K Race Tomorrow',
-  '⚽ Football Practice',
-  '🏏 Match Tomorrow',
+  '🏋️ Build Workout Plan',
+  '🥗 Custom Diet',
   '⏱️ 20 Min Session',
   '🏋️ Dumbbells Only',
   '🩺 Knee Pain',
-  '🥗 Custom Diet'
+  '🏏 Match Tomorrow',
+  '🏃 5K Race Tomorrow',
+  '🎖️ Army Training Tomorrow'
 ];
 
 const getContextSuggestions = (missingContext) => {
@@ -41,7 +41,8 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "Hi there! 👋 I'm your **GymSync AI Lead Coach & Sports Medicine Specialist**.\n\nI analyze your profile, sport, recovery, and medical safety to generate periodized workouts and deterministic macro diets. How can I help you today?"
+      content: "Hi there! 👋 I'm your **GymSync AI Lead Coach & Sports Medicine Specialist**.\n\nI analyze your profile, sport, recovery, and medical safety to generate periodized workouts and deterministic macro diets. How can I help you today?",
+      suggestions: ['🏋️ Build Workout Plan', '🥗 Custom Diet Plan', '⚡ Quick 20-Min Workout', '🩺 Injury / Recovery Help']
     }
   ]);
   const [input, setInput] = useState('');
@@ -58,6 +59,17 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
       scrollToBottom();
     }
   }, [messages, isOpen]);
+
+  useEffect(() => {
+    const handleOpenCommand = (e) => {
+      setIsOpen(true);
+      if (e.detail?.command) {
+        setTimeout(() => handleSend(e.detail.command), 100);
+      }
+    };
+    window.addEventListener('gymsync_open_coach_command', handleOpenCommand);
+    return () => window.removeEventListener('gymsync_open_coach_command', handleOpenCommand);
+  }, []);
 
   const handleSend = async (customText = null) => {
     const textToSend = typeof customText === 'string' ? customText : input;
@@ -103,6 +115,7 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
       const assistantMsg = {
         role: 'assistant',
         content: data.content,
+        suggestions: data.suggestions || data.structuredAction?.suggestions || [],
         structuredAction: data.structuredAction
       };
 
@@ -120,6 +133,24 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
       } else if (data.structuredAction?.type === 'start_exercise') {
         setIsOpen(false);
         navigate('/ai-trainer?exercise=' + encodeURIComponent(data.structuredAction.payload.exerciseName));
+      } else if (data.structuredAction?.type === 'PLAN_UPDATED' || data.structuredAction?.type === 'PLAN_GENERATED') {
+        const updatedPlan = data.structuredAction.plan;
+        if (updatedPlan) {
+          const activated = {
+            ...(updatedPlan.workout || updatedPlan),
+            interactive_calendar: updatedPlan.interactive_calendar || (updatedPlan.calendar && updatedPlan.calendar.length > 0 ? updatedPlan.calendar : (updatedPlan.workout?.interactive_calendar || [])),
+            planId: updatedPlan._id || updatedPlan.planId || `PLAN_${Date.now()}`,
+            title: updatedPlan.title,
+            goal: updatedPlan.goal,
+            planDuration: updatedPlan.planDuration,
+            trainingDaysPerWeek: updatedPlan.trainingDaysPerWeek,
+            equipmentAccess: updatedPlan.equipmentAccess,
+            planStartDate: updatedPlan.createdAt || new Date().toISOString()
+          };
+          localStorage.setItem(`gymsync_${userKey}_ai_plan`, JSON.stringify(activated));
+          window.dispatchEvent(new CustomEvent('gymsync_plan_updated', { detail: { plan: activated } }));
+          toast.success(`Plan updated: ${updatedPlan.title}`);
+        }
       }
 
       // If a structured workout was produced, store active session
@@ -135,6 +166,26 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const handleApplyPlan = (plan) => {
+    if (!plan) return;
+    const activated = {
+      ...(plan.workout || plan),
+      interactive_calendar: plan.interactive_calendar || (plan.calendar && plan.calendar.length > 0 ? plan.calendar : (plan.workout?.interactive_calendar || [])),
+      planId: plan._id || plan.planId || `PLAN_${Date.now()}`,
+      title: plan.title,
+      goal: plan.goal,
+      planDuration: plan.planDuration,
+      trainingDaysPerWeek: plan.trainingDaysPerWeek,
+      equipmentAccess: plan.equipmentAccess,
+      planStartDate: plan.createdAt || new Date().toISOString()
+    };
+    localStorage.setItem(`gymsync_${userKey}_ai_plan`, JSON.stringify(activated));
+    window.dispatchEvent(new CustomEvent('gymsync_plan_updated', { detail: { plan: activated } }));
+    toast.success(`Active plan loaded: ${plan.title || 'Workout Plan'}`);
+    setIsOpen(false);
+    navigate('/ai-trainer');
   };
 
   const handleApplyWorkout = (workout) => {
@@ -213,28 +264,124 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
                   <>
                     <ReactMarkdown>{msg.content}</ReactMarkdown>
                     
-                    {/* Single-Question Clarification Chips */}
-                    {msg.structuredAction?.missingContext && (
-                      <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {getContextSuggestions(msg.structuredAction.missingContext).map((suggestion, si) => (
+                    {/* Interactive Suggestion Chips */}
+                    {((msg.suggestions && msg.suggestions.length > 0) || (msg.structuredAction?.suggestions && msg.structuredAction.suggestions.length > 0) || msg.structuredAction?.missingContext) && (
+                      <div className="ai-suggestion-chips-wrap" style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {(
+                          msg.suggestions ||
+                          msg.structuredAction?.suggestions ||
+                          getContextSuggestions(msg.structuredAction?.missingContext)
+                        ).map((suggestion, si) => (
                           <button
                             key={si}
                             type="button"
                             onClick={() => handleSend(suggestion)}
                             style={{
-                              background: 'rgba(59, 130, 246, 0.15)',
-                              border: '1px solid #3b82f6',
+                              background: 'rgba(59, 130, 246, 0.16)',
+                              border: '1px solid rgba(59, 130, 246, 0.45)',
                               color: '#93c5fd',
-                              borderRadius: '8px',
-                              padding: '4px 8px',
-                              fontSize: '0.72rem',
+                              borderRadius: '20px',
+                              padding: '5px 12px',
+                              fontSize: '0.76rem',
                               cursor: 'pointer',
-                              fontWeight: 500
+                              fontWeight: 500,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.32)';
+                              e.currentTarget.style.borderColor = '#60a5fa';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.16)';
+                              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.45)';
+                              e.currentTarget.style.transform = 'translateY(0)';
                             }}
                           >
                             {suggestion}
                           </button>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Structured Periodized Plan Action Card */}
+                    {msg.structuredAction?.plan && (
+                      <div className="ai-action-card plan-action-card" style={{
+                        marginTop: '12px',
+                        padding: '12px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(168, 85, 247, 0.14))',
+                        border: '1px solid rgba(139, 92, 246, 0.4)'
+                      }}>
+                        <div className="ai-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <div className="ai-card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#c084fc', fontWeight: 600 }}>
+                            <Sparkles size={16} color="#a855f7" />
+                            <span>{msg.structuredAction.plan.title || `${msg.structuredAction.plan.planDuration} Plan`}</span>
+                          </div>
+                          <span className="ai-card-badge" style={{
+                            background: 'rgba(168, 85, 247, 0.25)',
+                            color: '#e9d5ff',
+                            padding: '3px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600
+                          }}>
+                            {msg.structuredAction.plan.planDuration}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', fontSize: '0.74rem', color: '#cbd5e1', marginBottom: '10px' }}>
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '6px' }}>🎯 <strong>Goal:</strong> {msg.structuredAction.plan.goal}</span>
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '6px' }}>📅 <strong>Schedule:</strong> {msg.structuredAction.plan.trainingDaysPerWeek || 3} Days/Wk</span>
+                          <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '6px' }}>🏋️ <strong>Equipment:</strong> {msg.structuredAction.plan.equipmentAccess || 'Full Gym'}</span>
+                        </div>
+
+                        <div className="ai-action-buttons" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className="ai-btn-action primary"
+                            style={{
+                              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '6px 14px',
+                              fontSize: '0.78rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                            onClick={() => handleApplyPlan(msg.structuredAction.plan)}
+                          >
+                            <Sparkles size={14} /> Open in AI Trainer
+                          </button>
+                          {msg.structuredAction.plan.structuredDiet && (
+                            <button
+                              type="button"
+                              className="ai-btn-action secondary"
+                              style={{
+                                background: 'rgba(255,255,255,0.08)',
+                                color: '#e2e8f0',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                borderRadius: '8px',
+                                padding: '6px 12px',
+                                fontSize: '0.78rem',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                              onClick={() => handleSaveDiet(msg.structuredAction.plan.structuredDiet)}
+                            >
+                              <Utensils size={13} /> Save Diet
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
 

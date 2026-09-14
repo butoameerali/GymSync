@@ -5,6 +5,8 @@ import dietValidator from '../nutrition/dietValidator.js';
 import exerciseSafetyValidator from '../safety/exerciseSafetyValidator.js';
 import exerciseRegistry from '../workout/exerciseRegistry.js';
 import eventAwarenessEngine, { EVENT_TYPES } from '../workout/eventAwarenessEngine.js';
+import { generatePlanObject, parsePlanDuration } from '../../controllers/recommendationEngine.js';
+import { getAlternatives, FOOD_SUBSTITUTION_GROUPS } from '../nutrition/foodSubstitutionGroups.js';
 
 /**
  * Conversational Adaptive Personal Trainer & Reasoning Engine
@@ -34,6 +36,107 @@ export function resolveTrainerContext(user, gym) {
   }
   
   return { hasHumanTrainer: false, mode: 'ai_full' };
+}
+
+/**
+ * Extracts structured plan intake parameters (Goal, Duration, Days, Equipment)
+ * across current turn and recent chat history.
+ */
+export function extractIntakeState(raw = '', history = [], userContext = {}) {
+  const userUtterances = [
+    ...(history || []).filter(m => m.role === 'user' || m.sender === 'user').map(m => (m.content || m.text || '')),
+    raw
+  ];
+  const combinedText = userUtterances.join(' ').toLowerCase();
+
+  const lastAssistantMsg = [...(history || [])]
+    .reverse()
+    .find(m => m.role === 'assistant' || m.sender === 'other' || m.sender === 'assistant');
+  const lastPrompt = (lastAssistantMsg?.content || lastAssistantMsg?.text || '').toLowerCase();
+
+  // 1. Goal (matches typos & variations, falls back to bio)
+  let goal = null;
+  if (/los(?:e|ing|t)?\s*(?:weight|fat)|weight\s*los(?:e|ing|t|s)?|fat\s*loss|burn\s*fat|wajan\s*kam|belly\s*fat/i.test(combinedText)) {
+    goal = 'Lose Weight';
+  } else if (/build\s*muscle|gain\s*muscle|muscle\s*building|hypertrophy|body\s*banani|body\s*development|bulk|muscle/i.test(combinedText)) {
+    goal = 'Build Muscle';
+  } else if (/gain strength|strength|stronger|heavy lifting|power/i.test(combinedText)) {
+    goal = 'Gain Strength';
+  } else if (/improve stamina|stamina|endurance|cardio|running stamina/i.test(combinedText)) {
+    goal = 'Improve Stamina';
+  } else if (/general fitness|stay fit|fitness|fit hona|overall health/i.test(combinedText)) {
+    goal = 'General Fitness';
+  } else if (/sports|cricket|football|athlete/i.test(combinedText)) {
+    goal = 'Sports Performance';
+  } else if (userContext.primaryGoal || userContext.mainGoalArea) {
+    const bg = String(userContext.primaryGoal || userContext.mainGoalArea).toLowerCase();
+    if (bg.includes('weight') || bg.includes('fat')) goal = 'Lose Weight';
+    else if (bg.includes('muscle') || bg.includes('hypertrophy') || bg.includes('body')) goal = 'Build Muscle';
+    else if (bg.includes('strength')) goal = 'Gain Strength';
+    else if (bg.includes('stamina') || bg.includes('endurance')) goal = 'Improve Stamina';
+    else goal = userContext.primaryGoal || userContext.mainGoalArea;
+  }
+
+  // 2. Duration (Flexible: 2 Weeks, 1 Month, 2 Months, 3 Months, 6 Months, 1 Year, etc.)
+  let duration = null;
+  if (/2 weeks?|two weeks?|14 days?/i.test(combinedText)) {
+    duration = '2 Weeks';
+  } else if (/1 year|one year|12 months?|52 weeks?|yearly|annual/i.test(combinedText)) {
+    duration = '1 Year';
+  } else if (/6 months?|six months?|24 weeks?|half year/i.test(combinedText)) {
+    duration = '6 Months';
+  } else if (/3 months?|three months?|12 weeks?|quarter/i.test(combinedText)) {
+    duration = '3 Months';
+  } else if (/2 months?|two months?|8 weeks?/i.test(combinedText)) {
+    duration = '2 Months';
+  } else if (/1 month|one month|4 weeks?|28 days?|30 days?/i.test(combinedText)) {
+    duration = '1 Month';
+  } else {
+    const customMatch = combinedText.match(/(\d+)\s*(weeks?|months?|years?)/i);
+    if (customMatch) {
+      const num = parseInt(customMatch[1], 10);
+      const unit = customMatch[2].toLowerCase();
+      if (unit.startsWith('year')) duration = `${num} Year${num > 1 ? 's' : ''}`;
+      else if (unit.startsWith('month')) duration = `${num} Month${num > 1 ? 's' : ''}`;
+      else if (unit.startsWith('week')) duration = `${num} Week${num > 1 ? 's' : ''}`;
+    }
+  }
+
+  // 3. Days per week (falls back to bio profile if available)
+  let days = null;
+  const daysMatch = combinedText.match(/(\d)\s*(?:days?(?:\s*\/\s*week)?|din)/i);
+  if (daysMatch) {
+    const d = parseInt(daysMatch[1], 10);
+    if (d >= 2 && d <= 6) days = d;
+  }
+  if (!days && (lastPrompt.includes('step 3') || lastPrompt.includes('days per week') || lastPrompt.includes('training days'))) {
+    const numMatch = raw.trim().match(/^[2-6]$/);
+    if (numMatch) days = parseInt(numMatch[0], 10);
+  }
+  if (!days && userContext.trainingDaysPerWeek) {
+    const d = parseInt(userContext.trainingDaysPerWeek, 10);
+    if (d >= 2 && d <= 6) days = d;
+  }
+  if (!days && (userContext.fitnessLevel === 'Advanced' ? 5 : userContext.fitnessLevel === 'Intermediate' ? 4 : 3)) {
+    // Default smart frequency based on fitness level if not set
+    days = userContext.fitnessLevel === 'Advanced' ? 5 : userContext.fitnessLevel === 'Intermediate' ? 4 : 3;
+  }
+
+  // 4. Equipment (falls back to bio profile if available)
+  let equipment = null;
+  if (/full gym|gym access|in the gym|gym/i.test(combinedText)) {
+    equipment = 'Full Gym';
+  } else if (/dumbbell|dumbbells|home dumbbells|just dumbbells/i.test(combinedText)) {
+    equipment = 'Dumbbells';
+  } else if (/bodyweight|no equipment|calisthenics|home workout/i.test(combinedText)) {
+    equipment = 'Bodyweight';
+  } else if (userContext.equipmentAccess) {
+    equipment = userContext.equipmentAccess;
+  } else {
+    equipment = 'Full Gym';
+  }
+
+  return { goal, duration, days, equipment };
 }
 
 export const coachConversationEngine = {
@@ -116,13 +219,18 @@ For example:
 - Running race or time trial
 - Gym resistance session`;
 
+        const suggestions = ['🎖️ Army Fitness Test', '⚽ Football Match', '🏏 Cricket Match', '🏃 5K Running Race', '🏋️ Gym Session'];
+        structuredAction.suggestions = suggestions;
         structuredAction.explanation = 'Asking user to clarify the type of upcoming external training.';
-        return { role: 'assistant', content: responseContent, structuredAction };
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
       }
 
       if (missingContext === 'training_activities') {
         const isAcademy = (externalEvent?.type === EVENT_TYPES.POLICE_TEST) || text.includes('selection') || text.includes('academy');
         const isPT = text.includes('physical training') || text.includes('pt');
+
+        const suggestions = ['Running & Sprints', 'Push-ups & Calisthenics', 'Obstacle Course & Agility', 'Marching & Drills'];
+        structuredAction.suggestions = suggestions;
 
         if (isAcademy) {
           responseContent = `Understood! An academy physical selection test places high physical demands on your body. 🎖️
@@ -137,7 +245,7 @@ For example:
 - Jump or agility tests`;
 
           structuredAction.explanation = 'Asking what activities tomorrow\'s academy selection test will involve.';
-          return { role: 'assistant', content: responseContent, structuredAction };
+          return { role: 'assistant', content: responseContent, suggestions, structuredAction };
         }
 
         if (isPT) {
@@ -153,7 +261,7 @@ For example:
 - Heavy resistance work`;
 
           structuredAction.explanation = 'Asking what physical activities are included.';
-          return { role: 'assistant', content: responseContent, structuredAction };
+          return { role: 'assistant', content: responseContent, suggestions, structuredAction };
         }
 
         responseContent = `Understood! Military and army training places very high physical demands on your body. 🎖️
@@ -169,7 +277,7 @@ For example:
 - Heavy load carriage`;
 
         structuredAction.explanation = 'Asking what activities tomorrow\'s military training will involve.';
-        return { role: 'assistant', content: responseContent, structuredAction };
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
       }
 
       if (missingContext === 'race_details') {
@@ -183,8 +291,10 @@ For example:
 - *10K race this weekend*
 - *Half marathon next month*`;
 
+        const suggestions = ['🏃 5K Race Tomorrow', '🏃 10K This Weekend', '🏃 Half Marathon Next Month'];
+        structuredAction.suggestions = suggestions;
         structuredAction.explanation = 'Asking for race distance and timing.';
-        return { role: 'assistant', content: responseContent, structuredAction };
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
       }
 
       if (missingContext === 'goal_priority') {
@@ -200,8 +310,10 @@ Fitness can mean different things for different people. To build the plan that b
 
 Let me know which one matters most to you!`;
 
+        const suggestions = ['🔥 Lose Weight', '💪 Build Muscle', '⚡ Gain Strength', '🏃 Improve Stamina'];
+        structuredAction.suggestions = suggestions;
         structuredAction.explanation = 'Clarifying primary fitness priority in plain language.';
-        return { role: 'assistant', content: responseContent, structuredAction };
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
       }
 
       if (missingContext === 'experience_frequency') {
@@ -210,9 +322,134 @@ Let me know which one matters most to you!`;
 To program the right training volume, split, and progressive overload for you:
 **How many days per week can you dedicate to working out, and what is your current lifting experience (Beginner / Intermediate / Advanced)?**`;
 
+        const suggestions = ['Beginner (3 Days/Week)', 'Intermediate (4 Days/Week)', 'Advanced (5 Days/Week)'];
+        structuredAction.suggestions = suggestions;
         structuredAction.explanation = 'Asking for training frequency and experience level to structure progressive resistance program.';
-        return { role: 'assistant', content: responseContent, structuredAction };
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
       }
+    }
+
+    // =====================================================================
+    // STEP A2: INTERACTIVE WORKOUT PLAN QUESTIONNAIRE & GENERATION
+    // =====================================================================
+    const isAskingAboutDetails = /what (type of )?details|kya details|which details|what do you need/i.test(raw);
+    const lastAssistantMsg = [...(history || [])]
+      .reverse()
+      .find(m => m.role === 'assistant' || m.sender === 'other' || m.sender === 'assistant');
+    const lastPrompt = (lastAssistantMsg?.content || lastAssistantMsg?.text || '').toLowerCase();
+
+    const isInIntakeFlow = lastPrompt.includes('step 1') ||
+      lastPrompt.includes('step 2') ||
+      lastPrompt.includes('step 3') ||
+      lastPrompt.includes('step 4') ||
+      lastPrompt.includes('primary fitness goal') ||
+      /how long.*(?:program|plan).*run/i.test(lastPrompt) ||
+      lastPrompt.includes('calibrated your profile') ||
+      lastPrompt.includes('profile snapshot') ||
+      lastPrompt.includes('days per week') ||
+      lastPrompt.includes('equipment do you have access to') ||
+      lastPrompt.includes('i just need') ||
+      (/\b(?:\d+\s*(?:weeks?|months?|years?)|2 weeks|1 month|2 months|3 months|6 months|1 year)\b/i.test(raw) && (history || []).length > 0) ||
+      (/\b(?:full gym|dumbbells?|bodyweight)\b/i.test(raw) && (history || []).length > 0);
+
+    const wantsFullPlan = isAskingAboutDetails || isInIntakeFlow ||
+      /(?:generate|build|create|make|give|suggest|start|want|need)\s+.*?(?:workout|exercise|excercice|routine|plan|program)/i.test(raw) ||
+      /(?:workout|exercise|excercice|routine|program)\s+(?:plan|for|banana|chahiye|de|do)/i.test(raw) ||
+      /\b(?:workout\s*plan|exercise\s*plan|excercice\s*plan|new\s*plan|make\s*a\s*plan|build\s*a\s*plan)\b/i.test(raw) ||
+      (/\b(?:losing\s*weight|weight\s*loss|weight\s*lost|lose\s*weight|build\s*muscle|body\s*development)\b/i.test(raw) && /\b(?:plan|routine|program|month|weeks?|generate|start|excercice|exercise)\b/i.test(raw)) ||
+      (intent === INTENTS.GENERATE_WORKOUT && !text.includes('today') && !text.includes('aaj'));
+
+    if (wantsFullPlan) {
+      const intakeState = extractIntakeState(raw, history, effectiveProfile);
+
+      if (isAskingAboutDetails) {
+        responseContent = `To build your customized workout program, I just need a couple quick details:
+
+1. 🎯 **Your Goal** (e.g. Lose Weight, Build Muscle)
+2. ⏱️ **Plan Duration** (e.g. 2 Weeks, 1 Month, 3 Months, 6 Months)
+
+Let's get started! **What is your primary fitness goal?**`;
+        const suggestions = ['🔥 Lose Weight', '💪 Build Muscle', '⚡ Gain Strength', '🏃 Improve Stamina', '✨ General Fitness'];
+        structuredAction.type = 'PLAN_QUESTIONNAIRE';
+        structuredAction.step = 'goal';
+        structuredAction.suggestions = suggestions;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      // Step 1: Goal
+      if (!intakeState.goal) {
+        responseContent = `I can design a fully periodized workout program for you! 🏋️‍♂️
+
+**What is your primary fitness goal?**`;
+        const suggestions = ['🔥 Lose Weight', '💪 Build Muscle', '⚡ Gain Strength', '🏃 Improve Stamina', '✨ General Fitness'];
+        structuredAction.type = 'PLAN_QUESTIONNAIRE';
+        structuredAction.step = 'goal';
+        structuredAction.suggestions = suggestions;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      // Step 2: Duration
+      if (!intakeState.duration) {
+        const goalDisplay = intakeState.goal;
+        const equipDisplay = intakeState.equipment || effectiveProfile.equipmentAccess || 'Full Gym';
+        const levelDisplay = effectiveProfile.fitnessLevel || 'Beginner';
+
+        responseContent = `I've calibrated your profile:
+📋 **Goal**: ${goalDisplay} | 🏋️ **Equipment**: ${equipDisplay} | 📊 **Level**: ${levelDisplay}
+
+**How long would you like your customized program to run?**`;
+        const suggestions = ['⏱️ 2 Weeks', '📅 1 Month', '🎯 3 Months', '🏆 6 Months', '🌟 1 Year'];
+        structuredAction.type = 'PLAN_QUESTIONNAIRE';
+        structuredAction.step = 'duration';
+        structuredAction.suggestions = suggestions;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      // Final resolved parameters
+      const finalDays = intakeState.days || effectiveProfile.trainingDaysPerWeek || (effectiveProfile.fitnessLevel === 'Advanced' ? 5 : 4);
+      const finalEquip = intakeState.equipment || effectiveProfile.equipmentAccess || 'Full Gym';
+
+      // All parameters are ready! Generate the complete periodized plan
+      const durationInfo = parsePlanDuration(intakeState.duration);
+      const planBio = {
+        ...effectiveProfile,
+        mainGoalArea: intakeState.goal,
+        primaryGoal: intakeState.goal,
+        planDuration: durationInfo.label,
+        trainingDaysPerWeek: finalDays,
+        daysPerWeek: finalDays,
+        equipmentAccess: finalEquip
+      };
+      const plan = generatePlanObject(planBio, { effectiveGoal: intakeState.goal });
+
+      responseContent = `🎉 **Your ${durationInfo.label} ${intakeState.goal} Plan is Ready!**
+
+### 📋 Program Summary:
+- 🎯 **Primary Goal**: ${intakeState.goal}
+- ⏱️ **Duration**: ${durationInfo.label} (${durationInfo.totalWeeks} Weeks / ${durationInfo.totalDays} Days)
+- 📅 **Schedule**: ${finalDays} Days per Week
+- 🏋️ **Equipment**: ${finalEquip}
+- 🥗 **Target Nutrition**: ${plan.structuredDiet?.actualTotals?.totalDailyCalories || 2000} kcal / day
+
+Your interactive periodized calendar has been calibrated with progressive overload and recovery cycles. Click **Open in AI Trainer** below to start your training!`;
+
+      const suggestions = ['🚀 Open in AI Trainer', '🥗 View Matching Diet', '🔄 Create Another Plan'];
+      structuredAction = {
+        type: 'PLAN_GENERATED',
+        plan: {
+          ...plan,
+          title: `${durationInfo.label} ${intakeState.goal} Program`,
+          goal: intakeState.goal,
+          planDuration: durationInfo.label,
+          trainingDaysPerWeek: finalDays,
+          equipmentAccess: finalEquip,
+          createdAt: new Date().toISOString()
+        },
+        workout: plan.interactive_calendar.find(d => d.isWorkoutDay) || null,
+        diet: plan.structuredDiet,
+        suggestions
+      };
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }
 
     // =====================================================================
@@ -246,7 +483,7 @@ For example: running, push-ups, pull-ups, marching, obstacle work, strength trai
       // User clarified military training activities (e.g. "Running, push-ups, pull-ups and obstacle course")
       if (topic === 'training_activities' || text.includes('obstacle') || (text.includes('push-up') && text.includes('pull-up')) || (text.includes('running') && text.includes('push-up'))) {
         const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
           userProfile: effectiveProfile,
           recentWorkoutHistory,
           contextMessage: 'army training tomorrow running pushups pullups obstacle course',
@@ -289,7 +526,7 @@ Your session is ready in the AI Trainer! Click **Apply to AI Trainer** below to 
       if (topic === 'race_details' || text === '5k' || text === '5k.' || text === '10k' || text.includes('5k')) {
         const distance = (text.match(/\b(5k|10k|21k|42k|half marathon|marathon)\b/i) || ['5K'])[0].toUpperCase();
         const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
           userProfile: effectiveProfile,
           recentWorkoutHistory,
           contextMessage: `${distance} race tomorrow`,
@@ -338,7 +575,7 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
         }
 
         const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
           userProfile: effectiveProfile,
           recentWorkoutHistory,
           contextMessage: effectiveProfile.primaryGoal,
@@ -368,7 +605,7 @@ Let's begin this journey together! Click **Apply to AI Trainer** to start.`;
       if (topic === 'experience_frequency') {
         effectiveProfile.primaryGoal = 'Muscle Building & Hypertrophy';
         const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
           userProfile: effectiveProfile,
           recentWorkoutHistory,
           contextMessage: 'muscle building progressive resistance hypertrophy',
@@ -398,7 +635,7 @@ Click **Apply to AI Trainer** below to lock in today's resistance training!`;
     // =====================================================================
     if (entities.morningHeavyLegs || (text.includes('heavy legs') && (text.includes('subah') || text.includes('morning') || text.includes('aaj')))) {
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'heavy legs this morning army training tomorrow restorative recovery mobility',
@@ -481,7 +718,7 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
     // =====================================================================
     if (intent === INTENTS.WORKLOAD_CONFLICT || (fullContext.includes('trained legs') && fullContext.includes('football'))) {
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'trained legs heavily yesterday tomorrow football practice',
@@ -521,7 +758,7 @@ This will keep you moving, build your upper-body and core resilience, and let yo
     // =====================================================================
     if (externalEvent && externalEvent.type === EVENT_TYPES.PHYSICAL_LABOR) {
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'heavy physical construction job today active recovery spinal decompression',
@@ -556,7 +793,7 @@ Hydrate well, enjoy a wholesome dinner, and let your body restore tonight!`;
     // =====================================================================
     if (externalEvent && externalEvent.type === EVENT_TYPES.CRICKET_MATCH && externalEvent.proximityDays >= 5) {
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'cricket match in 1 week stamina conditioning rotational power',
@@ -586,7 +823,7 @@ This will maintain your aerobic and anaerobic stamina while keeping your shoulde
     // Cricket Match Tomorrow (Pre-Match Priming)
     if (externalEvent && externalEvent.type === EVENT_TYPES.CRICKET_MATCH && externalEvent.proximityDays <= 1) {
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'cricket match tomorrow thoracic mobility rotational core priming',
@@ -622,7 +859,7 @@ Hydrate well, rest up tonight, and play hard tomorrow!`;
     // =====================================================================
     if (externalEvent && externalEvent.type === EVENT_TYPES.FOOTBALL_MATCH && externalEvent.proximityDays <= 1) {
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'football match tomorrow upper body core mobility',
@@ -655,7 +892,7 @@ Load this into the AI Trainer and leave the heavy running for match day tomorrow
     if (externalEvent && externalEvent.type === EVENT_TYPES.RUNNING_RACE && externalEvent.proximityDays <= 1) {
       const distance = externalEvent.distance || 'Race';
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: `${distance} race tomorrow`,
@@ -702,36 +939,27 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
       });
 
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: 'weight loss joint friendly metabolic conditioning',
         dayNumber: 1
       });
 
-      responseContent = `I am completely with you! Starting at **${weight} kg** with a goal to lose weight is an empowering step, and we will do it sustainably without extreme starving or joint-damaging routines. 💪
+      responseContent = `I am completely with you! Starting at **${weight} kg** with a goal to lose weight is an empowering step. 💪
 
-### 🌿 Simple, Realistic Strategy:
-1. **Sustainable Energy Target**: We don't want crash diets. You'll eat filling, wholesome meals with plenty of protein and fiber to keep hunger away while creating a gentle daily fat-loss deficit.
-2. **Portion Simplicity**: You don't need to stress over complex calorie math. Here is a simple guide to your everyday portions:
-   - **Breakfast**: 2 whole boiled eggs, 1 small bowl of rolled oats with cinnamon.
-   - **Lunch**: 1 cup cooked daal with 1-2 medium whole wheat rotis and a large bowl of fresh salad.
-   - **Mid-Day Snack**: 1 fresh apple and 8-10 raw almonds.
-   - **Dinner**: Grilled chicken breast (or paneer/daal) with sautéed vegetables and 1 roti.
-3. **Joint-Friendly Movement**: At ${weight} kg, high-impact jumping can stress the knees. Today's workout is designed with low joint stress and high metabolic burn.
+We will do it sustainably with joint-friendly conditioning and a high-protein nutrition target.
 
-### 📋 Today's Starter Workout:
-${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} sets × ${ex.reps} reps`).join('\n')}
+How would you like to proceed? Choose an option below:`;
 
-💧 **Daily Habit**: Aim for 3 to 3.5 liters of clean water every day.
-Let's begin today with confidence!`;
-
-      structuredAction.type = 'UPDATE_WORKOUT';
+      const suggestions = ['🏋️ Build Full Workout Plan', '🥗 View Matching Diet', '⚡ Today\'s Starter Workout'];
+      structuredAction.type = 'WEIGHT_CHOICE';
       structuredAction.workout = session;
       structuredAction.diet = diet;
+      structuredAction.suggestions = suggestions;
       structuredAction.rationale = session.rationale;
       structuredAction.explanation = `Formulated sustainable weight loss and joint-friendly movement plan for ${weight}kg user.`;
-      return { role: 'assistant', content: responseContent, structuredAction };
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }
 
     // =====================================================================
@@ -742,7 +970,7 @@ Let's begin today with confidence!`;
       const alternative = exerciseSafetyValidator.suggestSafeAlternative('Compound Exercise', painArea);
 
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: `pain in ${painArea}`,
@@ -771,7 +999,7 @@ I've noted that your **${painArea}** is uncomfortable today. As your coach, safe
     // =====================================================================
     if (intent === INTENTS.MODIFY_WORKOUT || entities.equipmentChange || entities.sessionDurationChange) {
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: raw,
@@ -820,16 +1048,23 @@ Click **Apply to AI Trainer** below to start this workout right now!`;
     }
 
     // =====================================================================
-    // STEP J: HOME ALTERNATIVE FOR GYM-TRAINED ATHLETES (PART 21)
+    // STEP J: HOME ALTERNATIVE — "gym nahi ja raha" / "gym nahi ja sakta"
     // =====================================================================
-    if (intent === 'home_alternative' || (text.includes('home') && text.includes('gym') && text.includes('nahi'))) {
+    // Extended detection: gym + nahi / can't / not going
+    const isHomeAlternativeIntent = intent === INTENTS.HOME_ALTERNATIVE ||
+      (text.includes('gym') && (text.includes('nahi') || text.includes('nhi') || text.includes("can't") || text.includes('cannot') || text.includes('not going') || text.includes('nahi ja'))) ||
+      (text.includes('home') && text.includes('workout')) ||
+      (text.includes('barish') || text.includes('rain') || text.includes('ghar pe workout'));
+
+    if (isHomeAlternativeIntent) {
+
       const mode = userContext.trainerContext?.mode || 'ai_full';
       
       const homeAccess = userContext.homeEquipmentAccess || 'Bodyweight only';
       effectiveProfile.equipmentAccess = homeAccess;
 
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: `home alternative workout using ${homeAccess}`,
@@ -859,6 +1094,256 @@ Click Apply to log this instead.`;
       structuredAction.rationale = session.rationale;
       structuredAction.explanation = `Generated home alternative for ${mode} using ${homeAccess}.`;
       return { role: 'assistant', content: responseContent, structuredAction };
+    }
+
+    // =====================================================================
+    // PILLAR 10: FOOD SUBSTITUTION ENGINE
+    // Example: "Aaj chicken nahi hai", "Beef nahi hai", "eggs nahi hain"
+    // =====================================================================
+    if (intent === INTENTS.FOOD_SUBSTITUTE || entities.foodItemNotAvailable) {
+      const foodItem = entities.foodItemNotAvailable || 
+        (['chicken','beef','fish','egg','daal','paneer','tofu','rice','roti','oats','mutton','salmon'].find(f => text.includes(f))) || 
+        'protein source';
+
+      const dietaryRestrictions = Array.isArray(userContext.foodPreferences) ? userContext.foodPreferences : [];
+      const alternatives = getAlternatives(foodItem, dietaryRestrictions);
+      const topAlts = alternatives.slice(0, 4);
+
+      // Determine if today's diet has a macro target from saved plan
+      const savedDiet = userContext.activeSavedPlan?.diet || userContext.currentDietPlan;
+      const targetProtein = savedDiet?.actualTotals?.totalProtein || savedDiet?.targetProtein || null;
+      const targetCalories = savedDiet?.actualTotals?.totalDailyCalories || savedDiet?.targetCalories || null;
+
+      if (topAlts.length === 0) {
+        responseContent = `I understand **${foodItem}** isn't available today. 🥗\n\nFor your diet, the best general substitution rule is: match the protein content. If you had **${foodItem}** in your meal, replace it with any protein source of similar quantity:\n\n- **Boiled Eggs** (2 eggs ≈ 12g protein)\n- **Low-Fat Paneer / Cottage Cheese** (100g ≈ 18g protein)\n- **Cooked Lentils / Daal** (100g ≈ 9g protein)\n- **Greek Yogurt** (100g ≈ 10g protein)\n\nChoose what's available and I'll recalculate your macros!`;
+        const suggestions = ['🥚 Replace with Eggs', '🧀 Replace with Paneer', '🫘 Replace with Daal', '🐟 Replace with Fish'];
+        structuredAction.type = 'FOOD_SUBSTITUTE';
+        structuredAction.foodItem = foodItem;
+        structuredAction.suggestions = suggestions;
+        structuredAction.explanation = `No direct substitution found; provided generic protein alternatives for ${foodItem}.`;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      const altLines = topAlts.map((a, i) => {
+        const protDiff = targetProtein ? ` (≈${a.protein}g protein per 100g)` : ` (${a.protein}g protein, ${a.calories} kcal per 100g)`;
+        return `${i + 1}. **${a.name}**${protDiff}`;
+      }).join('\n');
+
+      // Calculate potential protein shortfall warning
+      const originalItem = Object.values(FOOD_SUBSTITUTION_GROUPS).flat().find(i => i.name.toLowerCase().includes(foodItem));
+      const originalProtein = originalItem?.protein || 25;
+      const bestAltProtein = topAlts[0]?.protein || 10;
+      const shortfall = originalProtein - bestAltProtein;
+      const shortfallNote = shortfall > 5 ? `\n\n⚠️ **Protein Shortfall Alert**: ${foodItem} gives ~${originalProtein}g protein/100g. Your best substitute gives ~${topAlts[0].protein}g. Consider adding an extra egg or a small portion of Greek yogurt to top up your protein target${targetProtein ? ` of ${targetProtein}g` : ''}.` : '';
+
+      responseContent = `No worries! **${foodItem}** isn't available — here are your best smart substitutes based on your${dietaryRestrictions.length > 0 ? ' dietary preferences and' : ''} current plan macros: 🥗\n\n${altLines}${shortfallNote}\n\nWhich substitute would you like? I'll recalculate your meal macros${targetCalories ? ` to keep you on target (${targetCalories} kcal/day)` : ''}.`;
+
+      const suggestions = topAlts.map(a => `✅ ${a.name.split(' ').slice(0, 3).join(' ')}`);
+      structuredAction.type = 'FOOD_SUBSTITUTE';
+      structuredAction.foodItem = foodItem;
+      structuredAction.alternatives = topAlts;
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = `Provided ${topAlts.length} verified protein/macro substitutes for ${foodItem}, respecting dietary restrictions.`;
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+    }
+
+    // =====================================================================
+    // PILLAR 11: MISSED WORKOUT RESOLUTION
+    // Example: "Kal workout miss ho gaya", "session skip kar gaya"
+    // =====================================================================
+    if (intent === INTENTS.MISSED_WORKOUT) {
+      const planTitle = userContext.activeSavedPlan?.title || 'your active plan';
+      const unhandledCount = (userContext.unhandledMissedSessions || []).length;
+
+      const reasonHint = text.includes('sick') || text.includes('beemar') ? 'You reported being sick.' :
+        text.includes('busy') || text.includes('kaam') ? 'You were busy with work.' :
+        text.includes('thak') || text.includes('tired') ? 'You were fatigued.' : '';
+
+      responseContent = `I see — you missed a workout session${planTitle ? ` from **${planTitle}**` : ''}. ${reasonHint ? `*${reasonHint}*` : ''} 💪\n\n**No worries — this happens!** Here is what we can do:\n\n### 📋 Choose Your Recovery Path:\n\n**Option A — Compress Today** 🔥\nRoll the key exercises from the missed session into today's workout (slightly longer session, higher volume).\n\n**Option B — Shift Schedule +1 Day** 📅\nPush your entire remaining calendar forward by 1 day to preserve the full program structure.\n\n**Option C — Rest Day (No Penalty)** 😴\nMark the missed session as a planned rest day. Your streak and plan integrity are protected.\n\nWhat would you like to do?`;
+
+      const suggestions = ['Option A: Compress Today', 'Option B: Shift Schedule +1 Day', 'Option C: Rest Day'];
+      structuredAction.type = 'MISSED_WORKOUT_RESOLVE';
+      structuredAction.unhandledMissed = userContext.unhandledMissedSessions || [];
+      structuredAction.planId = userContext.activeSavedPlan?._id || null;
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = `User missed ${unhandledCount || 'a'} session(s). Presenting 3 structured recovery options.`;
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+    }
+
+    // =====================================================================
+    // PILLAR 12 + 19: RECOVERY ADAPTATION WITH TRANSPARENT EXPLANATION
+    // Proactively fires when recoveryFlag is LowSleep or HighFatigue AND
+    // user mentions being tired/thak gaya/neend nahi aayi without another handler
+    // =====================================================================
+    const isTiredOrFatigued = text.includes('thak gaya') || text.includes('thaka') || text.includes('neend nahi') ||
+      text.includes('4 ghante soya') || text.includes('3 ghante soya') || text.includes('low energy') ||
+      text.includes('bahut thak') || text.includes('bohat thak') || text.includes('exhausted') ||
+      text.includes('sore') || (text.includes('nahi soya') && text.includes('raat'));
+
+    if (isTiredOrFatigued || (intent === INTENTS.RECOVERY_ADVICE && (userContext.recoveryFlag === 'LowSleep' || userContext.recoveryFlag === 'HighFatigue'))) {
+      const lastCheckIn = (userContext.recentCheckIns || [])[0] || {};
+      const sleepHours = lastCheckIn.sleepHours;
+      const lastRPE = lastCheckIn.lastSessionRPE;
+      const energyLevel = lastCheckIn.energyLevel;
+
+      // Extract sleep from text if mentioned
+      const sleepMatch = text.match(/(\d+)\s*(?:ghante|hours?|hrs?)\s*(?:soya|sleep)/i);
+      const mentionedSleep = sleepMatch ? parseInt(sleepMatch[1]) : sleepHours;
+
+      // Build transparent explanation
+      const reasons = [];
+      if (mentionedSleep && mentionedSleep < 6) reasons.push(`only ${mentionedSleep} hours of sleep (recovery needs 7-8h)`);
+      if (lastRPE && lastRPE >= 8) reasons.push(`high effort in yesterday's session (RPE ${lastRPE}/10)`);
+      if (energyLevel && energyLevel <= 2) reasons.push(`low energy reported in last check-in`);
+
+      const explanationText = reasons.length > 0
+        ? `Adjusted because: **${reasons.join(' + ')}**. Heavy loading under these conditions increases injury risk and slows muscle repair.`
+        : 'Adjusted based on your recovery state to protect joints and promote muscle repair.';
+
+      // Generate a light recovery session
+      const session = workoutDecisionEngine.generateSession({
+        recoveryFlag: 'LowSleep',
+        userProfile: { ...effectiveProfile, primaryGoal: 'Recovery & Mobility' },
+        recentWorkoutHistory,
+        contextMessage: 'low sleep fatigue recovery deload mobility light session',
+        dayNumber: 1
+      });
+
+      // Override with gentle exercises
+      session.sessionObjective = 'Active Recovery, Mobility & Nervous System Reset';
+      const exercises = session.mainWorkout || [];
+      exercises.forEach(ex => { ex.rpe = Math.min(parseFloat(ex.rpe) || 5, 5).toString(); ex.sets = Math.min(ex.sets, 2); });
+
+      responseContent = `I hear you — today sounds tough. 😴 **I've automatically lightened your session.**\n\n> 🧠 *${explanationText}*\n\n### 📋 Today's Active Recovery Session:\n${exercises.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} sets × ${ex.reps} reps (RPE ${ex.rpe}, very light)`).join('\n')}\n\n💡 **Recovery Tips for Today:**\n- 💧 Drink at least 2.5–3 liters of water\n- 🍌 Eat a balanced meal with adequate protein and carbs\n- 😴 Tonight: aim for 7–8 hours sleep to prepare for full training tomorrow\n\nYour body is rebuilding — this is part of the process! 💪`;
+
+      const suggestions = ['🚀 Load Recovery Session', '😴 Mark as Full Rest Day', '💊 Check Recovery Tips'];
+      structuredAction.type = 'RECOVERY_ADAPTED';
+      structuredAction.workout = session;
+      structuredAction.rationale = session.rationale;
+      structuredAction.explanation = explanationText;
+      structuredAction.recoveryFlag = userContext.recoveryFlag || 'LowSleep';
+      structuredAction.suggestions = suggestions;
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+    }
+
+    // =====================================================================
+    // PILLAR 13: RETROACTIVE WORKOUT ADJUSTMENT
+    // Example: "Maine galat complete mark kar diya", "sahi nahi kiye", "jhoot bola"
+    // =====================================================================
+    if (intent === INTENTS.RETROACTIVE_ADJUST) {
+      const exerciseMention = text.includes('pushup') || text.includes('push-up') ? 'Push-Ups' :
+        text.includes('squat') ? 'Squats' :
+        text.includes('bench') ? 'Bench Press' : null;
+
+      responseContent = `Respect for being honest! 🙏 That takes integrity.\n\nYour${exerciseMention ? ` **${exerciseMention}**` : ''} session can be retroactively adjusted. Here's what we can do:\n\n### 🔄 Choose Your Adjustment:\n\n**Option 1 — Repeat the Session** 🔁\nUnmark the previous session as complete. I'll add it back as today's workout so you can do it properly.\n\n**Option 2 — Partial Credit** ✅\nKeep it marked but reduce the progressive overload for next session (lower volume/weight increase). No streak penalty.\n\n**Option 3 — Skip & Adjust Future** ➡️\nKeep it logged as completed but set a note that proper form wasn't achieved. I'll slightly lower the difficulty of the next equivalent session.\n\nWhich would you like?`;
+
+      const suggestions = ['Option 1: Repeat Session Today', 'Option 2: Partial Credit', 'Option 3: Skip & Adjust Future'];
+      structuredAction.type = 'RETROACTIVE_ADJUST';
+      structuredAction.exerciseName = exerciseMention;
+      structuredAction.planId = userContext.activeSavedPlan?._id || null;
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = 'User retroactively reported form issue or incorrect completion marking. Presenting 3 fair adjustment options.';
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+    }
+
+    // =====================================================================
+    // PILLAR 14: ACTIVITY CONTEXT / PLAN-VS-REALITY ENERGY
+    // Example: "Aaj gym bhi kiya aur 8,000 steps bhi hue"
+    // =====================================================================
+    if (intent === INTENTS.ACTIVITY_CONTEXT) {
+      const activity = userContext.todayActivity;
+
+      if (!activity) {
+        responseContent = `I don't have your activity data synced yet for today! 📱\n\nTo see your **Plan vs Reality** energy summary:\n1. Make sure your step tracking is active\n2. Your workout session should be logged\n3. Then I can compare your planned vs actual calories burned and consumed\n\nWould you like me to show a general energy summary instead?`;
+        const suggestions = ['📊 Show General Summary', '📱 How to Sync Steps', '🏋️ Log Today\'s Workout'];
+        structuredAction.type = 'ACTIVITY_CONTEXT';
+        structuredAction.suggestions = suggestions;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      // Extract from message any additional activity mentioned
+      const stepMatch = text.match(/(\d[\d,]+)\s*steps?/i);
+      const mentionedSteps = stepMatch ? parseInt(stepMatch[1].replace(',', '')) : null;
+      const effectiveSteps = mentionedSteps || activity.steps;
+      const walkCals = Math.round(effectiveSteps * 0.04);
+      const workoutCals = activity.workoutCalories || 0;
+      const totalBurned = walkCals + workoutCals;
+
+      // Get diet plan target calories
+      const targetCals = userContext.currentDietPlan?.targetCalories || userContext.activeSavedPlan?.diet?.actualTotals?.totalDailyCalories || null;
+      const calorieBalance = targetCals ? (targetCals - totalBurned) : null;
+
+      const balanceNote = calorieBalance !== null
+        ? calorieBalance > 500 ? `\n\n✅ **Calorie Surplus**: You are ${calorieBalance} kcal above your burn target. Consider a lighter dinner to stay in your target range.`
+        : calorieBalance < -200 ? `\n\n⚠️ **Extra Burn Detected**: You burned ${Math.abs(calorieBalance)} kcal more than your plan target. Consider adding a protein snack to protect your muscle recovery.`
+        : `\n\n✅ **On Track**: Your energy balance aligns with your daily plan.`
+        : '';
+
+      responseContent = `📊 **Today's Energy Summary — Plan vs Reality**\n\n| Metric | Value |\n|--------|-------|\n| 🚶 Steps Today | **${effectiveSteps.toLocaleString()} steps** |\n| 🔥 Walking Calories | **~${walkCals} kcal** |\n| 🏋️ Workout Calories | **~${workoutCals} kcal** |\n| ⚡ Total Burned | **~${totalBurned} kcal** |\n${targetCals ? `| 🎯 Diet Target | **${targetCals} kcal/day** |` : ''}\n\n${activity.exercises && activity.exercises.length > 0 ? `**Exercises Logged:** ${activity.exercises.map(e => e.name).join(', ')}` : ''}${balanceNote}`;
+
+      const suggestions = ['🥗 Adjust Tonight\'s Meal', '💧 Check Hydration', '📅 Tomorrow\'s Plan'];
+      structuredAction.type = 'ACTIVITY_SUMMARY';
+      structuredAction.todayActivity = activity;
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = `Plan vs Reality energy analysis — ${totalBurned} kcal burned vs ${targetCals || '?'} kcal target.`;
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+    }
+
+    // =====================================================================
+    // PILLAR 15: GOAL LIFECYCLE — completion, success post, next goal
+    // Example: "Mera goal complete ho gaya", "Weight lose kar liya", "Next goal chahiye"
+    // =====================================================================
+    if (intent === INTENTS.GOAL_LIFECYCLE) {
+      const activeGoal = userContext.activeGoalGroup;
+
+      if (!activeGoal) {
+        responseContent = `🎯 **Ready for Your Next Goal!**\n\nLet's set up a fresh goal for your next phase of training!\n\n**What would you like to focus on next?**`;
+        const suggestions = ['💪 Build Muscle', '🏃 Improve Endurance', '⚖️ Maintain Weight', '⚡ Increase Strength', '🎯 Custom Goal'];
+        structuredAction.type = 'GOAL_LIFECYCLE';
+        structuredAction.phase = 'select_next_goal';
+        structuredAction.suggestions = suggestions;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      const startWeight = activeGoal.startWeightKg || userContext.weight;
+      const currentWeight = userContext.weight || startWeight;
+      const weightChange = startWeight && currentWeight ? Math.abs(startWeight - currentWeight).toFixed(1) : null;
+      const wasWeightLoss = activeGoal.primaryGoalType === 'WeightLoss';
+
+      responseContent = `🏆 **GOAL COMPLETE! Incredible achievement!**\n\n### 📊 Your Journey Summary:\n${startWeight ? `- ⚖️ **Start Weight**: ${startWeight} kg → **Current**: ${currentWeight} kg${weightChange ? ` (${wasWeightLoss ? '-' : '+'}${weightChange} kg!)` : ''}` : ''}\n${activeGoal.weeklyTrainingLoad?.plannedSessionsPerWeek ? `- 🗓️ **Training Consistency**: ${activeGoal.weeklyTrainingLoad.plannedSessionsPerWeek} sessions/week planned` : ''}\n- 📅 **Goal**: ${activeGoal.title}\n\n🥇 **This is a real achievement — be proud of yourself!**\n\n> *"What changed during this journey? How do you feel?"*\n\nAnd when you're ready:\n\n**🚀 What's Next?**`;
+
+      const suggestions = ['💪 Build Muscle', '🏃 Improve Endurance', '⚖️ Maintain Weight', '⚡ Increase Strength', '🎯 Custom Goal', '📸 Share My Success'];
+      structuredAction.type = 'GOAL_LIFECYCLE';
+      structuredAction.phase = 'goal_completed';
+      structuredAction.completedGoal = activeGoal;
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = 'Goal lifecycle triggered: user completed or reviewed their goal. Presenting next goal options.';
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+    }
+
+    // =====================================================================
+    // PILLAR 20: MULTI-GOAL / PLAN MERGE REQUEST
+    // Example: "Running bhi add karni hai", "Mujhe muscle bhi build karni hai"
+    // =====================================================================
+    if (intent === INTENTS.MULTI_GOAL_ADD) {
+      const secondaryGoal = text.includes('running') ? 'Running / Endurance'
+        : text.includes('muscle') ? 'Muscle Building'
+        : text.includes('weight gain') || text.includes('weight barhana') ? 'Weight Gain'
+        : text.includes('strength') ? 'Strength Training'
+        : 'Additional Goal';
+
+      const existingPlan = userContext.activeSavedPlan;
+      const currentGoal = existingPlan?.goal || userContext.primaryGoal || 'your current goal';
+
+      responseContent = `Great idea! Adding **${secondaryGoal}** alongside **${currentGoal}**. 🎯\n\nHere is how I'll coordinate both plans without creating conflicts:\n\n### 📋 Multi-Goal Coordination Rules:\n1. **No same-muscle-group overlap on adjacent days** — e.g. leg day and running day are separated by 24h minimum\n2. **Combined weekly volume stays within recovery capacity** — max 5 hard sessions per week for most users\n3. **Nutrition auto-adjusts** — calorie and protein targets update to support both goals\n4. **Running on upper-body days** — running is scheduled on the same days as upper-body sessions to protect leg recovery\n\n### 🗓️ Suggested Weekly Template:\n- **Mon**: Strength (Upper Body) + Running (short easy)\n- **Tue**: Lower Body Strength → REST from running\n- **Wed**: Running (moderate) + Core\n- **Thu**: Push / Pull Strength\n- **Fri**: Running (long/tempo)\n- **Sat**: Lower Body Strength\n- **Sun**: Rest / Active Recovery\n\nShall I generate this combined schedule and save it to your Workout Hub?`;
+
+      const suggestions = ['✅ Generate Combined Schedule', '🔄 Adjust the Template', '📊 View Volume Check'];
+      structuredAction.type = 'MULTI_GOAL_COORDINATE';
+      structuredAction.primaryGoal = currentGoal;
+      structuredAction.secondaryGoal = secondaryGoal;
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = `Multi-goal coordination plan proposed for ${currentGoal} + ${secondaryGoal}.`;
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }
 
     // =====================================================================
@@ -900,39 +1385,12 @@ ${diet.substitutionsGuide.map(s => `• *${s.original}* can be replaced with *${
     }
 
     // =====================================================================
-    // STEP J: DEFAULT WORKOUT GENERATION / TODAY'S WORKOUT
+    // STEP J: TODAY'S WORKOUT / GENERAL SESSION
     // =====================================================================
-    if (intent === INTENTS.GENERATE_WORKOUT || intent === INTENTS.TODAY_WORKOUT || intent === INTENTS.SPORT_SPECIFIC_TRAINING) {
-      // Mini-Coach Interception (Part 5 & 6)
-      const missingFields = computeMissingBioFields(effectiveProfile);
-      // If there are missing fields or goal is missing, we trigger the mini_coach_interview
-      const needsMiniCoach = missingFields.length > 0 || !effectiveProfile.mainGoalArea || !effectiveProfile.planDuration || !effectiveProfile.trainingDaysPerWeek;
 
-      if (needsMiniCoach) {
-        const steps = [];
-        if (!effectiveProfile.mainGoalArea) {
-          steps.push({ key: 'mainGoalArea', label: 'What is your goal?', kind: 'single_select', options: ['Lose Weight', 'Build Muscle', 'Gain Strength', 'Improve Stamina', 'Sports Performance', 'General Fitness'], prefillValue: null, isPrefilled: false });
-        }
-        if (!effectiveProfile.planDuration) {
-          steps.push({ key: 'planDuration', label: 'Plan Duration', kind: 'single_select', options: ['4 Weeks', '8 Weeks', '12 Weeks'], prefillValue: '4 Weeks', isPrefilled: true });
-        }
-        if (!effectiveProfile.trainingDaysPerWeek) {
-          steps.push({ key: 'trainingDaysPerWeek', label: 'Smart Intake & Stamina', kind: 'single_select', options: [2, 3, 4, 5, 6], prefillValue: 3, isPrefilled: true });
-        }
-        if (missingFields.length > 0) {
-          steps.push({ key: 'missingBioFields', label: 'Health & Fitness Bio', kind: 'form', fields: missingFields });
-        }
-        
-        structuredAction.type = 'mini_coach_interview';
-        structuredAction.steps = steps;
-        structuredAction.currentStepIndex = 0;
-        
-        responseContent = `I'd love to build that for you, but I need a few quick details first.`;
-        return { role: 'assistant', content: responseContent, structuredAction };
-      }
-
+    if (intent === INTENTS.TODAY_WORKOUT || intent === INTENTS.GENERATE_WORKOUT || intent === INTENTS.SPORT_SPECIFIC_TRAINING) {
       const session = workoutDecisionEngine.generateSession({
-        recoveryFlag: context.recoveryFlag || "Normal",
+        recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
         recentWorkoutHistory,
         contextMessage: raw,
@@ -956,39 +1414,50 @@ ${session.mainWorkout.map(m => `• **${m.name}** — ${m.sets} Sets × ${m.reps
 #### 3. Cool-Down & Recovery
 ${session.cooldown.cooldownExercises.map(c => `• **${c.name}** — ${c.duration} (${c.purpose})`).join('\n')}
 
-> 🩺 *Safety Verification: ${session.medicalSafetyReview.safetyWarnings[0] || 'All exercises cleared zero-tolerance medical screen.'}*`;
+> 🩺 *Safety Verification: ${session.medicalSafetyReview?.safetyWarnings?.[0] || 'All exercises cleared zero-tolerance medical screen.'}*`;
 
+      const suggestions = ['🏋️ Apply Workout', '❓ Why this workout?', '🔄 Change Exercises', '🥗 Matching Diet'];
       structuredAction.type = 'UPDATE_WORKOUT';
       structuredAction.workout = session;
       structuredAction.rationale = session.rationale;
       structuredAction.explanation = `Generated full session for ${session.sessionObjective}.`;
-      return { role: 'assistant', content: responseContent, structuredAction };
+      structuredAction.suggestions = suggestions;
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }
 
     // =====================================================================
-    // STEP K: GENERAL CONVERSATION & FITNESS GUIDANCE
+    // STEP K: GENERAL CONVERSATION, GREETING & GUIDANCE
     // =====================================================================
-    if (history.length > 0 && !text.includes('hi') && !text.includes('hello')) {
-      responseContent = `I'm here to help! Tell me if you need a workout, a diet plan, or if you need to adjust your training based on your schedule, equipment, or recovery.`;
-      structuredAction.explanation = 'Short fallback response.';
-      return { role: 'assistant', content: responseContent, structuredAction };
+    const athleteName = effectiveProfile.name || effectiveProfile.userName || 'Athlete';
+    const profileGoal = effectiveProfile.primaryGoal || effectiveProfile.mainGoalArea || 'General Fitness';
+    const profileLevel = effectiveProfile.fitnessLevel || 'Beginner';
+    const profileEquip = effectiveProfile.equipmentAccess || 'Full Gym';
+
+    const isGreeting = text === 'hi' || text === 'hello' || text === 'hey' || text === 'salam' || text === 'start' ||
+      text.startsWith('hi ') || text.startsWith('hello ') || text.startsWith('hey ') || (history || []).length === 0;
+
+    if (isGreeting) {
+      const suggestions = ['🏋️ Generate My Workout Plan', '🥗 Custom Diet Plan', '⚡ Quick 20-Min Workout', '📊 View My Progress'];
+      responseContent = `Hi **${athleteName}**! 👋 Ready to train today?
+
+📋 **Profile Snapshot**:
+• Goal: **${profileGoal}** | Level: **${profileLevel}** | Equipment: **${profileEquip}**
+
+What would you like to do? Choose an option below or message me anytime!`;
+      structuredAction.type = 'GREETING';
+      structuredAction.explanation = 'Concise greeting with profile snapshot.';
+      structuredAction.suggestions = suggestions;
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }
 
-    responseContent = `Hello! I am your **GymSync AI Lead Coach & Personal Trainer**.
-
-I have your complete profile loaded (${effectiveProfile.fitnessLevel || 'Beginner'} level, ${effectiveProfile.equipmentAccess || 'Full Gym'}, goal: ${effectiveProfile.mainGoalArea || 'Fitness'}).
-
-How can I help you today?
-- Ask: *"What should I train today?"*
-- Ask: *"Create a diet plan for my goals"*
-- Tell me: *"I have army training tomorrow"* or *"I have a cricket match next week"*
-- Tell me: *"I only have 20 minutes"* or *"Only dumbbells"*
-- Tell me: *"My knee hurts today"* or *"I trained legs yesterday and have football tomorrow"*
-
-I will adapt your training and nutrition using intelligent sports science reasoning!`;
-
-    structuredAction.explanation = 'General coach greeting and prompt suggestions.';
-    return { role: 'assistant', content: responseContent, structuredAction };
+    // Smart conversational guidance
+    const suggestions = ['🏋️ Build a Workout Plan', '🥗 Custom Diet Plan', '⚡ Quick 20-Min Workout', '💬 Ask a Question'];
+    responseContent = `I'm here to assist with your workout routines, nutrition, and recovery.
+What would you like to work on? Choose a quick option below:`;
+    structuredAction.type = 'GUIDANCE';
+    structuredAction.explanation = 'Concise actionable guidance.';
+    structuredAction.suggestions = suggestions;
+    return { role: 'assistant', content: responseContent, suggestions, structuredAction };
   }
 };
 

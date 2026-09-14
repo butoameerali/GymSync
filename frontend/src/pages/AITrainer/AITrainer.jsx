@@ -192,6 +192,7 @@ const AITrainer = () => {
   };
 
   const [aiPlan, setAiPlan] = useState(null);
+  const [selectedPlanForView, setSelectedPlanForView] = useState(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
 
@@ -211,6 +212,19 @@ const AITrainer = () => {
       const plans = await aiPlanService.getSavedPlans();
       if (Array.isArray(plans)) {
         setSavedPlans(plans);
+        const workoutPlans = plans.filter(p => p.planKind !== 'Diet');
+        const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+        const storedPlan = JSON.parse(localStorage.getItem(`gymsync_${userKey}_ai_plan`) || 'null');
+
+        if (storedPlan && workoutPlans.some(p => p._id === storedPlan.planId || p._id === storedPlan._id || p.title === storedPlan.title)) {
+          // Keep current stored plan
+        } else if (workoutPlans.length > 0) {
+          handleActivateSavedPlan(workoutPlans[0]);
+        } else {
+          // No saved plans in DB: Do not show forced plan, show gateway
+          setAiPlan(null);
+          localStorage.removeItem(`gymsync_${userKey}_ai_plan`);
+        }
       }
     } catch (err) {
       console.warn('Failed to load saved plans:', err.message);
@@ -259,24 +273,150 @@ const AITrainer = () => {
       ...savedPlan.workout,
       interactive_calendar: savedPlan.calendar && savedPlan.calendar.length > 0 ? savedPlan.calendar : (savedPlan.workout.interactive_calendar || []),
       planId: savedPlan._id,
+      title: savedPlan.title,
       planStartDate: savedPlan.createdAt || new Date().toISOString()
     };
     setAiPlan(activated);
     localStorage.setItem(`gymsync_${userKey}_ai_plan`, JSON.stringify(activated));
     setShowSavedPlansModal(false);
-    toast.success(`Loaded saved plan: ${savedPlan.title}`);
+    toast.success(`Loaded plan: ${savedPlan.title}`);
   };
 
   const handleDeleteSavedPlan = async (planId, e) => {
     if (e) e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this workout plan?")) return;
     try {
       await aiPlanService.deletePlan(planId);
-      setSavedPlans(prev => prev.filter(p => p._id !== planId));
-      toast.success('Saved plan removed.');
+      const remaining = savedPlans.filter(p => p._id !== planId);
+      setSavedPlans(remaining);
+      const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+
+      if (aiPlan && (aiPlan.planId === planId || aiPlan._id === planId || aiPlan.title === planId)) {
+        setAiPlan(null);
+        localStorage.removeItem(`gymsync_${userKey}_ai_plan`);
+      }
+      setSelectedPlanForView(null);
+      toast.success('Workout plan deleted successfully.');
     } catch (err) {
       toast.error(`Failed to delete plan: ${err.message}`);
     }
   };
+
+  const handleCreateNewPlan = () => {
+    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+    setAiPlan(null);
+    setSelectedPlanForView(null);
+    localStorage.removeItem(`gymsync_${userKey}_ai_plan`);
+    toast.info('Choose AI Coach or a Trainer Program to start your new plan!');
+  };
+
+  const handleCreateStarterPlan = async (goalType) => {
+    const title = goalType === 'weight_loss' ? 'Weight Loss Plan' : goalType === 'body_dev' ? 'Body Development Plan' : 'Strength & Muscle Plan';
+    const mainGoalArea = goalType === 'weight_loss' ? 'Lose Weight' : goalType === 'body_dev' ? 'Build Muscle' : 'Gain Strength';
+
+    setIsGeneratingPlan(true);
+    try {
+      const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+      const bioData = JSON.parse(localStorage.getItem(`gymsync_${userKey}_bio_data`) || '{}');
+      const payload = {
+        height: bioData.height || 175,
+        weight: bioData.weight || 72,
+        gender: bioData.gender || 'male',
+        jointPain: bioData.jointPain || [],
+        medicalConditions: bioData.medicalConditions || [],
+        injuries: bioData.injuries || [],
+        limitations: bioData.limitations || [],
+        foodPreferences: bioData.foodPreferences || ['none'],
+        trainingDaysPerWeek: bioData.trainingDaysPerWeek || 3,
+        equipmentAccess: bioData.equipmentAccess || 'Full Gym',
+        planDuration: '4 Weeks',
+        pushupBaseline: bioData.pushupBaseline || 12,
+        mainGoalArea
+      };
+
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch('/api/ai/generate-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate plan');
+
+      const formattedPlan = {
+        ...data,
+        title,
+        primary_goal: mainGoalArea,
+        goal: mainGoalArea,
+        planId: `PLAN_${Date.now()}`,
+        planStartDate: new Date().toISOString()
+      };
+
+      let savedPlanObj = {
+        _id: formattedPlan.planId,
+        title,
+        goal: mainGoalArea,
+        fitnessLevel: bioData.fitnessLevel || 'Beginner',
+        workout: formattedPlan,
+        calendar: formattedPlan.interactive_calendar || [],
+        createdAt: new Date().toISOString(),
+        planKind: 'Workout'
+      };
+
+      if (!isGuest && token) {
+        try {
+          const saved = await aiPlanService.savePlan({
+            title,
+            goal: mainGoalArea,
+            fitnessLevel: bioData.fitnessLevel || 'Beginner',
+            workout: formattedPlan,
+            calendar: formattedPlan.interactive_calendar || [],
+            notes: `Personalized ${title}`
+          });
+          if (saved && saved._id) {
+            savedPlanObj = saved;
+          }
+        } catch (saveErr) {
+          console.warn('Save to DB notice:', saveErr);
+        }
+      }
+
+      setAiPlan(formattedPlan);
+      localStorage.setItem(`gymsync_${userKey}_ai_plan`, JSON.stringify(formattedPlan));
+      setSavedPlans(prev => {
+        const filtered = prev.filter(p => p.title !== title && p._id !== savedPlanObj._id);
+        return [savedPlanObj, ...filtered];
+      });
+
+      setSelectedPlanForView(savedPlanObj);
+      if (formattedPlan.interactive_calendar && formattedPlan.interactive_calendar.length > 0) {
+        setSelectedCalendarDay(formattedPlan.interactive_calendar[0]);
+      }
+      toast.success(`🎉 Created and activated ${title}!`);
+    } catch (err) {
+      console.error(err);
+      toast.error(`Unable to create plan: ${err.message}`);
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  };
+
+  useEffect(() => {
+    const handlePlanUpdatedEvent = (e) => {
+      const updatedPlan = e.detail?.plan;
+      if (updatedPlan) {
+        handleActivateSavedPlan(updatedPlan);
+        setSelectedPlanForView(updatedPlan);
+        loadSavedPlans();
+      }
+    };
+    window.addEventListener('gymsync_plan_updated', handlePlanUpdatedEvent);
+    return () => window.removeEventListener('gymsync_plan_updated', handlePlanUpdatedEvent);
+  }, []);
 
   // Normalize Plan Metadata (planId & planStartDate)
   useEffect(() => {
@@ -368,12 +508,6 @@ const AITrainer = () => {
       setIsGeneratingPlan(false);
     });
   };
-
-  useEffect(() => {
-    if (activeMode === 'ai' && !aiPlan && !isGeneratingPlan && isBioFilled) {
-      fetchPlanWithBenchmarks();
-    }
-  }, [activeMode, aiPlan, isGeneratingPlan, isBioFilled]);
 
   // Schedule & Lock Helper
   const getDayScheduleInfo = (dayItem) => {
@@ -746,6 +880,7 @@ const AITrainer = () => {
     // Authoritative Server Persistence
     if (!isGuest) {
       try {
+        // Save workout progress
         await fetch('/api/users/workout-progress', {
           method: 'POST',
           headers: {
@@ -758,6 +893,23 @@ const AITrainer = () => {
             lastWorkoutCompletionTime: timestamp,
             streak: currentStreak,
             totalPoints: currentPoints
+          })
+        });
+
+        // Also log complete workout session to daily ActivityLog in DB
+        await fetch('/api/activity/log-workout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+          },
+          body: JSON.stringify({
+            date: new Date().toISOString().split('T')[0],
+            exerciseName: selectedCalendarDay?.phaseName || `Day ${activeWorkoutDay} Full Workout`,
+            sets: (daySplit && daySplit.length) ? daySplit.length : 3,
+            reps: 10,
+            caloriesBurned: Math.max(120, ((daySplit && daySplit.length) ? daySplit.length : 3) * 35),
+            mode: 'manual'
           })
         });
       } catch (err) {
@@ -822,7 +974,11 @@ const AITrainer = () => {
           </button>
           <button
             className={`tab-btn ${activeMode === 'ai' ? 'active' : ''}`}
-            onClick={() => setActiveMode('ai')}
+            onClick={() => {
+              setActiveMode('ai');
+              setSelectedPlanForView(null);
+              setCurrentExercise(null);
+            }}
           >
             <Sparkles size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> My AI Workouts
           </button>
@@ -923,7 +1079,13 @@ const AITrainer = () => {
             loadSavedPlans={loadSavedPlans}
             handleActivateSavedPlan={handleActivateSavedPlan}
             handleDeleteSavedPlan={handleDeleteSavedPlan}
+            handleCreateNewPlan={handleCreateNewPlan}
+            handleCreateStarterPlan={handleCreateStarterPlan}
             handleLogProgramSession={handleLogProgramSession}
+            selectedPlanForView={selectedPlanForView}
+            setSelectedPlanForView={setSelectedPlanForView}
+            onBuildAIPlan={() => fetchPlanWithBenchmarks()}
+            onBrowsePrograms={() => setActiveMode('programs')}
           />
         )}
       </div>

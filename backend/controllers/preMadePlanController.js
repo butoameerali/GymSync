@@ -278,7 +278,9 @@ export const createPreMadePlan = async (req, res) => {
       dietaryRestrictions,
       meals,
       details,
-      tags
+      tags,
+      connectedDietPlanId,
+      connectedDietPlanTitle
     } = req.body;
 
     const createdBy = req.user?.name || 'Fitness Instructor';
@@ -314,6 +316,8 @@ export const createPreMadePlan = async (req, res) => {
       meals: Array.isArray(meals) ? meals : [],
       details: details || {},
       tags: Array.isArray(tags) ? tags : [],
+      connectedDietPlanId: connectedDietPlanId || null,
+      connectedDietPlanTitle: connectedDietPlanTitle || '',
       createdBy,
       createdById,
       authorRole: req.user?.role || 'FitnessInstructor'
@@ -436,9 +440,42 @@ export const applyProgramToUser = async (req, res) => {
       }
     });
 
+    // Automatically activate connected diet plan if linked by trainer
+    let connectedDiet = null;
+    if (program.connectedDietPlanId) {
+      try {
+        const diet = await PreMadePlan.findById(program.connectedDietPlanId);
+        if (diet && ['Diet', 'diet'].includes(diet.type)) {
+          await UserDietPlan.updateMany({ userId, isActive: true }, { isActive: false });
+          connectedDiet = await UserDietPlan.create({
+            userId,
+            userName,
+            sourceDietId: diet._id,
+            dietVersion: diet.version || 1,
+            title: diet.title,
+            goal: diet.goal || diet.category,
+            dietaryType: diet.dietaryType || 'Balanced',
+            calories: diet.calories || 2000,
+            protein: diet.protein || 150,
+            carbs: diet.carbs || 200,
+            fat: diet.fat || 65,
+            allergies: diet.allergies || [],
+            instructorName: diet.createdBy || 'Fitness Instructor',
+            meals: diet.meals || [],
+            startDate: new Date(),
+            isActive: true,
+            adherenceLogs: []
+          });
+        }
+      } catch (dietErr) {
+        console.warn('Failed to auto-apply connected diet:', dietErr);
+      }
+    }
+
     res.status(201).json({
-      message: `Successfully applied "${program.title}" to your routine!`,
-      userProgram
+      message: `Successfully applied "${program.title}" to your routine!${connectedDiet ? ` Connected diet "${connectedDiet.title}" has also been activated.` : ''}`,
+      userProgram,
+      connectedDiet
     });
   } catch (error) {
     console.error('applyProgramToUser Error:', error);
