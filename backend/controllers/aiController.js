@@ -1164,7 +1164,7 @@ export const completeActiveGoal = async (req, res) => {
     return res.status(200).json(result);
   } catch (err) {
     console.error('completeActiveGoal error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to complete goal' });
+    return res.status(500).json({ error: 'Failed to complete goal' });
   }
 };
 
@@ -1178,7 +1178,7 @@ export const startNextGoal = async (req, res) => {
     return res.status(200).json(result);
   } catch (err) {
     console.error('startNextGoal error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to start next goal' });
+    return res.status(500).json({ error: 'Failed to start next goal' });
   }
 };
 
