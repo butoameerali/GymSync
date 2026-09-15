@@ -265,6 +265,7 @@ const isGreeting = (query) => {
 export const executeCoachPipeline = async ({
   userId = null,
   message,
+  assistantPersona = 'workout_coach',
   userContext = {},
   history = [],
   currentPlan = null,
@@ -424,6 +425,17 @@ export const executeCoachPipeline = async ({
       }
     }
 
+    if (!authoritativePlan) {
+      try {
+        const savedPlanDoc = await SavedAIPlan.findOne({ userId: effectiveUserId, isActive: true }).sort({ updatedAt: -1 }).lean();
+        if (savedPlanDoc) {
+          authoritativePlan = savedPlanDoc;
+        }
+      } catch (savedErr) {
+        console.warn('Could not load authoritative SavedAIPlan:', savedErr.message);
+      }
+    }
+
     const checkIns = await DailyCheckIn.find({ userId: effectiveUserId }).sort({ date: -1 }).limit(7).lean();
     const { recoveryFlag } = computeRecoveryAdjustment({ recentCheckIns: checkIns });
     authoritativeContext.recoveryFlag = recoveryFlag;
@@ -578,6 +590,7 @@ export const executeCoachPipeline = async ({
   const decisionStart = Date.now();
   const decisionResult = coachConversationEngine.processTurn({
     message: rawMessage,
+    assistantPersona,
     userContext: authoritativeContext,
     history: Array.isArray(history) ? history.slice(-10) : [],
     currentPlan: authoritativePlan,

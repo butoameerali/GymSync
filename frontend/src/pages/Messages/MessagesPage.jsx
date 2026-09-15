@@ -169,6 +169,19 @@ const MessagesPage = () => {
     }
   };
 
+  const handleSendSuggested = (sugText) => {
+    const lower = (sugText || '').toLowerCase();
+    if (lower.includes('switch to ai nutritionist') || lower.includes('open ai nutritionist') || lower.includes('talk to ai nutritionist') || lower.includes('switch to nutritionist')) {
+      setActiveContact('AI Nutritionist');
+      return;
+    }
+    if (lower.includes('switch to ai workout coach') || lower.includes('open ai workout coach') || lower.includes('talk to ai workout coach') || lower.includes('switch to workout coach')) {
+      setActiveContact('AI Workout Coach');
+      return;
+    }
+    handleSendMessage(null, sugText);
+  };
+
   const handleClearChat = async () => {
     if (!activeContact) return;
     const confirmClear = window.confirm(`Clear all chat history with ${activeContact}?`);
@@ -232,7 +245,7 @@ const MessagesPage = () => {
                     tabIndex={0}
                   >
                     <div className="conv-avatar">
-                      {contactName.charAt(0).toUpperCase()}
+                      {String(contactName).toLowerCase().includes('nutrition') ? '🥗' : String(contactName).toLowerCase().includes('workout') || String(contactName).toLowerCase() === 'ai' || String(contactName).toLowerCase().includes('trainer') ? '🏋️' : String(contactName).toLowerCase().includes('support') || String(contactName).toLowerCase().includes('gym') ? '🏢' : contactName.charAt(0).toUpperCase()}
                     </div>
                     <div className="conv-info">
                       <div className="conv-name-row">
@@ -259,7 +272,7 @@ const MessagesPage = () => {
                     <ArrowLeft size={20} />
                   </button>
                   <div className="header-contact-avatar">
-                    {activeContact.charAt(0).toUpperCase()}
+                    {String(activeContact).toLowerCase().includes('nutrition') ? '🥗' : String(activeContact).toLowerCase().includes('workout') || String(activeContact).toLowerCase() === 'ai' || String(activeContact).toLowerCase().includes('trainer') ? '🏋️' : String(activeContact).toLowerCase().includes('support') || String(activeContact).toLowerCase().includes('gym') ? '🏢' : activeContact.charAt(0).toUpperCase()}
                   </div>
                   <div className="header-contact-details">
                     <h4>{activeContact}</h4>
@@ -309,6 +322,26 @@ const MessagesPage = () => {
                             {isMine && msg.isRead && <UserCheck size={14} className="read-receipt-icon" title="Read" />}
                           </div>
                         </div>
+
+                        {/* SWITCH_TO_NUTRITIONIST Action Card */}
+                        {!isMine && msg.structuredAction?.type === 'SWITCH_TO_NUTRITIONIST' && (
+                          <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#34d399' }}>🥗 Sports Nutritionist Available</span>
+                            <button type="button" onClick={() => setActiveContact('AI Nutritionist')} style={{ padding: '7px 14px', borderRadius: '8px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', fontWeight: 700, fontSize: '0.8rem', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-start' }}>
+                              🥗 Open AI Nutritionist
+                            </button>
+                          </div>
+                        )}
+
+                        {/* SWITCH_TO_WORKOUT_COACH Action Card */}
+                        {!isMine && msg.structuredAction?.type === 'SWITCH_TO_WORKOUT_COACH' && (
+                          <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#60a5fa' }}>🏋️ Workout Coach Available</span>
+                            <button type="button" onClick={() => setActiveContact('AI Workout Coach')} style={{ padding: '7px 14px', borderRadius: '8px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', fontWeight: 700, fontSize: '0.8rem', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-start' }}>
+                              🏋️ Open AI Workout Coach
+                            </button>
+                          </div>
+                        )}
 
                         {/* Plan Action Card if generated */}
                         {msg.structuredAction?.plan && (
@@ -516,15 +549,17 @@ const MessagesPage = () => {
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <Target size={15} color="#3b82f6" />
-                                {msg.structuredAction.step === 'goal' ? 'Mini-Coach • Step 1: Target Goal' : 'Mini-Coach • Step 2: Duration'}
+                                {msg.structuredAction.step === 'goal' ? 'Mini-Coach • Step 1: Target Goal' : msg.structuredAction.step === 'schedule' ? 'Mini-Coach • Step 3: Start Schedule' : 'Mini-Coach • Step 2: Duration'}
                               </span>
                               <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>
-                                {msg.structuredAction.step === 'goal' ? '1 of 2' : '2 of 2'}
+                                {msg.structuredAction.step === 'goal' ? '1 of 3' : msg.structuredAction.step === 'duration' ? '2 of 3' : '3 of 3'}
                               </span>
                             </div>
                             <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                               {msg.structuredAction.step === 'goal'
                                 ? 'Select your primary objective to calibrate sets, reps, and energy burn:'
+                                : msg.structuredAction.step === 'schedule'
+                                ? 'When would you like to start your training program?'
                                 : 'Select how many weeks or months your periodized cycle should run:'}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

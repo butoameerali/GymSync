@@ -136,7 +136,17 @@ export function extractIntakeState(raw = '', history = [], userContext = {}) {
     equipment = 'Full Gym';
   }
 
-  return { goal, duration, days, equipment };
+  // 5. Start Schedule (Today, Tomorrow, Next Monday)
+  let startSchedule = null;
+  if (/\b(?:today|aaj|right now|immediately)\b/i.test(combinedText)) {
+    startSchedule = 'Today';
+  } else if (/\b(?:tomorrow|kal|next day)\b/i.test(combinedText)) {
+    startSchedule = 'Tomorrow';
+  } else if (/\b(?:next monday|monday|somwar|pir)\b/i.test(combinedText)) {
+    startSchedule = 'Next Monday';
+  }
+
+  return { goal, duration, days, equipment, startSchedule };
 }
 
 export const coachConversationEngine = {
@@ -156,6 +166,7 @@ export const coachConversationEngine = {
    */
   processTurn({
     message = '',
+    assistantPersona = 'workout_coach',
     userContext = {},
     history = [],
     currentPlan = null,
@@ -199,6 +210,136 @@ export const coachConversationEngine = {
       missingContext: missingContext || null,
       explanation: ''
     };
+
+    const athleteName = effectiveProfile.name || effectiveProfile.userName || 'Athlete';
+
+    // =====================================================================
+    // DEDICATED AI NUTRITIONIST PERSONA ROUTING
+    // =====================================================================
+    if (assistantPersona === 'nutritionist') {
+      // 1. If user asks workout/exercise training questions, refer to AI Workout Coach
+      const isWorkoutQuery = intent === INTENTS.TODAY_WORKOUT ||
+        intent === INTENTS.GENERATE_WORKOUT ||
+        intent === INTENTS.SPORT_SPECIFIC_TRAINING ||
+        (/\b(?:workout|exercise|excercice|bench press|pushup|pullup|squat|deadlift|bicep|tricep|leg day|chest day|cardio session|sets and reps)\b/i.test(raw) && !/\b(?:diet|nutrition|food|eat|meal|calories|protein|macro)\b/i.test(raw));
+
+      if (isWorkoutQuery) {
+        responseContent = `I specialize exclusively in your sports nutrition, calorie targets, and meal plans! 🥗
+
+For workout routines, exercise technique, and training splits, tap below to chat directly with your **AI Workout Coach**.`;
+        const suggestions = ['🏋️ Switch to Workout Coach', '🥗 Today\'s Meals', '🍎 Food Substitutions'];
+        structuredAction.type = 'SWITCH_TO_WORKOUT_COACH';
+        structuredAction.suggestions = suggestions;
+        structuredAction.explanation = 'Referred workout question to AI Workout Coach.';
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      // 2. Greeting
+      const isGreeting = text === 'hi' || text === 'hello' || text === 'hey' || text === 'salam' || text === 'start' ||
+        text.startsWith('hi ') || text.startsWith('hello ') || text.startsWith('hey ') || (history || []).length === 0;
+
+      if (isGreeting) {
+        responseContent = `Hi **${athleteName}**! 👋 I'm your **AI Nutritionist**.
+I calculate your daily macros, optimize your meal plans, and provide smart food substitutions. What would you like to fuel today?`;
+        const suggestions = ['🥗 Today\'s Meals', '🌅 Tomorrow\'s Meals', '🍎 Swap a Food Item', '🎯 Check Daily Macros'];
+        structuredAction.type = 'GREETING';
+        structuredAction.persona = 'nutritionist';
+        structuredAction.suggestions = suggestions;
+        structuredAction.explanation = 'Concise AI Nutritionist greeting.';
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      // 3. Tomorrow's Meals
+      if (/\btomorrow\b/i.test(raw) && /\b(?:meal|eat|food|diet)\b/i.test(raw)) {
+        const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.activeSavedPlan?.diet || dietBuilder.generateDietPlan({ userProfile: effectiveProfile, preferences });
+        const meals = activeDiet.meals || [];
+        responseContent = `🌅 **Tomorrow's Fuel Protocol (${activeDiet.goalType || 'Performance'})**
+
+Stay consistent with your nutrition tomorrow to support workout recovery:
+
+${meals.map(m => `**${m.mealName}** *(${m.timing})*\n${m.items.map(i => `• ${i.food} — **${i.portion}**`).join('\n')}`).join('\n\n')}
+
+💧 **Target Hydration**: ${activeDiet.hydrationTargetLiters || 3} Liters
+💡 *Need to swap an ingredient? Just tell me what you don't have.*`;
+        const suggestions = ['🍎 Swap a Food Item', '🥗 Today\'s Meals', '🏋️ Switch to Workout Coach'];
+        structuredAction.type = 'UPDATE_NUTRITION';
+        structuredAction.diet = activeDiet;
+        structuredAction.suggestions = suggestions;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      // 4. Food substitution (if food item mentioned or unavailable)
+      const isFoodSub = intent === INTENTS.FOOD_SUBSTITUTION || /don't have|dont have|not available|replace|substitute|allergic|swap/i.test(raw);
+      if (!isFoodSub && (intent === INTENTS.GENERATE_DIET || intent === INTENTS.MODIFY_DIET || /\b(?:diet|meal|food|eat|macro|calories|protein)\b/i.test(raw))) {
+        // Today's Meals / General Diet Plan / Macros
+        const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.activeSavedPlan?.diet || dietBuilder.generateDietPlan({ userProfile: effectiveProfile, preferences });
+        dietValidator.validateDiet(activeDiet, effectiveProfile);
+
+        responseContent = `🥗 **Your Daily Nutrition Protocol (${activeDiet.goalType || 'Active Plan'})**
+
+### 📊 Target Daily Macros:
+- 🔥 **Energy**: **${activeDiet.actualTotals?.totalDailyCalories || 2000} kcal**
+- 🥩 **Protein**: **${activeDiet.actualTotals?.totalProtein || 140}g**
+- 🍚 **Carbohydrates**: **${activeDiet.actualTotals?.totalCarbs || 220}g**
+- 🥑 **Healthy Fats**: **${activeDiet.actualTotals?.totalFat || 60}g**
+- 💧 **Hydration**: **${activeDiet.hydrationTargetLiters || 3} Liters**
+
+---
+
+### 🍽️ Today's Meals:
+${(activeDiet.meals || []).map(m => `**${m.mealName}** *(${m.timing})*\n${m.items.map(i => `• ${i.food} — **${i.portion}**`).join('\n')}`).join('\n\n')}
+
+---
+🔄 **Smart Substitutions Available**:
+${(activeDiet.substitutionsGuide || []).slice(0, 3).map(s => `• *${s.original}* ➔ *${s.substitute}*`).join('\n')}`;
+
+        const suggestions = ['🔄 Swap a Food Item', '🌅 Tomorrow\'s Meals', '🏋️ Switch to Workout Coach'];
+        structuredAction.type = 'UPDATE_NUTRITION';
+        structuredAction.diet = activeDiet;
+        structuredAction.suggestions = suggestions;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+    }
+
+    // =====================================================================
+    // WORKOUT COACH DIET REFERRAL & CROSS-LINKING
+    // =====================================================================
+    const isMatchingDietRequest = /view matching diet|matching diet/i.test(raw);
+    if (isMatchingDietRequest) {
+      const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.activeSavedPlan?.diet || dietBuilder.generateDietPlan({ userProfile: effectiveProfile, preferences });
+      responseContent = `🥗 **Nutrition Protocol Aligned with Your Workout Plan**
+
+Here are the target daily macros calculated for your program:
+- 🔥 **Target Calories**: **${activeDiet.actualTotals?.totalDailyCalories || 2000} kcal/day**
+- 🥩 **Protein Target**: **${activeDiet.actualTotals?.totalProtein || 140}g** *(Muscle recovery)*
+- 🍚 **Carbs Target**: **${activeDiet.actualTotals?.totalCarbs || 220}g** *(Workout fuel)*
+- 🥑 **Fats Target**: **${activeDiet.actualTotals?.totalFat || 60}g** *(Hormone support)*
+- 💧 **Hydration**: **${activeDiet.hydrationTargetLiters || 3} Liters**
+
+### 🍽️ Meal Structure:
+${(activeDiet.meals || []).map(m => `**${m.mealName}**: ${m.items.map(i => `${i.food} (${i.portion})`).join(', ')}`).join('\n')}
+
+💡 *To swap ingredients, adjust calories, or customize meals, tap below to chat with your **AI Nutritionist**!*`;
+
+      const suggestions = ['🥗 Open AI Nutritionist', '🚀 Open in AI Trainer', '⚡ Today\'s Workout'];
+      structuredAction.type = 'VIEW_DIET';
+      structuredAction.diet = activeDiet;
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = 'Displayed matching diet for active workout plan.';
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+    }
+
+    const isPureDietQuestion = (intent === INTENTS.GENERATE_DIET || intent === INTENTS.MODIFY_DIET || /\b(?:diet plan|meal plan|what should i eat|my macros|food replacement)\b/i.test(raw)) && !/\b(?:workout|exercise|routine|bench|pushup|sprint|squat)\b/i.test(raw);
+    if (isPureDietQuestion) {
+      responseContent = `For meal planning, macro tracking, and food substitutions, your dedicated **AI Nutritionist** is ready to help! 🥗
+
+Tap below to switch to your AI Nutritionist, or ask me any training and workout questions.`;
+      const suggestions = ['🥗 Switch to AI Nutritionist', '🏋️ Build Workout Plan', '⚡ Today\'s Workout'];
+      structuredAction.type = 'SWITCH_TO_NUTRITIONIST';
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = 'Referred pure diet query to AI Nutritionist.';
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+    }
 
     // =====================================================================
     // STEP A: DYNAMIC CLARIFICATION LOOP (If critical info is missing)
@@ -352,12 +493,14 @@ To program the right training volume, split, and progressive overload for you:
       (/\b(?:\d+\s*(?:weeks?|months?|years?)|2 weeks|1 month|2 months|3 months|6 months|1 year)\b/i.test(raw) && (history || []).length > 0) ||
       (/\b(?:full gym|dumbbells?|bodyweight)\b/i.test(raw) && (history || []).length > 0);
 
-    const wantsFullPlan = isAskingAboutDetails || isInIntakeFlow ||
+    const isDietAction = isMatchingDietRequest || isPureDietQuestion || /matching diet|view diet|my diet|what should i eat|food/i.test(raw);
+
+    const wantsFullPlan = !isDietAction && (isAskingAboutDetails || isInIntakeFlow ||
       /(?:generate|build|create|make|give|suggest|start|want|need)\s+.*?(?:workout|exercise|excercice|routine|plan|program)/i.test(raw) ||
       /(?:workout|exercise|excercice|routine|program)\s+(?:plan|for|banana|chahiye|de|do)/i.test(raw) ||
       /\b(?:workout\s*plan|exercise\s*plan|excercice\s*plan|new\s*plan|make\s*a\s*plan|build\s*a\s*plan)\b/i.test(raw) ||
       (/\b(?:losing\s*weight|weight\s*loss|weight\s*lost|lose\s*weight|build\s*muscle|body\s*development)\b/i.test(raw) && /\b(?:plan|routine|program|month|weeks?|generate|start|excercice|exercise)\b/i.test(raw)) ||
-      (intent === INTENTS.GENERATE_WORKOUT && !text.includes('today') && !text.includes('aaj'));
+      (intent === INTENTS.GENERATE_WORKOUT && !text.includes('today') && !text.includes('aaj')));
 
     if (wantsFullPlan) {
       const intakeState = extractIntakeState(raw, history, effectiveProfile);
@@ -367,6 +510,7 @@ To program the right training volume, split, and progressive overload for you:
 
 1. 🎯 **Your Goal** (e.g. Lose Weight, Build Muscle)
 2. ⏱️ **Plan Duration** (e.g. 2 Weeks, 1 Month, 3 Months, 6 Months)
+3. 🚀 **Start Date** (e.g. Today, Tomorrow, Next Monday)
 
 Let's get started! **What is your primary fitness goal?**`;
         const suggestions = ['🔥 Lose Weight', '💪 Build Muscle', '⚡ Gain Strength', '🏃 Improve Stamina', '✨ General Fitness'];
@@ -405,6 +549,19 @@ Let's get started! **What is your primary fitness goal?**`;
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };
       }
 
+      // Step 3: Start Schedule (When would you like to start training?)
+      if (!intakeState.startSchedule && !/(?:today|tomorrow|monday|next monday)/i.test(raw)) {
+        const durationInfo = parsePlanDuration(intakeState.duration);
+        responseContent = `Awesome! We're setting up your **${durationInfo.label} ${intakeState.goal}** program. 🏋️‍♂️
+
+**When would you like to start your training?**`;
+        const suggestions = ['🚀 Today', '🌅 Tomorrow', '📅 Next Monday'];
+        structuredAction.type = 'PLAN_QUESTIONNAIRE';
+        structuredAction.step = 'schedule';
+        structuredAction.suggestions = suggestions;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
       // Final resolved parameters
       const finalDays = intakeState.days || effectiveProfile.trainingDaysPerWeek || (effectiveProfile.fitnessLevel === 'Advanced' ? 5 : 4);
       const finalEquip = intakeState.equipment || effectiveProfile.equipmentAccess || 'Full Gym';
@@ -416,6 +573,7 @@ Let's get started! **What is your primary fitness goal?**`;
         mainGoalArea: intakeState.goal,
         primaryGoal: intakeState.goal,
         planDuration: durationInfo.label,
+        startSchedule: intakeState.startSchedule || 'Today',
         trainingDaysPerWeek: finalDays,
         daysPerWeek: finalDays,
         equipmentAccess: finalEquip
@@ -427,6 +585,7 @@ Let's get started! **What is your primary fitness goal?**`;
 ### 📋 Program Summary:
 - 🎯 **Primary Goal**: ${intakeState.goal}
 - ⏱️ **Duration**: ${durationInfo.label} (${durationInfo.totalWeeks} Weeks / ${durationInfo.totalDays} Days)
+- 🚀 **Start Date**: ${intakeState.startSchedule || 'Today'}
 - 📅 **Schedule**: ${finalDays} Days per Week
 - 🏋️ **Equipment**: ${finalEquip}
 - 🥗 **Target Nutrition**: ${plan.structuredDiet?.actualTotals?.totalDailyCalories || 2000} kcal / day
@@ -1451,7 +1610,6 @@ ${session.cooldown.cooldownExercises.map(c => `• **${c.name}** — ${c.duratio
     // =====================================================================
     // STEP K: GENERAL CONVERSATION, GREETING & GUIDANCE
     // =====================================================================
-    const athleteName = effectiveProfile.name || effectiveProfile.userName || 'Athlete';
     const profileGoal = effectiveProfile.primaryGoal || effectiveProfile.mainGoalArea || 'General Fitness';
     const profileLevel = effectiveProfile.fitnessLevel || 'Beginner';
     const profileEquip = effectiveProfile.equipmentAccess || 'Full Gym';
@@ -1460,23 +1618,20 @@ ${session.cooldown.cooldownExercises.map(c => `• **${c.name}** — ${c.duratio
       text.startsWith('hi ') || text.startsWith('hello ') || text.startsWith('hey ') || (history || []).length === 0;
 
     if (isGreeting) {
-      const suggestions = ['🏋️ Generate My Workout Plan', '🥗 Custom Diet Plan', '⚡ Quick 20-Min Workout', '📊 View My Progress'];
-      responseContent = `Hi **${athleteName}**! 👋 Ready to train today?
+      const suggestions = ['🏋️ Build Workout Plan', '⚡ Today\'s Workout', '🥗 Open AI Nutritionist', '📊 View My Progress'];
+      responseContent = `Hi **${athleteName}**! 👋 What are we training today?
 
-📋 **Profile Snapshot**:
-• Goal: **${profileGoal}** | Level: **${profileLevel}** | Equipment: **${profileEquip}**
-
-What would you like to do? Choose an option below or message me anytime!`;
+I can design your customized workout program, adapt today's exercises, or check your recovery.`;
       structuredAction.type = 'GREETING';
-      structuredAction.explanation = 'Concise greeting with profile snapshot.';
+      structuredAction.explanation = 'Concise greeting.';
       structuredAction.suggestions = suggestions;
       return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }
 
     // Smart conversational guidance
-    const suggestions = ['🏋️ Build a Workout Plan', '🥗 Custom Diet Plan', '⚡ Quick 20-Min Workout', '💬 Ask a Question'];
-    responseContent = `I'm here to assist with your workout routines, nutrition, and recovery.
-What would you like to work on? Choose a quick option below:`;
+    const suggestions = ['🏋️ Build Workout Plan', '⚡ Today\'s Workout', '🥗 Open AI Nutritionist', '💬 Ask a Question'];
+    responseContent = `I'm here to coach your training, splits, and workout routines.
+What would you like to work on today?`;
     structuredAction.type = 'GUIDANCE';
     structuredAction.explanation = 'Concise actionable guidance.';
     structuredAction.suggestions = suggestions;

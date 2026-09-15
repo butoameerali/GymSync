@@ -4,15 +4,17 @@ import Complaint from '../models/Complaint.js';
 import { executeCoachPipeline } from './aiController.js';
 import { isValidObjectId } from '../utils/validation.js';
 
-// 'AI Trainer' and 'Gym Support' are virtual system contacts — no User document exists
+// 'AI Workout Coach', 'AI Nutritionist', 'AI Trainer', and 'Gym Support' are virtual system contacts — no User document exists
 // for them. registerUser() blocks real accounts from claiming these names (see
-// authController.js), so name-matching is safe ONLY for these two reserved identities.
-const SYSTEM_CONTACTS = new Set(['AI Trainer', 'Gym Support']);
+// authController.js), so name-matching is safe ONLY for these reserved identities.
+const SYSTEM_CONTACTS = new Set(['AI Workout Coach', 'AI Nutritionist', 'AI Trainer', 'Gym Support']);
 
 const normalizeContact = (c) => {
   if (!c) return '';
-  if (c.toLowerCase() === 'ai' || c === 'AI Trainer') return 'AI Trainer';
-  if (c.toLowerCase() === 'gym' || c === 'Gym Support') return 'Gym Support';
+  const lower = String(c).toLowerCase().trim();
+  if (lower === 'ai' || lower === 'ai trainer' || lower === 'ai workout coach' || lower === 'workout coach') return 'AI Workout Coach';
+  if (lower === 'diet_ai' || lower === 'ai nutritionist' || lower === 'diet coach' || lower === 'nutritionist' || lower === 'diet ai') return 'AI Nutritionist';
+  if (lower === 'gym' || lower === 'gym support') return 'Gym Support';
   return c;
 };
 
@@ -40,12 +42,15 @@ const resolveParticipant = async (identifier) => {
 // Falls back to name matching only for system contacts, or legacy rows / unresolvable
 // users where an id genuinely isn't available.
 const oneWay = (from, to) => {
+  const fromNames = from.name === 'AI Workout Coach' ? ['AI Workout Coach', 'AI Trainer'] : [from.name];
+  const toNames = to.name === 'AI Workout Coach' ? ['AI Workout Coach', 'AI Trainer'] : [to.name];
+
   const senderClause = from.id
-    ? { $or: [{ senderId: from.id }, { sender: from.name, senderId: null }] }
-    : { sender: from.name };
+    ? { $or: [{ senderId: from.id }, { sender: { $in: fromNames }, senderId: null }] }
+    : { sender: { $in: fromNames } };
   const receiverClause = to.id
-    ? { $or: [{ receiverId: to.id }, { receiver: to.name, receiverId: null }] }
-    : { receiver: to.name };
+    ? { $or: [{ receiverId: to.id }, { receiver: { $in: toNames }, receiverId: null }] }
+    : { receiver: { $in: toNames } };
   return { $and: [senderClause, receiverClause] };
 };
 
@@ -252,13 +257,26 @@ export const getConversations = async (req, res) => {
       }
     }
 
-    // Ensure AI Trainer is permanently visible on the messages page
-    if (!conversationMap.has('AI Trainer')) {
-      conversationMap.set('AI Trainer', {
-        id: 'AI Trainer',
-        name: 'AI Trainer',
-        role: 'AI Coach',
-        lastMessage: 'Tap to start your adaptive training session.',
+    // Ensure AI Workout Coach is permanently visible on the messages page
+    if (!conversationMap.has('AI Workout Coach') && !conversationMap.has('AI Trainer')) {
+      conversationMap.set('AI Workout Coach', {
+        id: 'AI Workout Coach',
+        name: 'AI Workout Coach',
+        role: 'Personal Trainer',
+        lastMessage: 'Ready to train? Tap to start your workout routine.',
+        lastMessageTime: new Date(),
+        isRead: true,
+        unreadCount: 0
+      });
+    }
+
+    // Ensure AI Nutritionist is permanently visible on the messages page
+    if (!conversationMap.has('AI Nutritionist')) {
+      conversationMap.set('AI Nutritionist', {
+        id: 'AI Nutritionist',
+        name: 'AI Nutritionist',
+        role: 'Clinical Diet & Meal Planner',
+        lastMessage: 'Tap to check today\'s meals, macros, or swap foods.',
         lastMessageTime: new Date(),
         isRead: true,
         unreadCount: 0
@@ -298,32 +316,38 @@ export const sendMessage = async (req, res) => {
 
   const rawText = text.trim();
   const normalizedReceiver = normalizeContact(receiver);
-  const isAi = normalizedReceiver === 'AI Trainer';
+  const isNutritionist = normalizedReceiver === 'AI Nutritionist';
+  const isWorkoutCoach = normalizedReceiver === 'AI Workout Coach' || normalizedReceiver === 'AI Trainer';
+  const isAi = isWorkoutCoach || isNutritionist;
   const isGymSupport = normalizedReceiver === 'Gym Support';
 
   try {
     if (isAi) {
+      const assistantPersona = isNutritionist ? 'nutritionist' : 'workout_coach';
+      const targetSystemName = isNutritionist ? 'AI Nutritionist' : 'AI Workout Coach';
+      const queryNames = isNutritionist ? ['AI Nutritionist'] : ['AI Workout Coach', 'AI Trainer'];
+
       // Fetch recent history before saving new turn
       const pastMessages = await Message.find({
         $or: [
-          { senderId: req.user?._id || null, receiver: 'AI Trainer' },
-          { sender: 'AI Trainer', receiverId: req.user?._id || null },
-          { sender: sender, receiver: 'AI Trainer' },
-          { sender: 'AI Trainer', receiver: sender }
+          { senderId: req.user?._id || null, receiver: { $in: queryNames } },
+          { sender: { $in: queryNames }, receiverId: req.user?._id || null },
+          { sender: sender, receiver: { $in: queryNames } },
+          { sender: { $in: queryNames }, receiver: sender }
         ]
       }).sort({ createdAt: -1 }).limit(12).lean();
 
       pastMessages.reverse();
 
       const historyFormatted = pastMessages.map(m => ({
-        role: m.sender === 'AI Trainer' ? 'assistant' : 'user',
+        role: queryNames.includes(m.sender) ? 'assistant' : 'user',
         content: m.text
       }));
 
       const userMessage = await Message.create({
         sender,
         senderId: req.user?._id || null,
-        receiver: 'AI Trainer',
+        receiver: targetSystemName,
         text: rawText,
         isRead: true
       });
@@ -337,6 +361,7 @@ export const sendMessage = async (req, res) => {
       const aiResult = await executeCoachPipeline({
         userId: req.user?._id || null,
         message: rawText,
+        assistantPersona,
         userContext: mergedContext,
         history: historyFormatted,
         currentPlan,
@@ -346,7 +371,7 @@ export const sendMessage = async (req, res) => {
       const suggestions = aiResult.suggestions || aiResult.structuredAction?.suggestions || [];
 
       const aiMessage = await Message.create({
-        sender: 'AI Trainer',
+        sender: targetSystemName,
         receiver: sender,
         receiverId: req.user?._id || null,
         text: aiResult.content,

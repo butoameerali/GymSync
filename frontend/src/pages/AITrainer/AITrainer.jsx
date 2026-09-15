@@ -15,6 +15,7 @@ import './AITrainer.css';
 const ExerciseLibrary = lazy(() => import('../../components/trainee/ExerciseLibrary'));
 const ProgramCatalogue = lazy(() => import('../../components/trainee/ProgramCatalogue'));
 const DietCatalogue = lazy(() => import('../../components/trainee/DietCatalogue'));
+const MyAIDietHub = lazy(() => import('./MyAIDietHub'));
 const LearnArticles = lazy(() => import('../../components/trainee/LearnArticles'));
 
 const AITrainer = () => {
@@ -987,7 +988,7 @@ const AITrainer = () => {
             className={`tab-btn ${activeMode === 'diets' ? 'active' : ''}`}
             onClick={() => { setActiveMode('diets'); setCurrentExercise(null); }}
           >
-            <Utensils size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> Diet Plans
+            <Utensils size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> My Diet Plan
           </button>
           <button
             className={`tab-btn ${activeMode === 'learn' ? 'active' : ''}`}
@@ -1057,10 +1058,10 @@ const AITrainer = () => {
           />
         )}
 
-        {/* ── DIETS MODE ────────────────────────────────────────────────── */}
+        {/* ── DIETS MODE (MY AI DIET HUB) ─────────────────────────── */}
         {activeMode === 'diets' && !currentExercise && (
           <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading nutrition protocols...</div>}>
-            <DietCatalogue />
+            <MyAIDietHub aiPlan={aiPlan} />
           </Suspense>
         )}
 

@@ -7,14 +7,20 @@ import UserAvatar from '../common/UserAvatar';
 import './GlobalChat.css';
 
 const SYSTEM_CONTACTS = [
-  { id: 'ai', name: 'AI Trainer', role: 'Personal Coach', avatar: '🤖', isSystem: true, isPremium: true },
+  { id: 'ai', name: 'AI Workout Coach', role: 'Personal Coach', avatar: '🏋️', isSystem: true, isPremium: true, persona: 'workout_coach' },
+  { id: 'diet_ai', name: 'AI Nutritionist', role: 'Sports Nutritionist', avatar: '🥗', isSystem: true, isPremium: true, persona: 'nutritionist' },
   { id: 'gym', name: 'Gym Support', role: 'Platform Support', avatar: '🏢', isSystem: true, isPremium: false }
 ];
 
 const SYSTEM_IDENTIFIERS = new Set([
   'ai',
+  'diet_ai',
   'gym',
   'ai trainer',
+  'ai workout coach',
+  'workout coach',
+  'ai nutritionist',
+  'nutritionist',
   'gym support',
   'iron core support',
   'support team',
@@ -50,6 +56,27 @@ const GlobalChat = () => {
     scrollToBottom();
   }, [messages, activeContact]);
 
+  const getWelcomeMessage = (contactId) => {
+    if (contactId === 'diet_ai') {
+      return {
+        id: 'diet-ai-welcome',
+        text: `Hi **${userName || 'Athlete'}**! 👋 I'm your **AI Nutritionist**.\n\nI calculate your daily macros, optimize your meal plans, and provide smart food substitutions. What would you like to fuel today?`,
+        sender: 'other',
+        timestamp: new Date().toISOString(),
+        suggestions: ['🥗 Today\'s Meals', '🌅 Tomorrow\'s Meals', '🍎 Swap a Food Item', '🎯 Check Daily Macros'],
+        structuredAction: { type: 'GREETING', persona: 'nutritionist' }
+      };
+    }
+    return {
+      id: 'ai-welcome',
+      text: `Hi **${userName || 'Athlete'}**! 👋 I'm your **AI Workout Coach**.\n\nReady to train? I can build your periodized workout routine, adapt today's exercises, or check your recovery.`,
+      sender: 'other',
+      timestamp: new Date().toISOString(),
+      suggestions: ['🏋️ Build Workout Plan', '⚡ Today\'s Workout', '🥗 Open AI Nutritionist', '📊 View Progress'],
+      structuredAction: { type: 'GREETING' }
+    };
+  };
+
   const fetchConversation = async (contactId) => {
     try {
       const token = localStorage.getItem('gymsync_token') || '';
@@ -57,19 +84,10 @@ const GlobalChat = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) {
-        if (contactId === 'ai') {
+        if (contactId === 'ai' || contactId === 'diet_ai') {
           setMessages(prev => ({
             ...prev,
-            [contactId]: [
-              {
-                id: 'ai-welcome',
-                text: `Hello ${userName || 'Athlete'}! 👋 I am your GymSync AI Lead Coach.\n\nYour profile is active. I can assist you with:\n\n🏋️ Goal-driven workout programs (Hypertrophy, Strength, Cricket, Running)\n🥗 Verified nutrition templates tailored to your macros\n📖 Expert technique guides from certified Fitness Instructors\n\nHow are you feeling today, and what would you like to work on?`,
-                sender: 'other',
-                timestamp: new Date().toISOString(),
-                suggestions: ['🏋️ Generate Workout', '🥗 Custom Diet', '⚡ 20-Min Workout', '📊 View Progress'],
-                structuredAction: { type: 'GREETING' }
-              }
-            ]
+            [contactId]: [getWelcomeMessage(contactId)]
           }));
         }
         return;
@@ -86,15 +104,8 @@ const GlobalChat = () => {
         structuredAction: msg.structuredAction || null
       }));
 
-      if (formattedMessages.length === 0 && contactId === 'ai') {
-        formattedMessages.push({
-          id: 'ai-welcome',
-          text: `Hello ${userName || 'Athlete'}! 👋 I am your GymSync AI Lead Coach.\n\nYour profile is active. I can assist you with:\n\n🏋️ Goal-driven workout programs (Hypertrophy, Strength, Cricket, Running)\n🥗 Verified nutrition templates tailored to your macros\n📖 Expert technique guides from certified Fitness Instructors\n\nHow are you feeling today, and what would you like to work on?`,
-          sender: 'other',
-          timestamp: new Date().toISOString(),
-          suggestions: ['🏋️ Generate Workout', '🥗 Custom Diet', '⚡ 20-Min Workout', '📊 View Progress'],
-          structuredAction: { type: 'GREETING' }
-        });
+      if (formattedMessages.length === 0 && (contactId === 'ai' || contactId === 'diet_ai')) {
+        formattedMessages.push(getWelcomeMessage(contactId));
       }
 
       setMessages(prev => ({
@@ -103,19 +114,10 @@ const GlobalChat = () => {
       }));
     } catch (err) {
       console.error("fetchConversation error:", err);
-      if (contactId === 'ai') {
+      if (contactId === 'ai' || contactId === 'diet_ai') {
         setMessages(prev => ({
           ...prev,
-          [contactId]: [
-            {
-              id: 'ai-welcome',
-              text: `Hello ${userName || 'Athlete'}! 👋 I am your GymSync AI Lead Coach.\n\nYour profile is active. I can assist you with:\n\n🏋️ Goal-driven workout programs (Hypertrophy, Strength, Cricket, Running)\n🥗 Verified nutrition templates tailored to your macros\n📖 Expert technique guides from certified Fitness Instructors\n\nHow are you feeling today, and what would you like to work on?`,
-              sender: 'other',
-              timestamp: new Date().toISOString(),
-              suggestions: ['🏋️ Generate Workout', '🥗 Custom Diet', '⚡ 20-Min Workout', '📊 View Progress'],
-              structuredAction: { type: 'GREETING' }
-            }
-          ]
+          [contactId]: [getWelcomeMessage(contactId)]
         }));
       }
     }
@@ -124,10 +126,12 @@ const GlobalChat = () => {
   const handleContactClick = (contact) => {
     let effectiveContact = contact;
     const lower = (contact.name || contact.id || '').toLowerCase().trim();
-    if (lower === 'ai' || lower === 'ai trainer') {
+    if (lower === 'ai' || lower === 'ai trainer' || lower === 'ai workout coach' || lower === 'workout coach') {
       effectiveContact = SYSTEM_CONTACTS[0];
-    } else if (lower === 'gym' || lower === 'gym support' || lower === 'iron core support' || lower === 'support team' || lower === 'support') {
+    } else if (lower === 'diet_ai' || lower === 'ai nutritionist' || lower === 'nutritionist') {
       effectiveContact = SYSTEM_CONTACTS[1];
+    } else if (lower === 'gym' || lower === 'gym support' || lower === 'iron core support' || lower === 'support team' || lower === 'support') {
+      effectiveContact = SYSTEM_CONTACTS[2];
     }
     setActiveContact(effectiveContact);
     if (!messages[effectiveContact.id]) {
@@ -319,14 +323,28 @@ const GlobalChat = () => {
       });
     };
 
+    const handleOpenNutritionist = (e) => {
+      setIsOpen(true);
+      handleContactClick(SYSTEM_CONTACTS[1]);
+      const initial = e?.detail?.initialMessage || e?.detail?.command;
+      if (initial) {
+        setInput(initial);
+      }
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 150);
+    };
+
     window.addEventListener('open_chat', handleOpenChat);
     window.addEventListener('gymsync_open_coach', handleOpenCoach);
     window.addEventListener('gymsync_open_coach_command', handleOpenCoach);
+    window.addEventListener('gymsync_open_nutritionist', handleOpenNutritionist);
 
     return () => {
       window.removeEventListener('open_chat', handleOpenChat);
       window.removeEventListener('gymsync_open_coach', handleOpenCoach);
       window.removeEventListener('gymsync_open_coach_command', handleOpenCoach);
+      window.removeEventListener('gymsync_open_nutritionist', handleOpenNutritionist);
     };
   }, []);
 
@@ -354,7 +372,8 @@ const GlobalChat = () => {
       [activeContact.id]: [...(prev[activeContact.id] || []), newMsg]
     }));
 
-    if (activeContact.id === 'ai') {
+    const isAI = activeContact.id === 'ai' || activeContact.id === 'diet_ai';
+    if (isAI) {
       const userContext = {
         primaryGoal: localStorage.getItem('gymsync_onboarding_primaryGoal') || 'General Fitness',
         gender: localStorage.getItem('gymsync_onboarding_gender') || 'Unspecified',
@@ -364,6 +383,9 @@ const GlobalChat = () => {
 
       try {
         const token = localStorage.getItem('gymsync_token') || localStorage.getItem('token') || '';
+        const receiver = activeContact.id === 'diet_ai' ? 'AI Nutritionist' : 'AI Workout Coach';
+        const persona = activeContact.persona || (activeContact.id === 'diet_ai' ? 'nutritionist' : 'workout_coach');
+
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
@@ -372,8 +394,9 @@ const GlobalChat = () => {
           },
           body: JSON.stringify({
             sender: userName,
-            receiver: 'AI Trainer',
+            receiver,
             text: trimmed,
+            assistantPersona: persona,
             userContext
           })
         });
@@ -521,6 +544,15 @@ const GlobalChat = () => {
   };
 
   const handleSuggestionClick = async (sugText) => {
+    const lower = (sugText || '').toLowerCase();
+    if (lower.includes('switch to ai nutritionist') || lower.includes('open ai nutritionist') || lower.includes('talk to ai nutritionist') || lower.includes('switch to nutritionist')) {
+      handleContactClick(SYSTEM_CONTACTS[1]);
+      return;
+    }
+    if (lower.includes('switch to ai workout coach') || lower.includes('open ai workout coach') || lower.includes('talk to ai workout coach') || lower.includes('switch to workout coach')) {
+      handleContactClick(SYSTEM_CONTACTS[0]);
+      return;
+    }
     await sendMessageText(sugText);
   };
 
@@ -713,15 +745,35 @@ const GlobalChat = () => {
                 {(messages[activeContact.id] || []).map((msg, idx) => (
                   <div key={idx} className={`chat-message-group ${msg.sender === 'user' ? 'outgoing' : 'incoming'}`} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start', margin: '4px 0' }}>
                     <div className={`chat-bubble ${msg.sender === 'user' ? 'outgoing' : 'incoming'}`}>
-                      {activeContact.id === 'ai' && msg.sender === 'other' ? (
+                      {(activeContact.id === 'ai' || activeContact.id === 'diet_ai') && msg.sender === 'other' ? (
                         <ReactMarkdown>{msg.text}</ReactMarkdown>
                       ) : (
                         msg.text
                       )}
                     </div>
 
+                    {/* SWITCH_TO_NUTRITIONIST Action Card */}
+                    {msg.structuredAction?.type === 'SWITCH_TO_NUTRITIONIST' && (
+                      <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#34d399' }}>🥗 Sports Nutritionist Available</span>
+                        <button type="button" onClick={() => handleContactClick(SYSTEM_CONTACTS[1])} style={{ padding: '7px 14px', borderRadius: '8px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', fontWeight: 700, fontSize: '0.8rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-start' }}>
+                          🥗 Open AI Nutritionist
+                        </button>
+                      </div>
+                    )}
+
+                    {/* SWITCH_TO_WORKOUT_COACH Action Card */}
+                    {msg.structuredAction?.type === 'SWITCH_TO_WORKOUT_COACH' && (
+                      <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#60a5fa' }}>🏋️ Workout Coach Available</span>
+                        <button type="button" onClick={() => handleContactClick(SYSTEM_CONTACTS[0])} style={{ padding: '7px 14px', borderRadius: '8px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', fontWeight: 700, fontSize: '0.8rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-start' }}>
+                          🏋️ Open AI Workout Coach
+                        </button>
+                      </div>
+                    )}
+
                     {/* Plan Action Card */}
-                    {activeContact.id === 'ai' && msg.structuredAction?.plan && (
+                    {(activeContact.id === 'ai' || activeContact.id === 'diet_ai') && msg.structuredAction?.plan && (
                       <div
                         className="ai-plan-action-card"
                         style={{
@@ -933,20 +985,22 @@ const GlobalChat = () => {
                     )}
 
                     {/* MINI-COACH QUESTIONNAIRE INTERVIEW CARD (Issue 2) */}
-                    {activeContact.id === 'ai' && msg.structuredAction?.type === 'PLAN_QUESTIONNAIRE' && (
+                    {(activeContact.id === 'ai' || activeContact.id === 'diet_ai') && msg.structuredAction?.type === 'PLAN_QUESTIONNAIRE' && (
                       <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(30,41,59,0.98) 0%, rgba(15,23,42,0.98) 100%)', border: '1px solid rgba(59,130,246,0.35)', maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Target size={15} color="#3b82f6" />
-                            {msg.structuredAction.step === 'goal' ? 'Mini-Coach • Step 1: Target Goal' : 'Mini-Coach • Step 2: Duration'}
+                            {msg.structuredAction.step === 'goal' ? 'Mini-Coach • Step 1: Target Goal' : msg.structuredAction.step === 'schedule' ? 'Mini-Coach • Step 3: Start Schedule' : 'Mini-Coach • Step 2: Duration'}
                           </span>
                           <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>
-                            {msg.structuredAction.step === 'goal' ? '1 of 2' : '2 of 2'}
+                            {msg.structuredAction.step === 'goal' ? '1 of 3' : msg.structuredAction.step === 'duration' ? '2 of 3' : '3 of 3'}
                           </span>
                         </div>
                         <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                           {msg.structuredAction.step === 'goal'
                             ? 'Select your primary objective to calibrate sets, reps, and energy burn:'
+                            : msg.structuredAction.step === 'schedule'
+                            ? 'When would you like to start your training program?'
                             : 'Select how many weeks or months your periodized cycle should run:'}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

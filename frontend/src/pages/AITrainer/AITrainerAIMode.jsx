@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bot,
   CheckCircle,
@@ -103,6 +103,18 @@ const AITrainerAIMode = ({
   const [completedGoalGroup, setCompletedGoalGroup] = useState(null); // Part 19
   const [showNextGoalPrompt, setShowNextGoalPrompt] = useState(false); // Part 20
   const [activeCoachTick, setActiveCoachTick] = useState(null);
+  const [activeWeek, setActiveWeek] = useState(1);
+
+  useEffect(() => {
+    if (aiPlan?.interactive_calendar?.length) {
+      const currentDay = aiPlan.interactive_calendar.find(d => getDayScheduleInfo(d).isToday) ||
+        aiPlan.interactive_calendar.find(d => d.isWorkoutDay && !(workoutProgress?.completedDays || []).includes(d.dayNumber));
+      if (currentDay) {
+        const w = currentDay.weekNumber || Math.ceil(currentDay.dayNumber / 7);
+        if (w) setActiveWeek(w);
+      }
+    }
+  }, [aiPlan, workoutProgress?.completedDays]);
 
   const triggerOpenCoach = (sourceId, command = null) => {
     setActiveCoachTick(sourceId);
@@ -1154,10 +1166,147 @@ const AITrainerAIMode = ({
                 </div>
               )}
 
+              {/* ── TODAY'S WORKOUT STATION HERO ───────────────────────── */}
+              {(() => {
+                const calendarDays = aiPlan.interactive_calendar || [];
+                const todayWorkoutDay = calendarDays.find(d => getDayScheduleInfo(d).isToday) ||
+                  calendarDays.find(d => d.isWorkoutDay && !(workoutProgress?.completedDays || []).includes(d.dayNumber)) ||
+                  selectedCalendarDay ||
+                  calendarDays[0];
+
+                if (!todayWorkoutDay) return null;
+
+                const todayInfo = getDayScheduleInfo(todayWorkoutDay);
+                const todayExercises = todayWorkoutDay.exercises || todayWorkoutDay.mainWorkout || [];
+                const isTodayCompleted = todayInfo.status === 'COMPLETED' || (workoutProgress?.completedDays || []).includes(todayWorkoutDay.dayNumber);
+                const isTodayRest = !todayWorkoutDay.isWorkoutDay || todayInfo.status === 'REST';
+
+                return (
+                  <div
+                    className="today-workout-station glass-panel"
+                    style={{
+                      padding: '22px 26px',
+                      borderRadius: '16px',
+                      background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.16) 0%, rgba(37, 99, 235, 0.08) 100%)',
+                      border: '1px solid rgba(59, 130, 246, 0.45)',
+                      marginBottom: '24px',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '16px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '1.35rem' }}>🎯</span>
+                          <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: '#f8fafc' }}>
+                            Today's Workout Station
+                          </h2>
+                          <span style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '3px 10px',
+                            borderRadius: '20px',
+                            background: isTodayCompleted ? 'rgba(16, 185, 129, 0.2)' : isTodayRest ? 'rgba(255,255,255,0.1)' : 'rgba(59, 130, 246, 0.25)',
+                            color: isTodayCompleted ? '#10b981' : isTodayRest ? '#cbd5e1' : '#60a5fa',
+                            border: `1px solid ${isTodayCompleted ? '#10b981' : isTodayRest ? 'rgba(255,255,255,0.2)' : '#3b82f6'}`
+                          }}>
+                            {isTodayCompleted ? '✓ Completed' : isTodayRest ? 'Rest & Recovery' : `Day ${todayWorkoutDay.dayNumber} Ready`}
+                          </span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                          {todayWorkoutDay.phaseName || todayWorkoutDay.focus || 'Target Resistance Session'} • {todayExercises.length} {todayExercises.length === 1 ? 'Exercise' : 'Exercises'} • ~45 Mins
+                        </p>
+                      </div>
+
+                      {/* Primary Action Button */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {!isTodayRest && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCalendarDay(todayWorkoutDay);
+                              setShowMissionRunner(true);
+                            }}
+                            style={{
+                              padding: '12px 24px',
+                              borderRadius: '12px',
+                              background: isTodayCompleted
+                                ? 'linear-gradient(135deg, #10b981, #059669)'
+                                : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                              border: 'none',
+                              color: '#ffffff',
+                              fontSize: '1rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              boxShadow: isTodayCompleted ? '0 4px 18px rgba(16, 185, 129, 0.4)' : '0 4px 18px rgba(59, 130, 246, 0.4)',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <Play size={18} fill="#ffffff" />
+                            {isTodayCompleted ? 'Replay Workout' : 'Start Today\'s Workout'}
+                          </button>
+                        )}
+
+                        {isTodayRest && (
+                          <button
+                            type="button"
+                            onClick={() => triggerOpenCoach('active_recovery', 'Suggest a light mobility & stretching routine for my rest day')}
+                            style={{
+                              padding: '10px 18px',
+                              borderRadius: '10px',
+                              background: 'rgba(255,255,255,0.08)',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              color: '#f8fafc',
+                              fontSize: '0.85rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            ⚡ Light Recovery Session
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Today's Exercises Preview Pills */}
+                    {!isTodayRest && todayExercises.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '4px' }}>
+                        {todayExercises.map((ex, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              fontSize: '0.78rem',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: 'rgba(255, 255, 255, 0.04)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              color: '#e2e8f0',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <strong>{i + 1}.</strong> {ex.name || ex} {ex.sets ? `(${ex.sets}×${ex.reps})` : ''}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* ── INTERACTIVE CALENDAR & SIDE-DRAWER ──────────────────── */}
               <h3
                 style={{
-                  marginBottom: '15px',
+                  marginBottom: '8px',
                   color: '#3b82f6',
                   display: 'flex',
                   alignItems: 'center',
@@ -1166,9 +1315,8 @@ const AITrainerAIMode = ({
               >
                 📅 Interactive Workout Schedule Dashboard
               </h3>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>
-                Workouts unlock on their scheduled dates. Complete required exercises sequentially to
-                unlock daily achievements.
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '18px' }}>
+                Select any calendar day to inspect specific exercises, sets, reps, and targets.
               </p>
 
               <div
@@ -1188,6 +1336,56 @@ const AITrainerAIMode = ({
                     border: '1px solid var(--card-border)',
                   }}
                 >
+                  {/* WEEK PAGINATION CONTROLS */}
+                  {(() => {
+                    const calendarDays = aiPlan.interactive_calendar || [];
+                    const totalWeeks = Math.max(1, Math.ceil(calendarDays.length / 7));
+
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc' }}>
+                          📅 Week {activeWeek} of {totalWeeks}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            disabled={activeWeek <= 1}
+                            onClick={() => setActiveWeek(prev => Math.max(1, prev - 1))}
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: '8px',
+                              background: activeWeek <= 1 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              color: activeWeek <= 1 ? '#64748b' : '#f8fafc',
+                              cursor: activeWeek <= 1 ? 'not-allowed' : 'pointer',
+                              fontSize: '0.78rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            ← Prev Week
+                          </button>
+                          <button
+                            type="button"
+                            disabled={activeWeek >= totalWeeks}
+                            onClick={() => setActiveWeek(prev => Math.min(totalWeeks, prev + 1))}
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: '8px',
+                              background: activeWeek >= totalWeeks ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              color: activeWeek >= totalWeeks ? '#64748b' : '#f8fafc',
+                              cursor: activeWeek >= totalWeeks ? 'not-allowed' : 'pointer',
+                              fontSize: '0.78rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            Next Week →
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div
                     style={{
                       display: 'grid',
@@ -1210,10 +1408,17 @@ const AITrainerAIMode = ({
                       </div>
                     ))}
 
-                    {(aiPlan.interactive_calendar || []).map((dayItem) => {
-                      const isSelected =
-                        selectedCalendarDay?.dayNumber === dayItem.dayNumber;
-                      const { status, scheduledDate } = getDayScheduleInfo(dayItem);
+                    {(() => {
+                      const calendarDays = aiPlan.interactive_calendar || [];
+                      const weekDays = calendarDays.filter(d => {
+                        const w = d.weekNumber || Math.ceil(d.dayNumber / 7);
+                        return w === activeWeek;
+                      });
+
+                      return (weekDays.length > 0 ? weekDays : calendarDays.slice(0, 7)).map((dayItem) => {
+                        const isSelected =
+                          selectedCalendarDay?.dayNumber === dayItem.dayNumber;
+                        const { status, scheduledDate } = getDayScheduleInfo(dayItem);
 
                       let bg = 'rgba(255, 255, 255, 0.04)';
                       let border = '1px solid transparent';
@@ -1288,7 +1493,8 @@ const AITrainerAIMode = ({
                           </span>
                         </div>
                       );
-                    })}
+                    });
+                  })()}
                   </div>
 
                   <div
