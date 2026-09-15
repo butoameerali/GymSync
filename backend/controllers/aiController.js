@@ -22,6 +22,7 @@ import { computeRecoveryAdjustment } from '../services/workout/recoveryStateEngi
 import { exerciseSafetyValidator } from '../services/safety/exerciseSafetyValidator.js';
 import { goalCompletionEngine } from '../services/workout/goalCompletionEngine.js';
 import { planMergeEngine } from '../services/ai/planMergeEngine.js';
+import { lookupFoodItem, getAlternatives } from '../services/nutrition/foodSubstitutionGroups.js';
 
 // Allowed source attribution types
 export const ALLOWED_SOURCE_TYPES = ['instructor_program', 'instructor_diet', 'instructor_article', 'system_curated', 'community'];
@@ -1182,6 +1183,159 @@ export const startNextGoal = async (req, res) => {
   }
 };
 
+export const swapFoodInPlan = async (req, res) => {
+  try {
+    const { planId, mealId, originalFood, substituteFood, fromFoodItemName, toFoodItemName } = req.body;
+    const fromFood = (fromFoodItemName || originalFood || '').trim();
+    const toFood = (toFoodItemName || substituteFood || '').trim();
+
+    if (!fromFood || !toFood) {
+      return res.status(400).json({ error: 'Both original and substitute food names are required' });
+    }
+
+    let plan;
+    let isSavedAIPlan = false;
+
+    if (planId) {
+      plan = await SavedAIPlan.findOne({ _id: planId, userId: req.user._id });
+      if (plan) {
+        isSavedAIPlan = true;
+      } else {
+        plan = await UserDietPlan.findOne({ _id: planId, userId: req.user._id });
+      }
+    } else {
+      // Look up user's active SavedAIPlan with diet first
+      plan = await SavedAIPlan.findOne({ userId: req.user._id, isActive: true, 'diet.meals': { $exists: true, $not: { $size: 0 } } }).sort({ updatedAt: -1 });
+      if (plan) {
+        isSavedAIPlan = true;
+      } else {
+        plan = await SavedAIPlan.findOne({ userId: req.user._id, 'diet.meals': { $exists: true, $not: { $size: 0 } } }).sort({ updatedAt: -1 });
+        if (plan) {
+          isSavedAIPlan = true;
+        } else {
+          plan = await UserDietPlan.findOne({ userId: req.user._id }).sort({ updatedAt: -1 });
+        }
+      }
+    }
+
+    if (!plan) {
+      return res.status(404).json({ error: 'No active diet or meal plan found for user' });
+    }
+
+    let meals = isSavedAIPlan ? plan.diet?.meals : plan.meals;
+    if (!meals || !Array.isArray(meals) || meals.length === 0) {
+      return res.status(404).json({ error: 'No meals found in plan' });
+    }
+
+    let targetMeal = null;
+    let targetFoodItem = null;
+    const fromLower = fromFood.toLowerCase();
+
+    for (const m of meals) {
+      if (mealId && String(m._id) !== String(mealId) && String(m.mealNumber) !== String(mealId)) {
+        continue;
+      }
+      const items = m.foodItems || m.items || [];
+      const found = items.find(f => {
+        const name = (f.name || f.food || '').toLowerCase();
+        return name.includes(fromLower) || fromLower.includes(name);
+      });
+      if (found) {
+        targetMeal = m;
+        targetFoodItem = found;
+        break;
+      }
+    }
+
+    if (!targetMeal || !targetFoodItem) {
+      return res.status(404).json({ error: `Original food "${fromFood}" not found in meal plan` });
+    }
+
+    const replacementProfile = lookupFoodItem(toFood);
+    if (!replacementProfile) {
+      return res.status(400).json({ error: `Replacement food "${toFood}" profile not found in database` });
+    }
+
+    let multiplier = 1;
+    if (targetFoodItem.protein > 10 && replacementProfile.protein > 0) {
+      multiplier = targetFoodItem.protein / replacementProfile.protein;
+    } else if (targetFoodItem.calories && replacementProfile.calories > 0) {
+      multiplier = targetFoodItem.calories / replacementProfile.calories;
+    }
+
+    const newCalories = Math.round(replacementProfile.calories * multiplier);
+    const newProtein = Math.round(replacementProfile.protein * multiplier);
+    const newCarbs = Math.round(replacementProfile.carbs * multiplier);
+    const newFat = Math.round(replacementProfile.fat * multiplier);
+    const newQuantity = Math.round(replacementProfile.baseGrams * multiplier);
+
+    const macroDeltaKcal = newCalories - (targetFoodItem.calories || 0);
+
+    if (targetFoodItem.food !== undefined) {
+      targetFoodItem.food = replacementProfile.name;
+      targetFoodItem.portion = `${newQuantity}g`;
+    } else {
+      targetFoodItem.name = replacementProfile.name;
+      targetFoodItem.quantity = newQuantity;
+      targetFoodItem.unit = 'g';
+    }
+    targetFoodItem.calories = newCalories;
+    targetFoodItem.protein = newProtein;
+    targetFoodItem.carbs = newCarbs;
+    targetFoodItem.fat = newFat;
+
+    if (!targetMeal.substitutions) targetMeal.substitutions = [];
+    targetMeal.substitutions.push({
+      fromFoodItem: fromFood,
+      toFoodItem: replacementProfile.name,
+      appliedAt: new Date(),
+      macroDeltaKcal
+    });
+
+    const mealItems = targetMeal.foodItems || targetMeal.items || [];
+    targetMeal.calories = mealItems.reduce((sum, item) => sum + (item.calories || 0), 0);
+    targetMeal.protein = mealItems.reduce((sum, item) => sum + (item.protein || 0), 0);
+    targetMeal.carbs = mealItems.reduce((sum, item) => sum + (item.carbs || 0), 0);
+    targetMeal.fat = mealItems.reduce((sum, item) => sum + (item.fat || 0), 0);
+
+    if (targetMeal.totalCalories !== undefined) targetMeal.totalCalories = targetMeal.calories;
+    if (targetMeal.totalProtein !== undefined) targetMeal.totalProtein = targetMeal.protein;
+    if (targetMeal.totalCarbs !== undefined) targetMeal.totalCarbs = targetMeal.carbs;
+    if (targetMeal.totalFat !== undefined) targetMeal.totalFat = targetMeal.fat;
+
+    const totalCals = meals.reduce((sum, m) => sum + (m.calories || m.totalCalories || 0), 0);
+    const totalProt = meals.reduce((sum, m) => sum + (m.protein || m.totalProtein || 0), 0);
+    const totalCarb = meals.reduce((sum, m) => sum + (m.carbs || m.totalCarbs || 0), 0);
+    const totalFat = meals.reduce((sum, m) => sum + (m.fat || m.totalFat || 0), 0);
+
+    if (isSavedAIPlan) {
+      if (!plan.diet.actualTotals) plan.diet.actualTotals = {};
+      plan.diet.actualTotals.totalDailyCalories = totalCals;
+      plan.diet.actualTotals.totalProtein = totalProt;
+      plan.diet.actualTotals.totalCarbs = totalCarb;
+      plan.diet.actualTotals.totalFat = totalFat;
+      plan.markModified('diet');
+    } else {
+      plan.calories = totalCals;
+      plan.protein = totalProt;
+      plan.carbs = totalCarb;
+      plan.fat = totalFat;
+    }
+
+    await plan.save();
+
+    let message = `Swapped ${fromFood} → ${replacementProfile.name} in your meal plan.`;
+    if (newProtein < ((targetFoodItem.protein || 0) * 0.85)) {
+      message += ` To maintain your protein target, consider adding a Greek yogurt snack or a scoop of protein.`;
+    }
+
+    return res.status(200).json({ success: true, plan, message });
+  } catch (error) {
+    console.error('swapFoodInPlan Error:', error);
+    return res.status(500).json({ error: 'Failed to swap food in plan' });
+  }
+};
+
 export default {
   handleChat,
   executeCoachPipeline,
@@ -1191,5 +1345,6 @@ export default {
   handleMissedSessionResolution,
   getGoalStatus,
   completeActiveGoal,
-  startNextGoal
+  startNextGoal,
+  swapFoodInPlan
 };

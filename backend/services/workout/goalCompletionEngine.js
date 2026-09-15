@@ -151,6 +151,7 @@ export const goalCompletionEngine = {
       'MaintainWeight': { type: 'GeneralFitness', title: 'Weight Maintenance & Longevity' },
       'WeightLoss': { type: 'WeightLoss', title: 'Weight Loss & Fat Reduction' },
       'Strength': { type: 'Strength', title: 'Maximum Strength Development' },
+      'GeneralFitness': { type: 'GeneralFitness', title: 'General Fitness & Health' },
       'CustomGoal': { type: 'GeneralFitness', title: customDetails.title || 'Custom Fitness Goal' }
     };
 
@@ -158,6 +159,7 @@ export const goalCompletionEngine = {
 
     // Ensure any stale active goals are archived
     await GoalGroup.updateMany({ userId, status: 'Active' }, { status: 'Abandoned' });
+    await SavedAIPlan.updateMany({ userId, isActive: true }, { isActive: false });
 
     // Create fresh authoritative GoalGroup
     const newGoalGroup = await GoalGroup.create({
@@ -169,11 +171,41 @@ export const goalCompletionEngine = {
       targetWeightKg: customDetails.targetWeightKg || null,
       deadline: customDetails.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
       status: 'Active',
+      linkedPlanIds: [],
       weeklyTrainingLoad: {
         plannedSessionsPerWeek: customDetails.daysPerWeek || 4,
         plannedWeeklyCalorieBurn: 1500
       }
     });
+
+    // Generate starter 4-week calendar for the new goal
+    const starterDays = [
+      { dayNumber: 1, dayName: 'Monday', dayType: 'Core Movement Stimulus', exercises: [{ name: 'Push-up', sets: 3, reps: '10-12', restSec: 60 }, { name: 'Bodyweight Squat', sets: 3, reps: '12-15', restSec: 60 }] },
+      { dayNumber: 2, dayName: 'Tuesday', dayType: 'Cardiovascular Conditioning', exercises: [{ name: 'Jumping Jacks', sets: 3, reps: '45s', restSec: 45 }] },
+      { dayNumber: 3, dayName: 'Wednesday', dayType: 'Active Recovery', isRestDay: true, exercises: [] },
+      { dayNumber: 4, dayName: 'Thursday', dayType: 'Compound Strength', exercises: [{ name: 'Plank', sets: 3, reps: '30s', restSec: 45 }, { name: 'Glute Bridge', sets: 3, reps: '12', restSec: 60 }] },
+      { dayNumber: 5, dayName: 'Friday', dayType: 'Endurance & Mobility', exercises: [{ name: 'Mountain Climbers', sets: 3, reps: '30s', restSec: 45 }] },
+      { dayNumber: 6, dayName: 'Saturday', dayType: 'Active Rest', isRestDay: true, exercises: [] },
+      { dayNumber: 7, dayName: 'Sunday', dayType: 'Full Rest Day', isRestDay: true, exercises: [] }
+    ];
+
+    const newPlan = await SavedAIPlan.create({
+      userId,
+      userName: user.name,
+      title: `${targetConfig.title} (Phase 1)`,
+      goal: targetConfig.title,
+      fitnessLevel: user.bioData?.fitnessLevel || 'Intermediate',
+      calendar: starterDays,
+      workout: { interactive_calendar: starterDays },
+      diet: null,
+      isActive: true,
+      goalGroupId: newGoalGroup._id,
+      notes: `Fresh training cycle initiated for goal: ${targetConfig.title}`
+    });
+
+    // Link the new plan ID into GoalGroup
+    newGoalGroup.linkedPlanIds.push(newPlan._id);
+    await newGoalGroup.save();
 
     // Update user bioData.mainGoalArea
     if (user.bioData) {
@@ -185,7 +217,8 @@ export const goalCompletionEngine = {
     return {
       success: true,
       newGoalGroup,
-      message: `Fresh Goal established: **${newGoalGroup.title}**. Ready to generate your customized training schedule!`
+      newPlan,
+      message: `Fresh Goal established: **${newGoalGroup.title}**. Your new training schedule is activated in your **Workout Hub**!`
     };
   }
 };

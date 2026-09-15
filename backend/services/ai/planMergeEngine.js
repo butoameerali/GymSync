@@ -93,10 +93,34 @@ export const planMergeEngine = {
 
   /**
    * Build unified 7-day multi-goal weekly schedule preventing conflict
+   * Adaptively incorporates existing plan exercises if available
    */
-  generateCoordinatedSchedule({ primaryGoal, secondaryGoal, equipment = 'Full Gym' }) {
+  generateCoordinatedSchedule({ primaryGoal, secondaryGoal, equipment = 'Full Gym', existingCalendar = [] }) {
     const combinedStr = (primaryGoal + ' ' + secondaryGoal).toLowerCase();
     const isRunning = combinedStr.includes('running') || combinedStr.includes('endurance') || combinedStr.includes('stamina');
+
+    // Extract user preferred exercises from existing calendar if present
+    const existingExercises = (existingCalendar || []).flatMap(d => d.exercises || []);
+    const userUpperEx = existingExercises.filter(e => {
+      const n = (e.name || '').toLowerCase();
+      return n.includes('press') || n.includes('row') || n.includes('pull') || n.includes('curl') || n.includes('raise') || n.includes('push');
+    });
+    const userLowerEx = existingExercises.filter(e => {
+      const n = (e.name || '').toLowerCase();
+      return n.includes('squat') || n.includes('deadlift') || n.includes('lunge') || n.includes('leg') || n.includes('calf');
+    });
+
+    const upper1 = userUpperEx.length >= 3 ? userUpperEx.slice(0, 3) : [
+      { name: 'Barbell Bench Press', sets: 3, reps: '8-10', rpe: '7.5', restSec: 90 },
+      { name: 'Bent-Over Barbell Row', sets: 3, reps: '8-10', rpe: '7.5', restSec: 90 },
+      { name: 'Dumbbell Lateral Raise', sets: 3, reps: '12', rpe: '7', restSec: 60 }
+    ];
+
+    const lower1 = userLowerEx.length >= 3 ? userLowerEx.slice(0, 3) : [
+      { name: 'Barbell Back Squat', sets: 3, reps: '6-8', rpe: '8', restSec: 120 },
+      { name: 'Romanian Deadlift', sets: 3, reps: '8-10', rpe: '7.5', restSec: 90 },
+      { name: 'Standing Calf Raise', sets: 3, reps: '15', rpe: '8', restSec: 60 }
+    ];
 
     if (isRunning) {
       // Rule: Never schedule high-intensity sprint or leg day on consecutive days
@@ -108,9 +132,7 @@ export const planMergeEngine = {
           dayType: 'Upper Body Strength + Easy Aerobic Run',
           focus: 'Push/Pull Resistance & Aerobic Base',
           exercises: [
-            { name: 'Barbell Bench Press', sets: 3, reps: '8-10', rpe: '7.5', restSec: 90 },
-            { name: 'Bent-Over Barbell Row', sets: 3, reps: '8-10', rpe: '7.5', restSec: 90 },
-            { name: 'Dumbbell Lateral Raise', sets: 3, reps: '12', rpe: '7', restSec: 60 },
+            ...upper1.map(e => ({ ...e, sets: Math.min(e.sets || 3, 3) })),
             { name: 'Zone 2 Easy Run', sets: 1, reps: '20 mins', rpe: '5', restSec: 0, notes: 'Conversational pace recovery run' }
           ],
           recoveryNotes: 'Upper body fatigue does not impair tomorrow lower body stability.'
@@ -263,7 +285,7 @@ export const planMergeEngine = {
   async mergePlans({ existingPlan, newGoalRequest, userId, userProfile = {} }) {
     const primaryGoal = existingPlan?.goal || 'Muscle Building';
     const secondaryGoal = newGoalRequest?.mainGoalArea || newGoalRequest?.goal || 'Endurance';
-    const combinedGoalTitle = `${primaryGoal} & ${secondaryGoal}`;
+    const combinedGoalTitle = `${primaryGoal} + ${secondaryGoal}`;
 
     const bodyWeightKg = userProfile.weight || 70;
     const heightCm = userProfile.height || 175;
@@ -273,7 +295,8 @@ export const planMergeEngine = {
     const coordinatedSchedule = this.generateCoordinatedSchedule({
       primaryGoal,
       secondaryGoal,
-      equipment
+      equipment,
+      existingCalendar: existingPlan?.calendar || existingPlan?.workout?.interactive_calendar || []
     });
 
     // 2. Calculate combined metabolic & nutrition targets

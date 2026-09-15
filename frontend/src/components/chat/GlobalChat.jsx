@@ -717,7 +717,18 @@ const GlobalChat = () => {
                         {msg.structuredAction.sets && <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{msg.structuredAction.sets} sets × {msg.structuredAction.reps} reps | Rest: {msg.structuredAction.restSec}s</span>}
                         {msg.structuredAction.type !== 'EXERCISE_ALREADY_DONE' && (
                           <button type="button" style={{ padding: '5px 12px', borderRadius: '8px', background: '#22c55e', border: 'none', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
-                            onClick={() => { setIsOpen(false); navigate('/ai-trainer'); }}>
+                            onClick={() => {
+                              const exData = {
+                                name: msg.structuredAction.exerciseName,
+                                sets: msg.structuredAction.sets || 3,
+                                reps: msg.structuredAction.reps || '10-12',
+                                restSec: msg.structuredAction.restSec || 60
+                              };
+                              localStorage.setItem('gymsync_active_mission', JSON.stringify(exData));
+                              localStorage.setItem('gymsync_tracking_exercise', JSON.stringify(exData));
+                              setIsOpen(false);
+                              navigate(`/ai-trainer?exercise=${encodeURIComponent(msg.structuredAction.exerciseName)}`, { state: { activeExercise: exData } });
+                            }}>
                             ▶️ Start Now
                           </button>
                         )}
@@ -756,6 +767,20 @@ const GlobalChat = () => {
                             ))}
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* FOOD_SUBSTITUTE_CONFIRMED Action Card */}
+                    {activeContact.id === 'ai' && msg.structuredAction?.type === 'FOOD_SUBSTITUTE_CONFIRMED' && (
+                      <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.4)', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <CheckCircle2 size={15} color="#10b981" /> Swapped: {msg.structuredAction.originalFood} → {msg.structuredAction.substituteFood}
+                        </span>
+                        <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>Nutritional totals have been updated in your active plan.</span>
+                        <button type="button" style={{ padding: '6px 12px', borderRadius: '8px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}
+                          onClick={() => { setIsOpen(false); navigate('/ai-trainer?tab=diets'); }}>
+                          🥗 View in Nutrition Hub
+                        </button>
                       </div>
                     )}
 
@@ -870,6 +895,39 @@ const GlobalChat = () => {
                             </button>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* MINI-COACH INTERVIEW CARD */}
+                    {activeContact.id === 'ai' && msg.structuredAction?.type === 'mini_coach_interview' && msg.structuredAction.steps && (
+                      <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(30,41,59,0.98) 0%, rgba(15,23,42,0.98) 100%)', border: '1px solid rgba(59,130,246,0.35)', maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Target size={15} color="#3b82f6" />
+                            Mini-Coach Profile Calibration
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>
+                            {msg.structuredAction.steps.length} questions
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                          {msg.structuredAction.steps[0]?.label || 'Please provide the missing details to personalize your plan:'}
+                        </div>
+                        {msg.structuredAction.steps[0]?.options ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {msg.structuredAction.steps[0].options.map((opt, oIdx) => (
+                              <button key={oIdx} type="button" onClick={() => handleSuggestionClick(opt)}
+                                style={{ padding: '7px 12px', borderRadius: '14px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.35)', color: '#93c5fd', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <button type="button" onClick={() => { setIsOpen(false); navigate('/ai-trainer'); }}
+                            style={{ padding: '8px 12px', borderRadius: '8px', background: '#3b82f6', border: 'none', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}>
+                            Open Questionnaire Wizard
+                          </button>
+                        )}
                       </div>
                     )}
 

@@ -7,6 +7,7 @@ import { computeMissingBioFields } from '../services/ai/intentClassifier.js';
 import planMergeEngine from '../services/ai/planMergeEngine.js';
 import SavedAIPlan from '../models/SavedAIPlan.js';
 import GoalGroup from '../models/GoalGroup.js';
+import User from '../models/User.js';
 
 /**
  * AI Plan Generation Controller
@@ -16,7 +17,15 @@ import GoalGroup from '../models/GoalGroup.js';
 
 export const generatePlan = async (req, res) => {
   try {
-    const bio = req.body || {};
+    let bio = req.body || {};
+
+    // 1. Canonical Profile Hydration — Never ask again if already in database (Issue 7)
+    if (req.user) {
+      const dbUser = await User.findById(req.user._id).select('bioData name').lean();
+      if (dbUser?.bioData) {
+        bio = { ...dbUser.bioData, ...bio };
+      }
+    }
 
     const missingFields = computeMissingBioFields(bio);
     const needsMiniCoach = missingFields.length > 0 || !bio.mainGoalArea || !bio.planDuration || !bio.trainingDaysPerWeek;
@@ -30,22 +39,35 @@ export const generatePlan = async (req, res) => {
         steps.push({ key: 'planDuration', label: 'Plan Duration', kind: 'single_select', options: ['4 Weeks', '8 Weeks', '12 Weeks'], prefillValue: '4 Weeks', isPrefilled: true });
       }
       if (!bio.trainingDaysPerWeek) {
-        steps.push({ key: 'trainingDaysPerWeek', label: 'Smart Intake & Stamina', kind: 'single_select', options: [2, 3, 4, 5, 6], prefillValue: 3, isPrefilled: true });
+        steps.push({ key: 'trainingDaysPerWeek', label: 'Training Days per Week', kind: 'single_select', options: ['3 Days', '4 Days', '5 Days', '6 Days'], prefillValue: '4 Days', isPrefilled: true });
       }
-      if (missingFields.length > 0) {
-        steps.push({ key: 'missingBioFields', label: 'Health & Fitness Bio', kind: 'form', fields: missingFields });
+
+      for (const field of missingFields) {
+        if (!steps.some(s => s.key === field)) {
+          steps.push({
+            key: field,
+            label: `Please provide your ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`,
+            kind: 'text_input',
+            prefillValue: bio[field] || null,
+            isPrefilled: Boolean(bio[field])
+          });
+        }
       }
-      
+
       return res.status(200).json({
         structuredAction: {
           type: 'mini_coach_interview',
           steps,
-          currentStepIndex: 0
+          currentStepIndex: 0,
+          prefilledContext: {
+            fitnessLevel: bio.fitnessLevel || 'Intermediate',
+            equipmentAccess: bio.equipmentAccess || 'Full Gym'
+          }
         }
       });
     }
 
-    // PHASE 4: MULTI-GOAL DETECTION & PLAN MERGE ENGINE
+    // 2. Multi-Goal Merge Handling & Persistence (Issues 1, 2, 3, 4)
     if (req.user && !bio.mergeDecision) {
       const existingPlan = await planMergeEngine.detectExistingActivePlan(req.user._id, SavedAIPlan);
       
@@ -66,10 +88,47 @@ export const generatePlan = async (req, res) => {
     if (req.user && bio.mergeDecision === 'Merge Plans') {
       const existingPlan = await planMergeEngine.detectExistingActivePlan(req.user._id, SavedAIPlan);
       if (existingPlan) {
-         const mergeRes = await planMergeEngine.mergePlans({ existingPlan, newGoalRequest: bio });
-         effectiveGoal = mergeRes.combinedGoal;
-         existingPlan.isActive = false;
-         await existingPlan.save();
+        const mergeRes = await planMergeEngine.mergePlans({
+          existingPlan,
+          newGoalRequest: bio,
+          userId: req.user._id,
+          userProfile: bio
+        });
+
+        existingPlan.isActive = false;
+        await existingPlan.save();
+
+        // Authoritatively persist the coordinated merged plan
+        const newMergedPlanDoc = await SavedAIPlan.create({
+          userId: req.user._id,
+          userName: req.user.name || '',
+          title: mergeRes.mergedPlan.title,
+          goal: mergeRes.mergedPlan.goal,
+          fitnessLevel: bio.fitnessLevel || existingPlan.fitnessLevel || 'Intermediate',
+          workout: { interactive_calendar: mergeRes.mergedPlan.interactive_calendar },
+          calendar: mergeRes.mergedPlan.interactive_calendar,
+          diet: mergeRes.mergedPlan.nutrition,
+          isActive: true,
+          goalGroupId: mergeRes.mergedPlan.goalGroupId,
+          notes: mergeRes.summary
+        });
+
+        // Link in GoalGroup.linkedPlanIds
+        if (mergeRes.mergedPlan.goalGroupId) {
+          await GoalGroup.findByIdAndUpdate(mergeRes.mergedPlan.goalGroupId, {
+            $addToSet: { linkedPlanIds: newMergedPlanDoc._id }
+          });
+        }
+
+        return res.status(200).json({
+          ...newMergedPlanDoc.toObject(),
+          interactive_calendar: newMergedPlanDoc.calendar,
+          nutrition: newMergedPlanDoc.diet,
+          energyBurn: mergeRes.mergedPlan.energyBurn,
+          coordinationRules: mergeRes.mergedPlan.coordinationRules,
+          summary: mergeRes.summary,
+          isMergedPlan: true
+        });
       }
     } else if (req.user && bio.mergeDecision === 'Cancel Old Plan') {
       const existingPlan = await planMergeEngine.detectExistingActivePlan(req.user._id, SavedAIPlan);

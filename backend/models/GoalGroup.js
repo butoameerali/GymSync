@@ -72,9 +72,13 @@ const goalGroupSchema = new mongoose.Schema({
   completionSummary: {
     startWeightKg: Number,
     endWeightKg: Number,
+    weightDelta: Number,
     totalWorkouts: Number,
     totalSteps: Number,
-    consistencyPercent: Number
+    totalCaloriesBurned: Number,
+    consistencyPercent: Number,
+    completedDate: Date,
+    notes: String
   }
 }, {
   timestamps: true

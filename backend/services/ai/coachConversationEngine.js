@@ -1115,6 +1115,28 @@ Click Apply to log this instead.`;
       const targetProtein = savedDiet?.actualTotals?.totalProtein || savedDiet?.targetProtein || null;
       const targetCalories = savedDiet?.actualTotals?.totalDailyCalories || savedDiet?.targetCalories || null;
 
+      // Check if user confirmed or selected a specific substitute (e.g. "swap chicken with tofu", "✅ Tofu")
+      const substituteItem = entities.requestedSubstitute || (text.startsWith('✅') ? text.replace('✅', '').trim() : null);
+      if (substituteItem && substituteItem.toLowerCase() !== foodItem.toLowerCase()) {
+        const foundSub = Object.values(FOOD_SUBSTITUTION_GROUPS).flat().find(i => 
+          substituteItem.toLowerCase().includes(i.name.toLowerCase()) || i.name.toLowerCase().includes(substituteItem.toLowerCase())
+        );
+        const subName = foundSub?.name || substituteItem;
+        const subProt = foundSub?.protein || 16;
+        const subCals = foundSub?.calories || 140;
+
+        responseContent = `✅ **Swapped ${foodItem} → ${subName}!** 🥗\n\nI have updated your meal plan with **${subName}** (~${subProt}g protein, ~${subCals} kcal per 100g).${targetCalories ? ` Daily energy target stays calibrated at **${targetCalories} kcal**.` : ''}\n\nYour plan is saved with updated nutritional totals.`;
+
+        const suggestions = ['🥗 Open Nutrition Hub', '🏋️ Today\'s Workout', '🔄 Swap Another Food'];
+        structuredAction.type = 'FOOD_SUBSTITUTE_CONFIRMED';
+        structuredAction.originalFood = foodItem;
+        structuredAction.substituteFood = subName;
+        structuredAction.planId = userContext.activeSavedPlan?._id || null;
+        structuredAction.suggestions = suggestions;
+        structuredAction.explanation = `Confirmed swap of ${foodItem} to ${subName}.`;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
       if (topAlts.length === 0) {
         responseContent = `I understand **${foodItem}** isn't available today. 🥗\n\nFor your diet, the best general substitution rule is: match the protein content. If you had **${foodItem}** in your meal, replace it with any protein source of similar quantity:\n\n- **Boiled Eggs** (2 eggs ≈ 12g protein)\n- **Low-Fat Paneer / Cottage Cheese** (100g ≈ 18g protein)\n- **Cooked Lentils / Daal** (100g ≈ 9g protein)\n- **Greek Yogurt** (100g ≈ 10g protein)\n\nChoose what's available and I'll recalculate your macros!`;
         const suggestions = ['🥚 Replace with Eggs', '🧀 Replace with Paneer', '🫘 Replace with Daal', '🐟 Replace with Fish'];

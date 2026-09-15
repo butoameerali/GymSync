@@ -7,7 +7,8 @@ import {
   handleMissedSessionResolution,
   getGoalStatus,
   completeActiveGoal,
-  startNextGoal
+  startNextGoal,
+  swapFoodInPlan
 } from '../controllers/aiController.js';
 import { generatePlan } from '../controllers/recommendationEngine.js';
 import { optionalProtect, protect, authorizeRoles } from '../middleware/authMiddleware.js';
@@ -31,6 +32,7 @@ router.get('/saved-plans', protect, getSavedPlans);
 router.post('/saved-plans', protect, saveAIPlan);
 router.delete('/saved-plans/:id', protect, deleteSavedPlan);
 router.put('/saved-plans/:planId/missed-sessions/:dayNumber', protect, handleMissedSessionResolution);
+router.post('/swap-food', protect, swapFoodInPlan);
 
 // Goal Lifecycle & Next Goal Endpoints
 router.get('/goal-status', protect, getGoalStatus);

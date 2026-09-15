@@ -366,14 +366,27 @@ export const intentClassifier = {
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }
 
-    // PILLAR 10: Food Substitution — "aaj chicken nahi hai", "beef nahi hai", "eggs nahi hain"
-    const foodSubWords = ['chicken', 'beef', 'fish', 'egg', 'eggs', 'daal', 'dal', 'paneer', 'tofu', 'rice', 'roti', 'oats', 'meat', 'protein', 'mutton', 'salmon'];
+    // PILLAR 10: Food Substitution — "aaj chicken nahi hai", "beef nahi hai", "swap chicken with tofu", "replace with eggs", "✅ Tofu"
+    const foodSubWords = ['chicken', 'beef', 'fish', 'egg', 'eggs', 'daal', 'dal', 'paneer', 'tofu', 'rice', 'roti', 'oats', 'meat', 'protein', 'mutton', 'salmon', 'yogurt'];
     const notAvailableSignals = ['nahi hai', 'nahi hain', 'nahi', 'not available', 'don\'t have', "don't have", 'available nahi', 'khatam', 'available nhi', 'nhi hai'];
+    const swapDirectSignals = ['swap', 'replace', 'substitute', 'badal do', 'tabdeel'];
     const hasFoodItem = foodSubWords.some(f => text.includes(f));
     const hasNotAvailable = notAvailableSignals.some(s => text.includes(s));
-    if (hasFoodItem && hasNotAvailable) {
-      // Extract the food item mentioned
-      entities.foodItemNotAvailable = foodSubWords.find(f => text.includes(f)) || null;
+    const hasSwapSignal = swapDirectSignals.some(s => text.includes(s));
+    const isFoodConfirmChip = (text.startsWith('✅') || text.startsWith('replace with')) && (hasFoodItem || lastPrompt.includes('substitute') || lastPrompt.includes('food') || lastPrompt.includes('protein'));
+
+    if ((hasFoodItem && hasNotAvailable) || (hasFoodItem && hasSwapSignal) || isFoodConfirmChip) {
+      const matchedFoods = foodSubWords.filter(f => text.includes(f));
+      if (matchedFoods.length >= 2) {
+        entities.foodItemNotAvailable = matchedFoods[0];
+        entities.requestedSubstitute = matchedFoods[1];
+      } else if (matchedFoods.length === 1) {
+        if (hasNotAvailable) {
+          entities.foodItemNotAvailable = matchedFoods[0];
+        } else {
+          entities.requestedSubstitute = matchedFoods[0];
+        }
+      }
       intent = INTENTS.FOOD_SUBSTITUTE;
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }

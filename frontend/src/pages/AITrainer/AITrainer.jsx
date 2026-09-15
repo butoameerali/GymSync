@@ -102,21 +102,37 @@ const AITrainer = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
-    const exercise = params.get('exercise');
+    const exerciseParam = params.get('exercise');
+    const activeExFromState = location.state?.activeExercise;
     
+    let activeExFromStorage = null;
+    const storedMission = localStorage.getItem('gymsync_active_mission') || localStorage.getItem('gymsync_tracking_exercise');
+    if (storedMission) {
+      try {
+        activeExFromStorage = JSON.parse(storedMission);
+      } catch (e) {}
+    }
+
+    const targetEx = activeExFromState || activeExFromStorage || (exerciseParam ? { name: exerciseParam, sets: 3, reps: '10-12', restSec: 60 } : null);
+
     if (tab && ['library', 'ai', 'assigned', 'diets', 'learn'].includes(tab)) {
       setActiveMode(tab);
     }
     
-    if (exercise) {
-      setActiveMode('library'); // Assuming we want to show it in library or just open it
-      // we need to set current exercise
-      setTimeout(() => {
-        // Since DB fetch is lazy, we might need a dummy obj that gets filled later, or wait.
-        setCurrentExercise({ name: exercise, sets: 3, reps: 10, isPlaceholder: true });
-      }, 500);
+    if (targetEx && targetEx.name) {
+      setActiveMode('library');
+      setCurrentExercise({
+        name: targetEx.name,
+        sets: Number(targetEx.sets) || 3,
+        reps: targetEx.reps || 10,
+        restSec: Number(targetEx.restSec) || 60,
+        isPlaceholder: true,
+        ...targetEx
+      });
+      // Clear mission after consuming to prevent unwanted re-openings on refresh
+      localStorage.removeItem('gymsync_active_mission');
     }
-  }, [location.search]);
+  }, [location.search, location.state]);
 
   // Lazily fetch exercises from MongoDB on-demand only when Library tab is opened
   useEffect(() => {
