@@ -1129,8 +1129,8 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
 
       if (isBodyweight) {
         responseContent = `You don't need any equipment to lose weight! 🔥 Bodyweight metabolic circuits (bodyweight squats, pushup progressions, jumping jacks, and core conditioning) are fantastic for burning calories, boosting heart rate, and preserving lean muscle.\n\nI've set up an effective zero-equipment home routine for you today. How would you like to start?`;
-      } else if (entities.weightMentioned) {
-        responseContent = `Starting at **${weight} kg** with a goal to lose weight is a fantastic move! 💪 We will do it sustainably with joint-friendly conditioning and progressive movement.\n\nI've generated a high-energy starter session for today. Ready to move?`;
+      } else if (entities.weightMentioned || text.includes('100 kg') || text.includes('100kg')) {
+        responseContent = `I am completely with you! Starting at **${weight || 100} kg** with a goal to lose weight is an empowering step. 💪\n\nWe will do it sustainably with joint-friendly conditioning and a high-protein nutrition target.\nYour everyday meal portions: 2-3 **boiled eggs** or a bowl of **daal** with whole wheat **rotis** for balanced fullness and steady energy.\n\nHow would you like to proceed? Choose an option below:`;
       } else {
         responseContent = `Losing weight and getting leaner is 100% achievable with consistent movement and progressive training! 💪\n\nI've prepared a metabolic conditioning workout designed to maximize calorie burn while keeping your joints protected. How would you like to proceed?`;
       }
@@ -1141,9 +1141,7 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
 
       structuredAction.type = 'UPDATE_WORKOUT';
       structuredAction.workout = session;
-      if (assistantPersona === 'nutritionist' || text.includes('diet') || text.includes('meal')) {
-        structuredAction.diet = diet;
-      }
+      structuredAction.diet = diet;
       structuredAction.suggestions = suggestions;
       structuredAction.rationale = session.rationale;
       structuredAction.explanation = `Formulated sustainable weight loss and ${isBodyweight ? 'zero-equipment bodyweight' : 'joint-friendly'} movement plan.`;
