@@ -445,7 +445,40 @@ const AITrainerAIMode = ({
                               className="btn btn-outline"
                               style={{
                                 flex: 1,
-                                padding: '8px 14px',
+                                padding: '8px 12px',
+                                borderRadius: '10px',
+                                fontSize: '0.82rem',
+                                color: activeCoachTick === `program_${plan._id}` ? '#10b981' : '#34d399',
+                                borderColor: activeCoachTick === `program_${plan._id}` ? '#10b981' : 'rgba(16, 185, 129, 0.3)',
+                                background: activeCoachTick === `program_${plan._id}` ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '5px',
+                                transition: 'all 0.2s ease',
+                                whiteSpace: 'nowrap'
+                              }}
+                              onClick={() => triggerOpenCoach(`program_${plan._id}`, `Explain my ${plan.title} workout program and give me tips for today`)}
+                              title="Ask AI Coach about this program"
+                            >
+                              {activeCoachTick === `program_${plan._id}` ? (
+                                <>
+                                  <CheckCircle size={13} color="#10b981" />
+                                  <span>✓ Opened</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles size={13} />
+                                  <span>Ask Coach</span>
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              className="btn btn-outline"
+                              style={{
+                                flex: 1,
+                                padding: '8px 12px',
                                 borderRadius: '10px',
                                 fontSize: '0.82rem',
                                 color: '#f87171',
@@ -453,7 +486,8 @@ const AITrainerAIMode = ({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '5px'
+                                gap: '5px',
+                                whiteSpace: 'nowrap'
                               }}
                               onClick={(e) => {
                                 if (handleDeleteUserProgram) {
@@ -462,7 +496,7 @@ const AITrainerAIMode = ({
                               }}
                               title="Un-enroll from this program"
                             >
-                              <Trash2 size={13} /> Un-enroll Program
+                              <Trash2 size={13} /> Un-enroll
                             </button>
                           </div>
                         </div>
@@ -480,8 +514,8 @@ const AITrainerAIMode = ({
                     <div
                       key={plan._id || planTitle}
                       style={{
-                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
-                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%)',
+                        border: '1px solid rgba(59, 130, 246, 0.35)',
                         borderRadius: '16px',
                         padding: '22px',
                         display: 'flex',
@@ -493,22 +527,22 @@ const AITrainerAIMode = ({
                       }}
                     >
                       <div>
-                        {/* Top Badge & Icon */}
+                        {/* Top Badge & Duration */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                           <span
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '6px',
-                              background: isWeightLoss ? 'rgba(239, 68, 68, 0.15)' : isBodyDev ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                              color: isWeightLoss ? '#f87171' : isBodyDev ? '#34d399' : '#60a5fa',
+                              background: 'rgba(59, 130, 246, 0.2)',
+                              color: '#60a5fa',
                               padding: '4px 12px',
                               borderRadius: '20px',
                               fontSize: '0.8rem',
                               fontWeight: 700
                             }}
                           >
-                            {isWeightLoss ? '🔥 Weight Loss' : isBodyDev ? '💪 Body Development' : '⚡ Strength & Fitness'}
+                            🤖 AI Workout Plan
                           </span>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                             {duration ? `${duration} Days` : 'Custom Routine'}
@@ -522,13 +556,12 @@ const AITrainerAIMode = ({
 
                         {/* Details */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                          <div><strong>Goal:</strong> {plan.goal || 'General Fitness'}</div>
+                          <div><strong>Goal:</strong> {plan.goal || (isWeightLoss ? 'Lose Weight' : isBodyDev ? 'Muscle Building' : 'General Fitness')}</div>
                           <div><strong>Level:</strong> {plan.fitnessLevel || 'All Levels'}</div>
-                          {plan.notes && (
-                            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
-                              {plan.notes}
-                            </div>
-                          )}
+                          <div><strong>Trainer:</strong> AI Personal Coach</div>
+                          <div style={{ color: '#60a5fa', fontWeight: 600, fontSize: '0.82rem', marginTop: '4px' }}>
+                            Schedule: {duration ? `${duration} Days Cycle` : 'Adaptive Plan'}
+                          </div>
                         </div>
                       </div>
 
@@ -548,7 +581,8 @@ const AITrainerAIMode = ({
                             justifyContent: 'center',
                             gap: '8px',
                             background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35)'
+                            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35)',
+                            border: 'none'
                           }}
                           onClick={() => {
                             handleActivateSavedPlan(plan);
@@ -574,7 +608,8 @@ const AITrainerAIMode = ({
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: '5px',
-                              transition: 'all 0.2s ease'
+                              transition: 'all 0.2s ease',
+                              whiteSpace: 'nowrap'
                             }}
                             onClick={() => triggerOpenCoach(`plan_${plan._id}`, `/${slug} `)}
                             title={`Edit this plan with AI Coach using /${slug}`}
@@ -587,7 +622,7 @@ const AITrainerAIMode = ({
                             ) : (
                               <>
                                 <Sparkles size={13} />
-                                <span>Edit (/{slug})</span>
+                                <span>Edit with AI</span>
                               </>
                             )}
                           </button>
@@ -595,7 +630,8 @@ const AITrainerAIMode = ({
                           <button
                             className="btn btn-outline"
                             style={{
-                              padding: '8px 14px',
+                              flex: 1,
+                              padding: '8px 12px',
                               borderRadius: '10px',
                               fontSize: '0.82rem',
                               color: '#f87171',
@@ -603,7 +639,8 @@ const AITrainerAIMode = ({
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: '5px'
+                              gap: '5px',
+                              whiteSpace: 'nowrap'
                             }}
                             onClick={(e) => {
                               handleDeleteSavedPlan(plan._id, e);
@@ -611,7 +648,7 @@ const AITrainerAIMode = ({
                             }}
                             title="Delete this plan"
                           >
-                            <Trash2 size={13} /> Delete
+                            <Trash2 size={13} /> Delete Plan
                           </button>
                         </div>
                       </div>
