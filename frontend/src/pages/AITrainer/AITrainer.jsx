@@ -535,7 +535,7 @@ const AITrainer = () => {
 
   // Schedule & Lock Helper
   const getDayScheduleInfo = (dayItem) => {
-    if (!aiPlan || !dayItem) return { status: 'LOCKED', scheduledDate: new Date(), isToday: false, isPast: false, isFuture: false, isCompleted: false };
+    if (!aiPlan || !dayItem) return { status: 'LOCKED', scheduledDate: new Date(), isToday: false, isTomorrow: false, isPast: false, isFuture: false, isCompleted: false };
 
     const planStart = new Date(aiPlan.planStartDate || Date.now());
     planStart.setHours(0, 0, 0, 0);
@@ -547,6 +547,7 @@ const AITrainer = () => {
     today.setHours(0, 0, 0, 0);
 
     const isToday = scheduledDate.getTime() === today.getTime();
+    const isTomorrow = scheduledDate.getTime() === (today.getTime() + 86400000);
     const isPast = scheduledDate.getTime() < today.getTime();
     const isFuture = scheduledDate.getTime() > today.getTime();
 
@@ -565,21 +566,23 @@ const AITrainer = () => {
       status = 'LOCKED';
     }
 
-    return { status, scheduledDate, isToday, isPast, isFuture, isCompleted };
+    return { status, scheduledDate, isToday, isTomorrow, isPast, isFuture, isCompleted };
   };
 
   const isExerciseCompletedInState = (dayNum, exIndex) => {
     if (!aiPlan) return false;
+    // If the entire day is completed, all exercises are complete
+    if ((workoutProgress.completedDays || []).includes(dayNum)) return true;
     return (workoutProgress.completedExercises || []).some(
-      e => e.planId === aiPlan.planId && e.dayNumber === dayNum && e.exerciseIndex === exIndex
+      e => (e.planId === aiPlan.planId || !e.planId) && e.dayNumber === dayNum && e.exerciseIndex === exIndex
     );
   };
 
   const isExerciseUnlockedInState = (dayNum, exIndex) => {
     if (!selectedCalendarDay) return false;
     const { status } = getDayScheduleInfo(selectedCalendarDay);
-    if (status === 'COMPLETED') return true;
-    if (activeWorkoutDay !== dayNum) return false;
+    if (status === 'COMPLETED' || status === 'AVAILABLE') return true;
+    if (activeWorkoutDay === dayNum) return true;
     if (exIndex === 0) return true;
     return isExerciseCompletedInState(dayNum, exIndex - 1);
   };
@@ -845,34 +848,35 @@ const AITrainer = () => {
     setSetLogs([]);
   };
 
-  const completeActiveWorkout = async () => {
-    if (!activeWorkoutDay || !selectedCalendarDay) return;
+  const completeActiveWorkout = async (forceDayNum = null) => {
+    const targetDay = forceDayNum
+      ? (aiPlan?.interactive_calendar || []).find(d => d.dayNumber === forceDayNum)
+      : (selectedCalendarDay || (aiPlan?.interactive_calendar || [])[0]);
 
-    const { status } = getDayScheduleInfo(selectedCalendarDay);
-    if (status !== 'AVAILABLE' || activeWorkoutDay !== selectedCalendarDay.dayNumber) {
-      toast.error("Only today's scheduled workout can be completed.");
-      return;
-    }
+    if (!targetDay) return;
 
-    if ((workoutProgress.completedDays || []).includes(activeWorkoutDay)) {
-      toast.info("This workout day has already been completed.");
-      return;
-    }
-
-    const daySplit = selectedCalendarDay.workoutSplit || [];
-    if (Array.isArray(daySplit) && daySplit.length > 0) {
-      const completedForDay = (workoutProgress.completedExercises || []).filter(
-        e => e.planId === aiPlan?.planId && e.dayNumber === selectedCalendarDay.dayNumber
-      );
-      if (completedForDay.length < daySplit.length) {
-        toast.warning(`Please complete all ${daySplit.length} exercises in today's split before completing the workout!`);
-        return;
-      }
-    }
-
+    const dayNum = targetDay.dayNumber;
     const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
-    const newCompletedDays = [...(workoutProgress.completedDays || []), activeWorkoutDay];
+    const newCompletedDays = Array.from(new Set([...(workoutProgress.completedDays || []), dayNum]));
     const timestamp = new Date().toISOString();
+
+    const daySplit = Array.isArray(targetDay.workoutSplit)
+      ? targetDay.workoutSplit
+      : (targetDay.exercises || targetDay.mainWorkout || []);
+
+    const newCompletedExercises = daySplit.map((ex, idx) => ({
+      planId: aiPlan?.planId,
+      dayNumber: dayNum,
+      exerciseIndex: idx,
+      exerciseName: ex.name || ex.title || `Exercise ${idx + 1}`,
+      completedAt: timestamp,
+      mode: 'session'
+    }));
+
+    const otherCompleted = (workoutProgress.completedExercises || []).filter(
+      e => !(e.planId === aiPlan?.planId && e.dayNumber === dayNum)
+    );
+    const updatedExercises = [...otherCompleted, ...newCompletedExercises];
 
     // Streak logic (once per calendar day)
     const lastStreakDate = localStorage.getItem(`gymsync_${userKey}_last_streak_date`);
@@ -893,6 +897,7 @@ const AITrainer = () => {
       ...workoutProgress,
       planId: aiPlan?.planId,
       completedDays: newCompletedDays,
+      completedExercises: updatedExercises,
       lastWorkoutCompletionTime: timestamp,
       streak: currentStreak,
       totalPoints: currentPoints
@@ -904,7 +909,6 @@ const AITrainer = () => {
     // Authoritative Server Persistence
     if (!isGuest) {
       try {
-        // Save workout progress
         await fetch('/api/users/workout-progress', {
           method: 'POST',
           headers: {
@@ -920,7 +924,6 @@ const AITrainer = () => {
           })
         });
 
-        // Also log complete workout session to daily ActivityLog in DB
         await fetch('/api/activity/log-workout', {
           method: 'POST',
           headers: {
@@ -929,10 +932,10 @@ const AITrainer = () => {
           },
           body: JSON.stringify({
             date: new Date().toISOString().split('T')[0],
-            exerciseName: selectedCalendarDay?.phaseName || `Day ${activeWorkoutDay} Full Workout`,
-            sets: (daySplit && daySplit.length) ? daySplit.length : 3,
+            exerciseName: targetDay.phaseName || `Day ${dayNum} Full Workout`,
+            sets: daySplit.length || 3,
             reps: 10,
-            caloriesBurned: Math.max(120, ((daySplit && daySplit.length) ? daySplit.length : 3) * 35),
+            caloriesBurned: Math.max(120, (daySplit.length || 3) * 35),
             mode: 'manual'
           })
         });
@@ -942,7 +945,133 @@ const AITrainer = () => {
     }
 
     setActiveWorkoutDay(null);
-    toast.success(`🎉 Workout Day ${activeWorkoutDay} Completed! You earned +50 XP & extended your streak!`);
+    toast.success(`🎉 Workout Day ${dayNum} Completed! You earned +50 XP & extended your streak!`);
+  };
+
+  // 1-Click Manual Day Completion
+  const completeDayManually = async (dayNum) => {
+    await completeActiveWorkout(dayNum);
+  };
+
+  // Undo / Reset Day Completion
+  const undoDayCompletion = async (dayNum) => {
+    if (!aiPlan) return;
+    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+    const newCompletedDays = (workoutProgress.completedDays || []).filter(d => d !== dayNum);
+    const updatedExercises = (workoutProgress.completedExercises || []).filter(
+      e => !(e.planId === aiPlan.planId && e.dayNumber === dayNum)
+    );
+
+    const newProgress = {
+      ...workoutProgress,
+      completedDays: newCompletedDays,
+      completedExercises: updatedExercises
+    };
+
+    setWorkoutProgress(newProgress);
+    localStorage.setItem(`gymsync_${userKey}_workout_progress`, JSON.stringify(newProgress));
+
+    if (!isGuest) {
+      try {
+        await fetch('/api/users/workout-progress', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+          },
+          body: JSON.stringify({
+            planId: aiPlan.planId,
+            completedDays: newCompletedDays,
+            lastWorkoutCompletionTime: newProgress.lastWorkoutCompletionTime,
+            streak: parseInt(localStorage.getItem(`gymsync_${userKey}_streak`) || '0'),
+            totalPoints: parseInt(localStorage.getItem(`gymsync_${userKey}_points`) || '0')
+          })
+        });
+      } catch (err) {
+        console.warn('Server undo workout progress error:', err);
+      }
+    }
+
+    toast.info(`🔄 Day ${dayNum} progress reset. Ready to train again!`);
+  };
+
+  // Toggle Single Exercise Completion (Manual Check/Uncheck)
+  const toggleExerciseCompletion = async (dayNum, exIndex, exName) => {
+    if (!aiPlan) return;
+    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+    const targetDay = (aiPlan.interactive_calendar || []).find(d => d.dayNumber === dayNum);
+    const daySplit = targetDay
+      ? (Array.isArray(targetDay.workoutSplit) ? targetDay.workoutSplit : (targetDay.exercises || targetDay.mainWorkout || []))
+      : [];
+
+    const isCurrentlyDone = isExerciseCompletedInState(dayNum, exIndex);
+    let updatedCompletedExercises;
+    let updatedCompletedDays = [...(workoutProgress.completedDays || [])];
+
+    if (isCurrentlyDone) {
+      updatedCompletedExercises = (workoutProgress.completedExercises || []).filter(
+        e => !(e.planId === aiPlan.planId && e.dayNumber === dayNum && e.exerciseIndex === exIndex)
+      );
+      updatedCompletedDays = updatedCompletedDays.filter(d => d !== dayNum);
+      toast.info(`🔄 ${exName || 'Movement'} marked incomplete.`);
+    } else {
+      const newRecord = {
+        planId: aiPlan.planId,
+        dayNumber: dayNum,
+        exerciseIndex: exIndex,
+        exerciseName: exName || `Exercise ${exIndex + 1}`,
+        completedAt: new Date().toISOString(),
+        mode: 'manual'
+      };
+      updatedCompletedExercises = [
+        ...(workoutProgress.completedExercises || []).filter(
+          e => !(e.planId === aiPlan.planId && e.dayNumber === dayNum && e.exerciseIndex === exIndex)
+        ),
+        newRecord
+      ];
+
+      const doneForThisDay = updatedCompletedExercises.filter(
+        e => e.planId === aiPlan.planId && e.dayNumber === dayNum
+      );
+      if (daySplit.length > 0 && doneForThisDay.length >= daySplit.length) {
+        if (!updatedCompletedDays.includes(dayNum)) {
+          updatedCompletedDays.push(dayNum);
+          toast.success(`🎉 All movements complete! Day ${dayNum} marked as completed! (+50 XP)`);
+        }
+      } else {
+        toast.success(`✓ ${exName || 'Movement'} completed!`);
+      }
+    }
+
+    const newProgress = {
+      ...workoutProgress,
+      completedDays: updatedCompletedDays,
+      completedExercises: updatedCompletedExercises
+    };
+
+    setWorkoutProgress(newProgress);
+    localStorage.setItem(`gymsync_${userKey}_workout_progress`, JSON.stringify(newProgress));
+
+    if (!isGuest) {
+      try {
+        await fetch('/api/users/workout-progress', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+          },
+          body: JSON.stringify({
+            planId: aiPlan.planId,
+            completedDays: updatedCompletedDays,
+            lastWorkoutCompletionTime: newProgress.lastWorkoutCompletionTime,
+            streak: parseInt(localStorage.getItem(`gymsync_${userKey}_streak`) || '0'),
+            totalPoints: parseInt(localStorage.getItem(`gymsync_${userKey}_points`) || '0')
+          })
+        });
+      } catch (err) {
+        console.warn('Server toggle exercise error:', err);
+      }
+    }
   };
 
   return (
@@ -1098,6 +1227,9 @@ const AITrainer = () => {
             isExerciseUnlockedInState={isExerciseUnlockedInState}
             startExercise={startExercise}
             completeActiveWorkout={completeActiveWorkout}
+            completeDayManually={completeDayManually}
+            undoDayCompletion={undoDayCompletion}
+            toggleExerciseCompletion={toggleExerciseCompletion}
             handleCoachAction={handleCoachAction}
             handleSaveCurrentPlan={handleSaveCurrentPlan}
             loadSavedPlans={loadSavedPlans}
