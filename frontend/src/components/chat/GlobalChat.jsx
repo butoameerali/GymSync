@@ -32,6 +32,8 @@ const isSystemContact = (name) => {
   return SYSTEM_IDENTIFIERS.has(String(name).toLowerCase().trim());
 };
 
+const generateMessageId = () => Date.now() + Math.floor(Math.random() * 1000);
+
 const GlobalChat = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -47,6 +49,23 @@ const GlobalChat = () => {
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest';
+
+  let parsedBio = {};
+  try {
+    const rawBio = localStorage.getItem('gymsync_bio_data') || 
+                   localStorage.getItem(`gymsync_${userName}_bio_data`) || '{}';
+    parsedBio = JSON.parse(rawBio) || {};
+  } catch {
+    parsedBio = {};
+  }
+
+  const userContext = {
+    primaryGoal: parsedBio.primaryGoal || localStorage.getItem('gymsync_onboarding_primaryGoal') || 'General Fitness',
+    gender: parsedBio.gender || localStorage.getItem('gymsync_onboarding_gender') || 'Unspecified',
+    fitnessLevel: parsedBio.fitnessLevel || localStorage.getItem('gymsync_onboarding_fitnessLevel') || 'Beginner',
+    equipmentAccess: parsedBio.equipmentAccess || localStorage.getItem('gymsync_onboarding_equipmentAccess') || 'Full Gym',
+    weight: parsedBio.weight || localStorage.getItem('gymsync_onboarding_weight') || localStorage.getItem('gymsync_user_weight') || '70'
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -242,7 +261,7 @@ const GlobalChat = () => {
                 const uData = await res.json();
                 return { ...c, avatar: uData.profilePic || '' };
               }
-            } catch (err) {
+            } catch {
               // Ignore single profile lookup error
             }
             return c;
@@ -348,20 +367,12 @@ const GlobalChat = () => {
     };
   }, []);
 
-  // FIX: Both route-guard early returns are now AFTER all hooks.
-  // This ensures React always calls the same number of hooks on every render.
-  if (['/messages', '/chat'].includes(location.pathname)) {
-    return null;
-  }
-
-  if (isGuest) return null;
-
-  const sendMessageText = async (messageText) => {
+  const handleSendMessageText = async (messageText) => {
     if (!messageText?.trim() || !activeContact) return;
 
     const trimmed = messageText.trim();
     const newMsg = {
-      id: Date.now(),
+      id: generateMessageId(),
       text: trimmed,
       sender: 'user',
       timestamp: new Date().toISOString()
@@ -374,13 +385,6 @@ const GlobalChat = () => {
 
     const isAI = activeContact.id === 'ai' || activeContact.id === 'diet_ai';
     if (isAI) {
-      const userContext = {
-        primaryGoal: localStorage.getItem('gymsync_onboarding_primaryGoal') || 'General Fitness',
-        gender: localStorage.getItem('gymsync_onboarding_gender') || 'Unspecified',
-        fitnessLevel: localStorage.getItem('gymsync_onboarding_fitnessLevel') || 'Beginner',
-        equipmentAccess: localStorage.getItem('gymsync_onboarding_equipmentAccess') || 'Full Gym'
-      };
-
       try {
         const token = localStorage.getItem('gymsync_token') || localStorage.getItem('token') || '';
         const receiver = activeContact.id === 'diet_ai' ? 'AI Nutritionist' : 'AI Workout Coach';
@@ -458,7 +462,7 @@ const GlobalChat = () => {
         }
 
         const botMsg = {
-          id: data.aiReply?._id || Date.now() + 1,
+          id: data.aiReply?._id || generateMessageId(),
           text: replyText,
           sender: 'other',
           timestamp: new Date().toISOString(),
@@ -471,8 +475,9 @@ const GlobalChat = () => {
           [activeContact.id]: [...(prev[activeContact.id] || []), botMsg]
         }));
       } catch (err) {
+        console.error('AI chat error:', err);
         const errReply = {
-          id: Date.now() + 1,
+          id: generateMessageId(),
           text: "Sorry, I am having trouble connecting to AI services right now. Please try again shortly.",
           sender: 'other',
           timestamp: new Date().toISOString(),
@@ -504,7 +509,7 @@ const GlobalChat = () => {
           setMessages(prev => ({
             ...prev,
             [activeContact.id]: [...(prev[activeContact.id] || []), {
-              id: data.supportReply._id || Date.now() + 1,
+              id: data.supportReply._id || generateMessageId(),
               text: data.supportReply.text,
               sender: 'other',
               timestamp: new Date().toISOString()
@@ -540,7 +545,7 @@ const GlobalChat = () => {
     if (!input.trim() || !activeContact) return;
     const msg = input.trim();
     setInput('');
-    await sendMessageText(msg);
+    await handleSendMessageText(msg);
   };
 
   const handleSuggestionClick = async (sugText) => {
@@ -553,7 +558,7 @@ const GlobalChat = () => {
       handleContactClick(SYSTEM_CONTACTS[0]);
       return;
     }
-    await sendMessageText(sugText);
+    await handleSendMessageText(sugText);
   };
 
   const handleClearChat = async () => {
@@ -584,6 +589,11 @@ const GlobalChat = () => {
       toast.error('Error clearing chat history');
     }
   };
+
+  // Route-guard early returns — placed right before return JSX after all hooks and handlers
+  if (['/messages', '/chat'].includes(location.pathname) || isGuest) {
+    return null;
+  }
 
   return (
     <div className="global-chat-wrapper">
