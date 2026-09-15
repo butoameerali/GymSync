@@ -81,45 +81,81 @@ export function extractIntakeState(raw = '', history = [], userContext = {}) {
   let duration = null;
   if (/2 weeks?|two weeks?|14 days?/i.test(combinedText)) {
     duration = '2 Weeks';
-  } else if (/1 year|one year|12 months?|52 weeks?|yearly|annual/i.test(combinedText)) {
+  } else if (/1 year|one year|12 months?|52 weeks?|yearly|annual|1 saal|ek saal/i.test(combinedText)) {
     duration = '1 Year';
-  } else if (/6 months?|six months?|24 weeks?|half year/i.test(combinedText)) {
+  } else if (/6 months?|six months?|24 weeks?|half year|6 mahine?|cheh mahine?/i.test(combinedText)) {
     duration = '6 Months';
-  } else if (/3 months?|three months?|12 weeks?|quarter/i.test(combinedText)) {
+  } else if (/3 months?|three months?|12 weeks?|quarter|3 mahine?|teen mahine?/i.test(combinedText)) {
     duration = '3 Months';
-  } else if (/2 months?|two months?|8 weeks?/i.test(combinedText)) {
+  } else if (/2 months?|two months?|8 weeks?|2 mahine?|do mahine?/i.test(combinedText)) {
     duration = '2 Months';
-  } else if (/1 month|one month|4 weeks?|28 days?|30 days?/i.test(combinedText)) {
+  } else if (/1 month|one month|4 weeks?|28 days?|30 days?|1 mahina|ek mahina/i.test(combinedText)) {
     duration = '1 Month';
   } else {
-    const customMatch = combinedText.match(/(\d+)\s*(weeks?|months?|years?)/i);
+    const customMatch = combinedText.match(/(\d+)\s*(weeks?|months?|years?|mahine?)/i);
     if (customMatch) {
       const num = parseInt(customMatch[1], 10);
       const unit = customMatch[2].toLowerCase();
       if (unit.startsWith('year')) duration = `${num} Year${num > 1 ? 's' : ''}`;
-      else if (unit.startsWith('month')) duration = `${num} Month${num > 1 ? 's' : ''}`;
+      else if (unit.startsWith('month') || unit.startsWith('mahin')) duration = `${num} Month${num > 1 ? 's' : ''}`;
       else if (unit.startsWith('week')) duration = `${num} Week${num > 1 ? 's' : ''}`;
     }
   }
+  // If user is directly answering the duration question with a short reply
+  if (!duration && (lastPrompt.includes('how long') || lastPrompt.includes('kitne time') || lastPrompt.includes('step 2') || lastPrompt.includes('periodized cycle should run'))) {
+    const rawTrim = raw.trim().toLowerCase();
+    if (rawTrim === '1' || rawTrim.includes('fast') || rawTrim.includes('quick') || rawTrim.includes('jaldi')) duration = '1 Month';
+    else if (rawTrim === '2') duration = '2 Months';
+    else if (rawTrim === '3' || rawTrim.includes('recommended') || rawTrim.includes('normal') || rawTrim.includes('standard')) duration = '3 Months';
+    else if (rawTrim === '6' || rawTrim.includes('sustainable') || rawTrim.includes('transformation') || rawTrim.includes('long term')) duration = '6 Months';
+    else if (rawTrim === '12') duration = '1 Year';
+  }
 
-  // 3. Days per week (falls back to bio profile if available)
+  // 3. Days per week (flexible: 1 to 7 days, natural language words, phrases, everyday, rozana)
   let days = null;
-  const daysMatch = combinedText.match(/(\d)\s*(?:days?(?:\s*\/\s*week)?|din)/i);
-  if (daysMatch) {
-    const d = parseInt(daysMatch[1], 10);
-    if (d >= 2 && d <= 6) days = d;
+  if (/\b(?:every\s*day|everyday|daily|all\s*7\s*days|all\s*days|har\s*roz|rozana|daily\s*basis|no\s*rest\s*days?)\b/i.test(combinedText)) {
+    days = 7;
+  } else if (/\b(?:weekends?\s*only|only\s*weekends?)\b/i.test(combinedText)) {
+    days = 2;
+  } else {
+    // Digits: 1 to 7
+    const digitMatch = combinedText.match(/\b([1-7])\s*(?:days?(?:\s*(?:\/|a|per)\s*week)?|din|times?(?:\s*(?:\/|a|per)\s*week)?)\b/i);
+    if (digitMatch) {
+      days = parseInt(digitMatch[1], 10);
+    }
+    // Word match: "seven days", "six din", "teen din", etc.
+    if (!days) {
+      const wordMap = { one: 1, ek: 1, two: 2, do: 2, three: 3, teen: 3, four: 4, char: 4, chaar: 4, five: 5, panch: 5, paanch: 5, six: 6, cheh: 6, seven: 7, saat: 7 };
+      const wordMatch = combinedText.match(/\b(one|two|three|four|five|six|seven|ek|do|teen|char|chaar|panch|paanch|cheh|saat)\s*(?:days?|din|times?)/i);
+      if (wordMatch && wordMap[wordMatch[1].toLowerCase()]) {
+        days = wordMap[wordMatch[1].toLowerCase()];
+      }
+    }
   }
-  if (!days && (lastPrompt.includes('step 3') || lastPrompt.includes('days per week') || lastPrompt.includes('training days'))) {
-    const numMatch = raw.trim().match(/^[2-6]$/);
-    if (numMatch) days = parseInt(numMatch[0], 10);
+
+  // If responding directly to the days prompt with a single digit or word
+  if (!days && (lastPrompt.includes('step 3') || lastPrompt.includes('days per week') || lastPrompt.includes('training days') || lastPrompt.includes('hafte mein kitne din') || lastPrompt.includes('how many days'))) {
+    const rawTrim = raw.trim().toLowerCase();
+    const numOnly = rawTrim.match(/^[1-7]$/);
+    if (numOnly) {
+      days = parseInt(numOnly[0], 10);
+    } else {
+      const wordOnlyMap = {
+        '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+        one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+        ek: 1, do: 2, teen: 3, char: 4, chaar: 4, panch: 5, paanch: 5, cheh: 6, saat: 7,
+        daily: 7, everyday: 7, rozana: 7, 'every day': 7
+      };
+      if (wordOnlyMap[rawTrim]) {
+        days = wordOnlyMap[rawTrim];
+      }
+    }
   }
+
+  // Fallback to userContext if not explicitly provided in conversation
   if (!days && userContext.trainingDaysPerWeek) {
     const d = parseInt(userContext.trainingDaysPerWeek, 10);
-    if (d >= 2 && d <= 6) days = d;
-  }
-  if (!days && (userContext.fitnessLevel === 'Advanced' ? 5 : userContext.fitnessLevel === 'Intermediate' ? 4 : 3)) {
-    // Default smart frequency based on fitness level if not set
-    days = userContext.fitnessLevel === 'Advanced' ? 5 : userContext.fitnessLevel === 'Intermediate' ? 4 : 3;
+    if (d >= 1 && d <= 7) days = d;
   }
 
   // 4. Equipment (falls back to bio profile if available)
@@ -138,12 +174,23 @@ export function extractIntakeState(raw = '', history = [], userContext = {}) {
 
   // 5. Start Schedule (Today, Tomorrow, Next Monday)
   let startSchedule = null;
-  if (/\b(?:today|aaj|right now|immediately)\b/i.test(combinedText)) {
+  if (/\b(?:today|aaj|right now|immediately|start now|ready|let's go|shuru|start|asap)\b/i.test(combinedText)) {
     startSchedule = 'Today';
-  } else if (/\b(?:tomorrow|kal|next day)\b/i.test(combinedText)) {
+  } else if (/\b(?:tomorrow|kal|next day|agli subah)\b/i.test(combinedText)) {
     startSchedule = 'Tomorrow';
-  } else if (/\b(?:next monday|monday|somwar|pir)\b/i.test(combinedText)) {
+  } else if (/\b(?:next monday|monday|somwar|pir|agle hafte)\b/i.test(combinedText)) {
     startSchedule = 'Next Monday';
+  }
+
+  if (!startSchedule && (lastPrompt.includes('start your training') || lastPrompt.includes('kab se start') || lastPrompt.includes('start schedule') || lastPrompt.includes('when would you like to start'))) {
+    const rawTrim = raw.trim().toLowerCase();
+    if (/\b(?:today|aaj|abhi|now|ready|yes|ok|start|sure|yep|haan|ji|go ahead|banao)\b/i.test(rawTrim)) {
+      startSchedule = 'Today';
+    } else if (/\b(?:tomorrow|kal)\b/i.test(rawTrim)) {
+      startSchedule = 'Tomorrow';
+    } else if (/\b(?:monday|somwar|pir)\b/i.test(rawTrim)) {
+      startSchedule = 'Next Monday';
+    }
   }
 
   // 6. Target Weight (e.g. "65 kg", "reach 65", "target 60", "lose 5 kg")
@@ -160,10 +207,14 @@ export function extractIntakeState(raw = '', history = [], userContext = {}) {
     }
   }
   if (!targetWeight && (lastPrompt.includes('target weight') || lastPrompt.includes('target kya hai') || lastPrompt.includes('kitna weight'))) {
-    const numOnly = raw.trim().match(/^(\d{2,3})(?:\s*kg)?$/i);
+    const numOnly = raw.trim().match(/^(\d{1,3})(?:\s*kg)?$/i);
     if (numOnly) {
       const v = parseInt(numOnly[1], 10);
-      if (v >= 35 && v <= 250) targetWeight = v;
+      if (v >= 35 && v <= 250) {
+        targetWeight = v;
+      } else if (v >= 1 && v <= 30 && (userContext.weight || userContext.weightKg)) {
+        targetWeight = Math.max(40, (userContext.weight || userContext.weightKg) - v);
+      }
     }
   }
 
@@ -547,6 +598,9 @@ Let's get started! **What is your primary fitness goal?**`;
         const suggestions = ['🔥 Lose Weight', '💪 Build Muscle', '⚡ Gain Strength', '🏃 Improve Stamina', '✨ General Fitness'];
         structuredAction.type = 'PLAN_QUESTIONNAIRE';
         structuredAction.step = 'goal';
+        structuredAction.stepTitle = 'Mini-Coach • Step 1: Target Goal';
+        structuredAction.stepSubtitle = 'Step 1 of 4';
+        structuredAction.description = 'Select your primary fitness goal to calibrate your training split:';
         structuredAction.suggestions = suggestions;
         structuredAction.quickReplies = suggestions;
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };
@@ -560,6 +614,9 @@ Let's get started! **What is your primary fitness goal?**`;
         const suggestions = ['🔥 Lose Weight', '💪 Build Muscle', '⚡ Gain Strength', '🏃 Improve Stamina', '✨ General Fitness'];
         structuredAction.type = 'PLAN_QUESTIONNAIRE';
         structuredAction.step = 'goal';
+        structuredAction.stepTitle = 'Mini-Coach • Step 1: Target Goal';
+        structuredAction.stepSubtitle = 'Step 1 of 4';
+        structuredAction.description = 'Select your primary objective to calibrate sets, reps, and energy burn:';
         structuredAction.suggestions = suggestions;
         structuredAction.quickReplies = suggestions;
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };
@@ -590,6 +647,9 @@ Losing weight sustainably requires progressive training and a smart calorie defi
         ];
         structuredAction.type = 'PLAN_QUESTIONNAIRE';
         structuredAction.step = 'target_weight';
+        structuredAction.stepTitle = 'Mini-Coach • Target Weight';
+        structuredAction.stepSubtitle = 'Target Calibration';
+        structuredAction.description = 'Select your target weight to calibrate your calorie deficit and timeline:';
         structuredAction.suggestions = suggestions;
         structuredAction.quickReplies = suggestions;
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };
@@ -607,20 +667,16 @@ Losing weight sustainably requires progressive training and a smart calorie defi
         const suggestions = ['⏱️ 1 Month (Fast-Paced)', '🎯 3 Months (Recommended)', '🏆 6 Months (Sustainable Transformation)'];
         structuredAction.type = 'PLAN_QUESTIONNAIRE';
         structuredAction.step = 'duration';
+        structuredAction.stepTitle = 'Mini-Coach • Step 2: Duration';
+        structuredAction.stepSubtitle = 'Step 2 of 4';
+        structuredAction.description = 'Select how many weeks or months your periodized cycle should run:';
         structuredAction.suggestions = suggestions;
         structuredAction.quickReplies = suggestions;
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };
       }
 
       // Step 4: Frequency & Equipment (Days per week)
-      const userUtterances = [
-        ...(history || []).filter(m => m.role === 'user' || m.sender === 'user').map(m => (m.content || m.text || '')),
-        raw
-      ];
-      const combinedAllText = userUtterances.join(' ').toLowerCase();
-      const hasExplicitDays = intakeState.days && /\b[2-6]\s*(?:days?|din)\b/i.test(combinedAllText);
-
-      if (!hasExplicitDays) {
+      if (!intakeState.days) {
         const durLabel = parsePlanDuration(intakeState.duration).label;
         responseContent = `Awesome choice with the **${durLabel}** roadmap! ⚡
 
@@ -628,24 +684,37 @@ Losing weight sustainably requires progressive training and a smart calorie defi
         const suggestions = [
           '📅 3 Days / Week (Full Body)',
           '📅 4 Days / Week (Upper / Lower)',
-          '📅 5 Days / Week (High Frequency)'
+          '📅 5 Days / Week (High Frequency)',
+          '📅 6-7 Days / Week (Daily & Recovery)'
         ];
         structuredAction.type = 'PLAN_QUESTIONNAIRE';
         structuredAction.step = 'training_frequency';
+        structuredAction.stepTitle = 'Mini-Coach • Step 3: Days per Week';
+        structuredAction.stepSubtitle = 'Step 3 of 4';
+        structuredAction.description = 'How many days per week can you dedicate to working out?';
         structuredAction.suggestions = suggestions;
         structuredAction.quickReplies = suggestions;
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };
       }
 
       // Step 5: Start Schedule
-      if (!intakeState.startSchedule && !/(?:today|tomorrow|monday|next monday)/i.test(raw)) {
+      if (!intakeState.startSchedule) {
         const durationInfo = parsePlanDuration(intakeState.duration);
-        responseContent = `Everything is almost ready! We're building your **${durationInfo.label} ${intakeState.goal}** plan. 🚀
+        const daysNotes = intakeState.days >= 7
+          ? 'Daily routine locked in! 🔥 (We’ll program 5 progressive workout sessions + 2 dedicated active recovery & mobility days so you train every day without overtraining or burning out).'
+          : `${intakeState.days} Days / Week schedule locked in! ⚡`;
+
+        responseContent = `${daysNotes}
+
+Everything is almost ready! We're building your **${durationInfo.label} ${intakeState.goal}** plan. 🚀
 
 **When would you like to start your training (Workout kab se start karni hai)?**`;
         const suggestions = ['🚀 Today', '🌅 Tomorrow', '📅 Next Monday'];
         structuredAction.type = 'PLAN_QUESTIONNAIRE';
         structuredAction.step = 'schedule';
+        structuredAction.stepTitle = 'Mini-Coach • Step 4: Start Schedule';
+        structuredAction.stepSubtitle = 'Step 4 of 4';
+        structuredAction.description = 'When would you like to start your training program?';
         structuredAction.suggestions = suggestions;
         structuredAction.quickReplies = suggestions;
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };

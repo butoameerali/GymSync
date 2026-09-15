@@ -39,7 +39,7 @@ export const generatePlan = async (req, res) => {
         steps.push({ key: 'planDuration', label: 'Plan Duration', kind: 'single_select', options: ['4 Weeks', '8 Weeks', '12 Weeks'], prefillValue: '4 Weeks', isPrefilled: true });
       }
       if (!bio.trainingDaysPerWeek) {
-        steps.push({ key: 'trainingDaysPerWeek', label: 'Training Days per Week', kind: 'single_select', options: ['3 Days', '4 Days', '5 Days', '6 Days'], prefillValue: '4 Days', isPrefilled: true });
+        steps.push({ key: 'trainingDaysPerWeek', label: 'Training Days per Week', kind: 'single_select', options: ['3 Days', '4 Days', '5 Days', '6 Days', '7 Days'], prefillValue: '4 Days', isPrefilled: true });
       }
 
       for (const field of missingFields) {
@@ -219,11 +219,13 @@ export const generatePlanObject = (bio = {}, options = {}) => {
   ];
 
   const workoutDaysPerWeekMap = {
+    1: [1],
     2: [1, 4],
     3: [1, 3, 5],
     4: [1, 2, 4, 5],
     5: [1, 2, 3, 4, 5],
-    6: [1, 2, 3, 4, 5, 6]
+    6: [1, 2, 3, 4, 5, 6],
+    7: [1, 2, 3, 4, 5, 6, 7]
   };
   const activeDaysInWeek = workoutDaysPerWeekMap[trainingDaysPerWeek] || workoutDaysPerWeekMap[3];
 

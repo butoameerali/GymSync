@@ -1,5 +1,5 @@
 import assert from 'assert';
-import coachConversationEngine from '../services/ai/coachConversationEngine.js';
+import coachConversationEngine, { extractIntakeState } from '../services/ai/coachConversationEngine.js';
 import intentClassifier, { INTENTS } from '../services/ai/intentClassifier.js';
 import eventAwarenessEngine, { EVENT_TYPES } from '../services/workout/eventAwarenessEngine.js';
 import workoutDecisionEngine from '../services/workout/workoutDecisionEngine.js';
@@ -296,6 +296,69 @@ test('TEST 12: Diet Validator strictly rejects absurd food quantities', () => {
   assert(!validation.isValid, 'Diet with 12 eggs and 350g protein must be rejected');
   assert(validation.issues.some(i => i.includes('Egg quantity')), 'Must flag excessive eggs');
   assert(validation.issues.some(i => i.includes('Protein ceiling exceeded')), 'Must flag protein ceiling');
+});
+
+// -------------------------------------------------------------------
+// TEST 13: Out-of-the-box natural language: "i want 7 days a week" progresses without looping
+// -------------------------------------------------------------------
+test('TEST 13: Out-of-the-box intake: "i want 7 days a week" progresses to start schedule without looping', () => {
+  const history = [
+    { role: 'user', content: 'i want to creat workout plan' },
+    { role: 'assistant', content: 'Target calibrated! Goal: Career & Professional Training | Equipment: Bodyweight only. How long would you like your customized program to run?' },
+    { role: 'user', content: '3 Months' },
+    { role: 'assistant', content: 'Awesome choice with the 3 Months roadmap! How many days per week can you dedicate to working out?' }
+  ];
+
+  // User enters out-of-the-box input: "i want 7 days a week"
+  const turn1 = coachConversationEngine.processTurn({
+    message: 'i want 7 days a week',
+    userContext: { weight: 70, equipmentAccess: 'Bodyweight', primaryGoal: 'Career & Professional Training' },
+    history
+  });
+
+  // Must NOT repeat the days per week question
+  assert.notStrictEqual(turn1.structuredAction.step, 'training_frequency', 'Must NOT re-ask training frequency');
+  assert.strictEqual(turn1.structuredAction.step, 'schedule', 'Must advance to schedule step');
+  assert(turn1.content.includes('start your training') || turn1.content.includes('kab se start'), 'Must ask for start schedule');
+  assert(turn1.content.toLowerCase().includes('daily') || turn1.content.includes('7 Days') || turn1.content.includes('recovery'), 'Must acknowledge 7-day/daily commitment with recovery advice');
+
+  // Next user confirms start date: "Today"
+  const turn2 = coachConversationEngine.processTurn({
+    message: 'Today',
+    userContext: { weight: 70, equipmentAccess: 'Bodyweight', primaryGoal: 'Career & Professional Training' },
+    history: [
+      ...history,
+      { role: 'user', content: 'i want 7 days a week' },
+      { role: 'assistant', content: turn1.content }
+    ]
+  });
+
+  assert.strictEqual(turn2.structuredAction.type, 'PLAN_GENERATED', 'Must successfully generate plan');
+  assert.strictEqual(turn2.structuredAction.plan.trainingDaysPerWeek, 7, 'Must lock in 7 days per week');
+  assert(turn2.structuredAction.plan.interactive_calendar.length > 0, 'Must build full interactive calendar');
+});
+
+// -------------------------------------------------------------------
+// TEST 14: Natural language variations for days, durations, and start dates
+// -------------------------------------------------------------------
+test('TEST 14: Natural language variations: everyday, rozana, 6 din, aaj all parse correctly', () => {
+  const res1 = extractIntakeState('i want everyday', [], {});
+  assert.strictEqual(res1.days, 7, 'everyday must extract 7 days');
+
+  const res2 = extractIntakeState('rozana exercise karni hai', [], {});
+  assert.strictEqual(res2.days, 7, 'rozana must extract 7 days');
+
+  const res3 = extractIntakeState('hafte me 6 din kar sakta hu', [], {});
+  assert.strictEqual(res3.days, 6, '6 din must extract 6 days');
+
+  const res4 = extractIntakeState('2 din', [], {});
+  assert.strictEqual(res4.days, 2, '2 din must extract 2 days');
+
+  const res5 = extractIntakeState('aaj se start karna hai', [], {});
+  assert.strictEqual(res5.startSchedule, 'Today', 'aaj se must extract Today');
+
+  const res6 = extractIntakeState('ek mahina', [], {});
+  assert.strictEqual(res6.duration, '1 Month', 'ek mahina must extract 1 Month');
 });
 
 console.log('\n====================================================');

@@ -1000,18 +1000,39 @@ const GlobalChat = () => {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Target size={15} color="#3b82f6" />
-                            {msg.structuredAction.step === 'goal' ? 'Mini-Coach • Step 1: Target Goal' : msg.structuredAction.step === 'schedule' ? 'Mini-Coach • Step 3: Start Schedule' : 'Mini-Coach • Step 2: Duration'}
+                            {msg.structuredAction.stepTitle || (
+                              msg.structuredAction.step === 'goal' ? 'Mini-Coach • Step 1: Target Goal' :
+                              msg.structuredAction.step === 'target_weight' ? 'Mini-Coach • Target Weight' :
+                              msg.structuredAction.step === 'duration' ? 'Mini-Coach • Step 2: Duration' :
+                              msg.structuredAction.step === 'training_frequency' || msg.structuredAction.step === 'frequency' ? 'Mini-Coach • Step 3: Days per Week' :
+                              msg.structuredAction.step === 'schedule' ? 'Mini-Coach • Step 4: Start Schedule' :
+                              'Mini-Coach • Program Calibration'
+                            )}
                           </span>
                           <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>
-                            {msg.structuredAction.step === 'goal' ? '1 of 3' : msg.structuredAction.step === 'duration' ? '2 of 3' : '3 of 3'}
+                            {msg.structuredAction.stepSubtitle || (
+                              msg.structuredAction.step === 'goal' ? 'Step 1' :
+                              msg.structuredAction.step === 'target_weight' ? 'Calibrate' :
+                              msg.structuredAction.step === 'duration' ? 'Step 2' :
+                              msg.structuredAction.step === 'training_frequency' || msg.structuredAction.step === 'frequency' ? 'Step 3' :
+                              msg.structuredAction.step === 'schedule' ? 'Step 4' : 'Intake'
+                            )}
                           </span>
                         </div>
                         <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                          {msg.structuredAction.step === 'goal'
-                            ? 'Select your primary objective to calibrate sets, reps, and energy burn:'
-                            : msg.structuredAction.step === 'schedule'
-                            ? 'When would you like to start your training program?'
-                            : 'Select how many weeks or months your periodized cycle should run:'}
+                          {msg.structuredAction.description || (
+                            msg.structuredAction.step === 'goal'
+                              ? 'Select your primary objective to calibrate sets, reps, and energy burn:'
+                              : msg.structuredAction.step === 'target_weight'
+                              ? 'Select your target weight to calibrate your calorie deficit and timeline:'
+                              : msg.structuredAction.step === 'duration'
+                              ? 'Select how many weeks or months your periodized cycle should run:'
+                              : msg.structuredAction.step === 'training_frequency' || msg.structuredAction.step === 'frequency'
+                              ? 'How many days per week can you dedicate to working out?'
+                              : msg.structuredAction.step === 'schedule'
+                              ? 'When would you like to start your training program?'
+                              : 'Select an option below to calibrate your custom plan:'
+                          )}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           {(msg.suggestions || []).map((sug, sIdx) => (
