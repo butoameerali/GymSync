@@ -1,5 +1,5 @@
 const DEFAULT_HOST = 'http://localhost:11434/api/chat';
-const DEFAULT_MODEL = 'qwen2.5:3b';
+const DEFAULT_MODEL = 'qwen2.5:7b';
 
 /**
  * Small, bounded adapter for the local Ollama server.  The application keeps
@@ -11,7 +11,7 @@ export const ollamaCoachService = {
     return process.env.ENABLE_OLLAMA === 'true' || Boolean(process.env.OLLAMA_HOST);
   },
 
-  async reply({ systemPrompt, message, history = [], timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS) || 60000 }) {
+  async reply({ systemPrompt, message, history = [], timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS) || 120000 }) {
     if (!this.isEnabled()) return null;
 
     const controller = new AbortController();
@@ -24,12 +24,12 @@ export const ollamaCoachService = {
         body: JSON.stringify({
           model: process.env.OLLAMA_MODEL || DEFAULT_MODEL,
           stream: false,
-          // 2048 context is plenty for fitness chat, runs 2x faster, and prevents high RAM usage on 8GB laptops
+          // 1024 context bounded for 7B on 8GB RAM to prevent Out Of Memory crashes
           options: {
             temperature: 0.4,
             top_p: 0.9,
-            num_ctx: Number(process.env.OLLAMA_NUM_CTX) || 2048,
-            num_predict: 250
+            num_ctx: Number(process.env.OLLAMA_NUM_CTX) || 1024,
+            num_predict: 180
           },
           messages: [
             { role: 'system', content: systemPrompt },
