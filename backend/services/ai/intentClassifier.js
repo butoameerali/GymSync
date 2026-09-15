@@ -123,9 +123,14 @@ export const intentClassifier = {
     }
 
     // Equipment extraction (Current turn, fallback to history)
+    const isBodyweightMatch = (str = '') => {
+      return /(?:no|without|zero|dont have|don't have|do not have|nahi hai|nhi hai|baghair|bina)\s*(?:any\s*)?(?:equipment|weights?|dumbbells?|machines?|saman)/i.test(str) ||
+        /\b(?:bodyweight(?:\s*only)?|calisthenics|no equipment|without weights|bina weights|ghar pe workout)\b/i.test(str);
+    };
+
     if (text.includes('dumbbell only') || text.includes('only have dumbbells') || text.includes('just dumbbells') || text.includes('with dumbbells') || text.includes('only dumbbells')) {
       entities.equipmentChange = 'Dumbbells';
-    } else if (text.includes('no equipment') || text.includes('bodyweight only') || text.includes('at home without weights')) {
+    } else if (isBodyweightMatch(text)) {
       entities.equipmentChange = 'Bodyweight';
     } else if (text.includes('full gym') || text.includes('in the gym') || text.includes('access to gym')) {
       entities.equipmentChange = 'Full Gym';
@@ -137,7 +142,7 @@ export const intentClassifier = {
         if (msg.includes('dumbbell only') || msg.includes('only dumbbells') || msg.includes('just dumbbells') || msg.includes('with dumbbells') || msg.includes('only have dumbbells')) {
           entities.equipmentChange = 'Dumbbells';
           break;
-        } else if (msg.includes('no equipment') || msg.includes('bodyweight only') || msg.includes('at home without weights')) {
+        } else if (isBodyweightMatch(msg)) {
           entities.equipmentChange = 'Bodyweight';
           break;
         } else if (msg.includes('full gym') || msg.includes('in the gym')) {
