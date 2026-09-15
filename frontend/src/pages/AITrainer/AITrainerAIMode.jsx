@@ -21,7 +21,9 @@ import {
   RotateCcw,
   Check,
   Flame,
-  Calendar
+  Calendar,
+  Info,
+  X
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
@@ -111,17 +113,22 @@ const AITrainerAIMode = ({
   const [showNextGoalPrompt, setShowNextGoalPrompt] = useState(false); // Part 20
   const [activeCoachTick, setActiveCoachTick] = useState(null);
   const [activeWeek, setActiveWeek] = useState(1);
+  const [activeExerciseDetailModal, setActiveExerciseDetailModal] = useState(null);
 
   useEffect(() => {
     if (aiPlan?.interactive_calendar?.length) {
       const currentDay = aiPlan.interactive_calendar.find(d => getDayScheduleInfo(d).isToday) ||
-        aiPlan.interactive_calendar.find(d => d.isWorkoutDay && !(workoutProgress?.completedDays || []).includes(d.dayNumber));
+        aiPlan.interactive_calendar.find(d => d.isWorkoutDay && !(workoutProgress?.completedDays || []).includes(d.dayNumber)) ||
+        aiPlan.interactive_calendar[0];
       if (currentDay) {
         const w = currentDay.weekNumber || Math.ceil(currentDay.dayNumber / 7);
         if (w) setActiveWeek(w);
+        if (!selectedCalendarDay) {
+          setSelectedCalendarDay(currentDay);
+        }
       }
     }
-  }, [aiPlan, workoutProgress?.completedDays]);
+  }, [aiPlan, workoutProgress?.completedDays, selectedCalendarDay, setSelectedCalendarDay, getDayScheduleInfo]);
 
   const triggerOpenCoach = (sourceId, command = null) => {
     setActiveCoachTick(sourceId);
@@ -501,7 +508,7 @@ const AITrainerAIMode = ({
                 {savedWorkoutPlans.map((plan) => {
                   const planTitle = plan.title || 'Workout Plan';
                   const slug = planTitle.toLowerCase().replace(/lost/g, 'loss').replace(/[^a-z0-9]/g, '');
-                  const duration = plan.calendar?.length || plan.workout?.interactive_calendar?.length || 28;
+                  const duration = plan.calendar?.length || plan.workout?.interactive_calendar?.length || (plan.planDuration ? parseInt(plan.planDuration, 10) : null);
                   const isWeightLoss = planTitle.toLowerCase().includes('weight') || planTitle.toLowerCase().includes('fat') || planTitle.toLowerCase().includes('loss');
                   const isBodyDev = planTitle.toLowerCase().includes('body') || planTitle.toLowerCase().includes('muscle') || planTitle.toLowerCase().includes('hypertrophy') || planTitle.toLowerCase().includes('development');
 
@@ -540,7 +547,7 @@ const AITrainerAIMode = ({
                             {isWeightLoss ? '🔥 Weight Loss' : isBodyDev ? '💪 Body Development' : '⚡ Strength & Fitness'}
                           </span>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {duration} Days
+                            {duration ? `${duration} Days` : 'Custom Routine'}
                           </span>
                         </div>
 
@@ -1109,7 +1116,7 @@ const AITrainerAIMode = ({
                   fontSize: '0.85rem',
                 }}
               >
-                Plan Active: {aiPlan?.planDuration || `${aiPlan?.interactive_calendar?.length || 28} Days`}
+                Plan Active: {aiPlan?.planDuration || (aiPlan?.interactive_calendar?.length ? `${aiPlan.interactive_calendar.length} Days` : 'Custom Routine')}
               </span>
               {!isGuest && (
                 <button
@@ -1172,212 +1179,6 @@ const AITrainerAIMode = ({
                   </ul>
                 </div>
               )}
-
-              {/* ── TODAY'S WORKOUT STATION HERO ───────────────────────── */}
-              {(() => {
-                const calendarDays = aiPlan.interactive_calendar || [];
-                const todayWorkoutDay = calendarDays.find(d => getDayScheduleInfo(d).isToday) ||
-                  calendarDays.find(d => d.isWorkoutDay && !(workoutProgress?.completedDays || []).includes(d.dayNumber)) ||
-                  selectedCalendarDay ||
-                  calendarDays[0];
-
-                if (!todayWorkoutDay) return null;
-
-                const todayInfo = getDayScheduleInfo(todayWorkoutDay);
-                const todayExercises = Array.isArray(todayWorkoutDay.workoutSplit)
-                  ? todayWorkoutDay.workoutSplit
-                  : (todayWorkoutDay.exercises || todayWorkoutDay.mainWorkout || []);
-                const isTodayCompleted = todayInfo.status === 'COMPLETED' || (workoutProgress?.completedDays || []).includes(todayWorkoutDay.dayNumber);
-                const isTodayRest = !todayWorkoutDay.isWorkoutDay || todayInfo.status === 'REST';
-
-                return (
-                  <div
-                    className="today-workout-station glass-panel"
-                    style={{
-                      padding: '22px 26px',
-                      borderRadius: '16px',
-                      background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.16) 0%, rgba(37, 99, 235, 0.08) 100%)',
-                      border: '1px solid rgba(59, 130, 246, 0.45)',
-                      marginBottom: '24px',
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '16px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '1.35rem' }}>🎯</span>
-                          <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: '#f8fafc' }}>
-                            Today's Workout Station
-                          </h2>
-                          <span style={{
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            padding: '3px 10px',
-                            borderRadius: '20px',
-                            background: isTodayCompleted ? 'rgba(16, 185, 129, 0.2)' : isTodayRest ? 'rgba(255,255,255,0.1)' : 'rgba(59, 130, 246, 0.25)',
-                            color: isTodayCompleted ? '#10b981' : isTodayRest ? '#cbd5e1' : '#60a5fa',
-                            border: `1px solid ${isTodayCompleted ? '#10b981' : isTodayRest ? 'rgba(255,255,255,0.2)' : '#3b82f6'}`
-                          }}>
-                            {isTodayCompleted ? '✓ Completed' : isTodayRest ? 'Rest & Recovery' : `Day ${todayWorkoutDay.dayNumber} Ready`}
-                          </span>
-                        </div>
-                        <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                          {todayWorkoutDay.phaseName || todayWorkoutDay.focus || 'Target Resistance Session'} • {todayExercises.length} {todayExercises.length === 1 ? 'Exercise' : 'Exercises'} • ~{todayWorkoutDay.timeBudget?.totalEstimatedMinutes || 45} Mins
-                        </p>
-                      </div>
-
-                      {/* Primary Action Buttons */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        {!isTodayRest && isTodayCompleted && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => undoDayCompletion && undoDayCompletion(todayWorkoutDay.dayNumber)}
-                              style={{
-                                padding: '10px 18px',
-                                borderRadius: '12px',
-                                background: 'rgba(239, 68, 68, 0.12)',
-                                border: '1px solid #ef4444',
-                                color: '#f87171',
-                                fontSize: '0.9rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                              }}
-                            >
-                              🔄 Reset / Undo
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedCalendarDay(todayWorkoutDay);
-                                setShowMissionRunner(true);
-                              }}
-                              style={{
-                                padding: '10px 22px',
-                                borderRadius: '12px',
-                                background: 'linear-gradient(135deg, #10b981, #059669)',
-                                border: 'none',
-                                color: '#ffffff',
-                                fontSize: '0.95rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                boxShadow: '0 4px 18px rgba(16, 185, 129, 0.4)'
-                              }}
-                            >
-                              <Play size={16} fill="#ffffff" />
-                              Replay Workout
-                            </button>
-                          </>
-                        )}
-
-                        {!isTodayRest && !isTodayCompleted && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => completeDayManually && completeDayManually(todayWorkoutDay.dayNumber)}
-                              style={{
-                                padding: '10px 18px',
-                                borderRadius: '12px',
-                                background: 'rgba(16, 185, 129, 0.12)',
-                                border: '1px solid #10b981',
-                                color: '#10b981',
-                                fontSize: '0.9rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                              }}
-                            >
-                              ✓ Mark Done
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedCalendarDay(todayWorkoutDay);
-                                setShowMissionRunner(true);
-                              }}
-                              style={{
-                                padding: '12px 24px',
-                                borderRadius: '12px',
-                                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                                border: 'none',
-                                color: '#ffffff',
-                                fontSize: '1rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '10px',
-                                boxShadow: '0 4px 18px rgba(59, 130, 246, 0.4)',
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              <Play size={18} fill="#ffffff" />
-                              Start Today's Workout
-                            </button>
-                          </>
-                        )}
-
-                        {isTodayRest && (
-                          <button
-                            type="button"
-                            onClick={() => triggerOpenCoach('active_recovery', 'Suggest a light mobility & stretching routine for my rest day')}
-                            style={{
-                              padding: '10px 18px',
-                              borderRadius: '10px',
-                              background: 'rgba(255,255,255,0.08)',
-                              border: '1px solid rgba(255,255,255,0.2)',
-                              color: '#f8fafc',
-                              fontSize: '0.85rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            ⚡ Light Recovery Session
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Today's Exercises Preview Pills */}
-                    {!isTodayRest && todayExercises.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '4px' }}>
-                        {todayExercises.map((ex, i) => (
-                          <span
-                            key={i}
-                            style={{
-                              fontSize: '0.78rem',
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: 'rgba(255, 255, 255, 0.04)',
-                              border: '1px solid rgba(255, 255, 255, 0.08)',
-                              color: '#e2e8f0',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            <strong>{i + 1}.</strong> {ex.name || ex} {ex.sets ? `(${ex.sets}×${ex.reps})` : ''}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
 
               {/* ── 1. FULL-WIDTH INTERACTIVE WORKOUT SCHEDULE BAR ──────── */}
               <div
@@ -1661,844 +1462,153 @@ const AITrainerAIMode = ({
               </div>
 
               {/* ── 2. FULL-WIDTH SELECTED DAY AGENDA / WORKOUT INDEX ─────── */}
-              {selectedCalendarDay &&
-                (() => {
-                  const { status, scheduledDate, isToday, isTomorrow, isCompleted } = getDayScheduleInfo(selectedCalendarDay);
-                  const daySplit = Array.isArray(selectedCalendarDay.workoutSplit)
-                    ? selectedCalendarDay.workoutSplit
-                    : (selectedCalendarDay.exercises || selectedCalendarDay.mainWorkout || []);
-                  const isRest = !selectedCalendarDay.isWorkoutDay || status === 'REST';
+              {(() => {
+                const currentDay = selectedCalendarDay ||
+                  (aiPlan.interactive_calendar || []).find(d => getDayScheduleInfo(d).isToday) ||
+                  (aiPlan.interactive_calendar || []).find(d => d.isWorkoutDay && !(workoutProgress?.completedDays || []).includes(d.dayNumber)) ||
+                  (aiPlan.interactive_calendar || [])[0];
 
-                  return (
+                if (!currentDay) return null;
+
+                const { status, scheduledDate, isToday, isTomorrow, isCompleted } = getDayScheduleInfo(currentDay);
+                const daySplit = Array.isArray(currentDay.workoutSplit)
+                  ? currentDay.workoutSplit
+                  : (currentDay.exercises || currentDay.mainWorkout || []);
+                const isRest = !currentDay.isWorkoutDay || status === 'REST';
+
+                return (
+                  <div
+                    className="day-details-panel glass-panel"
+                    style={{
+                      width: '100%',
+                      padding: '20px 22px',
+                      borderRadius: '16px',
+                      background: 'var(--panel-bg)',
+                      border: '1px solid var(--card-border)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                      marginBottom: '24px',
+                    }}
+                  >
+                    {/* Top Header Row with Day Number, Date, Status, and Primary Actions */}
                     <div
-                      className="day-details-panel glass-panel"
                       style={{
-                        width: '100%',
-                        padding: '24px 28px',
-                        borderRadius: '16px',
-                        background: 'var(--panel-bg)',
-                        border: '1px solid var(--card-border)',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                        marginBottom: '32px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        borderBottom: '1px solid var(--card-border)',
+                        paddingBottom: '14px',
+                        marginBottom: '14px',
+                        flexWrap: 'wrap',
+                        gap: '12px',
                       }}
                     >
-                      {/* Top Header Row with Day Number, Date, Status, and Primary Actions */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'flex-start',
-                          borderBottom: '1px solid var(--card-border)',
-                          paddingBottom: '16px',
-                          marginBottom: '18px',
-                          flexWrap: 'wrap',
-                          gap: '14px',
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: '1.4rem' }}>{isCompleted ? '✅' : isRest ? '😴' : '🏋️'}</span>
-                            <h3 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                              Day {selectedCalendarDay.dayNumber}: {selectedCalendarDay.sessionObjective || selectedCalendarDay.focusArea || selectedCalendarDay.focus || selectedCalendarDay.phaseName || 'Target Training Routine'}
-                            </h3>
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                padding: '3px 10px',
-                                borderRadius: '12px',
-                                background: isCompleted
-                                  ? 'rgba(16, 185, 129, 0.2)'
-                                  : isToday
-                                  ? 'rgba(59, 130, 246, 0.2)'
-                                  : isTomorrow
-                                  ? 'rgba(99, 102, 241, 0.2)'
-                                  : isRest
-                                  ? 'rgba(255, 255, 255, 0.08)'
-                                  : status === 'MISSED'
-                                  ? 'rgba(239, 68, 68, 0.2)'
-                                  : 'rgba(255, 255, 255, 0.05)',
-                                color: isCompleted
-                                  ? '#10b981'
-                                  : isToday
-                                  ? '#60a5fa'
-                                  : isTomorrow
-                                  ? '#a5b4fc'
-                                  : isRest
-                                  ? 'var(--text-secondary)'
-                                  : status === 'MISSED'
-                                  ? '#ef4444'
-                                  : 'var(--text-secondary)',
-                                border: `1px solid ${isCompleted ? '#10b981' : isToday ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`,
-                              }}
-                            >
-                              {isCompleted
-                                ? '✅ Completed'
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '1.25rem' }}>{isCompleted ? '✅' : isRest ? '😴' : '🏋️'}</span>
+                          <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            Day {currentDay.dayNumber}: {currentDay.sessionObjective || currentDay.focusArea || currentDay.focus || currentDay.phaseName || 'Target Training Routine'}
+                          </h3>
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              background: isCompleted
+                                ? 'rgba(16, 185, 129, 0.2)'
                                 : isToday
-                                ? '🚀 Available Today'
+                                ? 'rgba(59, 130, 246, 0.2)'
                                 : isTomorrow
-                                ? '🌅 Tomorrow'
+                                ? 'rgba(99, 102, 241, 0.2)'
                                 : isRest
-                                ? '😴 Rest & Recovery'
+                                ? 'rgba(255, 255, 255, 0.08)'
                                 : status === 'MISSED'
-                                ? '🔴 Missed'
-                                : '🔒 Scheduled'}
-                            </span>
-                          </div>
-                          <p style={{ margin: 0, fontSize: '0.88rem', color: '#60a5fa', fontWeight: 600 }}>
-                            {selectedCalendarDay.phaseName || `Week ${selectedCalendarDay.weekNumber || 1}`} • 📅{' '}
-                            {scheduledDate.toLocaleDateString('en-US', {
-                              weekday: 'long',
-                              month: 'long',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                            {isToday ? ' (Today)' : isTomorrow ? ' (Tomorrow)' : ''}
-                          </p>
-                        </div>
-
-                        {/* Top Quick Actions */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                          {!isRest && isCompleted && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => undoDayCompletion && undoDayCompletion(selectedCalendarDay.dayNumber)}
-                                style={{
-                                  padding: '8px 16px',
-                                  borderRadius: '10px',
-                                  background: 'rgba(239, 68, 68, 0.12)',
-                                  border: '1px solid #ef4444',
-                                  color: '#f87171',
-                                  fontSize: '0.84rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                }}
-                              >
-                                🔄 Reset / Undo Day
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveWorkoutDay(selectedCalendarDay.dayNumber);
-                                  setShowMissionRunner(true);
-                                }}
-                                style={{
-                                  padding: '8px 18px',
-                                  borderRadius: '10px',
-                                  background: 'linear-gradient(135deg, #10b981, #059669)',
-                                  border: 'none',
-                                  color: '#ffffff',
-                                  fontSize: '0.84rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
-                                }}
-                              >
-                                <Play size={15} fill="#ffffff" /> Replay Workout
-                              </button>
-                            </>
-                          )}
-
-                          {!isRest && !isCompleted && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => completeDayManually && completeDayManually(selectedCalendarDay.dayNumber)}
-                                style={{
-                                  padding: '8px 16px',
-                                  borderRadius: '10px',
-                                  background: 'rgba(16, 185, 129, 0.12)',
-                                  border: '1px solid #10b981',
-                                  color: '#10b981',
-                                  fontSize: '0.84rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                }}
-                              >
-                                ✓ Mark Complete (Manual)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveWorkoutDay(selectedCalendarDay.dayNumber);
-                                  setShowMissionRunner(true);
-                                }}
-                                style={{
-                                  padding: '8px 20px',
-                                  borderRadius: '10px',
-                                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                                  border: 'none',
-                                  color: '#ffffff',
-                                  fontSize: '0.88rem',
-                                  fontWeight: 800,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)',
-                                }}
-                              >
-                                <Play size={16} fill="#ffffff" /> Start Workout
-                              </button>
-                            </>
-                          )}
-
-                          {isRest && (
-                            <button
-                              type="button"
-                              onClick={() => triggerOpenCoach('active_recovery', 'Suggest a light mobility & stretching routine for my rest day')}
-                              style={{
-                                padding: '8px 16px',
-                                borderRadius: '10px',
-                                background: 'rgba(255,255,255,0.08)',
-                                border: '1px solid rgba(255,255,255,0.2)',
-                                color: '#f8fafc',
-                                fontSize: '0.84rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                              }}
-                            >
-                              ⚡ Rest Day Mobility Routine
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 1. ADAPTATION OBJECTIVE & COACH RATIONALE */}
-                      <div
-                        style={{
-                          background: 'rgba(59, 130, 246, 0.08)',
-                          border: '1px solid rgba(59, 130, 246, 0.25)',
-                          padding: '12px 16px',
-                          borderRadius: '10px',
-                          marginBottom: '16px',
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '1px',
-                            color: '#60a5fa',
-                            fontWeight: 700,
-                            marginBottom: '4px',
-                          }}
-                        >
-                          🎯 Today's Adaptation Goal
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.98rem',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                          }}
-                        >
-                          {selectedCalendarDay.sessionObjective || selectedCalendarDay.focusArea || selectedCalendarDay.focus}
-                        </div>
-                      </div>
-
-                      {selectedCalendarDay.appliedRecoveryNote && (
-                        <div
-                          style={{
-                            background: 'rgba(239, 68, 68, 0.08)',
-                            border: '1px solid rgba(239, 68, 68, 0.25)',
-                            padding: '12px 16px',
-                            borderRadius: '10px',
-                            marginBottom: '16px',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.9rem',
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontWeight: 700,
-                              display: 'block',
-                              color: '#ef4444',
-                              marginBottom: '4px',
-                              fontSize: '0.75rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '1px',
+                                ? 'rgba(239, 68, 68, 0.2)'
+                                : 'rgba(255, 255, 255, 0.05)',
+                              color: isCompleted
+                                ? '#10b981'
+                                : isToday
+                                ? '#60a5fa'
+                                : isTomorrow
+                                ? '#a5b4fc'
+                                : isRest
+                                ? 'var(--text-secondary)'
+                                : status === 'MISSED'
+                                ? '#ef4444'
+                                : 'var(--text-secondary)',
+                              border: `1px solid ${isCompleted ? '#10b981' : isToday ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`,
                             }}
                           >
-                            <AlertCircle size={14} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }} /> Recovery Adjustment
+                            {isCompleted
+                              ? '✓ Completed'
+                              : isToday
+                              ? '🚀 Today'
+                              : isTomorrow
+                              ? '🌅 Tomorrow'
+                              : isRest
+                              ? '😴 Rest Day'
+                              : status === 'MISSED'
+                              ? '🔴 Missed'
+                              : '🔒 Scheduled'}
                           </span>
-                          {selectedCalendarDay.appliedRecoveryNote}
                         </div>
-                      )}
-
-                      {selectedCalendarDay.rationale && (
-                        <div
-                          style={{
-                            background: 'rgba(99, 102, 241, 0.08)',
-                            border: '1px solid rgba(99, 102, 241, 0.25)',
-                            padding: '12px 16px',
-                            borderRadius: '10px',
-                            marginBottom: '16px',
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: '0.75rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '1px',
-                              color: '#818cf8',
-                              fontWeight: 700,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              marginBottom: '4px',
-                            }}
-                          >
-                            🧠 Coach Rationale &amp; Life Context
-                          </div>
-                          {selectedCalendarDay.rationale.constraints?.length > 0 && (
-                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                              <strong style={{ color: '#cbd5e1' }}>Context:</strong>{' '}
-                              {selectedCalendarDay.rationale.constraints.join(' • ')}
-                            </div>
-                          )}
-                          {selectedCalendarDay.rationale.rejectedExercises?.length > 0 && (
-                            <div style={{ fontSize: '0.8rem', color: '#f87171', marginTop: '4px' }}>
-                              <strong>Fatigue Protected:</strong>{' '}
-                              {selectedCalendarDay.rationale.rejectedExercises
-                                .map((r) => `${r.name} (${r.reason})`)
-                                .join('; ')}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* 2. REASONED WARM-UP SECTION */}
-                      {selectedCalendarDay.warmup?.warmupExercises?.length > 0 && (
-                        <div
-                          style={{
-                            background: 'rgba(245, 158, 11, 0.06)',
-                            border: '1px solid rgba(245, 158, 11, 0.25)',
-                            padding: '14px 16px',
-                            borderRadius: '12px',
-                            marginBottom: '18px',
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginBottom: '10px',
-                            }}
-                          >
-                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f59e0b' }}>
-                              🔥 Reasoned Warm-Up ({selectedCalendarDay.warmup.totalEstimatedMinutes || 5} Mins)
-                            </span>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px' }}>
-                            {selectedCalendarDay.warmup.warmupExercises.map((w, wi) => (
-                              <div
-                                key={wi}
-                                style={{
-                                  background: 'rgba(255,255,255,0.03)',
-                                  padding: '10px 12px',
-                                  borderRadius: '8px',
-                                  fontSize: '0.84rem',
-                                  border: '1px solid rgba(255,255,255,0.05)',
-                                }}
-                              >
-                                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                                  {wi + 1}. {w.name}
-                                </div>
-                                <div style={{ fontSize: '0.78rem', color: '#f59e0b', margin: '2px 0' }}>
-                                  {w.reps || w.duration}
-                                </div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                  {w.instructions || w.purpose}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 3. MAIN RESISTANCE WORK (THE EXERCISE INDEX) */}
-                      {isRest ? (
-                        <div
-                          style={{
-                            textAlign: 'center',
-                            padding: '30px 20px',
-                            background: 'rgba(255,255,255,0.02)',
-                            color: 'var(--text-secondary)',
-                            borderRadius: '12px',
-                            border: '1px dashed rgba(255,255,255,0.12)',
-                            marginBottom: '20px',
-                          }}
-                        >
-                          <Moon size={36} color="#60a5fa" style={{ marginBottom: '8px' }} />
-                          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                            Scheduled Rest &amp; Recovery Day
-                          </div>
-                          <p style={{ margin: '6px 0 0 0', fontSize: '0.86rem' }}>
-                            Active recovery, muscle protein synthesis, and nervous system replenishment.
-                          </p>
-                        </div>
-                      ) : (
-                        <div style={{ marginBottom: '22px' }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginBottom: '12px',
-                              flexWrap: 'wrap',
-                              gap: '8px',
-                            }}
-                          >
-                            <h4
-                              style={{
-                                margin: 0,
-                                fontSize: '1.05rem',
-                                fontWeight: 800,
-                                color: '#38bdf8',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                              }}
-                            >
-                              🏋️ Main Resistance Work ({daySplit.length} Movements)
-                            </h4>
-                            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                              ⏱️ Est. {selectedCalendarDay.timeBudget?.totalEstimatedMinutes || 45} Mins Total
-                            </span>
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {daySplit.map((ex, idx) => {
-                              const targetEx = {
-                                ...ex,
-                                category: ex.category || 'AI Custom',
-                                instructions: ex.instructions || 'Follow AI targets',
-                                points: ex.points || 1,
-                              };
-                              const isExDone = isExerciseCompletedInState(selectedCalendarDay.dayNumber, idx);
-
-                              return (
-                                <div
-                                  key={idx}
-                                  className="ai-exercise-card"
-                                  style={{
-                                    background: isExDone ? 'rgba(16, 185, 129, 0.1)' : 'var(--card-bg)',
-                                    padding: '14px 18px',
-                                    borderRadius: '12px',
-                                    border: isExDone ? '1px solid #10b981' : '1px solid var(--card-border)',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '8px',
-                                    transition: 'all 0.2s',
-                                  }}
-                                >
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                      <div
-                                        style={{
-                                          width: '28px',
-                                          height: '28px',
-                                          borderRadius: '50%',
-                                          border: '2px solid',
-                                          borderColor: isExDone ? '#10b981' : '#3b82f6',
-                                          background: isExDone ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          flexShrink: 0,
-                                        }}
-                                      >
-                                        {isExDone ? (
-                                          <CheckCircle size={16} color="#10b981" />
-                                        ) : (
-                                          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#60a5fa' }}>
-                                            {idx + 1}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div>
-                                        <h5
-                                          style={{
-                                            fontSize: '0.98rem',
-                                            margin: 0,
-                                            fontWeight: 700,
-                                            color: isExDone ? '#10b981' : 'var(--text-primary)',
-                                            textDecoration: isExDone ? 'line-through' : 'none',
-                                          }}
-                                        >
-                                          {ex.name}
-                                        </h5>
-                                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                                          {ex.target || 'General'} • {ex.equipment || 'Full Equipment'}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    <div style={{ textAlign: 'right' }}>
-                                      <span
-                                        style={{
-                                          fontSize: '0.9rem',
-                                          fontWeight: 'bold',
-                                          color: isExDone ? '#10b981' : 'var(--primary-accent)',
-                                          display: 'block',
-                                        }}
-                                      >
-                                        {ex.sets} Sets × {ex.reps} Reps
-                                      </span>
-                                      <span style={{ fontSize: '0.74rem', color: '#f59e0b', fontWeight: 600 }}>
-                                        {ex.rpe || 'RPE 7-8'}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {/* Why Selected & Purpose */}
-                                  <div
-                                    style={{
-                                      fontSize: '0.76rem',
-                                      color: '#94a3b8',
-                                      background: 'rgba(255,255,255,0.02)',
-                                      padding: '6px 10px',
-                                      borderRadius: '6px',
-                                    }}
-                                  >
-                                    💡 <strong style={{ color: '#38bdf8' }}>Why Selected:</strong>{' '}
-                                    {ex.purpose || ex.reasonForSelection || 'Movement aligned with hypertrophy and volume target.'}
-                                  </div>
-
-                                  {/* Interactive Action Bar */}
-                                  <div
-                                    style={{
-                                      display: 'flex',
-                                      justifyContent: 'space-between',
-                                      alignItems: 'center',
-                                      marginTop: '4px',
-                                      paddingTop: '8px',
-                                      borderTop: '1px solid rgba(255,255,255,0.05)',
-                                      flexWrap: 'wrap',
-                                      gap: '8px',
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleCoachAction('Why this exercise', ex);
-                                        }}
-                                        style={{
-                                          background: 'none',
-                                          border: 'none',
-                                          color: '#38bdf8',
-                                          fontSize: '0.72rem',
-                                          cursor: 'pointer',
-                                          textDecoration: 'underline',
-                                        }}
-                                      >
-                                        Why this?
-                                      </button>
-                                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>•</span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleCoachAction('Replace this exercise', ex);
-                                        }}
-                                        style={{
-                                          background: 'none',
-                                          border: 'none',
-                                          color: '#f59e0b',
-                                          fontSize: '0.72rem',
-                                          cursor: 'pointer',
-                                          textDecoration: 'underline',
-                                        }}
-                                      >
-                                        Replace
-                                      </button>
-                                    </div>
-
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      {(ex.isAiTrackable || ex.aiDetection?.enabled) && (
-                                        <span
-                                          style={{
-                                            fontSize: '0.7rem',
-                                            background: 'rgba(16, 185, 129, 0.2)',
-                                            color: '#10b981',
-                                            padding: '3px 8px',
-                                            borderRadius: '6px',
-                                            fontWeight: 700,
-                                          }}
-                                        >
-                                          🎯 AI Vision
-                                        </span>
-                                      )}
-
-                                      {isExDone ? (
-                                        <>
-                                          <span
-                                            style={{
-                                              fontSize: '0.78rem',
-                                              fontWeight: 700,
-                                              color: '#10b981',
-                                              background: 'rgba(16, 185, 129, 0.15)',
-                                              padding: '4px 10px',
-                                              borderRadius: '6px',
-                                              border: '1px solid #10b981',
-                                            }}
-                                          >
-                                            ✓ Completed
-                                          </span>
-                                          <button
-                                            type="button"
-                                            onClick={() => toggleExerciseCompletion && toggleExerciseCompletion(selectedCalendarDay.dayNumber, idx, ex.name)}
-                                            style={{
-                                              background: 'transparent',
-                                              border: '1px solid rgba(239, 68, 68, 0.4)',
-                                              color: '#f87171',
-                                              fontSize: '0.72rem',
-                                              padding: '4px 8px',
-                                              borderRadius: '6px',
-                                              cursor: 'pointer',
-                                            }}
-                                            title="Mark this exercise as incomplete"
-                                          >
-                                            🔄 Undo
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => startExercise({ ...targetEx, ...ex, aiWorkoutIndex: idx })}
-                                            className="btn btn-outline btn-sm"
-                                            style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-                                          >
-                                            ▶️ Practice Form
-                                          </button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <button
-                                            type="button"
-                                            onClick={() => toggleExerciseCompletion && toggleExerciseCompletion(selectedCalendarDay.dayNumber, idx, ex.name)}
-                                            style={{
-                                              background: 'rgba(16, 185, 129, 0.12)',
-                                              border: '1px solid #10b981',
-                                              color: '#10b981',
-                                              fontSize: '0.74rem',
-                                              fontWeight: 700,
-                                              padding: '4px 10px',
-                                              borderRadius: '6px',
-                                              cursor: 'pointer',
-                                            }}
-                                          >
-                                            ✓ Mark Done
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => startExercise({ ...targetEx, ...ex, aiWorkoutIndex: idx })}
-                                            className="btn btn-primary btn-sm"
-                                            style={{ padding: '4px 12px', fontSize: '0.76rem', background: '#3b82f6', borderColor: '#3b82f6' }}
-                                          >
-                                            ▶️ Start
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 4. REASONED COOL-DOWN SECTION */}
-                      {selectedCalendarDay.cooldown?.cooldownExercises?.length > 0 && (
-                        <div
-                          style={{
-                            background: 'rgba(16, 185, 129, 0.06)',
-                            border: '1px solid rgba(16, 185, 129, 0.25)',
-                            padding: '14px 16px',
-                            borderRadius: '12px',
-                            marginBottom: '18px',
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: '0.88rem',
-                              fontWeight: 700,
-                              color: '#10b981',
-                              display: 'block',
-                              marginBottom: '8px',
-                            }}
-                          >
-                            🧘 Reasoned Cool-Down &amp; Recovery
-                          </span>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px' }}>
-                            {selectedCalendarDay.cooldown.cooldownExercises.map((c, ci) => (
-                              <div
-                                key={ci}
-                                style={{
-                                  background: 'rgba(255,255,255,0.03)',
-                                  padding: '10px 12px',
-                                  borderRadius: '8px',
-                                  fontSize: '0.82rem',
-                                  border: '1px solid rgba(255,255,255,0.05)',
-                                }}
-                              >
-                                <strong style={{ color: 'var(--text-primary)' }}>{c.name}</strong> • {c.duration}
-                                <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontStyle: 'italic', marginTop: '2px' }}>
-                                  {c.purpose}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 5. QUICK COACH RECALCULATE ACTIONS */}
-                      <div
-                        style={{
-                          background: 'rgba(255,255,255,0.02)',
-                          border: '1px solid var(--card-border)',
-                          padding: '12px 16px',
-                          borderRadius: '12px',
-                          marginBottom: '20px',
-                        }}
-                      >
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>
-                          ⚡ Real-Time Coach Session Adjustments:
-                        </div>
-                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          {[
-                            { label: '🏋️ Dumbbells Only', prompt: 'I only have dumbbells today' },
-                            { label: '⏱️ 20 Mins', prompt: 'I only have 20 minutes today' },
-                            { label: '🩺 Knee Discomfort', prompt: 'My knee hurts today' },
-                            { label: '🏏 Match Tomorrow', prompt: 'I have a match tomorrow' },
-                            { label: '🎖️ Army Training', prompt: 'I have army training tomorrow' },
-                            { label: '⚽ Football Tomorrow', prompt: 'I have football practice tomorrow' },
-                            { label: '🏃 5K Race Tomorrow', prompt: '5K race tomorrow' },
-                          ].map(({ label, prompt }) => (
-                            <button
-                              key={prompt}
-                              type="button"
-                              disabled={isRecalculating}
-                              onClick={() => handleCoachAction(prompt)}
-                              className="btn btn-outline btn-sm"
-                              style={{ fontSize: '0.74rem', padding: '4px 10px', borderRadius: '8px' }}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
+                        <p style={{ margin: 0, fontSize: '0.82rem', color: '#60a5fa', fontWeight: 600 }}>
+                          {currentDay.phaseName ? `${currentDay.phaseName} • ` : ''}📅{' '}
+                          {scheduledDate.toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                          {isToday ? ' (Today)' : isTomorrow ? ' (Tomorrow)' : ''}
+                        </p>
                       </div>
 
-                      {/* 6. DAILY NUTRITION PROTOCOL CARD */}
-                      <div
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%)',
-                          border: '1px solid rgba(16, 185, 129, 0.25)',
-                          borderRadius: '12px',
-                          padding: '14px 18px',
-                          marginBottom: '20px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: '12px',
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>🥗</span> Daily Fuel &amp; Meal Protocol
-                          </div>
-                          <p style={{ margin: '3px 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                            Target macros and personalized meal plan tailored specifically for this training day.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigate('/ai-trainer', { state: { tab: 'diet' } });
-                            window.dispatchEvent(new CustomEvent('gymsync_switch_tab', { detail: { tab: 'diet' } }));
-                          }}
-                          style={{
-                            padding: '6px 14px',
-                            borderRadius: '8px',
-                            background: 'rgba(16, 185, 129, 0.18)',
-                            border: '1px solid #10b981',
-                            color: '#10b981',
-                            fontSize: '0.82rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          🍽️ View My AI Diet Plan →
-                        </button>
-                      </div>
-
-                      {/* 7. BOTTOM ACTION CONTROLS */}
-                      <div
-                        style={{
-                          borderTop: '1px solid var(--card-border)',
-                          paddingTop: '16px',
-                          display: 'flex',
-                          justifyContent: 'flex-end',
-                          gap: '10px',
-                          flexWrap: 'wrap',
-                        }}
-                      >
+                      {/* Top Quick Actions */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         {!isRest && isCompleted && (
                           <>
                             <button
                               type="button"
-                              onClick={() => undoDayCompletion && undoDayCompletion(selectedCalendarDay.dayNumber)}
+                              onClick={() => undoDayCompletion && undoDayCompletion(currentDay.dayNumber)}
                               style={{
-                                padding: '10px 18px',
-                                borderRadius: '10px',
+                                padding: '7px 14px',
+                                borderRadius: '8px',
                                 background: 'rgba(239, 68, 68, 0.12)',
                                 border: '1px solid #ef4444',
                                 color: '#f87171',
-                                fontSize: '0.88rem',
+                                fontSize: '0.82rem',
                                 fontWeight: 700,
                                 cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
                               }}
                             >
-                              🔄 Reset / Undo Day
+                              🔄 Reset / Undo
                             </button>
                             <button
                               type="button"
                               onClick={() => {
-                                setActiveWorkoutDay(selectedCalendarDay.dayNumber);
+                                setActiveWorkoutDay(currentDay.dayNumber);
                                 setShowMissionRunner(true);
                               }}
                               style={{
-                                padding: '10px 22px',
-                                borderRadius: '10px',
+                                padding: '7px 16px',
+                                borderRadius: '8px',
                                 background: 'linear-gradient(135deg, #10b981, #059669)',
                                 border: 'none',
                                 color: '#ffffff',
-                                fontSize: '0.9rem',
-                                fontWeight: 800,
+                                fontSize: '0.82rem',
+                                fontWeight: 700,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '8px',
+                                gap: '5px',
+                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
                               }}
                             >
-                              <Play size={16} fill="#ffffff" /> Replay Workout
+                              <Play size={14} fill="#ffffff" /> Replay Workout
                             </button>
                           </>
                         )}
@@ -2507,49 +1617,478 @@ const AITrainerAIMode = ({
                           <>
                             <button
                               type="button"
-                              onClick={() => completeDayManually && completeDayManually(selectedCalendarDay.dayNumber)}
+                              onClick={() => completeDayManually && completeDayManually(currentDay.dayNumber)}
                               style={{
-                                padding: '10px 18px',
-                                borderRadius: '10px',
+                                padding: '7px 14px',
+                                borderRadius: '8px',
                                 background: 'rgba(16, 185, 129, 0.12)',
                                 border: '1px solid #10b981',
                                 color: '#10b981',
-                                fontSize: '0.88rem',
+                                fontSize: '0.82rem',
                                 fontWeight: 700,
                                 cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
                               }}
                             >
-                              ✓ Mark Complete (Manual)
+                              ✓ Mark Done
                             </button>
                             <button
                               type="button"
                               onClick={() => {
-                                setActiveWorkoutDay(selectedCalendarDay.dayNumber);
+                                setActiveWorkoutDay(currentDay.dayNumber);
                                 setShowMissionRunner(true);
                               }}
                               style={{
-                                padding: '10px 24px',
-                                borderRadius: '10px',
+                                padding: '8px 18px',
+                                borderRadius: '8px',
                                 background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
                                 border: 'none',
                                 color: '#ffffff',
-                                fontSize: '0.92rem',
+                                fontSize: '0.85rem',
                                 fontWeight: 800,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '8px',
-                                boxShadow: '0 4px 16px rgba(59, 130, 246, 0.4)',
+                                gap: '6px',
+                                boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
                               }}
                             >
-                              <Play size={17} fill="#ffffff" /> Start Workout
+                              <Play size={15} fill="#ffffff" /> Start Workout
                             </button>
                           </>
                         )}
+
+                        {isRest && (
+                          <button
+                            type="button"
+                            onClick={() => triggerOpenCoach('active_recovery', 'Suggest a light mobility & stretching routine for my rest day')}
+                            style={{
+                              padding: '7px 14px',
+                              borderRadius: '8px',
+                              background: 'rgba(255,255,255,0.08)',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              color: '#f8fafc',
+                              fontSize: '0.82rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                            }}
+                          >
+                            ⚡ Rest Day Mobility Routine
+                          </button>
+                        )}
                       </div>
                     </div>
-                  );
-                })()}
+
+                    {/* Adaptation Goal & Notes (Compact) */}
+                    {(currentDay.sessionObjective || currentDay.focusArea || currentDay.focus) && (
+                      <div
+                        style={{
+                          background: 'rgba(59, 130, 246, 0.07)',
+                          border: '1px solid rgba(59, 130, 246, 0.22)',
+                          padding: '7px 12px',
+                          borderRadius: '8px',
+                          marginBottom: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                          fontSize: '0.82rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ color: '#60a5fa', fontWeight: 700 }}>🎯 Goal:</span>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                            {currentDay.sessionObjective || currentDay.focusArea || currentDay.focus}
+                          </span>
+                        </div>
+                        {currentDay.appliedRecoveryNote && (
+                          <span style={{ color: '#f87171', fontSize: '0.76rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertCircle size={12} /> {currentDay.appliedRecoveryNote}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Reasoned Warm-Up (Compact Pills with Info Modal Trigger) */}
+                    {currentDay.warmup?.warmupExercises?.length > 0 && (
+                      <div
+                        style={{
+                          background: 'rgba(245, 158, 11, 0.05)',
+                          border: '1px solid rgba(245, 158, 11, 0.2)',
+                          padding: '7px 12px',
+                          borderRadius: '8px',
+                          marginBottom: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        <span style={{ color: '#f59e0b', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Flame size={13} /> Warm-Up ({currentDay.warmup.totalEstimatedMinutes || 5}m):
+                        </span>
+                        {currentDay.warmup.warmupExercises.map((w, wi) => (
+                          <button
+                            key={wi}
+                            type="button"
+                            onClick={() => setActiveExerciseDetailModal({
+                              name: w.name,
+                              target: 'Full-Body Mobility & Dynamic Warmup',
+                              equipment: 'Bodyweight / Band',
+                              sets: 1,
+                              reps: w.duration || w.reps || '30-45s',
+                              rpe: 'RPE 4-5',
+                              rest: '0-20s',
+                              purpose: w.purpose || w.instructions || 'Prepares joints and nervous system for loading.',
+                              instructions: w.instructions || 'Perform with fluid, controlled movement through full range of motion.',
+                            })}
+                            style={{
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(255, 255, 255, 0.04)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              color: '#e2e8f0',
+                              cursor: 'pointer',
+                              fontSize: '0.76rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                            title="Click to view technique"
+                          >
+                            {w.name} {w.duration || w.reps ? `(${w.duration || w.reps})` : ''}
+                            <Info size={11} color="#f59e0b" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Main Resistance Work */}
+                    {isRest ? (
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          padding: '24px 16px',
+                          background: 'rgba(255,255,255,0.02)',
+                          color: 'var(--text-secondary)',
+                          borderRadius: '10px',
+                          border: '1px dashed rgba(255,255,255,0.1)',
+                        }}
+                      >
+                        <Moon size={32} color="#60a5fa" style={{ marginBottom: '6px' }} />
+                        <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          Scheduled Rest &amp; Recovery Day
+                        </div>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem' }}>
+                          Active recovery, muscle protein synthesis, and nervous system replenishment.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '10px',
+                          }}
+                        >
+                          <h4
+                            style={{
+                              margin: 0,
+                              fontSize: '0.96rem',
+                              fontWeight: 800,
+                              color: '#38bdf8',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            🏋️ Main Movements ({daySplit.length})
+                          </h4>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                            ⏱️ Est. {currentDay.timeBudget?.totalEstimatedMinutes || 45} Mins
+                          </span>
+                        </div>
+
+                        {/* Compact Single-Row Exercise Items */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                          {daySplit.map((ex, idx) => {
+                            const targetEx = {
+                              ...ex,
+                              category: ex.category || 'AI Custom',
+                              instructions: ex.instructions || 'Follow AI targets',
+                              points: ex.points || 1,
+                            };
+                            const isExDone = isExerciseCompletedInState(currentDay.dayNumber, idx);
+
+                            return (
+                              <div
+                                key={idx}
+                                className="ai-exercise-row"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '8px 12px',
+                                  borderRadius: '9px',
+                                  background: isExDone ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+                                  border: isExDone ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                  gap: '10px',
+                                  flexWrap: 'wrap',
+                                  transition: 'all 0.15s ease',
+                                }}
+                              >
+                                {/* Left: Index + Name + Tag */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '180px', flex: 1 }}>
+                                  <div
+                                    style={{
+                                      width: '22px',
+                                      height: '22px',
+                                      borderRadius: '50%',
+                                      border: `2px solid ${isExDone ? '#10b981' : '#3b82f6'}`,
+                                      background: isExDone ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {isExDone ? (
+                                      <Check size={13} color="#10b981" strokeWidth={3} />
+                                    ) : (
+                                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#60a5fa' }}>{idx + 1}</span>
+                                    )}
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <span
+                                      style={{
+                                        fontSize: '0.9rem',
+                                        fontWeight: 700,
+                                        color: isExDone ? '#10b981' : '#f8fafc',
+                                        textDecoration: isExDone ? 'line-through' : 'none',
+                                      }}
+                                    >
+                                      {ex.name}
+                                    </span>
+                                    {ex.target && (
+                                      <span
+                                        style={{
+                                          fontSize: '0.68rem',
+                                          padding: '1px 6px',
+                                          borderRadius: '4px',
+                                          background: 'rgba(255, 255, 255, 0.06)',
+                                          color: 'var(--text-secondary)',
+                                        }}
+                                      >
+                                        {ex.target}
+                                      </span>
+                                    )}
+                                    {(ex.isAiTrackable || ex.aiDetection?.enabled) && (
+                                      <span
+                                        style={{
+                                          fontSize: '0.66rem',
+                                          background: 'rgba(16, 185, 129, 0.18)',
+                                          color: '#10b981',
+                                          padding: '1px 5px',
+                                          borderRadius: '4px',
+                                          fontWeight: 700,
+                                        }}
+                                      >
+                                        AI Vision
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Center: Sets x Reps & Intensity */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                  <span style={{ fontSize: '0.84rem', fontWeight: 700, color: isExDone ? '#10b981' : '#60a5fa' }}>
+                                    {ex.sets} × {ex.reps}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: '0.68rem',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      background: 'rgba(245, 158, 11, 0.15)',
+                                      color: '#f59e0b',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {ex.rpe || 'RPE 7-8'}
+                                  </span>
+                                </div>
+
+                                {/* Right: Info (i) Button + Actions */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveExerciseDetailModal({ ...targetEx, ...ex, aiWorkoutIndex: idx });
+                                    }}
+                                    style={{
+                                      background: 'rgba(255, 255, 255, 0.06)',
+                                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                                      color: '#cbd5e1',
+                                      borderRadius: '6px',
+                                      padding: '4px 8px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 600,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                    }}
+                                    title="View Technique & AI Rationale"
+                                  >
+                                    <Info size={12} color="#38bdf8" /> Info
+                                  </button>
+
+                                  {isExDone ? (
+                                    <>
+                                      <span
+                                        style={{
+                                          fontSize: '0.72rem',
+                                          fontWeight: 700,
+                                          color: '#10b981',
+                                          background: 'rgba(16, 185, 129, 0.15)',
+                                          padding: '3px 8px',
+                                          borderRadius: '6px',
+                                        }}
+                                      >
+                                        ✓ Done
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleExerciseCompletion && toggleExerciseCompletion(currentDay.dayNumber, idx, ex.name)}
+                                        style={{
+                                          background: 'transparent',
+                                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                                          color: '#f87171',
+                                          fontSize: '0.72rem',
+                                          padding: '3px 8px',
+                                          borderRadius: '6px',
+                                          cursor: 'pointer',
+                                        }}
+                                        title="Mark Incomplete"
+                                      >
+                                        🔄 Undo
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleExerciseCompletion && toggleExerciseCompletion(currentDay.dayNumber, idx, ex.name)}
+                                        style={{
+                                          background: 'rgba(16, 185, 129, 0.12)',
+                                          border: '1px solid #10b981',
+                                          color: '#10b981',
+                                          fontSize: '0.72rem',
+                                          fontWeight: 700,
+                                          padding: '4px 9px',
+                                          borderRadius: '6px',
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        ✓ Mark Done
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => startExercise({ ...targetEx, ...ex, aiWorkoutIndex: idx })}
+                                        style={{
+                                          background: '#3b82f6',
+                                          border: 'none',
+                                          color: '#ffffff',
+                                          fontSize: '0.72rem',
+                                          fontWeight: 700,
+                                          padding: '4px 10px',
+                                          borderRadius: '6px',
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                        }}
+                                      >
+                                        <Play size={10} fill="#ffffff" /> Start
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reasoned Cool-Down (Compact Pills with Info Modal Trigger) */}
+                    {currentDay.cooldown?.cooldownExercises?.length > 0 && (
+                      <div
+                        style={{
+                          background: 'rgba(16, 185, 129, 0.05)',
+                          border: '1px solid rgba(16, 185, 129, 0.2)',
+                          padding: '7px 12px',
+                          borderRadius: '8px',
+                          marginTop: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        <span style={{ color: '#10b981', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          🧘 Cool-Down ({currentDay.cooldown.totalEstimatedMinutes || 5}m):
+                        </span>
+                        {currentDay.cooldown.cooldownExercises.map((c, ci) => (
+                          <button
+                            key={ci}
+                            type="button"
+                            onClick={() => setActiveExerciseDetailModal({
+                              name: c.name,
+                              target: 'Flexibility & Nervous System Recovery',
+                              equipment: 'Mat / Bodyweight',
+                              sets: 1,
+                              reps: c.duration || '45-60s',
+                              rpe: 'RPE 3',
+                              rest: '0-15s',
+                              purpose: c.purpose || 'Facilitates nervous system recovery and reduces muscle soreness.',
+                              instructions: 'Breathe deeply and gently hold the stretch without forcing discomfort.',
+                            })}
+                            style={{
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(255, 255, 255, 0.04)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              color: '#e2e8f0',
+                              cursor: 'pointer',
+                              fontSize: '0.76rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                            title="Click to view instructions"
+                          >
+                            {c.name} {c.duration ? `(${c.duration})` : ''}
+                            <Info size={11} color="#10b981" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
       )}
 
@@ -2815,6 +2354,193 @@ const AITrainerAIMode = ({
             setCompletedGoalGroup(null);
           }}
         />
+      )}
+
+      {/* ── EXERCISE DETAILS & AI RATIONALE MODAL ───────────────────────── */}
+      {activeExerciseDetailModal && (
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+          }}
+          onClick={() => setActiveExerciseDetailModal(null)}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              maxWidth: '520px',
+              width: '100%',
+              background: 'var(--panel-bg, #0f172a)',
+              borderRadius: '16px',
+              border: '1px solid var(--card-border, rgba(255, 255, 255, 0.12))',
+              padding: '24px',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc' }}>
+                  {activeExerciseDetailModal.name}
+                </h3>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+                  {activeExerciseDetailModal.target && (
+                    <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', fontWeight: 600 }}>
+                      Target: {activeExerciseDetailModal.target}
+                    </span>
+                  )}
+                  {activeExerciseDetailModal.equipment && (
+                    <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-secondary)' }}>
+                      {activeExerciseDetailModal.equipment}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveExerciseDetailModal(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  width: '32px',
+                  height: '32px',
+                  color: '#cbd5e1',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Target Stats Bar */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '10px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                padding: '12px',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Sets × Reps</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#3b82f6' }}>
+                  {activeExerciseDetailModal.sets || 3} × {activeExerciseDetailModal.reps || 10}
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Intensity</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f59e0b' }}>
+                  {activeExerciseDetailModal.rpe || 'RPE 7-8'}
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Rest Period</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981' }}>
+                  {activeExerciseDetailModal.rest || '60-90s'}
+                </div>
+              </div>
+            </div>
+
+            {/* Why Selected Block */}
+            <div
+              style={{
+                background: 'rgba(59, 130, 246, 0.06)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                marginBottom: '14px',
+              }}
+            >
+              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#60a5fa', fontWeight: 700, marginBottom: '4px' }}>
+                💡 Why AI Coach Selected This
+              </div>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {activeExerciseDetailModal.purpose || activeExerciseDetailModal.reasonForSelection || 'Selected to optimize strength, muscular hypertrophy, and movement quality.'}
+              </p>
+            </div>
+
+            {/* Instructions / Form Guide */}
+            {activeExerciseDetailModal.instructions && activeExerciseDetailModal.instructions !== 'Follow AI targets' && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '6px' }}>
+                  📋 Form & Execution Guide
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {activeExerciseDetailModal.instructions}
+                </p>
+              </div>
+            )}
+
+            {/* Modal Bottom Actions */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              {handleCoachAction && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ex = activeExerciseDetailModal;
+                    setActiveExerciseDetailModal(null);
+                    handleCoachAction('Replace this exercise', ex);
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    border: '1px solid #f59e0b',
+                    color: '#f59e0b',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🔄 Replace with AI
+                </button>
+              )}
+              {startExercise && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ex = activeExerciseDetailModal;
+                    setActiveExerciseDetailModal(null);
+                    startExercise(ex);
+                  }}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontSize: '0.84rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <Play size={14} fill="#ffffff" /> Start Movement
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
