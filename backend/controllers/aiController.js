@@ -962,9 +962,32 @@ export const getSavedPlans = async (req, res) => {
     }
     const plans = await SavedAIPlan.find({ userId: req.user._id }).sort({ createdAt: -1 });
 
+    // Deduplicate duplicate plans for this user:
+    // If multiple plans exist with identical title and goal,
+    // keep the newest one (plans are sorted by createdAt: -1) and prune duplicate records from MongoDB.
+    const uniquePlans = [];
+    const seenKeys = new Set();
+    const duplicateIdsToDelete = [];
+
+    for (const plan of plans) {
+      const key = `${(plan.title || '').trim().toLowerCase()}___${(plan.goal || '').trim().toLowerCase()}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        uniquePlans.push(plan);
+      } else {
+        duplicateIdsToDelete.push(plan._id);
+      }
+    }
+
+    if (duplicateIdsToDelete.length > 0) {
+      SavedAIPlan.deleteMany({ _id: { $in: duplicateIdsToDelete } }).catch(err => {
+        console.error('Failed to prune duplicate SavedAIPlans:', err);
+      });
+    }
+
     // Phase 5: Lazy detection of missed sessions
     let anySaved = false;
-    for (const plan of plans) {
+    for (const plan of uniquePlans) {
       if (plan.isActive) {
         const missed = detectMissedSessions(plan);
         if (missed.length > 0) {
@@ -977,7 +1000,7 @@ export const getSavedPlans = async (req, res) => {
       }
     }
 
-    return res.status(200).json(plans);
+    return res.status(200).json(uniquePlans);
   } catch (error) {
     console.error('getSavedPlans error:', error);
     return res.status(500).json({ error: 'Failed to fetch saved plans', message: 'An internal error occurred while retrieving saved plans.' });
@@ -993,6 +1016,23 @@ export const saveAIPlan = async (req, res) => {
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Plan title is required' });
     }
+
+    const trimmedTitle = title.trim();
+    const resolvedGoal = goal || 'General Fitness';
+
+    // Prevent double-click duplicates:
+    // If an identical plan was created for this user in the last 60 seconds, return the existing plan.
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    const existingRecentPlan = await SavedAIPlan.findOne({
+      userId: req.user._id,
+      title: trimmedTitle,
+      goal: resolvedGoal,
+      createdAt: { $gte: oneMinuteAgo }
+    });
+
+    if (existingRecentPlan) {
+      return res.status(200).json(existingRecentPlan);
+    }
     
     // Find active GoalGroup for linking
     let activeGoalGroup = await GoalGroup.findOne({
@@ -1006,8 +1046,8 @@ export const saveAIPlan = async (req, res) => {
     const newPlan = await SavedAIPlan.create({
       userName: req.user.name,
       userId: req.user._id,
-      title: title.trim(),
-      goal: goal || 'General Fitness',
+      title: trimmedTitle,
+      goal: resolvedGoal,
       fitnessLevel: fitnessLevel || 'Beginner',
       workout: workout || null,
       diet: diet || null,

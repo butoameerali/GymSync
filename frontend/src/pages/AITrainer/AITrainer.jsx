@@ -227,8 +227,15 @@ const AITrainer = () => {
     try {
       const plans = await aiPlanService.getSavedPlans();
       if (Array.isArray(plans)) {
-        setSavedPlans(plans);
-        const workoutPlans = plans.filter(p => p.planKind !== 'Diet');
+        const seenKeys = new Set();
+        const deduplicatedPlans = plans.filter(p => {
+          const key = `${(p.title || '').trim().toLowerCase()}___${(p.goal || '').trim().toLowerCase()}`;
+          if (seenKeys.has(key)) return false;
+          seenKeys.add(key);
+          return true;
+        });
+        setSavedPlans(deduplicatedPlans);
+        const workoutPlans = deduplicatedPlans.filter(p => p.planKind !== 'Diet');
         const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
         const storedPlan = JSON.parse(localStorage.getItem(`gymsync_${userKey}_ai_plan`) || 'null');
 

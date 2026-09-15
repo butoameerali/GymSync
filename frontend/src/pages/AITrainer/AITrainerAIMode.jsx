@@ -102,7 +102,34 @@ const AITrainerAIMode = ({
   const [swapModalInfo, setSwapModalInfo] = useState(null);
   const [completedGoalGroup, setCompletedGoalGroup] = useState(null); // Part 19
   const [showNextGoalPrompt, setShowNextGoalPrompt] = useState(false); // Part 20
-  const savedWorkoutPlans = (savedPlans || []).filter(p => p.planKind !== 'Diet');
+  const [activeCoachTick, setActiveCoachTick] = useState(null);
+
+  const triggerOpenCoach = (sourceId, command = null) => {
+    setActiveCoachTick(sourceId);
+    setTimeout(() => {
+      setActiveCoachTick(prev => (prev === sourceId ? null : prev));
+    }, 1800);
+
+    const detail = {
+      userName: 'ai',
+      initialMessage: command || '',
+      command: command || ''
+    };
+    window.dispatchEvent(new CustomEvent('open_chat', { detail }));
+    window.dispatchEvent(new CustomEvent('gymsync_open_coach', { detail }));
+    if (command) {
+      window.dispatchEvent(new CustomEvent('gymsync_open_coach_command', { detail }));
+    }
+  };
+
+  const rawWorkoutPlans = (savedPlans || []).filter(p => p.planKind !== 'Diet');
+  const seenPlanKeys = new Set();
+  const savedWorkoutPlans = rawWorkoutPlans.filter(p => {
+    const key = `${(p.title || '').trim().toLowerCase()}___${(p.goal || '').trim().toLowerCase()}`;
+    if (seenPlanKeys.has(key)) return false;
+    seenPlanKeys.add(key);
+    return true;
+  });
   const displayPlans = savedWorkoutPlans.length > 0 
     ? savedWorkoutPlans 
     : (aiPlan ? [{ ...aiPlan, title: aiPlan.title || 'My AI Workout Plan', _id: aiPlan.planId || 'active_plan' }] : []);
@@ -392,19 +419,27 @@ const AITrainerAIMode = ({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '8px',
-                  borderColor: '#3b82f6',
-                  color: '#60a5fa',
+                  borderColor: activeCoachTick === 'header' ? '#10b981' : '#3b82f6',
+                  color: activeCoachTick === 'header' ? '#10b981' : '#60a5fa',
+                  background: activeCoachTick === 'header' ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
                   padding: '10px 18px',
                   borderRadius: '12px',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease'
                 }}
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('open_chat', { detail: { userName: 'ai' } }));
-                  window.dispatchEvent(new CustomEvent('gymsync_open_coach'));
-                  toast.info('AI Coach opened! Type a plan name or /weightloss to adjust.');
-                }}
+                onClick={() => triggerOpenCoach('header')}
               >
-                <Sparkles size={16} /> Open AI Coach
+                {activeCoachTick === 'header' ? (
+                  <>
+                    <CheckCircle size={16} color="#10b981" />
+                    <span>✓ Opened</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    <span>Open AI Coach</span>
+                  </>
+                )}
               </button>
               {handleCreateNewPlan && (
                 <button
@@ -422,7 +457,7 @@ const AITrainerAIMode = ({
                   }}
                   onClick={handleCreateNewPlan}
                 >
-                  <Plus size={16} /> + New Plan
+                  <Plus size={16} /> New Plan
                 </button>
               )}
             </div>
@@ -434,11 +469,6 @@ const AITrainerAIMode = ({
               <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Dumbbell size={20} color="#3b82f6" /> Your Workout Plans ({savedWorkoutPlans.length})
               </h3>
-              {savedWorkoutPlans.length > 0 && (
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  Click any plan to open its 28-day routine and daily exercises
-                </span>
-              )}
             </div>
 
             {savedWorkoutPlans.length > 0 ? (
@@ -547,25 +577,29 @@ const AITrainerAIMode = ({
                               padding: '8px 12px',
                               borderRadius: '10px',
                               fontSize: '0.82rem',
-                              color: '#60a5fa',
-                              borderColor: 'rgba(59, 130, 246, 0.3)',
+                              color: activeCoachTick === `plan_${plan._id}` ? '#10b981' : '#60a5fa',
+                              borderColor: activeCoachTick === `plan_${plan._id}` ? '#10b981' : 'rgba(59, 130, 246, 0.3)',
+                              background: activeCoachTick === `plan_${plan._id}` ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: '5px'
+                              gap: '5px',
+                              transition: 'all 0.2s ease'
                             }}
-                            onClick={() => {
-                              window.dispatchEvent(new CustomEvent('open_chat', {
-                                detail: { userName: 'ai', initialMessage: `/${slug} ` }
-                              }));
-                              window.dispatchEvent(new CustomEvent('gymsync_open_coach_command', {
-                                detail: { command: `/${slug} `, initialMessage: `/${slug} ` }
-                              }));
-                              toast.info(`Opening AI Coach for /${slug}`);
-                            }}
+                            onClick={() => triggerOpenCoach(`plan_${plan._id}`, `/${slug} `)}
                             title={`Edit this plan with AI Coach using /${slug}`}
                           >
-                            <Sparkles size={13} /> Edit (/{slug})
+                            {activeCoachTick === `plan_${plan._id}` ? (
+                              <>
+                                <CheckCircle size={13} color="#10b981" />
+                                <span>✓ Opened</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles size={13} />
+                                <span>Edit (/{slug})</span>
+                              </>
+                            )}
                           </button>
 
                           <button
@@ -640,7 +674,7 @@ const AITrainerAIMode = ({
                         <h4 style={{ margin: 0, color: '#f87171', fontSize: '1.15rem' }}>Weight Loss Plan</h4>
                       </div>
                       <p style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', margin: 0 }}>
-                        28-Day high-calorie burn, HIIT &amp; progressive metabolic conditioning split for rapid fat loss.
+                        High-calorie burn, HIIT &amp; progressive metabolic conditioning split for rapid fat loss.
                       </p>
                     </div>
                     <button
@@ -678,7 +712,7 @@ const AITrainerAIMode = ({
                         <h4 style={{ margin: 0, color: '#34d399', fontSize: '1.15rem' }}>Body Development Plan</h4>
                       </div>
                       <p style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', margin: 0 }}>
-                        28-Day hypertrophy &amp; progressive muscle growth split (Chest, Back, Legs, Arms &amp; Shoulders).
+                        Hypertrophy &amp; progressive muscle growth split (Chest, Back, Legs, Arms &amp; Shoulders).
                       </p>
                     </div>
                     <button
@@ -740,143 +774,154 @@ const AITrainerAIMode = ({
           </div>
 
           {/* ── SECTION 2: CHOOSE HOW YOU WANT TO TRAIN (Options A & B) ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#ffffff' }}>
-              Choose How You Want to Train
-            </h3>
+          {savedWorkoutPlans.length === 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#ffffff' }}>
+                Choose How You Want to Train
+              </h3>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                gap: '20px'
-              }}
-            >
-              {/* Option A: AI Assistance */}
               <div
                 style={{
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.03) 100%)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  borderRadius: '18px',
-                  padding: '24px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '18px'
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                  gap: '20px'
                 }}
               >
-                <div>
-                  <div
+                {/* Option A: AI Assistance */}
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.03) 100%)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    borderRadius: '18px',
+                    padding: '24px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '18px'
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '14px',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#10b981',
+                        marginBottom: '14px'
+                      }}
+                    >
+                      <Sparkles size={28} />
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                      Option A • AI Assistance
+                    </span>
+                    <h3 style={{ fontSize: '1.3rem', color: '#ffffff', margin: '6px 0 10px 0' }}>
+                      Build &amp; Adjust with AI Coach
+                    </h3>
+                    <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                      Chat directly with your AI coach. Ask to design a plan for any goal (Weight Loss, Muscle Building, Athletic conditioning), or link existing plans with slash commands like <code>/weightloss</code> to swap exercises or increase sets.
+                    </p>
+                  </div>
+
+                  <button
+                    className="btn btn-primary"
                     style={{
-                      width: '52px',
-                      height: '52px',
-                      borderRadius: '14px',
-                      background: 'rgba(16, 185, 129, 0.15)',
+                      background: activeCoachTick === 'option_a'
+                        ? 'linear-gradient(135deg, #059669, #047857)'
+                        : 'linear-gradient(135deg, #10b981, #059669)',
+                      border: 'none',
+                      padding: '14px',
+                      fontWeight: 700,
+                      borderRadius: '12px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#10b981',
-                      marginBottom: '14px'
+                      gap: '8px',
+                      transition: 'all 0.2s ease'
                     }}
+                    onClick={() => triggerOpenCoach('option_a')}
                   >
-                    <Sparkles size={28} />
-                  </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                    Option A • AI Assistance
-                  </span>
-                  <h3 style={{ fontSize: '1.3rem', color: '#ffffff', margin: '6px 0 10px 0' }}>
-                    Build &amp; Adjust with AI Coach
-                  </h3>
-                  <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-                    Chat directly with your AI coach. Ask to design a plan for any goal (Weight Loss, Muscle Building, Athletic conditioning), or link existing plans with slash commands like <code>/weightloss</code> to swap exercises or increase sets.
-                  </p>
+                    {activeCoachTick === 'option_a' ? (
+                      <>
+                        <CheckCircle size={18} color="#ffffff" />
+                        <span>✓ AI Coach Opened</span>
+                      </>
+                    ) : (
+                      <>
+                        <Bot size={18} />
+                        <span>Chat with AI Coach</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                <button
-                  className="btn btn-primary"
+                {/* Option B: Fitness Trainer Programs */}
+                <div
                   style={{
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    border: 'none',
-                    padding: '14px',
-                    fontWeight: 700,
-                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(37, 99, 235, 0.03) 100%)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    borderRadius: '18px',
+                    padding: '24px',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent('open_chat', { detail: { userName: 'ai' } }));
-                    window.dispatchEvent(new CustomEvent('gymsync_open_coach'));
-                    toast.info('AI Coach opened! Ask to generate or adjust a workout plan.');
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '18px'
                   }}
                 >
-                  <Bot size={18} /> Chat with AI Coach
-                </button>
-              </div>
+                  <div>
+                    <div
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '14px',
+                        background: 'rgba(59, 130, 246, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#3b82f6',
+                        marginBottom: '14px'
+                      }}
+                    >
+                      <Dumbbell size={28} />
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#3b82f6', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                      Option B • Trainer Uploaded
+                    </span>
+                    <h3 style={{ fontSize: '1.3rem', color: '#ffffff', margin: '6px 0 10px 0' }}>
+                      Fitness Trainer Programs
+                    </h3>
+                    <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                      Browse proven programs created by certified fitness trainers. Choose from 1-month, 6-month, or 1-year training tracks with direct connected diet plans.
+                    </p>
+                  </div>
 
-              {/* Option B: Fitness Trainer Programs */}
-              <div
-                style={{
-                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(37, 99, 235, 0.03) 100%)',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
-                  borderRadius: '18px',
-                  padding: '24px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '18px'
-                }}
-              >
-                <div>
-                  <div
+                  <button
+                    className="btn btn-primary"
                     style={{
-                      width: '52px',
-                      height: '52px',
-                      borderRadius: '14px',
-                      background: 'rgba(59, 130, 246, 0.15)',
+                      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      border: 'none',
+                      padding: '14px',
+                      fontWeight: 700,
+                      borderRadius: '12px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#3b82f6',
-                      marginBottom: '14px'
+                      gap: '8px'
+                    }}
+                    onClick={() => {
+                      if (onBrowsePrograms) onBrowsePrograms();
                     }}
                   >
-                    <Dumbbell size={28} />
-                  </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#3b82f6', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                    Option B • Trainer Uploaded
-                  </span>
-                  <h3 style={{ fontSize: '1.3rem', color: '#ffffff', margin: '6px 0 10px 0' }}>
-                    Fitness Trainer Programs
-                  </h3>
-                  <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-                    Browse proven programs created by certified fitness trainers. Choose from 1-month, 6-month, or 1-year training tracks with direct connected diet plans.
-                  </p>
+                    <Dumbbell size={18} /> Explore Trainer Programs
+                  </button>
                 </div>
-
-                <button
-                  className="btn btn-primary"
-                  style={{
-                    background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                    border: 'none',
-                    padding: '14px',
-                    fontWeight: 700,
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                  onClick={() => {
-                    if (onBrowsePrograms) onBrowsePrograms();
-                  }}
-                >
-                  <Dumbbell size={18} /> Explore Trainer Programs
-                </button>
               </div>
             </div>
-          </div>
+          )}
         </div>
       ) : (
         /* ── SCREEN 2: ACTIVE PLAN ROUTINE & CALENDAR VIEW ── */
@@ -956,31 +1001,36 @@ const AITrainerAIMode = ({
               <button
                 className="btn btn-sm"
                 style={{
-                  background: 'rgba(59, 130, 246, 0.15)',
-                  color: '#60a5fa',
-                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  background: activeCoachTick === 'detail_edit' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                  color: activeCoachTick === 'detail_edit' ? '#10b981' : '#60a5fa',
+                  border: activeCoachTick === 'detail_edit' ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(59, 130, 246, 0.4)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '5px',
                   padding: '7px 12px',
                   borderRadius: '8px',
                   cursor: 'pointer',
-                  fontSize: '0.85rem'
+                  fontSize: '0.85rem',
+                  transition: 'all 0.2s ease'
                 }}
                 onClick={() => {
                   const planTitle = selectedPlanForView?.title || aiPlan?.title || 'Workout Plan';
                   const slug = planTitle.toLowerCase().replace(/lost/g, 'loss').replace(/[^a-z0-9]/g, '');
-                  window.dispatchEvent(new CustomEvent('open_chat', {
-                    detail: { userName: 'ai', initialMessage: `/${slug} ` }
-                  }));
-                  window.dispatchEvent(new CustomEvent('gymsync_open_coach_command', {
-                    detail: { command: `/${slug} `, initialMessage: `/${slug} ` }
-                  }));
-                  toast.info(`Opening AI Coach for /${slug}`);
+                  triggerOpenCoach('detail_edit', `/${slug} `);
                 }}
                 title="Edit with AI Coach"
               >
-                <Sparkles size={14} /> Edit with AI
+                {activeCoachTick === 'detail_edit' ? (
+                  <>
+                    <CheckCircle size={14} color="#10b981" />
+                    <span>✓ Opened</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    <span>Edit with AI</span>
+                  </>
+                )}
               </button>
 
               <button

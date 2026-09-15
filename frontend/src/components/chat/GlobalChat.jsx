@@ -35,6 +35,7 @@ const GlobalChat = () => {
   const [messages, setMessages] = useState({});
   const [memberContacts, setMemberContacts] = useState([]);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Derived values — computed every render, before any early return, no hooks involved
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
@@ -158,35 +159,27 @@ const GlobalChat = () => {
 
         // 3. Fetch trainers if member is subscribed to a gym
         let trainers = [];
-        if (user?.subscribedGymName) {
-          try {
-            const allUsersRes = await fetch('/api/users', { headers: authHeader });
-            const allUsers = allUsersRes.ok ? await allUsersRes.json() : [];
-            if (Array.isArray(allUsers)) {
-              trainers = allUsers.filter(p => p && p.role === 'GymTrainer' && p.assignedGymName === user.subscribedGymName);
-            }
-          } catch (e) {
-            console.error("Failed to fetch gym trainers", e);
-          }
+        if (user && user.subscribedGymName) {
+          const tRes = await fetch(`/api/users/trainers?gym=${encodeURIComponent(user.subscribedGymName)}`, { headers: authHeader });
+          trainers = tRes.ok ? await tRes.json() : [];
         }
-
-        // Deduplication map: key is normalized lowercase trimmed username
-        const contactMap = new Map();
 
         const isExcluded = (name) => {
           if (!name) return true;
-          const l = String(name).toLowerCase().trim();
-          return l === myLower || isSystemContact(l);
+          const lower = String(name).toLowerCase().trim();
+          return lower === myLower || isSystemContact(lower);
         };
+
+        const contactMap = new Map();
 
         // Add trainers first
         for (const t of trainers) {
-          if (!t || isExcluded(t.name)) continue;
+          if (!t || !t.name || isExcluded(t.name)) continue;
           const key = t.name.toLowerCase().trim();
           contactMap.set(key, {
-            id: t.name,
+            id: t._id || t.name,
             name: t.name,
-            role: `Gym Trainer · ${user.subscribedGymName}`,
+            role: 'Trainer',
             avatar: t.profilePic || '',
             unreadCount: 0,
             lastMessage: '',
@@ -194,9 +187,8 @@ const GlobalChat = () => {
           });
         }
 
-        // Add friends
-        const friends = Array.isArray(user?.friends) ? user.friends : [];
-        for (const f of friends) {
+        // Add user's friends list
+        for (const f of (user?.friends || [])) {
           if (!f || isExcluded(f)) continue;
           const key = String(f).toLowerCase().trim();
           if (!contactMap.has(key)) {
@@ -277,6 +269,9 @@ const GlobalChat = () => {
       if (initial) {
         setInput(initial);
       }
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 150);
     };
 
     const handleOpenChat = (e) => {
@@ -289,6 +284,9 @@ const GlobalChat = () => {
 
       if (!targetName) {
         handleContactClick(SYSTEM_CONTACTS[0]);
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 150);
         return;
       }
 
@@ -1132,7 +1130,7 @@ const GlobalChat = () => {
             </div>
 
             <form className="chat-footer" onSubmit={handleSend}>
-              <input type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} />
+              <input ref={inputRef} type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} />
               <button type="submit" className="send-btn"><Send size={18} /></button>
             </form>
           </>
