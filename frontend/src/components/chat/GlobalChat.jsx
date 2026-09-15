@@ -55,7 +55,24 @@ const GlobalChat = () => {
       const res = await fetch(`/api/chat/${encodeURIComponent(userName)}/${encodeURIComponent(contactId)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        if (contactId === 'ai') {
+          setMessages(prev => ({
+            ...prev,
+            [contactId]: [
+              {
+                id: 'ai-welcome',
+                text: `Hello ${userName || 'Athlete'}! 👋 I am your GymSync AI Lead Coach.\n\nYour profile is active. I can assist you with:\n\n🏋️ Goal-driven workout programs (Hypertrophy, Strength, Cricket, Running)\n🥗 Verified nutrition templates tailored to your macros\n📖 Expert technique guides from certified Fitness Instructors\n\nHow are you feeling today, and what would you like to work on?`,
+                sender: 'other',
+                timestamp: new Date().toISOString(),
+                suggestions: ['🏋️ Generate Workout', '🥗 Custom Diet', '⚡ 20-Min Workout', '📊 View Progress'],
+                structuredAction: { type: 'GREETING' }
+              }
+            ]
+          }));
+        }
+        return;
+      }
       const data = await res.json();
       if (!Array.isArray(data)) return;
 
@@ -68,12 +85,38 @@ const GlobalChat = () => {
         structuredAction: msg.structuredAction || null
       }));
 
+      if (formattedMessages.length === 0 && contactId === 'ai') {
+        formattedMessages.push({
+          id: 'ai-welcome',
+          text: `Hello ${userName || 'Athlete'}! 👋 I am your GymSync AI Lead Coach.\n\nYour profile is active. I can assist you with:\n\n🏋️ Goal-driven workout programs (Hypertrophy, Strength, Cricket, Running)\n🥗 Verified nutrition templates tailored to your macros\n📖 Expert technique guides from certified Fitness Instructors\n\nHow are you feeling today, and what would you like to work on?`,
+          sender: 'other',
+          timestamp: new Date().toISOString(),
+          suggestions: ['🏋️ Generate Workout', '🥗 Custom Diet', '⚡ 20-Min Workout', '📊 View Progress'],
+          structuredAction: { type: 'GREETING' }
+        });
+      }
+
       setMessages(prev => ({
         ...prev,
         [contactId]: formattedMessages
       }));
     } catch (err) {
       console.error("fetchConversation error:", err);
+      if (contactId === 'ai') {
+        setMessages(prev => ({
+          ...prev,
+          [contactId]: [
+            {
+              id: 'ai-welcome',
+              text: `Hello ${userName || 'Athlete'}! 👋 I am your GymSync AI Lead Coach.\n\nYour profile is active. I can assist you with:\n\n🏋️ Goal-driven workout programs (Hypertrophy, Strength, Cricket, Running)\n🥗 Verified nutrition templates tailored to your macros\n📖 Expert technique guides from certified Fitness Instructors\n\nHow are you feeling today, and what would you like to work on?`,
+              sender: 'other',
+              timestamp: new Date().toISOString(),
+              suggestions: ['🏋️ Generate Workout', '🥗 Custom Diet', '⚡ 20-Min Workout', '📊 View Progress'],
+              structuredAction: { type: 'GREETING' }
+            }
+          ]
+        }));
+      }
     }
   };
 
@@ -225,15 +268,32 @@ const GlobalChat = () => {
     };
   }, [isGuest, userName]);
 
-  // Listener for open_chat events triggered across the app
+  // Listener for open_chat and coach events triggered across the app
   useEffect(() => {
+    const handleOpenCoach = (e) => {
+      setIsOpen(true);
+      handleContactClick(SYSTEM_CONTACTS[0]);
+      const initial = e?.detail?.initialMessage || e?.detail?.command;
+      if (initial) {
+        setInput(initial);
+      }
+    };
+
     const handleOpenChat = (e) => {
       setIsOpen(true);
       const targetName = e.detail?.userName;
-      if (!targetName) return;
+      const initial = e?.detail?.initialMessage || e?.detail?.command;
+      if (initial) {
+        setInput(initial);
+      }
+
+      if (!targetName) {
+        handleContactClick(SYSTEM_CONTACTS[0]);
+        return;
+      }
 
       const lower = targetName.toLowerCase().trim();
-      if (lower === 'ai' || lower === 'ai trainer') {
+      if (lower === 'ai' || lower === 'ai trainer' || lower === 'ai coach' || lower === 'coach') {
         handleContactClick(SYSTEM_CONTACTS[0]);
         return;
       }
@@ -262,7 +322,14 @@ const GlobalChat = () => {
     };
 
     window.addEventListener('open_chat', handleOpenChat);
-    return () => window.removeEventListener('open_chat', handleOpenChat);
+    window.addEventListener('gymsync_open_coach', handleOpenCoach);
+    window.addEventListener('gymsync_open_coach_command', handleOpenCoach);
+
+    return () => {
+      window.removeEventListener('open_chat', handleOpenChat);
+      window.removeEventListener('gymsync_open_coach', handleOpenCoach);
+      window.removeEventListener('gymsync_open_coach_command', handleOpenCoach);
+    };
   }, []);
 
   // FIX: Both route-guard early returns are now AFTER all hooks.

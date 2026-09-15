@@ -399,6 +399,7 @@ const AITrainerAIMode = ({
                   fontWeight: 600
                 }}
                 onClick={() => {
+                  window.dispatchEvent(new CustomEvent('open_chat', { detail: { userName: 'ai' } }));
                   window.dispatchEvent(new CustomEvent('gymsync_open_coach'));
                   toast.info('AI Coach opened! Type a plan name or /weightloss to adjust.');
                 }}
@@ -554,8 +555,11 @@ const AITrainerAIMode = ({
                               gap: '5px'
                             }}
                             onClick={() => {
+                              window.dispatchEvent(new CustomEvent('open_chat', {
+                                detail: { userName: 'ai', initialMessage: `/${slug} ` }
+                              }));
                               window.dispatchEvent(new CustomEvent('gymsync_open_coach_command', {
-                                detail: { command: `/${slug}` }
+                                detail: { command: `/${slug} `, initialMessage: `/${slug} ` }
                               }));
                               toast.info(`Opening AI Coach for /${slug}`);
                             }}
@@ -802,6 +806,7 @@ const AITrainerAIMode = ({
                     gap: '8px'
                   }}
                   onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open_chat', { detail: { userName: 'ai' } }));
                     window.dispatchEvent(new CustomEvent('gymsync_open_coach'));
                     toast.info('AI Coach opened! Ask to generate or adjust a workout plan.');
                   }}
@@ -965,8 +970,11 @@ const AITrainerAIMode = ({
                 onClick={() => {
                   const planTitle = selectedPlanForView?.title || aiPlan?.title || 'Workout Plan';
                   const slug = planTitle.toLowerCase().replace(/lost/g, 'loss').replace(/[^a-z0-9]/g, '');
+                  window.dispatchEvent(new CustomEvent('open_chat', {
+                    detail: { userName: 'ai', initialMessage: `/${slug} ` }
+                  }));
                   window.dispatchEvent(new CustomEvent('gymsync_open_coach_command', {
-                    detail: { command: `/${slug}` }
+                    detail: { command: `/${slug} `, initialMessage: `/${slug} ` }
                   }));
                   toast.info(`Opening AI Coach for /${slug}`);
                 }}
