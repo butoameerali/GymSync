@@ -186,6 +186,17 @@ const AITrainer = () => {
       if (res.ok) {
         const updated = await res.json();
         setActiveUserProgram(updated);
+        setSelectedPlanForView(prev => {
+          if (prev?.isInstructorProgram || prev?._id === userProgramId) {
+            return {
+              ...prev,
+              progress: updated.progress,
+              weeks: updated.weeks,
+              rawProgram: updated
+            };
+          }
+          return prev;
+        });
         toast.success(`Day ${dayNum} of Week ${weekNum} completed! Workout streak updated.`);
       } else {
         toast.error('Could not log session progress');
@@ -193,6 +204,31 @@ const AITrainer = () => {
     } catch (err) {
       console.error(err);
       toast.error('Network error');
+    }
+  };
+
+  const handleDeleteUserProgram = async (programId, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm("Are you sure you want to un-enroll from this workout program?")) return;
+    try {
+      const token = localStorage.getItem('gymsync_token');
+      const res = await fetch(`/api/plans/user-programs/${programId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        setActiveUserProgram(null);
+        setSelectedPlanForView(prev => (prev?.isInstructorProgram || prev?._id === programId) ? null : prev);
+        toast.success('Successfully un-enrolled from workout program.');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Failed to un-enroll from program');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Network error while un-enrolling');
     }
   };
 
@@ -1235,6 +1271,7 @@ const AITrainer = () => {
             loadSavedPlans={loadSavedPlans}
             handleActivateSavedPlan={handleActivateSavedPlan}
             handleDeleteSavedPlan={handleDeleteSavedPlan}
+            handleDeleteUserProgram={handleDeleteUserProgram}
             handleCreateNewPlan={handleCreateNewPlan}
             handleCreateStarterPlan={handleCreateStarterPlan}
             handleLogProgramSession={handleLogProgramSession}

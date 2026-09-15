@@ -98,6 +98,7 @@ const AITrainerAIMode = ({
   loadSavedPlans,
   handleActivateSavedPlan,
   handleDeleteSavedPlan,
+  handleDeleteUserProgram,
   handleCreateNewPlan,
   handleCreateStarterPlan,
   handleLogProgramSession,
@@ -113,6 +114,9 @@ const AITrainerAIMode = ({
   const [showNextGoalPrompt, setShowNextGoalPrompt] = useState(false); // Part 20
   const [activeCoachTick, setActiveCoachTick] = useState(null);
   const [activeWeek, setActiveWeek] = useState(1);
+  const [selectedInstructorWeek, setSelectedInstructorWeek] = useState(null);
+  const activeInstructorWeek = selectedInstructorWeek || activeUserProgram?.progress?.currentWeek || 1;
+  const setActiveInstructorWeek = setSelectedInstructorWeek;
   const [activeExerciseDetailModal, setActiveExerciseDetailModal] = useState(null);
 
   useEffect(() => {
@@ -156,178 +160,27 @@ const AITrainerAIMode = ({
     seenPlanKeys.add(key);
     return true;
   });
-  const displayPlans = savedWorkoutPlans.length > 0 
-    ? savedWorkoutPlans 
-    : (aiPlan ? [{ ...aiPlan, title: aiPlan.title || 'My AI Workout Plan', _id: aiPlan.planId || 'active_plan' }] : []);
+
+  const instructorPlans = activeUserProgram ? [{
+    _id: activeUserProgram._id,
+    title: activeUserProgram.title,
+    goal: activeUserProgram.goal || 'Strength & Conditioning',
+    fitnessLevel: activeUserProgram.difficulty || 'All Levels',
+    durationWeeks: activeUserProgram.durationWeeks || 4,
+    daysPerWeek: activeUserProgram.daysPerWeek || 4,
+    planDuration: activeUserProgram.durationWeeks ? `${activeUserProgram.durationWeeks * 7} Days` : '4 Weeks',
+    isInstructorProgram: true,
+    instructorName: activeUserProgram.instructorName || 'Fitness Instructor',
+    programVersion: activeUserProgram.programVersion || 1,
+    progress: activeUserProgram.progress || { currentWeek: 1, currentDay: 1, completedSessions: [] },
+    weeks: activeUserProgram.weeks || [],
+    rawProgram: activeUserProgram
+  }] : [];
+
+  const allWorkoutPlans = [...instructorPlans, ...savedWorkoutPlans];
 
   return (
     <div className="ai-plan-view glass-panel">
-
-      {/* ── ACTIVE INSTRUCTOR PROGRAM BANNER ─────────────────────────────── */}
-      {activeUserProgram && (
-        <div
-          style={{
-            background:
-              'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(16, 185, 129, 0.12) 100%)',
-            border: '1px solid #3b82f6',
-            borderRadius: '16px',
-            padding: '20px',
-            marginBottom: '24px',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '10px',
-            }}
-          >
-            <div>
-              <span
-                style={{
-                  background: 'rgba(16, 185, 129, 0.2)',
-                  color: '#10b981',
-                  padding: '3px 10px',
-                  borderRadius: '12px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  display: 'inline-block',
-                  marginBottom: '6px',
-                }}
-              >
-                ACTIVE INSTRUCTOR PROGRAM (v{activeUserProgram.programVersion || 1})
-              </span>
-              <h3 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
-                {activeUserProgram.title}
-              </h3>
-              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Goal: <strong>{activeUserProgram.goal}</strong> • Difficulty:{' '}
-                <strong>{activeUserProgram.difficulty}</strong> •{' '}
-                {activeUserProgram.durationWeeks} Weeks
-              </p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Schedule Status
-              </div>
-              <div style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#10b981' }}>
-                Week {activeUserProgram.progress?.currentWeek || 1} • Day{' '}
-                {activeUserProgram.progress?.currentDay || 1}
-              </div>
-            </div>
-          </div>
-
-          {/* Scheduled routine session */}
-          {(() => {
-            const currentWk =
-              activeUserProgram.weeks?.find(
-                (w) => w.weekNumber === (activeUserProgram.progress?.currentWeek || 1)
-              ) || activeUserProgram.weeks?.[0];
-            const currentDayObj =
-              currentWk?.days?.find(
-                (d) => d.dayNumber === (activeUserProgram.progress?.currentDay || 1)
-              ) || currentWk?.days?.[0];
-            if (!currentDayObj) return null;
-
-            return (
-              <div
-                style={{
-                  marginTop: '16px',
-                  background: 'rgba(0,0,0,0.25)',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '12px',
-                    flexWrap: 'wrap',
-                    gap: '10px',
-                  }}
-                >
-                  <div>
-                    <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem' }}>
-                      Scheduled Today: {currentDayObj.focus || 'Core Routine'}
-                    </h4>
-                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      {(currentDayObj.exercises || []).length} structured exercises
-                    </span>
-                  </div>
-                  <button
-                    className="btn btn-sm btn-primary"
-                    style={{ background: '#10b981', borderColor: '#10b981' }}
-                    onClick={() => setShowMissionRunner(true)}
-                  >
-                    <Play size={14} style={{ marginRight: '4px' }} /> Start Mission
-                  </button>
-                </div>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                    gap: '10px',
-                  }}
-                >
-                  {(currentDayObj.exercises || []).map((ex, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        if (ex.exerciseId && typeof ex.exerciseId === 'object')
-                          startExercise(ex.exerciseId);
-                      }}
-                      style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid var(--card-border)',
-                        borderRadius: '8px',
-                        padding: '10px 12px',
-                        cursor: ex.exerciseId ? 'pointer' : 'default',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            fontSize: '0.88rem',
-                          }}
-                        >
-                          {ex.exerciseId?.name || ex.name || `Exercise ${idx + 1}`}
-                        </div>
-                        {(() => {
-                          const completedSession = (activeUserProgram.progress?.completedSessions || []).find(
-                            s => s.weekNumber === (activeUserProgram.progress?.currentWeek || 1) && s.dayNumber === (activeUserProgram.progress?.currentDay || 1)
-                          );
-                          const loggedEx = completedSession?.exerciseLogs?.find(
-                            l => (l.exerciseId && (l.exerciseId === ex.exerciseId?._id || l.exerciseId === ex.exerciseId)) ||
-                                 (l.exerciseName && l.exerciseName === (ex.exerciseId?.name || ex.name))
-                          );
-                          const burned = Number(ex.caloriesBurned) > 0 ? Number(ex.caloriesBurned) : (Number(loggedEx?.caloriesBurned) > 0 ? Number(loggedEx?.caloriesBurned) : null);
-                          return (
-                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                              {ex.sets} sets × {ex.reps} reps {ex.rpe ? `• RPE ${ex.rpe}` : ''} • {burned ? `~${Math.round(burned)} kcal estimated` : 'Calorie estimate unavailable'}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                      {ex.exerciseId && <Play size={14} color="#3b82f6" />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      )}
 
       {/* ── BIO INCOMPLETE PROMPT ─────────────────────────────────────────── */}
       {!isBioFilled ? (
@@ -493,11 +346,11 @@ const AITrainerAIMode = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
               <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Dumbbell size={20} color="#3b82f6" /> Your Workout Plans ({savedWorkoutPlans.length})
+                <Dumbbell size={20} color="#3b82f6" /> Your Workout Plans ({allWorkoutPlans.length})
               </h3>
             </div>
 
-            {savedWorkoutPlans.length > 0 ? (
+            {allWorkoutPlans.length > 0 ? (
               <div
                 style={{
                   display: 'grid',
@@ -505,7 +358,118 @@ const AITrainerAIMode = ({
                   gap: '18px'
                 }}
               >
-                {savedWorkoutPlans.map((plan) => {
+                {allWorkoutPlans.map((plan) => {
+                  if (plan.isInstructorProgram) {
+                    return (
+                      <div
+                        key={plan._id || 'instructor_program'}
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%)',
+                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          borderRadius: '16px',
+                          padding: '22px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '16px',
+                          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+                          transition: 'transform 0.2s ease, border-color 0.2s ease',
+                        }}
+                      >
+                        <div>
+                          {/* Top Badge & Duration */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'rgba(16, 185, 129, 0.2)',
+                                color: '#10b981',
+                                padding: '4px 12px',
+                                borderRadius: '20px',
+                                fontSize: '0.8rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              🏋️ Instructor Program (v{plan.programVersion || 1})
+                            </span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              {plan.durationWeeks} Weeks • {plan.daysPerWeek || 4} Days/Wk
+                            </span>
+                          </div>
+
+                          {/* Title */}
+                          <h4 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: '#ffffff', fontWeight: 700 }}>
+                            {plan.title}
+                          </h4>
+
+                          {/* Details */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                            <div><strong>Goal:</strong> {plan.goal}</div>
+                            <div><strong>Level:</strong> {plan.fitnessLevel}</div>
+                            <div><strong>Instructor:</strong> {plan.instructorName}</div>
+                            <div style={{ color: '#10b981', fontWeight: 600, fontSize: '0.82rem', marginTop: '4px' }}>
+                              Schedule: Week {plan.progress?.currentWeek || 1} • Day {plan.progress?.currentDay || 1}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <button
+                            className="btn btn-primary"
+                            style={{
+                              width: '100%',
+                              padding: '12px 18px',
+                              borderRadius: '12px',
+                              fontWeight: 700,
+                              fontSize: '0.95rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              background: 'linear-gradient(135deg, #10b981, #059669)',
+                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+                              border: 'none'
+                            }}
+                            onClick={() => {
+                              setSelectedPlanForView(plan);
+                            }}
+                          >
+                            <Play size={16} /> Open &amp; Start Routine
+                          </button>
+
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              className="btn btn-outline"
+                              style={{
+                                flex: 1,
+                                padding: '8px 14px',
+                                borderRadius: '10px',
+                                fontSize: '0.82rem',
+                                color: '#f87171',
+                                borderColor: 'rgba(239, 68, 68, 0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '5px'
+                              }}
+                              onClick={(e) => {
+                                if (handleDeleteUserProgram) {
+                                  handleDeleteUserProgram(plan._id, e);
+                                }
+                              }}
+                              title="Un-enroll from this program"
+                            >
+                              <Trash2 size={13} /> Un-enroll Program
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   const planTitle = plan.title || 'Workout Plan';
                   const slug = planTitle.toLowerCase().replace(/lost/g, 'loss').replace(/[^a-z0-9]/g, '');
                   const duration = plan.calendar?.length || plan.workout?.interactive_calendar?.length || (plan.planDuration ? parseInt(plan.planDuration, 10) : null);
@@ -800,7 +764,7 @@ const AITrainerAIMode = ({
           </div>
 
           {/* ── SECTION 2: CHOOSE HOW YOU WANT TO TRAIN (Options A & B) ── */}
-          {savedWorkoutPlans.length === 0 && (
+          {allWorkoutPlans.length === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
               <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#ffffff' }}>
                 Choose How You Want to Train
@@ -989,28 +953,32 @@ const AITrainerAIMode = ({
               </button>
 
               {/* Sibling Plan Buttons if user has multiple plans */}
-              {savedWorkoutPlans.length > 1 && (
+              {allWorkoutPlans.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                     Switch:
                   </span>
-                  {savedWorkoutPlans.map(p => {
+                  {allWorkoutPlans.map(p => {
                     const isCurrent = (selectedPlanForView?._id === p._id || selectedPlanForView?.title === p.title);
                     return (
                       <button
                         key={p._id || p.title}
                         onClick={() => {
-                          handleActivateSavedPlan(p);
-                          setSelectedPlanForView(p);
+                          if (p.isInstructorProgram) {
+                            setSelectedPlanForView(p);
+                          } else {
+                            handleActivateSavedPlan(p);
+                            setSelectedPlanForView(p);
+                          }
                         }}
                         style={{
                           padding: '6px 14px',
                           borderRadius: '8px',
                           fontSize: '0.82rem',
                           fontWeight: isCurrent ? 700 : 500,
-                          background: isCurrent ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255, 255, 255, 0.06)',
+                          background: isCurrent ? (p.isInstructorProgram ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #3b82f6, #2563eb)') : 'rgba(255, 255, 255, 0.06)',
                           color: isCurrent ? '#ffffff' : 'var(--text-secondary)',
-                          border: isCurrent ? '1px solid #60a5fa' : '1px solid rgba(255, 255, 255, 0.1)',
+                          border: isCurrent ? (p.isInstructorProgram ? '1px solid #10b981' : '1px solid #60a5fa') : '1px solid rgba(255, 255, 255, 0.1)',
                           cursor: 'pointer'
                         }}
                       >
@@ -1022,80 +990,480 @@ const AITrainerAIMode = ({
               )}
             </div>
 
-            {/* Right: Quick Actions (Edit with AI & Delete) */}
+            {/* Right: Quick Actions */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                className="btn btn-sm"
-                style={{
-                  background: activeCoachTick === 'detail_edit' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                  color: activeCoachTick === 'detail_edit' ? '#10b981' : '#60a5fa',
-                  border: activeCoachTick === 'detail_edit' ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(59, 130, 246, 0.4)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '7px 12px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                  transition: 'all 0.2s ease'
-                }}
-                onClick={() => {
-                  const planTitle = selectedPlanForView?.title || aiPlan?.title || 'Workout Plan';
-                  const slug = planTitle.toLowerCase().replace(/lost/g, 'loss').replace(/[^a-z0-9]/g, '');
-                  triggerOpenCoach('detail_edit', `/${slug} `);
-                }}
-                title="Edit with AI Coach"
-              >
-                {activeCoachTick === 'detail_edit' ? (
-                  <>
-                    <CheckCircle size={14} color="#10b981" />
-                    <span>✓ Opened</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={14} />
-                    <span>Edit with AI</span>
-                  </>
-                )}
-              </button>
+              {selectedPlanForView?.isInstructorProgram ? (
+                <button
+                  className="btn btn-sm"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem'
+                  }}
+                  onClick={(e) => {
+                    if (handleDeleteUserProgram) {
+                      handleDeleteUserProgram(selectedPlanForView._id, e);
+                    }
+                  }}
+                  title="Un-enroll from this program"
+                >
+                  <Trash2 size={14} /> Un-enroll Program
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="btn btn-sm"
+                    style={{
+                      background: activeCoachTick === 'detail_edit' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                      color: activeCoachTick === 'detail_edit' ? '#10b981' : '#60a5fa',
+                      border: activeCoachTick === 'detail_edit' ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(59, 130, 246, 0.4)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => {
+                      const planTitle = selectedPlanForView?.title || aiPlan?.title || 'Workout Plan';
+                      const slug = planTitle.toLowerCase().replace(/lost/g, 'loss').replace(/[^a-z0-9]/g, '');
+                      triggerOpenCoach('detail_edit', `/${slug} `);
+                    }}
+                    title="Edit with AI Coach"
+                  >
+                    {activeCoachTick === 'detail_edit' ? (
+                      <>
+                        <CheckCircle size={14} color="#10b981" />
+                        <span>✓ Opened</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={14} />
+                        <span>Edit with AI</span>
+                      </>
+                    )}
+                  </button>
 
-              <button
-                className="btn btn-sm"
-                style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  color: '#ef4444',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '7px 12px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '0.85rem'
-                }}
-                onClick={(e) => {
-                  const planId = selectedPlanForView?._id || aiPlan?.planId || aiPlan?._id;
-                  handleDeleteSavedPlan(planId, e);
-                  setSelectedPlanForView(null);
-                }}
-                title="Delete this plan"
-              >
-                <Trash2 size={14} /> Delete Plan
-              </button>
+                  <button
+                    className="btn btn-sm"
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem'
+                    }}
+                    onClick={(e) => {
+                      const planId = selectedPlanForView?._id || aiPlan?.planId || aiPlan?._id;
+                      handleDeleteSavedPlan(planId, e);
+                      setSelectedPlanForView(null);
+                    }}
+                    title="Delete this plan"
+                  >
+                    <Trash2 size={14} /> Delete Plan
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Plan Header Info */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '15px',
-              marginBottom: '20px',
-            }}
-          >
+          {selectedPlanForView?.isInstructorProgram ? (
+            /* ── INSTRUCTOR PROGRAM DETAILED VIEW ── */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+              {/* Header Info */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '15px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  borderRadius: '16px',
+                  padding: '20px 24px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <div
+                    style={{
+                      width: '52px',
+                      height: '52px',
+                      borderRadius: '14px',
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#10b981'
+                    }}
+                  >
+                    <Dumbbell size={28} />
+                  </div>
+                  <div>
+                    <span
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.2)',
+                        color: '#10b981',
+                        padding: '3px 10px',
+                        borderRadius: '12px',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        display: 'inline-block',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      INSTRUCTOR PROGRAM (v{selectedPlanForView.programVersion || 1})
+                    </span>
+                    <h2 style={{ margin: '0 0 4px 0', fontSize: '1.45rem', color: '#ffffff' }}>
+                      {selectedPlanForView.title}
+                    </h2>
+                    <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
+                      Instructor: <strong>{selectedPlanForView.instructorName}</strong> • Goal: <strong>{selectedPlanForView.goal}</strong> • Difficulty: <strong>{selectedPlanForView.fitnessLevel}</strong> • {selectedPlanForView.durationWeeks} Weeks
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Current Schedule
+                  </div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#10b981' }}>
+                    Week {selectedPlanForView.progress?.currentWeek || 1} • Day {selectedPlanForView.progress?.currentDay || 1}
+                  </div>
+                </div>
+              </div>
+
+              {/* Scheduled Routine Session */}
+              {(() => {
+                const prog = selectedPlanForView.rawProgram || activeUserProgram || selectedPlanForView;
+                const cWkNum = activeInstructorWeek || prog.progress?.currentWeek || 1;
+                const cDayNum = prog.progress?.currentDay || 1;
+                const currentWk = prog.weeks?.find(w => w.weekNumber === cWkNum) || prog.weeks?.[0];
+                const currentDayObj = currentWk?.days?.find(d => d.dayNumber === cDayNum) || currentWk?.days?.[0];
+                if (!currentDayObj) return null;
+
+                return (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.3)',
+                      borderRadius: '16px',
+                      padding: '20px',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '16px',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                      }}
+                    >
+                      <div>
+                        <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>
+                          Week {currentWk?.weekNumber || 1} • Day {currentDayObj.dayNumber || 1}
+                        </span>
+                        <h3 style={{ margin: '2px 0 0 0', color: 'var(--text-primary)', fontSize: '1.2rem' }}>
+                          Scheduled Routine: {currentDayObj.focus || 'Core Workout'}
+                        </h3>
+                        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                          {(currentDayObj.exercises || []).length} structured exercises
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                          className="btn btn-primary"
+                          style={{
+                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                            borderColor: '#10b981',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontWeight: 700,
+                            padding: '10px 18px',
+                            borderRadius: '10px'
+                          }}
+                          onClick={() => setShowMissionRunner(true)}
+                        >
+                          <Play size={16} /> Start Mission
+                        </button>
+                        {handleLogProgramSession && (
+                          <button
+                            className="btn btn-outline"
+                            style={{
+                              borderColor: 'rgba(16, 185, 129, 0.4)',
+                              color: '#10b981',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '10px 16px',
+                              borderRadius: '10px'
+                            }}
+                            onClick={() => {
+                              handleLogProgramSession(
+                                prog._id,
+                                currentWk.weekNumber || 1,
+                                currentDayObj.dayNumber || 1
+                              );
+                            }}
+                          >
+                            <CheckCircle size={16} /> Mark Complete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Warmup notice if present */}
+                    {currentDayObj.warmup && currentDayObj.warmup.length > 0 && (
+                      <div
+                        style={{
+                          background: 'rgba(59, 130, 246, 0.08)',
+                          border: '1px solid rgba(59, 130, 246, 0.2)',
+                          borderRadius: '10px',
+                          padding: '10px 14px',
+                          marginBottom: '16px',
+                          fontSize: '0.85rem',
+                          color: '#93c5fd'
+                        }}
+                      >
+                        <strong>Warm-up:</strong> {currentDayObj.warmup.map(w => `${w.text || w} (${w.duration || 5} min)`).join(', ')}
+                      </div>
+                    )}
+
+                    {/* Exercises Grid */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                        gap: '12px',
+                      }}
+                    >
+                      {(currentDayObj.exercises || []).map((ex, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            if (ex.exerciseId && typeof ex.exerciseId === 'object') {
+                              startExercise(ex.exerciseId);
+                            } else if (ex.name) {
+                              startExercise({ name: ex.name, sets: ex.sets, reps: ex.reps });
+                            }
+                          }}
+                          style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid var(--card-border)',
+                            borderRadius: '10px',
+                            padding: '12px 14px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            transition: 'background 0.2s ease, border-color 0.2s ease'
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{
+                                fontWeight: 600,
+                                color: 'var(--text-primary)',
+                                fontSize: '0.92rem',
+                              }}
+                            >
+                              {ex.exerciseId?.name || ex.name || `Exercise ${idx + 1}`}
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
+                              {ex.sets} sets × {ex.reps} reps {ex.rpe ? `• RPE ${ex.rpe}` : ''}
+                            </div>
+                            {ex.notes && (
+                              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px', fontStyle: 'italic' }}>
+                                {ex.notes}
+                              </div>
+                            )}
+                          </div>
+                          <Play size={15} color="#10b981" />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Cooldown notice if present */}
+                    {currentDayObj.cooldown && currentDayObj.cooldown.length > 0 && (
+                      <div
+                        style={{
+                          background: 'rgba(16, 185, 129, 0.08)',
+                          border: '1px solid rgba(16, 185, 129, 0.2)',
+                          borderRadius: '10px',
+                          padding: '10px 14px',
+                          marginTop: '16px',
+                          fontSize: '0.85rem',
+                          color: '#a7f3d0'
+                        }}
+                      >
+                        <strong>Cool-down:</strong> {currentDayObj.cooldown.map(c => `${c.text || c} (${c.duration || 5} min)`).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Week Syllabus Explorer */}
+              {(() => {
+                const prog = selectedPlanForView.rawProgram || activeUserProgram || selectedPlanForView;
+                if (!prog.weeks || prog.weeks.length === 0) return null;
+
+                return (
+                  <div
+                    style={{
+                      background: 'var(--card-bg)',
+                      border: '1px solid var(--card-border)',
+                      borderRadius: '16px',
+                      padding: '20px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Calendar size={18} color="#10b981" /> Program Schedule &amp; Weeks
+                      </h4>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {prog.weeks.map((w, idx) => {
+                          const wNum = w.weekNumber || idx + 1;
+                          const isSel = (activeInstructorWeek || prog.progress?.currentWeek || 1) === wNum;
+                          return (
+                            <button
+                              key={wNum}
+                              onClick={() => setActiveInstructorWeek(wNum)}
+                              style={{
+                                padding: '5px 12px',
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
+                                fontWeight: isSel ? 700 : 500,
+                                background: isSel ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.05)',
+                                color: isSel ? '#10b981' : 'var(--text-secondary)',
+                                border: isSel ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Week {wNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Days in selected week */}
+                    {(() => {
+                      const selWk = prog.weeks.find(w => w.weekNumber === (activeInstructorWeek || prog.progress?.currentWeek || 1)) || prog.weeks[0];
+                      if (!selWk) return null;
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div style={{ fontSize: '0.88rem', color: '#94a3b8', marginBottom: '4px' }}>
+                            <strong>Week {selWk.weekNumber} Focus:</strong> {selWk.focus || 'Strength & Conditioning Progression'}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                            {(selWk.days || []).map((day) => {
+                              const isCompleted = (prog.progress?.completedSessions || []).some(
+                                s => s.weekNumber === selWk.weekNumber && s.dayNumber === day.dayNumber
+                              );
+                              return (
+                                <div
+                                  key={day.dayNumber}
+                                  style={{
+                                    background: isCompleted ? 'rgba(16, 185, 129, 0.06)' : 'rgba(255,255,255,0.03)',
+                                    border: isCompleted ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255,255,255,0.08)',
+                                    borderRadius: '12px',
+                                    padding: '14px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    gap: '10px'
+                                  }}
+                                >
+                                  <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
+                                        Day {day.dayNumber}
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: '0.72rem',
+                                          padding: '2px 8px',
+                                          borderRadius: '10px',
+                                          fontWeight: 600,
+                                          background: isCompleted ? 'rgba(16, 185, 129, 0.2)' : day.isRestDay ? 'rgba(148, 163, 184, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                          color: isCompleted ? '#10b981' : day.isRestDay ? '#94a3b8' : '#60a5fa'
+                                        }}
+                                      >
+                                        {isCompleted ? '✓ Completed' : day.isRestDay ? 'Rest Day' : 'Workout'}
+                                      </span>
+                                    </div>
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                                      {day.focus || day.title || 'Workout Session'}
+                                    </div>
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                      {(day.exercises || []).length} Exercises
+                                    </div>
+                                  </div>
+
+                                  {!day.isRestDay && (
+                                    <button
+                                      className="btn btn-sm btn-outline"
+                                      style={{
+                                        borderColor: isCompleted ? 'rgba(16, 185, 129, 0.3)' : 'rgba(59, 130, 246, 0.3)',
+                                        color: isCompleted ? '#10b981' : '#60a5fa',
+                                        fontSize: '0.8rem',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '5px'
+                                      }}
+                                      onClick={() => {
+                                        if (handleLogProgramSession) {
+                                          handleLogProgramSession(prog._id, selWk.weekNumber, day.dayNumber);
+                                        }
+                                      }}
+                                    >
+                                      {isCompleted ? <CheckCircle size={13} /> : <Play size={13} />}
+                                      {isCompleted ? 'Completed' : 'Complete Day'}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <>
+              {/* Plan Header Info */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '15px',
+                  marginBottom: '20px',
+                }}
+              >
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
               <Bot size={40} color="#3b82f6" />
               <div>
@@ -2089,7 +2457,9 @@ const AITrainerAIMode = ({
                   </div>
                 );
               })()}
-            </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* ── SAVED AI PLANS MODAL ─────────────────────────────────────────── */}
@@ -2259,25 +2629,32 @@ const AITrainerAIMode = ({
       {showMissionRunner && (
         <MissionRunner
           dayTitle={
-            activeUserProgram
-              ? `Week ${activeUserProgram.progress?.currentWeek || 1} • Day ${activeUserProgram.progress?.currentDay || 1} Routine`
+            (selectedPlanForView?.isInstructorProgram || activeUserProgram)
+              ? `Week ${(selectedPlanForView?.rawProgram || activeUserProgram).progress?.currentWeek || 1} • Day ${(selectedPlanForView?.rawProgram || activeUserProgram).progress?.currentDay || 1} Routine`
               : selectedCalendarDay
               ? `Day ${selectedCalendarDay.dayNumber}: ${selectedCalendarDay.focus || 'Training Session'}`
               : "Today's Mission"
           }
-          exercises={
-            activeUserProgram
-              ? (activeUserProgram.weeks?.[0]?.days?.find(d => d.dayNumber === activeUserProgram.progress?.currentDay)?.exercises || [])
-              : (selectedCalendarDay?.workoutSplit || [])
-          }
+          exercises={(() => {
+            const prog = selectedPlanForView?.rawProgram || (selectedPlanForView?.isInstructorProgram ? selectedPlanForView : activeUserProgram);
+            if (prog && prog.weeks) {
+              const cWk = activeInstructorWeek || prog.progress?.currentWeek || 1;
+              const cDay = prog.progress?.currentDay || 1;
+              const wkObj = prog.weeks.find(w => w.weekNumber === cWk) || prog.weeks[0];
+              const dayObj = wkObj?.days?.find(d => d.dayNumber === cDay) || wkObj?.days?.[0];
+              return dayObj?.exercises || [];
+            }
+            return selectedCalendarDay?.workoutSplit || [];
+          })()}
           onCancel={() => setShowMissionRunner(false)}
-          onComplete={(summary) => {
+          onComplete={() => {
             setShowMissionRunner(false);
-            if (activeUserProgram) {
+            const prog = selectedPlanForView?.rawProgram || (selectedPlanForView?.isInstructorProgram ? selectedPlanForView : activeUserProgram);
+            if (prog && handleLogProgramSession) {
               handleLogProgramSession(
-                activeUserProgram._id,
-                activeUserProgram.progress?.currentWeek || 1,
-                activeUserProgram.progress?.currentDay || 1
+                prog._id,
+                activeInstructorWeek || prog.progress?.currentWeek || 1,
+                prog.progress?.currentDay || 1
               );
             } else if (completeActiveWorkout) {
               completeActiveWorkout();
@@ -2299,38 +2676,6 @@ const AITrainerAIMode = ({
           setTimeout(() => window.location.reload(), 2000);
         }}
       />
-
-      {/* ── GOAL COMPLETION (Parts 19 & 20) ──────────────────────────────── */}
-      {aiPlan && !completedGoalGroup && (
-        <div style={{ textAlign: 'center', marginTop: '12px', paddingBottom: '8px' }}>
-          <button
-            onClick={async () => {
-              try {
-                const token = localStorage.getItem('gymsync_token') || '';
-                // Fetch active GoalGroup
-                const goalRes = await fetch('/api/goals/active', { headers: { 'Authorization': `Bearer ${token}` } });
-                if (goalRes.ok) {
-                  const goalData = await goalRes.json();
-                  if (goalData?.goalGroup?._id) {
-                    const complRes = await fetch(`/api/goals/${goalData.goalGroup._id}/complete`, {
-                      method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    if (complRes.ok) {
-                      const complData = await complRes.json();
-                      setCompletedGoalGroup(complData.goalGroup);
-                    }
-                  } else {
-                    toast.info('No active goal found. Set a goal in the Mini-Coach first.');
-                  }
-                }
-              } catch { toast.error('Failed to complete goal. Please try again.'); }
-            }}
-            style={{ background: 'none', border: '1px solid rgba(245,158,11,0.4)', color: '#f59e0b', borderRadius: '8px', padding: '6px 16px', cursor: 'pointer', fontSize: '0.8rem' }}
-          >
-            🏆 Mark Goal as Complete
-          </button>
-        </div>
-      )}
 
       {completedGoalGroup && !showNextGoalPrompt && (
         <AchievementCard

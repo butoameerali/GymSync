@@ -10,7 +10,8 @@ import {
   logUserProgramProgress,
   applyDietToUser,
   getUserActiveDiet,
-  logUserDietMeal
+  logUserDietMeal,
+  deleteUserProgram
 } from '../controllers/preMadePlanController.js';
 import { protect, authorizeRoles, optionalProtect } from '../middleware/authMiddleware.js';
 import { findRelevantPrograms, rankProgramCandidates } from '../services/fitnessContentService.js';
@@ -32,6 +33,7 @@ router.get('/programs/search', optionalProtect, async (req, res) => {
 // User program & diet execution & tracking routes (placed before parameterized /:id routes)
 router.get('/user-programs/active', protect, getUserActiveProgram);
 router.post('/user-programs/:id/progress', protect, logUserProgramProgress);
+router.delete('/user-programs/:id', protect, deleteUserProgram);
 router.get('/user-diets/active', protect, getUserActiveDiet);
 router.post('/user-diets/:id/meal-log', protect, logUserDietMeal);
 
