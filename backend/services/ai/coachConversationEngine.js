@@ -549,7 +549,20 @@ Let's get started! **What is your primary fitness goal?**`;
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };
       }
 
-      // Step 3: Start Schedule (When would you like to start training?)
+      // Step 3: frequency and equipment. Do not silently infer either value
+      // for a long-term plan: this prevents an unusable 6-month plan dump.
+      const hasExplicitTrainingSetup = /\b[2-6]\s*(?:days?|din)\b|full gym|dumbbells?|bodyweight|no equipment|home workout/i.test([raw, ...(history || []).map(m => m.content || m.text || '')].join(' '));
+      if (!hasExplicitTrainingSetup) {
+        responseContent = `Awesome! Before I build your custom ${parsePlanDuration(intakeState.duration).label} roadmap, 2 quick questions: how many days a week can you train, and will you use a gym or dumbbells at home?`;
+        const suggestions = ['3 Days (Full Gym)', '4 Days (Full Gym)', '3 Days (Home Dumbbells)', '4 Days (Bodyweight)'];
+        structuredAction.type = 'CLARIFICATION';
+        structuredAction.step = 'training_setup';
+        structuredAction.suggestions = suggestions;
+        structuredAction.quickReplies = suggestions;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      // Step 4: Start Schedule (When would you like to start training?)
       if (!intakeState.startSchedule && !/(?:today|tomorrow|monday|next monday)/i.test(raw)) {
         const durationInfo = parsePlanDuration(intakeState.duration);
         responseContent = `Awesome! We're setting up your **${durationInfo.label} ${intakeState.goal}** program. 🏋️‍♂️

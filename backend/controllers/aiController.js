@@ -23,6 +23,8 @@ import { exerciseSafetyValidator } from '../services/safety/exerciseSafetyValida
 import { goalCompletionEngine } from '../services/workout/goalCompletionEngine.js';
 import { planMergeEngine } from '../services/ai/planMergeEngine.js';
 import { lookupFoodItem, getAlternatives } from '../services/nutrition/foodSubstitutionGroups.js';
+import { ollamaCoachService } from '../services/ai/ollamaCoachService.js';
+import { GYMSYNC_PRODUCT_KNOWLEDGE, buildLiveGymSyncContext } from '../services/ai/gymSyncKnowledge.js';
 
 // Allowed source attribution types
 export const ALLOWED_SOURCE_TYPES = ['instructor_program', 'instructor_diet', 'instructor_article', 'system_curated', 'community'];
@@ -160,6 +162,7 @@ export const validateAndSanitizeStructuredAction = (action) => {
     currentStepIndex: action.currentStepIndex,
     intent: typeof action.intent === 'string' ? action.intent.slice(0, 50) : 'general',
     suggestions: Array.isArray(action.suggestions) ? action.suggestions.slice(0, 10).map(s => String(s).slice(0, 80)) : [],
+    quickReplies: Array.isArray(action.quickReplies) ? action.quickReplies.slice(0, 10).map(s => String(s).slice(0, 80)) : [],
     plan: action.plan || null,
     safetyFlags: Array.isArray(action.safetyFlags)
       ? action.safetyFlags.map(f => String(f).slice(0, 300)).filter(Boolean)
@@ -761,14 +764,10 @@ export const executeCoachPipeline = async ({
   structuredAction.sourceAttribution = sourceAttribution;
 
   // 4. OLLAMA AS BOSS (Local LLM is primary conversational coach orchestrator)
-  const enableOllama = process.env.ENABLE_OLLAMA === 'true' || Boolean(process.env.OLLAMA_HOST);
-  const ollamaUrl = process.env.OLLAMA_HOST || 'http://localhost:11434/api/chat';
-  const ollamaModel = process.env.OLLAMA_MODEL || 'qwen2.5:0.5b';
+  const enableOllama = ollamaCoachService.isEnabled();
 
   if (enableOllama) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
       const safetyFlags = structuredAction.safetyFlags || [];
 
       // Enrich workout with dynamic calorie burn calculation if generated
@@ -834,11 +833,17 @@ Directive: Recommend this instructor nutrition plan adapted to the user.`;
 - Fitness Level: ${fitnessLevel}
 - Equipment: ${equipment}
 - Weight: ${weight ? `${weight} kg` : 'Not specified in profile'}
+- Reported joint pain/injuries: ${(authoritativeContext.jointPain || []).length ? authoritativeContext.jointPain.join(', ') : 'None reported'}
+- Current workout streak: ${authoritativeProgress.streak || 0} day(s)
+- Recovery state: ${authoritativeContext.recoveryFlag || 'Normal'}
 ${!weight ? `- NOTE: Athlete bodyweight is not specified in profile. Do not assume a fabricated weight; provide general coaching and ask for weight if they need precise calorie/macro targets.` : ''}
 ${safetyFlags.length > 0 ? `- SAFETY ALERT: ${safetyFlags.join(', ')}` : ''}
 
 [KNOWLEDGE CONTEXT]
 ${knowledgeContext}
+
+${GYMSYNC_PRODUCT_KNOWLEDGE}
+${buildLiveGymSyncContext({ context: authoritativeContext, progress: authoritativeProgress, activePlan: authoritativePlan })}
 
 [COACHING DIRECTIVES & FORMAT]
 1. BREVITY & ACTION-ORIENTATION (CRITICAL): Keep responses concise (1 to 2 short paragraphs or sentences max). NEVER output long essay-like walls of text.
@@ -848,31 +853,8 @@ ${knowledgeContext}
 5. Language Matching: Seamlessly match the user's language. If they speak in Roman Urdu/Hindi (e.g. "hi coach", "kal cricket match hai", "stamina chahiye"), reply in fluent, natural Roman Urdu/Hindi. If they speak in English, reply in English.
 6. Greetings: If the user simply greets you ("hi", "hello", "salam"), greet them warmly and personally, ask how they feel today and what they want to work on.`;
 
-      const ollamaMessages = [
-        { role: 'system', content: systemPrompt },
-        ...history.slice(-6).map(m => ({
-          role: (m.role === 'user' || m.sender === 'user') ? 'user' : 'assistant',
-          content: String(m.content || m.text || '').slice(0, 500)
-        })).filter(m => m.content && m.content.trim()),
-        { role: 'user', content: rawMessage }
-      ];
-
-      const ollamaRes = await fetch(ollamaUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: ollamaModel,
-          messages: ollamaMessages,
-          stream: false
-        })
-      });
-      clearTimeout(timeoutId);
-
-      if (ollamaRes.ok) {
-        const data = await ollamaRes.json();
-        const reply = data.message?.content?.trim();
-        if (reply && reply.length > 5) {
+      const reply = await ollamaCoachService.reply({ systemPrompt, message: rawMessage, history });
+      if (reply && reply.length > 5) {
           return {
             role: 'assistant',
             content: reply,
@@ -885,7 +867,6 @@ ${knowledgeContext}
               totalTimeMs: Date.now() - startTime
             }
           };
-        }
       }
     } catch (ollamaErr) {
       console.warn('Ollama unavailable or timed out, falling back to deterministic engine:', ollamaErr.message);
@@ -901,21 +882,13 @@ ${knowledgeContext}
 
   // 5. DETERMINISTIC ENGINE FALLBACK (Used when Ollama is disabled or offline)
   if (isGreeting(rawMessage)) {
-    const greeting = `Hello${userName ? ` ${userName}` : ''}! 👋 I am your **GymSync AI Lead Coach**.
-
-Your profile is active. I can assist you with:
-- 🏋️ **Goal-driven workout programs** (Hypertrophy, Strength, Cricket, Running)
-- 🥗 **Verified nutrition templates** tailored to your macros
-- 📖 **Expert technique guides** from certified Fitness Instructors
-
-How are you feeling today, and what would you like to work on?`;
-
-    const suggestions = ['🏋️ Build a Workout Plan', '🥗 Custom Diet Plan', '⚡ Quick 20-Min Workout', '🩺 Injury / Safety Advice'];
+    const greeting = `Hey${userName ? ` ${userName}` : ''}! Ready for today's workout, or want to adjust your routine?`;
+    const suggestions = ["🏋️ Start Today's Routine", '🥗 Check My Diet', '⚡ Quick 20-Min Workout'];
     return {
       role: 'assistant',
       content: greeting,
       suggestions,
-      structuredAction: validateAndSanitizeStructuredAction({ intent: 'greeting', workout: null, diet: null, safetyFlags: [], sourceAttribution, suggestions }),
+      structuredAction: validateAndSanitizeStructuredAction({ intent: 'greeting', workout: null, diet: null, safetyFlags: [], sourceAttribution, suggestions, quickReplies: suggestions }),
       meta: performanceMeta
     };
   }

@@ -18,6 +18,7 @@ import {
 } from '../services/supabaseService.js';
 import { uploadToSupabaseStorage } from '../config/supabase.js';
 import { isValidObjectId } from '../utils/validation.js';
+import PDFDocument from 'pdfkit';
 
 // @desc    Get all users (for friend search and member directory)
 // @route   GET /api/users
@@ -837,6 +838,64 @@ export const getExerciseRecordsController = async (req, res) => {
   }
 };
 
+// @desc    Download a user's completed activity and workout-record history as a PDF
+// @route   GET /api/users/workout-history/export-pdf
+// @access  Private
+export const exportWorkoutHistoryPdfController = async (req, res) => {
+  try {
+    const objectUserId = req.user._id;
+    const recordUserId = String(objectUserId || req.user.name);
+    const [activities, records, progress] = await Promise.all([
+      ActivityLog.find({ userId: objectUserId }).sort({ date: -1 }).lean(),
+      ExerciseRecord.find({ userId: recordUserId }).sort({ createdAt: -1 }).lean(),
+      WorkoutProgress.findOne({ userId: recordUserId }).lean()
+    ]);
+
+    const totalCalories = activities.reduce((sum, activity) => sum + (Number(activity.totalCaloriesBurned) || 0), 0);
+    const totalExercises = activities.reduce((sum, activity) => sum + (activity.exercises?.length || 0), 0) || records.length;
+    const filename = `gymsync-workout-history-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    res.status(200);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=\"${filename}\"`);
+    res.setHeader('Cache-Control', 'no-store');
+
+    const doc = new PDFDocument({ margin: 48, size: 'A4', info: { Title: 'GymSync Workout History' } });
+    doc.pipe(res);
+    doc.fillColor('#2563eb').fontSize(24).text('GymSync Workout History');
+    doc.fillColor('#475569').fontSize(10).text(`Prepared for ${req.user.name || 'GymSync athlete'} on ${new Date().toLocaleDateString()}`);
+    doc.moveDown(1.5);
+    doc.fillColor('#0f172a').fontSize(14).text('Your summary');
+    doc.moveDown(0.4).fontSize(10);
+    doc.text(`Workout days logged: ${activities.length}`);
+    doc.text(`Exercises completed: ${totalExercises}`);
+    doc.text(`Calories burned: ${Math.round(totalCalories).toLocaleString()} kcal`);
+    doc.text(`Current streak: ${progress?.streak || 0} day${progress?.streak === 1 ? '' : 's'}`);
+    doc.moveDown(1.3);
+    doc.fontSize(14).text('Completed sessions');
+    doc.moveDown(0.4);
+
+    if (!activities.length) {
+      doc.fontSize(10).fillColor('#475569').text('No completed workout sessions have been logged yet. Complete a workout to see it here.');
+    } else {
+      activities.forEach((activity, index) => {
+        if (doc.y > 700) doc.addPage();
+        const exercises = (activity.exercises || []).map(item => `${item.name} (${item.sets || 1} sets, ${item.reps || 0} reps)`).join(', ') || 'Activity synced from device';
+        doc.fillColor('#0f172a').fontSize(11).text(`${activity.date}  -  ${Math.round(activity.totalCaloriesBurned || 0)} kcal`);
+        doc.fillColor('#475569').fontSize(9).text(exercises, { indent: 10 });
+        if (index < activities.length - 1) doc.moveDown(0.7);
+      });
+    }
+
+    doc.moveDown(1.5).fillColor('#64748b').fontSize(8).text('This report is an activity record, not medical advice. Calorie values are estimates.', { align: 'center' });
+    doc.end();
+  } catch (err) {
+    console.error('exportWorkoutHistoryPdfController Error:', err);
+    if (!res.headersSent) res.status(500).json({ message: 'Failed to export workout history PDF' });
+    else res.end();
+  }
+};
+
 // @desc    Save user bio and onboarding metrics
 // @route   PUT /api/users/bio
 // @access  Private
@@ -915,4 +974,3 @@ export const getUserBioController = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch user bio' });
   }
 };
-

@@ -18,6 +18,7 @@ import {
   getWorkoutProgressController,
   saveExerciseRecordController,
   getExerciseRecordsController,
+  exportWorkoutHistoryPdfController,
   saveUserBioController,
   getUserBioController
 } from '../controllers/userController.js';
@@ -38,6 +39,8 @@ router.route('/exercise-record')
 
 router.route('/exercise-records')
   .get(protect, getExerciseRecordsController);
+
+router.get('/workout-history/export-pdf', protect, exportWorkoutHistoryPdfController);
 
 router.route('/send-verification-otp')
   .post(protect, sendVerificationOTP);
