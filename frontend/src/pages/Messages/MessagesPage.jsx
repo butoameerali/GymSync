@@ -311,7 +311,7 @@ const MessagesPage = () => {
                     <p>Start a new conversation with {activeContact}!</p>
                   </div>
                 ) : (
-                  messages.map(msg => {
+                  messages.map((msg, idx) => {
                     const isMine = msg.sender === currentUserName;
                     return (
                       <div key={msg._id} className={`chat-bubble-wrapper ${isMine ? 'mine' : 'theirs'}`}>
