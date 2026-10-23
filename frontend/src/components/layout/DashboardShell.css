@@ -1,7 +1,7 @@
 .dashboard-shell-container {
   width: 100%;
   min-height: 100vh;
-  padding-top: 80px;
+  padding-top: 0;
   box-sizing: border-box;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -29,7 +29,7 @@
 
 .dashboard-shell-layout {
   display: flex;
-  min-height: calc(100vh - 80px);
+  min-height: 100vh;
 }
 
 .dashboard-shell-sidebar {

@@ -35,7 +35,7 @@ const LegalPage = ({ type }) => {
   const page = content[type] || content.privacy;
 
   return (
-    <div className="container" style={{ minHeight: '70vh', paddingTop: '120px', paddingBottom: '60px', maxWidth: '850px' }}>
+    <div className="container" style={{ minHeight: '70vh', paddingTop: '0', paddingBottom: '60px', maxWidth: '850px' }}>
       <article className="glass-panel" style={{ padding: 'clamp(24px, 5vw, 48px)' }}>
         <h1>{page.title}</h1>
         <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>{page.intro}</p>

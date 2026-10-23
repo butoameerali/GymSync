@@ -1,19 +1,17 @@
 .store-page {
-  padding-top: 76px;
+  padding-top: 0;
   min-height: 100vh;
-  background: var(--bg-color);
+  background: transparent;
   padding-bottom: 60px;
 }
 
 .store-header {
-  padding: 30px 0;
-  border-radius: 0 0 24px 24px;
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  background: var(--panel-bg);
-  border-bottom: 1px solid var(--card-border);
-  margin-bottom: 30px;
+  padding: 24px 28px;
+  border-radius: 20px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 24px;
 }
 
 .header-content {

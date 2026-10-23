@@ -239,7 +239,7 @@ const SettingsPage = () => {
   }
 
   return (
-    <div className="container" style={{ padding: '30px 16px 80px', maxWidth: '1000px' }}>
+    <div className="container" style={{ padding: '0 0 60px', maxWidth: '1000px' }}>
       {/* Top Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

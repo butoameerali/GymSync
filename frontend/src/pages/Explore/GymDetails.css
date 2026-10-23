@@ -1,7 +1,7 @@
 .gym-details-page {
-  padding-top: 76px;
+  padding-top: 0;
   min-height: 100vh;
-  background: var(--bg-color);
+  background: transparent;
   padding-bottom: 60px;
 }
 
