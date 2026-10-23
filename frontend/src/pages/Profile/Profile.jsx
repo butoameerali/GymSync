@@ -347,10 +347,9 @@ const Profile = () => {
   // ─── Loading skeleton ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="profile-page" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div className="profile-cover" style={{ background: 'var(--card-bg)' }}></div>
-        <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', marginTop: '-60px' }}>
-          <div style={{ width: '150px', height: '150px', borderRadius: '50%', background: 'var(--card-border)', animation: 'pulseBlue 2s infinite' }} />
+      <div className="profile-page" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '30px' }}>
+        <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
+          <div style={{ width: '150px', height: '150px', borderRadius: '16px', background: 'var(--card-border)', animation: 'pulseBlue 2s infinite' }} />
           <div style={{ width: '250px', height: '40px', background: 'var(--card-border)', borderRadius: '8px', animation: 'pulseBlue 2s infinite' }} />
           <div style={{ width: '100%', maxWidth: '800px', height: '400px', background: 'var(--card-bg)', borderRadius: '16px', border: '1px solid var(--card-border)', animation: 'pulseBlue 2s infinite', marginTop: '20px' }} />
         </div>
@@ -361,7 +360,6 @@ const Profile = () => {
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="profile-page">
-      <div className="profile-cover"></div>
       <div className="container">
         <ProfileHeader
           userName={userName}

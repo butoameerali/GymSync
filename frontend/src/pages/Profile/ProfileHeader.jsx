@@ -49,23 +49,33 @@ const ProfileHeader = ({
         </div>
 
         {/* Card Art / Photo Window */}
-        <div className="pokemon-art-window">
-          <div
-            className="pokemon-art-avatar-wrapper avatar-clickable"
-            onClick={() => fileInputRef.current && fileInputRef.current.click()}
-            title="Click to update photo"
-          >
-            <UserAvatar 
+        <div 
+          className="pokemon-art-window avatar-clickable"
+          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+          title="Click to change card photo"
+        >
+          {profilePic ? (
+            <img 
               src={profilePic} 
-              name={userName} 
-              size={130} 
-              className="pokemon-art-avatar"
+              alt={userName} 
+              className="pokemon-character-art" 
             />
-            <div className="pokemon-avatar-hover">
-              <Camera color="white" size={24} />
-              <span>Change Photo</span>
+          ) : (
+            <div className="pokemon-character-fallback">
+              <UserAvatar 
+                src="" 
+                name={userName} 
+                size={110} 
+                className="pokemon-art-avatar"
+              />
             </div>
+          )}
+
+          <div className="pokemon-art-edit-overlay">
+            <Camera size={14} />
+            <span>Change Photo</span>
           </div>
+
           <input 
             type="file" 
             ref={fileInputRef} 
