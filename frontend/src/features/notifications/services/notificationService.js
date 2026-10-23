@@ -16,7 +16,13 @@ export const notificationService = {
   },
 
   markAllAsRead: async (userName) => {
-    return await patch(`/notifications/${encodeURIComponent(userName)}/read`, {});
+    try {
+      return await patch('/notifications/read-all', {});
+    } catch {
+      if (userName) {
+        return await patch(`/notifications/${encodeURIComponent(userName)}/read`, {});
+      }
+    }
   },
 
   deleteNotification: async (notificationId) => {

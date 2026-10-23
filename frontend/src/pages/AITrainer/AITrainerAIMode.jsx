@@ -188,9 +188,10 @@ const AITrainerAIMode = ({
           style={{
             textAlign: 'center',
             padding: '50px 20px',
-            background: 'rgba(15, 23, 42, 0.8)',
+            background: 'var(--card-bg)',
             borderRadius: '20px',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
+            border: '1px solid var(--card-border)',
+            boxShadow: 'var(--shadow-md)',
             margin: '10px 0',
           }}
         >

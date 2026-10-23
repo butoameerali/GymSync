@@ -82,6 +82,7 @@ const NotificationsPage = () => {
       await notificationService.markAllAsRead(userName);
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      window.dispatchEvent(new CustomEvent('gymsync_notifications_read', { detail: { unreadCount: 0 } }));
     } catch (err) {
       console.error('Failed to mark all as read:', err);
     }
@@ -93,6 +94,7 @@ const NotificationsPage = () => {
         await notificationService.markSingleAsRead(notif._id);
         setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, isRead: true } : n));
         setUnreadCount(prev => Math.max(0, prev - 1));
+        window.dispatchEvent(new CustomEvent('gymsync_notifications_read', { detail: { delta: -1 } }));
       } catch (err) {
         console.error('Failed to mark read:', err);
       }

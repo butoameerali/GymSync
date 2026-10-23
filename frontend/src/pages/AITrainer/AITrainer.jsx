@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { Dumbbell, Sparkles, Utensils, BookOpen } from 'lucide-react';
+import { Dumbbell, Sparkles, Utensils, BookOpen, ChevronDown } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useNavigate, useLocation } from 'react-router-dom';
 import aiPlanService from '../../services/aiPlanService';
@@ -1115,7 +1115,6 @@ const AITrainer = () => {
       <div className="container">
         <div className="trainer-header glass-panel">
           <h1><Dumbbell size={36} color="var(--primary-accent)"/> Workout Hub</h1>
-          <p>Explore 100+ exercises, view detailed execution guides, video demonstrations &amp; track your progress.</p>
         </div>
 
         {miniCoachSteps && (
@@ -1135,8 +1134,44 @@ const AITrainer = () => {
           />
         )}
 
-        {/* ── TAB BAR ───────────────────────────────────────────────────── */}
+        {/* ── MOBILE WORKOUT MODE SELECTOR ───────────────────────────── */}
+        <div className="trainer-select-container">
+          <div className="trainer-select-wrapper">
+            <select
+              id="workout-mode-dropdown"
+              className="trainer-select-dropdown"
+              value={activeMode}
+              onChange={(e) => {
+                const newMode = e.target.value;
+                setActiveMode(newMode);
+                setCurrentExercise(null);
+                if (newMode === 'ai') setSelectedPlanForView(null);
+              }}
+              aria-label="Select Workout Hub Section"
+            >
+              <option value="ai">✨ My Workouts</option>
+              <option value="library">📚 Exercise Library</option>
+              <option value="programs">🏋️ Workout Programs</option>
+              <option value="diets">🥗 My Diet Plan</option>
+              <option value="learn">📖 Guides & Knowledge</option>
+              <option value="assigned">📋 Trainer Assigned</option>
+            </select>
+            <ChevronDown size={18} className="trainer-select-arrow" />
+          </div>
+        </div>
+
+        {/* ── DESKTOP TAB BAR ───────────────────────────────────────────── */}
         <div className="trainer-tabs">
+          <button
+            className={`tab-btn ${activeMode === 'ai' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveMode('ai');
+              setSelectedPlanForView(null);
+              setCurrentExercise(null);
+            }}
+          >
+            <Sparkles size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> My Workouts
+          </button>
           <button
             className={`tab-btn ${activeMode === 'library' ? 'active' : ''}`}
             onClick={() => { setActiveMode('library'); setCurrentExercise(null); }}
@@ -1160,16 +1195,6 @@ const AITrainer = () => {
             onClick={() => { setActiveMode('learn'); setCurrentExercise(null); }}
           >
             <BookOpen size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> Guides &amp; Knowledge
-          </button>
-          <button
-            className={`tab-btn ${activeMode === 'ai' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveMode('ai');
-              setSelectedPlanForView(null);
-              setCurrentExercise(null);
-            }}
-          >
-            <Sparkles size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> My Workouts
           </button>
           <button
             className={`tab-btn ${activeMode === 'assigned' ? 'active' : ''}`}

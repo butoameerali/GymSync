@@ -115,8 +115,22 @@ const AppSidebar = () => {
         })
         .catch(() => {});
 
+      const handleReadEvent = (e) => {
+        if (e.detail && typeof e.detail.unreadCount === 'number') {
+          setUnreadCount(e.detail.unreadCount);
+        } else if (e.detail && typeof e.detail.delta === 'number') {
+          setUnreadCount(prev => Math.max(0, prev + e.detail.delta));
+        } else {
+          setUnreadCount(0);
+        }
+      };
+      window.addEventListener('gymsync_notifications_read', handleReadEvent);
+
       const interval = setInterval(syncCounts, 12000);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('gymsync_notifications_read', handleReadEvent);
+      };
     }
   }, [isLoggedIn, token, userName]);
 

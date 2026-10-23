@@ -1,52 +1,96 @@
 .post-detail-page {
   min-height: calc(100vh - 70px);
-  padding: 30px 16px 60px;
-  background: var(--bg-primary, #0a0f1d);
+  padding: 24px 16px 80px;
+  background: var(--bg-color);
   display: flex;
   justify-content: center;
+  align-items: flex-start;
 }
 
 .post-detail-container {
   width: 100%;
-  max-width: 820px;
-}
-
-.post-detail-back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-secondary, #94a3b8);
-  padding: 8px 16px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-bottom: 20px;
-  transition: all 0.2s ease;
-  text-decoration: none;
-}
-
-.post-detail-back-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border-color: var(--primary-accent, #6366f1);
+  max-width: 680px;
+  margin: 0 auto;
 }
 
 .post-detail-card {
-  background: var(--card-bg, #111827);
-  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 20px;
-  padding: 24px;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+  padding: 0;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.post-detail-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--card-border);
+  background: var(--card-bg);
+}
+
+.post-detail-nav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.post-detail-nav-back:hover {
+  background: var(--card-bg-light);
+  color: var(--primary-accent);
+}
+
+.post-detail-modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.post-detail-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.post-detail-modal-close:hover {
+  background: var(--danger);
+  color: #ffffff;
+  border-color: var(--danger);
+}
+
+.post-detail-body {
+  padding: 22px;
 }
 
 .post-detail-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .post-detail-author-info {
@@ -58,33 +102,34 @@
 .post-detail-author-name {
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   text-decoration: none;
 }
 
 .post-detail-author-name:hover {
-  color: var(--primary-accent, #6366f1);
+  color: var(--primary-accent);
 }
 
 .post-detail-timestamp {
   font-size: 0.8rem;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary);
   margin-top: 2px;
 }
 
 .post-detail-content {
   font-size: 1.05rem;
   line-height: 1.6;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--text-primary);
   margin-bottom: 20px;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .post-detail-media-container {
   border-radius: 14px;
   overflow: hidden;
   background: #000;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--card-border);
   margin-bottom: 20px;
   display: flex;
   justify-content: center;
@@ -99,8 +144,8 @@
 }
 
 .post-detail-guest-banner {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(236, 72, 153, 0.15) 100%);
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(236, 72, 153, 0.12) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.25);
   border-radius: 14px;
   padding: 16px 20px;
   display: flex;
@@ -112,11 +157,20 @@
 }
 
 @media (max-width: 640px) {
-  .post-detail-card {
-    padding: 16px;
-    border-radius: 14px;
+  .post-detail-page {
+    padding: 10px 8px 80px;
+  }
+  .post-detail-body {
+    padding: 16px 12px;
   }
   .post-detail-media {
     max-height: 380px;
+  }
+  .post-detail-modal-header {
+    padding: 12px 14px;
+  }
+  .post-detail-modal-title {
+    max-width: 180px;
+    font-size: 0.95rem;
   }
 }

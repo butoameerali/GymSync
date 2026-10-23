@@ -1,13 +1,13 @@
 .ai-trainer-page {
-  padding-top: 100px;
+  padding-top: 24px;
   min-height: 100vh;
   padding-bottom: 60px;
 }
 
 .trainer-header {
-  padding: 30px;
+  padding: 24px;
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .trainer-header h1 {
@@ -15,7 +15,50 @@
   align-items: center;
   justify-content: center;
   gap: 15px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
+}
+
+.trainer-select-container {
+  display: none;
+  margin-bottom: 20px;
+}
+
+.trainer-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.trainer-select-dropdown {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: var(--card-bg);
+  border: 1.5px solid var(--primary-accent);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 14px 44px 14px 16px;
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  outline: none;
+}
+
+.trainer-select-dropdown option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 500;
+  padding: 10px;
+}
+
+.trainer-select-arrow {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--primary-accent);
 }
 
 .ai-trainer-page .trainer-tabs {
@@ -263,8 +306,12 @@
     font-size: 1.8rem;
   }
   
+  .trainer-select-container {
+    display: block;
+  }
+
   .trainer-tabs {
-    flex-direction: column;
+    display: none !important;
   }
   
   .live-stats {
