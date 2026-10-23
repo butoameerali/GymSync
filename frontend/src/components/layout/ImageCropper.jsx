@@ -64,18 +64,48 @@ const ImageCropper = ({ imageSrc, onCropComplete, onCancel }) => {
     });
   };
 
+  const compressOriginalImage = async (url) => {
+    try {
+      const img = await createImage(url);
+      const canvas = document.createElement('canvas');
+      const maxDim = 800;
+      let width = img.naturalWidth || img.width || 400;
+      let height = img.naturalHeight || img.height || 400;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return url;
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      return canvas.toDataURL('image/png');
+    } catch {
+      return url;
+    }
+  };
+
   const handleSave = async () => {
     try {
       const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels);
       onCropComplete(croppedImage);
     } catch (e) {
       console.error(e);
-      onCropComplete(imageSrc);
+      const fallback = await compressOriginalImage(imageSrc);
+      onCropComplete(fallback);
     }
   };
 
-  const handleUseOriginal = () => {
-    onCropComplete(imageSrc);
+  const handleUseOriginal = async () => {
+    const optimized = await compressOriginalImage(imageSrc);
+    onCropComplete(optimized);
   };
 
   return (

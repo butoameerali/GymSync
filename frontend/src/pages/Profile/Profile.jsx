@@ -204,7 +204,11 @@ const Profile = () => {
   };
 
   const saveProfilePic = async (image) => {
-    localStorage.setItem(`gymsync_${userKey}_pic`, image);
+    try {
+      localStorage.setItem(`gymsync_${userKey}_pic`, image);
+    } catch (storageErr) {
+      console.warn('LocalStorage pic quota exceeded:', storageErr);
+    }
     const response = await fetch('/api/users/profile-pic', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
