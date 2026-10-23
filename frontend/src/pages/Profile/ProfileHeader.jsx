@@ -131,7 +131,7 @@ const ProfileHeader = ({
             <div className="profile-overview-details">
               {heightVal && <div><span>Height</span><strong>{heightVal}</strong></div>}
               {weightVal && <div><span>Weight</span><strong>{weightVal}</strong></div>}
-              <div className="profile-overview-location"><span>Location</span><strong>{bio?.location || userData?.bioData?.location || 'Not added'}</strong></div>
+              {(bio?.location || userData?.bioData?.location) && <div className="profile-overview-location"><span>Location</span><strong>{bio?.location || userData?.bioData?.location}</strong></div>}
             </div>
             <button type="button" className="profile-overview-edit" onClick={handleEditProfile}><Edit3 size={15} /> Edit profile &amp; bio</button>
           </section>
