@@ -27,24 +27,9 @@ const AppLayout = ({ children }) => {
           <span>GymSync</span>
         </Link>
         <div className="mobile-top-actions">
-          <button 
-            type="button" 
-            onClick={toggleTheme} 
-            className="mobile-header-btn" 
-            title="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun size={21} color="#f59e0b" /> : <Moon size={21} color="#3b82f6" />}
-          </button>
-          {isLoggedIn && (
-            <Link to="/messages" className="mobile-header-btn" title="Messages">
-              <MessageSquare size={21} />
-            </Link>
-          )}
-          {isLoggedIn && (
-            <Link to="/notifications" className="mobile-header-btn" title="Notifications">
-              <Bell size={21} />
-            </Link>
-          )}
+          <Link to="/notifications" className="mobile-header-btn" title="Notifications">
+            <Bell size={21} />
+          </Link>
         </div>
       </header>
 
