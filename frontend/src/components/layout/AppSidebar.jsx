@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Activity, 
   Home, 
@@ -34,6 +34,7 @@ import './AppSidebar.css';
 
 const AppSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { user, userName: authName, userRole: authRole, logout } = useAuth();
 
@@ -65,6 +66,11 @@ const AppSidebar = () => {
   const menuPopoverRef = useRef(null);
   const profilePopoverRef = useRef(null);
 
+  const handleMenuNavigate = (path) => {
+    setShowMenuPopover(false);
+    navigate(path);
+  };
+
   // Close popovers on route change
   useEffect(() => {
     setShowMenuPopover(false);
@@ -74,6 +80,10 @@ const AppSidebar = () => {
   // Click outside to dismiss popovers
   useEffect(() => {
     const handleClickOutside = (e) => {
+      // Don't close if clicking inside the mobile drawer
+      if (e.target && e.target.closest && e.target.closest('.mobile-menu-drawer')) {
+        return;
+      }
       if (menuPopoverRef.current && !menuPopoverRef.current.contains(e.target)) {
         setShowMenuPopover(false);
       }
@@ -190,7 +200,7 @@ const AppSidebar = () => {
               </Link>
             )}
 
-            <Link to="/explore" className={`sidebar-link ${isActive('/explore') ? 'active' : ''}`}>
+            <Link to="/explore" className={`sidebar-link hide-on-mobile ${isActive('/explore') ? 'active' : ''}`}>
               <span className="sidebar-icon"><Compass size={22} /></span>
               <span className="sidebar-label">Explore Gyms</span>
             </Link>
@@ -201,7 +211,7 @@ const AppSidebar = () => {
             </Link>
 
             {isLoggedIn && (
-              <Link to="/messages" className={`sidebar-link hide-on-mobile ${isActive('/messages') || isActive('/chat') ? 'active' : ''}`}>
+              <Link to="/messages" className={`sidebar-link ${isActive('/messages') || isActive('/chat') ? 'active' : ''}`}>
                 <span className="sidebar-icon"><MessageSquare size={22} /></span>
                 <span className="sidebar-label">Messages</span>
                 {unreadChatCount > 0 && <span className="sidebar-badge">{unreadChatCount}</span>}
@@ -468,10 +478,10 @@ const AppSidebar = () => {
               </button>
 
               {/* Explore Partner Gyms */}
-              <Link 
-                to="/explore" 
+              <button 
+                type="button" 
                 className="mobile-menu-item"
-                onClick={() => setShowMenuPopover(false)}
+                onClick={() => handleMenuNavigate('/explore')}
               >
                 <div className="mobile-menu-item-icon">
                   <Compass size={20} color="#10b981" />
@@ -480,13 +490,13 @@ const AppSidebar = () => {
                   <span className="mobile-menu-item-title">Explore Partner Gyms</span>
                   <span className="mobile-menu-item-sub">Find locations & facilities near you</span>
                 </div>
-              </Link>
+              </button>
 
               {/* Store */}
-              <Link 
-                to="/store" 
+              <button 
+                type="button" 
                 className="mobile-menu-item"
-                onClick={() => setShowMenuPopover(false)}
+                onClick={() => handleMenuNavigate('/store')}
               >
                 <div className="mobile-menu-item-icon">
                   <ShoppingBag size={20} color="var(--primary-accent)" />
@@ -495,14 +505,14 @@ const AppSidebar = () => {
                   <span className="mobile-menu-item-title">GymSync Store</span>
                   <span className="mobile-menu-item-sub">Supplements, gear & apparel</span>
                 </div>
-              </Link>
+              </button>
 
               {/* Your Gym */}
               {!isStaff && (
-                <Link 
-                  to="/your-gym" 
+                <button 
+                  type="button" 
                   className="mobile-menu-item"
-                  onClick={() => setShowMenuPopover(false)}
+                  onClick={() => handleMenuNavigate('/your-gym')}
                 >
                   <div className="mobile-menu-item-icon">
                     <Building2 size={20} color="#8b5cf6" />
@@ -511,15 +521,15 @@ const AppSidebar = () => {
                     <span className="mobile-menu-item-title">Your Gym</span>
                     <span className="mobile-menu-item-sub">Plans, equipment & attendance</span>
                   </div>
-                </Link>
+                </button>
               )}
 
               {/* Messages */}
               {isLoggedIn && (
-                <Link 
-                  to="/messages" 
+                <button 
+                  type="button" 
                   className="mobile-menu-item"
-                  onClick={() => setShowMenuPopover(false)}
+                  onClick={() => handleMenuNavigate('/messages')}
                 >
                   <div className="mobile-menu-item-icon">
                     <MessageSquare size={20} color="#3b82f6" />
@@ -531,15 +541,15 @@ const AppSidebar = () => {
                   {unreadChatCount > 0 && (
                     <span className="sidebar-badge">{unreadChatCount}</span>
                   )}
-                </Link>
+                </button>
               )}
 
               {/* Settings & Privacy */}
               {isLoggedIn && (
-                <Link 
-                  to="/settings" 
+                <button 
+                  type="button" 
                   className="mobile-menu-item"
-                  onClick={() => setShowMenuPopover(false)}
+                  onClick={() => handleMenuNavigate('/settings')}
                 >
                   <div className="mobile-menu-item-icon">
                     <Settings size={20} color="var(--text-secondary)" />
@@ -548,7 +558,7 @@ const AppSidebar = () => {
                     <span className="mobile-menu-item-title">Settings & Privacy</span>
                     <span className="mobile-menu-item-sub">Account & security</span>
                   </div>
-                </Link>
+                </button>
               )}
 
               {/* Help & Support */}
@@ -574,40 +584,40 @@ const AppSidebar = () => {
                 <>
                   <div className="popover-divider" />
                   {isAdmin && (
-                    <Link to="/admin" className="mobile-menu-item" onClick={() => setShowMenuPopover(false)}>
+                    <button type="button" className="mobile-menu-item" onClick={() => handleMenuNavigate('/admin')}>
                       <div className="mobile-menu-item-icon"><Shield size={20} color="var(--primary-accent)" /></div>
                       <div className="mobile-menu-item-info"><span className="mobile-menu-item-title">Admin Portal</span></div>
-                    </Link>
+                    </button>
                   )}
                   {isModerator && (
-                    <Link to="/moderator" className="mobile-menu-item" onClick={() => setShowMenuPopover(false)}>
+                    <button type="button" className="mobile-menu-item" onClick={() => handleMenuNavigate('/moderator')}>
                       <div className="mobile-menu-item-icon"><ShieldAlert size={20} color="#f59e0b" /></div>
                       <div className="mobile-menu-item-info"><span className="mobile-menu-item-title">Moderation Hub</span></div>
-                    </Link>
+                    </button>
                   )}
                   {isGymOwner && (
-                    <Link to="/gym-owner" className="mobile-menu-item" onClick={() => setShowMenuPopover(false)}>
+                    <button type="button" className="mobile-menu-item" onClick={() => handleMenuNavigate('/gym-owner')}>
                       <div className="mobile-menu-item-icon"><Building2 size={20} color="#8b5cf6" /></div>
                       <div className="mobile-menu-item-info"><span className="mobile-menu-item-title">Gym Owner Panel</span></div>
-                    </Link>
+                    </button>
                   )}
                   {isFitnessInstructor && (
-                    <Link to="/fitness-instructor" className="mobile-menu-item" onClick={() => setShowMenuPopover(false)}>
+                    <button type="button" className="mobile-menu-item" onClick={() => handleMenuNavigate('/fitness-instructor')}>
                       <div className="mobile-menu-item-icon"><Activity size={20} color="#10b981" /></div>
                       <div className="mobile-menu-item-info"><span className="mobile-menu-item-title">Instructor Panel</span></div>
-                    </Link>
+                    </button>
                   )}
                   {isGymTrainer && (
-                    <Link to="/gym-trainer" className="mobile-menu-item" onClick={() => setShowMenuPopover(false)}>
+                    <button type="button" className="mobile-menu-item" onClick={() => handleMenuNavigate('/gym-trainer')}>
                       <div className="mobile-menu-item-icon"><UserCheck size={20} color="#3b82f6" /></div>
                       <div className="mobile-menu-item-info"><span className="mobile-menu-item-title">Trainer Panel</span></div>
-                    </Link>
+                    </button>
                   )}
                   {isStoreManager && (
-                    <Link to="/store-manager" className="mobile-menu-item" onClick={() => setShowMenuPopover(false)}>
+                    <button type="button" className="mobile-menu-item" onClick={() => handleMenuNavigate('/store-manager')}>
                       <div className="mobile-menu-item-icon"><ShoppingBag size={20} color="#f59e0b" /></div>
                       <div className="mobile-menu-item-info"><span className="mobile-menu-item-title">Store Manager</span></div>
-                    </Link>
+                    </button>
                   )}
                 </>
               )}
@@ -616,13 +626,13 @@ const AppSidebar = () => {
               <div className="popover-divider" />
               {isLoggedIn ? (
                 <>
-                  <Link to="/profile" className="mobile-menu-item" onClick={() => setShowMenuPopover(false)}>
+                  <button type="button" className="mobile-menu-item" onClick={() => handleMenuNavigate('/profile')}>
                     <div className="mobile-menu-item-icon"><UserIcon size={20} color="var(--primary-accent)" /></div>
                     <div className="mobile-menu-item-info">
                       <span className="mobile-menu-item-title">My Profile ({userName})</span>
                       <span className="mobile-menu-item-sub">View personal account</span>
                     </div>
-                  </Link>
+                  </button>
                   <button type="button" className="mobile-menu-item danger" onClick={handleLogout}>
                     <div className="mobile-menu-item-icon"><LogOut size={20} color="#ef4444" /></div>
                     <div className="mobile-menu-item-info">
@@ -631,12 +641,12 @@ const AppSidebar = () => {
                   </button>
                 </>
               ) : (
-                <Link to="/login" className="mobile-menu-item" onClick={() => setShowMenuPopover(false)}>
+                <button type="button" className="mobile-menu-item" onClick={() => handleMenuNavigate('/login')}>
                   <div className="mobile-menu-item-icon"><LogIn size={20} color="var(--primary-accent)" /></div>
                   <div className="mobile-menu-item-info">
                     <span className="mobile-menu-item-title">Log In to GymSync</span>
                   </div>
-                </Link>
+                </button>
               )}
             </div>
           </div>

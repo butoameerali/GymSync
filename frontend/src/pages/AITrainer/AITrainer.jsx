@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Dumbbell, Sparkles, Utensils, BookOpen, ChevronDown } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -18,8 +18,19 @@ const DietCatalogue = lazy(() => import('../../components/trainee/DietCatalogue'
 const MyAIDietHub = lazy(() => import('./MyAIDietHub'));
 const LearnArticles = lazy(() => import('../../components/trainee/LearnArticles'));
 
+const WORKOUT_MODES = [
+  { key: 'ai', label: 'My Workouts', emoji: '✨' },
+  { key: 'library', label: 'Exercise Library', emoji: '📚' },
+  { key: 'programs', label: 'Workout Programs', emoji: '🏋️' },
+  { key: 'diets', label: 'My Diet Plan', emoji: '🥗' },
+  { key: 'learn', label: 'Guides & Knowledge', emoji: '📖' },
+  { key: 'assigned', label: 'Trainer Assigned', emoji: '📋' }
+];
+
 const AITrainer = () => {
   const [activeMode, setActiveMode] = useState('ai'); // Default selected: 'ai' ('My Workouts')
+  const [showModeDropdown, setShowModeDropdown] = useState(false);
+  const modeDropdownRef = useRef(null);
   const [favorites, setFavorites] = useState([]);
   const [aiModeChoice, setAiModeChoice] = useState(null); // null | 'with_ai' | 'without_ai'
 
@@ -98,6 +109,16 @@ const AITrainer = () => {
     checkBioState();
     window.addEventListener('gymsync_bio_updated', checkBioState);
     return () => window.removeEventListener('gymsync_bio_updated', checkBioState);
+  }, []);
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (modeDropdownRef.current && !modeDropdownRef.current.contains(e.target)) {
+        setShowModeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
   useEffect(() => {
@@ -1110,6 +1131,8 @@ const AITrainer = () => {
     }
   };
 
+  const currentModeObj = WORKOUT_MODES.find(m => m.key === activeMode) || WORKOUT_MODES[0];
+
   return (
     <div className="ai-trainer-page">
       <div className="container">
@@ -1134,30 +1157,42 @@ const AITrainer = () => {
           />
         )}
 
-        {/* ── MOBILE WORKOUT MODE SELECTOR ───────────────────────────── */}
-        <div className="trainer-select-container">
-          <div className="trainer-select-wrapper">
-            <select
-              id="workout-mode-dropdown"
-              className="trainer-select-dropdown"
-              value={activeMode}
-              onChange={(e) => {
-                const newMode = e.target.value;
-                setActiveMode(newMode);
-                setCurrentExercise(null);
-                if (newMode === 'ai') setSelectedPlanForView(null);
-              }}
-              aria-label="Select Workout Hub Section"
-            >
-              <option value="ai">✨ My Workouts</option>
-              <option value="library">📚 Exercise Library</option>
-              <option value="programs">🏋️ Workout Programs</option>
-              <option value="diets">🥗 My Diet Plan</option>
-              <option value="learn">📖 Guides & Knowledge</option>
-              <option value="assigned">📋 Trainer Assigned</option>
-            </select>
-            <ChevronDown size={18} className="trainer-select-arrow" />
-          </div>
+        {/* ── MOBILE WORKOUT MODE CUSTOM DROPDOWN (OPENS DIRECTLY UNDERNEATH) ── */}
+        <div className="trainer-select-container" ref={modeDropdownRef}>
+          <button
+            type="button"
+            className="trainer-select-trigger"
+            onClick={() => setShowModeDropdown(prev => !prev)}
+            aria-expanded={showModeDropdown}
+          >
+            <span className="trainer-select-current">
+              <span className="trainer-select-emoji">{currentModeObj.emoji}</span>
+              <span className="trainer-select-text">{currentModeObj.label}</span>
+            </span>
+            <ChevronDown size={18} className={`trainer-select-arrow ${showModeDropdown ? 'open' : ''}`} />
+          </button>
+
+          {showModeDropdown && (
+            <div className="trainer-select-dropdown-menu">
+              {WORKOUT_MODES.map(item => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`trainer-select-option ${activeMode === item.key ? 'selected' : ''}`}
+                  onClick={() => {
+                    setActiveMode(item.key);
+                    setCurrentExercise(null);
+                    if (item.key === 'ai') setSelectedPlanForView(null);
+                    setShowModeDropdown(false);
+                  }}
+                >
+                  <span className="trainer-select-emoji">{item.emoji}</span>
+                  <span className="trainer-select-label">{item.label}</span>
+                  {activeMode === item.key && <span className="trainer-select-check">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── DESKTOP TAB BAR ───────────────────────────────────────────── */}
