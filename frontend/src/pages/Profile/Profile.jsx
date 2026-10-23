@@ -22,20 +22,44 @@ const Profile = () => {
   const [activeSettingSection, setActiveSettingSection] = useState('general');
   const [mobileSlide, setMobileSlide] = useState(0); // 0: Athlete Card, 1: Activity & Feed
   const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
   const touchEndXRef = useRef(0);
+  const touchEndYRef = useRef(0);
+
+  useEffect(() => {
+    const handleBodyOverflow = () => {
+      if (window.innerWidth <= 768) {
+        document.body.style.overflow = mobileSlide === 0 ? 'hidden' : '';
+      } else {
+        document.body.style.overflow = '';
+      }
+    };
+    handleBodyOverflow();
+    window.addEventListener('resize', handleBodyOverflow);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('resize', handleBodyOverflow);
+    };
+  }, [mobileSlide]);
 
   const handleMobileTouchStart = (e) => {
     touchStartXRef.current = e.targetTouches[0].clientX;
+    touchStartYRef.current = e.targetTouches[0].clientY;
+    touchEndXRef.current = e.targetTouches[0].clientX;
+    touchEndYRef.current = e.targetTouches[0].clientY;
   };
   const handleMobileTouchMove = (e) => {
     touchEndXRef.current = e.targetTouches[0].clientX;
+    touchEndYRef.current = e.targetTouches[0].clientY;
   };
   const handleMobileTouchEnd = () => {
-    const delta = touchStartXRef.current - touchEndXRef.current;
-    if (Math.abs(delta) > 45) {
-      if (delta > 0 && mobileSlide === 0) {
+    const deltaX = touchStartXRef.current - touchEndXRef.current;
+    const deltaY = touchStartYRef.current - touchEndYRef.current;
+    if (Math.abs(deltaX) > 35 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1) {
+      if (deltaX > 0 && mobileSlide === 0) {
         setMobileSlide(1);
-      } else if (delta < 0 && mobileSlide === 1) {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      } else if (deltaX < 0 && mobileSlide === 1) {
         setMobileSlide(0);
       }
     }
@@ -466,7 +490,7 @@ const Profile = () => {
   );
 
   return (
-    <div className="profile-page">
+    <div className={`profile-page ${mobileSlide === 0 ? 'profile-mobile-locked' : ''}`}>
       <div className="container">
         {/* Desktop 2-Column Grid */}
         <div className="profile-desktop-grid">
@@ -485,24 +509,6 @@ const Profile = () => {
           onTouchMove={handleMobileTouchMove}
           onTouchEnd={handleMobileTouchEnd}
         >
-          {/* Mobile Switcher Pills */}
-          <div className="profile-mobile-switch-pills">
-            <button 
-              type="button" 
-              className={`mobile-switch-pill ${mobileSlide === 0 ? 'active' : ''}`}
-              onClick={() => setMobileSlide(0)}
-            >
-              Card
-            </button>
-            <button 
-              type="button" 
-              className={`mobile-switch-pill ${mobileSlide === 1 ? 'active' : ''}`}
-              onClick={() => setMobileSlide(1)}
-            >
-              Activity &amp; Info
-            </button>
-          </div>
-
           <div 
             className="profile-mobile-slides-track"
             style={{ transform: `translateX(-${mobileSlide * 100}%)` }}
@@ -510,14 +516,13 @@ const Profile = () => {
             {/* Slide 0: Card View (Fixed, viewport fit, zero scroll) */}
             <div className="profile-mobile-slide profile-card-slide">
               {renderCardHeader()}
-              <button 
-                type="button" 
+              <div 
                 className="profile-mobile-swipe-guide" 
                 onClick={() => setMobileSlide(1)}
               >
-                <span>Swipe for activity &amp; feed</span>
+                <span>Swipe left for activity &amp; feed</span>
                 <ChevronRight size={14} />
-              </button>
+              </div>
             </div>
 
             {/* Slide 1: Feed & Activity Hub (Scrollable) */}

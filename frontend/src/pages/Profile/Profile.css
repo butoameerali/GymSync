@@ -1138,35 +1138,12 @@
     margin-top: 6px;
   }
 
-  /* Sleek Switcher Pills */
-  .profile-mobile-switch-pills {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    margin: 4px auto 14px;
-    background: rgba(15, 23, 42, 0.7);
-    padding: 5px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    max-width: 280px;
-  }
-  .mobile-switch-pill {
-    flex: 1;
-    padding: 7px 14px;
-    border-radius: 8px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--text-secondary, #94a3b8);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  .mobile-switch-pill.active {
-    background: rgba(212, 175, 55, 0.2);
-    color: #f1cf73;
-    border: 1px solid rgba(212, 175, 55, 0.45);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  /* Lock vertical scrolling when viewing the Card on mobile */
+  .profile-page.profile-mobile-locked {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    touch-action: pan-x !important;
   }
 
   /* Sliding Track */
@@ -1183,15 +1160,17 @@
     box-sizing: border-box;
   }
 
-  /* Slide 0: Athlete Card (Viewport Fit, No Vertical Scrolling) */
+  /* Slide 0: Athlete Card (Completely Fixed, Zero Vertical Scroll) */
   .profile-card-slide {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
-    min-height: calc(100dvh - 130px);
-    overflow: hidden;
-    padding-top: 2px;
+    justify-content: center;
+    height: calc(100dvh - 75px);
+    max-height: calc(100dvh - 75px);
+    overflow: hidden !important;
+    touch-action: pan-x;
+    padding-top: 0;
   }
 
   .profile-card-slide .pokemon-card-wrapper {
@@ -1199,9 +1178,10 @@
   }
 
   .profile-card-slide .pokemon-fullart-card {
-    width: min(360px, calc(100vw - 28px));
-    height: min(520px, calc(100dvh - 170px));
+    width: min(350px, calc(100vw - 28px));
+    height: min(490px, calc(100dvh - 145px));
     margin: 0 auto;
+    touch-action: pan-x;
   }
 
   .profile-mobile-swipe-guide {
