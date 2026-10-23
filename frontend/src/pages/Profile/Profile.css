@@ -1118,10 +1118,16 @@
    RESPONSIVE MOBILE STYLES (≤ 768px)
    ======================================================== */
 @media (max-width: 768px) {
+  .profile-page {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    min-height: auto;
+  }
+
   .profile-page .container {
     width: 100%;
     max-width: 100%;
-    padding-inline: 12px;
+    padding: 0 8px !important;
   }
 
   /* Hide Desktop Grid on Mobile */
@@ -1135,15 +1141,17 @@
     overflow: hidden;
     position: relative;
     width: 100%;
-    margin-top: 6px;
+    margin-top: 0 !important;
+    padding-top: 4px !important;
   }
 
   /* Lock vertical scrolling when viewing the Card on mobile */
   .profile-page.profile-mobile-locked {
-    height: 100dvh !important;
-    max-height: 100dvh !important;
+    height: calc(100dvh - 55px) !important;
+    max-height: calc(100dvh - 55px) !important;
     overflow: hidden !important;
     touch-action: pan-x !important;
+    padding: 0 !important;
   }
 
   /* Sliding Track */
@@ -1160,28 +1168,59 @@
     box-sizing: border-box;
   }
 
-  /* Slide 0: Athlete Card (Completely Fixed, Zero Vertical Scroll) */
+  /* Slide 0: Athlete Card (Completely Fixed, Zero Vertical Scroll, Fills Screen) */
   .profile-card-slide {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    height: calc(100dvh - 75px);
-    max-height: calc(100dvh - 75px);
+    justify-content: flex-start !important;
+    height: calc(100dvh - 115px) !important;
+    max-height: calc(100dvh - 115px) !important;
     overflow: hidden !important;
     touch-action: pan-x;
-    padding-top: 0;
+    padding-top: 2px !important;
   }
 
   .profile-card-slide .pokemon-card-wrapper {
     margin-bottom: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
   }
 
   .profile-card-slide .pokemon-fullart-card {
-    width: min(350px, calc(100vw - 28px));
-    height: min(490px, calc(100dvh - 145px));
+    width: min(370px, calc(100vw - 16px)) !important;
+    height: min(520px, calc(100dvh - 150px)) !important;
     margin: 0 auto;
+    padding: 8px 10px;
     touch-action: pan-x;
+  }
+
+  .profile-card-slide .pokemon-card-art-frame {
+    height: clamp(145px, 25dvh, 200px);
+    margin: 4px 0;
+  }
+
+  .profile-card-slide .pokemon-card-top-bar {
+    padding: 4px 8px;
+  }
+
+  .profile-card-slide .pokemon-card-substrip {
+    margin: 3px 0;
+    font-size: 0.65rem;
+  }
+
+  .profile-card-slide .pokemon-card-moves {
+    gap: 4px;
+    margin: 3px 0;
+  }
+
+  .profile-card-slide .pokemon-card-move-row {
+    padding: 3px 6px;
+  }
+
+  .profile-card-slide .pokemon-card-bottom {
+    margin-top: 3px;
   }
 
   .profile-mobile-swipe-guide {
@@ -1189,9 +1228,9 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    margin-top: 14px;
-    padding: 7px 16px;
-    font-size: 0.8rem;
+    margin-top: 8px;
+    padding: 5px 14px;
+    font-size: 0.76rem;
     color: #d4af37;
     font-weight: 700;
     cursor: pointer;
