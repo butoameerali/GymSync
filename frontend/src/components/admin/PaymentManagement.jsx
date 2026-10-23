@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, CreditCard, DollarSign, Award, Save, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, CreditCard, DollarSign, Award, Save, RefreshCw, Shield, Lock, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
@@ -14,6 +14,10 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
   const [configDetails, setConfigDetails] = useState('');
   const [configNotes, setConfigNotes] = useState('');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  // Sudo Mode Admin Password State
+  const [showSudoModal, setShowSudoModal] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
 
   // Cashback Creation Form State
   const [cashbackContent, setCashbackContent] = useState('');
@@ -98,8 +102,27 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
     }
   };
 
-  const handleSavePaymentConfig = async (e) => {
+  const handlePromptSudoSave = (e) => {
     e.preventDefault();
+    if (!configNumber.trim()) {
+      toast.error('Please enter the account/phone number');
+      return;
+    }
+    if (!configDetails.trim()) {
+      toast.error('Please enter the account title/details');
+      return;
+    }
+    setAdminPassword('');
+    setShowSudoModal(true);
+  };
+
+  const executeSavePaymentConfig = async (e) => {
+    e.preventDefault();
+    if (!adminPassword.trim()) {
+      toast.error('Admin password is required to save payment details');
+      return;
+    }
+
     setIsSavingConfig(true);
     try {
       const res = await fetch(`/api/payments/config/${selectedMethod}`, {
@@ -109,17 +132,21 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         },
         body: JSON.stringify({
-          accountNumber: configNumber,
-          bankDetails: configDetails,
-          notes: configNotes
+          accountNumber: configNumber.trim(),
+          bankDetails: configDetails.trim(),
+          notes: configNotes.trim(),
+          adminPassword: adminPassword.trim()
         })
       });
+
+      const data = await res.json();
       if (res.ok) {
-        toast.success(`${selectedMethod} payment details updated successfully!`);
+        toast.success(`${selectedMethod} payment configuration updated successfully!`);
+        setShowSudoModal(false);
+        setAdminPassword('');
         fetchPaymentData();
       } else {
-        const d = await res.json();
-        toast.error(d.message || 'Failed to update payment settings');
+        toast.error(data.message || 'Failed to update payment settings');
       }
     } catch (err) {
       toast.error('Failed to update payment configuration');
@@ -250,9 +277,12 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
       {/* 2. Payment Configuration Settings */}
       {isSeniorAdmin && (
         <div className="glass-panel" style={{ padding: '24px' }}>
-          <h3 style={{ margin: '0 0 8px 0' }}>Mobile Payment Instructions Configuration</h3>
-          <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)' }}>
-            Configure the official recipient phone numbers and instructions shown to users during checkout.
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <Shield size={20} color="var(--primary-accent, #6366f1)" />
+            <h3 style={{ margin: 0 }}>Mobile Payment Receiving Accounts (Sudo Protected)</h3>
+          </div>
+          <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+            Configure the official recipient accounts and instructions shown to users during checkout. Changes require Admin Password verification.
           </p>
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
@@ -272,10 +302,10 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
             </button>
           </div>
 
-          <form onSubmit={handleSavePaymentConfig} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', maxWidth: '800px' }}>
+          <form onSubmit={handlePromptSudoSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', maxWidth: '800px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                Account / Mobile Phone Number
+                Account / Mobile Phone Number *
               </label>
               <input
                 type="text"
@@ -289,7 +319,7 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                Account Title / Bank Details
+                Account Title / Holder Name *
               </label>
               <input
                 type="text"
@@ -315,11 +345,90 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <button type="submit" className="btn btn-primary" disabled={isSavingConfig}>
-                <Save size={16} /> {isSavingConfig ? 'Saving...' : `Save ${selectedMethod} Settings`}
+              <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Lock size={16} /> Save {selectedMethod} Settings (Requires Password)
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* SUDO MODE PASSWORD MODAL */}
+      {showSudoModal && (
+        <div className="modal-overlay" style={{ zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowSudoModal(false)}>
+          <div 
+            className="modal-content glass-panel" 
+            style={{ 
+              maxWidth: '460px', 
+              width: '90%', 
+              borderRadius: '16px', 
+              padding: '24px', 
+              background: 'var(--card-bg, #111827)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.6)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: 'rgba(99, 102, 241, 0.15)', padding: '8px', borderRadius: '10px', color: 'var(--primary-accent, #818cf8)' }}>
+                  <Lock size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>Admin Sudo Verification</h3>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Updating {selectedMethod} Receiving Details</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowSudoModal(false)}
+                className="btn btn-icon"
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: '0 0 16px 0' }}>
+              Modifying official platform receiving accounts is a privileged financial operation. Please confirm your administrative password to apply changes.
+            </p>
+
+            <form onSubmit={executeSavePaymentConfig} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  Admin Password *
+                </label>
+                <input
+                  type="password"
+                  required
+                  autoFocus
+                  placeholder="Enter your current password..."
+                  value={adminPassword}
+                  onChange={e => setAdminPassword(e.target.value)}
+                  className="search-input"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowSudoModal(false)}
+                  disabled={isSavingConfig}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSavingConfig || !adminPassword.trim()}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {isSavingConfig ? 'Authenticating...' : 'Confirm & Apply Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

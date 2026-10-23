@@ -1364,6 +1364,20 @@ export const swapFoodInPlan = async (req, res) => {
   }
 };
 
+// GET /api/ai/ollama-status - Health check for local or remote Colab Ollama instance
+export const getOllamaStatus = async (req, res) => {
+  try {
+    const customHost = req.query.host || null;
+    const status = await ollamaCoachService.checkHealth(customHost);
+    return res.status(status.online ? 200 : 503).json(status);
+  } catch (error) {
+    return res.status(500).json({
+      online: false,
+      error: error.message
+    });
+  }
+};
+
 export default {
   handleChat,
   executeCoachPipeline,
@@ -1374,5 +1388,6 @@ export default {
   getGoalStatus,
   completeActiveGoal,
   startNextGoal,
-  swapFoodInPlan
+  swapFoodInPlan,
+  getOllamaStatus
 };

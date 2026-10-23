@@ -15,9 +15,14 @@ const productSchema = new mongoose.Schema({
   status: { 
     type: String, 
     enum: ['Approved', 'Pending', 'Rejected'], 
-    default: 'Approved' 
+    default: 'Pending' 
   },
-  createdBy: { type: String, default: 'Admin' }
+  createdBy: { type: String, default: 'Store Manager' },
+  unitsSold: { type: Number, default: 0 },
+  revenueGenerated: { type: Number, default: 0 },
+  rejectionReason: { type: String, default: '' },
+  approvedBy: { type: String, default: '' },
+  approvedAt: { type: Date, default: null }
 }, {
   timestamps: true
 });

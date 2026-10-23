@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Mail, Lock, User, Briefcase, ArrowRight, Sun, Moon, Eye, EyeOff } from 'lucide-react';
+import { Activity, Mail, Lock, User, Briefcase, ArrowRight, Sun, Moon, Eye, EyeOff, RotateCcw, Clock } from 'lucide-react';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import { useTheme } from '../../context/ThemeContext';
 import { getRoleRedirectPath } from '../../context/AuthContext';
@@ -197,6 +197,12 @@ const AuthPortal = () => {
   const [needs2FA, setNeeds2FA] = useState(false);
   const [twoFaData, setTwoFaData] = useState({ email: '', tempToken: '' });
 
+  // Recycle Bin / Self-Restore State
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [restoreData, setRestoreData] = useState({ email: '', daysRemaining: 15, password: '' });
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState('');
+
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -206,9 +212,25 @@ const AuthPortal = () => {
   const [isAuthenticating, setIsAuthenticating] = useState(isLoggedIn);
   const navigate = useNavigate();
 
+  const getDestinationPath = (userRole) => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const redirectParam = params.get('redirect');
+      if (redirectParam && redirectParam.startsWith('/')) {
+        return redirectParam;
+      }
+      if (location.state?.from?.pathname) {
+        return location.state.from.pathname + (location.state.from.search || '');
+      }
+    } catch (e) {
+      // ignore
+    }
+    return getRoleRedirectPath(userRole);
+  };
+
   useEffect(() => {
     if (isLoggedIn) {
-      navigate(getRoleRedirectPath(role), { replace: true });
+      navigate(getDestinationPath(role), { replace: true });
     } else {
       setIsAuthenticating(false);
     }
@@ -229,7 +251,31 @@ const AuthPortal = () => {
       localStorage.setItem(`gymsync_${userKey}_history`, JSON.stringify([...existing, ...JSON.parse(guestHistory)]));
       localStorage.removeItem('gymsync_Guest_User_history');
     }
-    window.location.href = getRoleRedirectPath(data.role);
+    window.location.href = getDestinationPath(data.role);
+  };
+
+  const handleRestoreAccount = async () => {
+    setIsRestoring(true);
+    setRestoreError('');
+    try {
+      const res = await fetch('/api/auth/restore-self', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: restoreData.email,
+          password: restoreData.password
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to restore account');
+      toast.success(data.message || 'Account restored successfully!');
+      setShowRestoreModal(false);
+      storeAndRedirect(data);
+    } catch (err) {
+      setRestoreError(err.message || 'Failed to restore account');
+    } finally {
+      setIsRestoring(false);
+    }
   };
 
   const handleAuth = async (e) => {
@@ -266,6 +312,17 @@ const AuthPortal = () => {
       if (data.requiresOtp) {
         setTwoFaData({ email: data.email, tempToken: data.tempToken });
         setNeeds2FA(true);
+        return;
+      }
+
+      if (data.requiresRestore) {
+        setRestoreData({
+          email: data.email || formData.email,
+          daysRemaining: data.daysRemaining,
+          password: formData.password
+        });
+        setRestoreError('');
+        setShowRestoreModal(true);
         return;
       }
       
@@ -517,6 +574,81 @@ const AuthPortal = () => {
         </div>
 
         {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
+
+        {showRestoreModal && (
+          <div className="forgot-overlay" onClick={(e) => e.target === e.currentTarget && setShowRestoreModal(false)}>
+            <div className="forgot-modal glass-panel" style={{ maxWidth: '460px' }}>
+              <div className="forgot-header">
+                <RotateCcw size={28} color="#10b981" />
+                <h3>Restore Your Account</h3>
+                <button className="forgot-close" onClick={() => setShowRestoreModal(false)}>✕</button>
+              </div>
+
+              <div style={{ padding: '8px 0' }}>
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  gap: '12px',
+                  alignItems: 'flex-start'
+                }}>
+                  <Clock size={24} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <div style={{ fontWeight: 600, color: '#f59e0b', fontSize: '0.95rem' }}>Recycle Bin Grace Period</div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.4 }}>
+                      Your account (<strong>{restoreData.email}</strong>) is currently scheduled for permanent deletion.
+                      You have <strong>{restoreData.daysRemaining} day{restoreData.daysRemaining > 1 ? 's' : ''}</strong> left to restore it.
+                    </div>
+                  </div>
+                </div>
+
+                <p style={{ color: 'var(--text-primary)', fontSize: '0.92rem', lineHeight: 1.5, marginBottom: '16px' }}>
+                  Restoring your account will cancel the scheduled deletion and reactivate all your workouts, posts, bio, and membership privileges immediately.
+                </p>
+
+                {!restoreData.password && (
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label>Confirm Password to Restore</label>
+                    <div className="input-wrapper">
+                      <Lock size={18} className="input-icon" />
+                      <input
+                        type="password"
+                        placeholder="Enter your password"
+                        value={restoreData.password}
+                        onChange={(e) => setRestoreData({ ...restoreData, password: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {restoreError && <p className="forgot-error" style={{ marginBottom: '12px' }}>{restoreError}</p>}
+
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    disabled={isRestoring}
+                    onClick={() => setShowRestoreModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ background: '#10b981', borderColor: '#10b981' }}
+                    disabled={isRestoring || !restoreData.password}
+                    onClick={handleRestoreAccount}
+                  >
+                    {isRestoring ? 'Restoring...' : 'Restore & Log In'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </GoogleOAuthProvider>
   );

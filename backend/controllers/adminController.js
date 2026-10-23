@@ -7,7 +7,9 @@ import PreMadePlan from '../models/PreMadePlan.js';
 import AuditLog from '../models/AuditLog.js';
 import Notification from '../models/Notification.js';
 import Coupon from '../models/Coupon.js';
+import Broadcast from '../models/Broadcast.js';
 import { logAuditTrail } from '../middleware/securityMiddleware.js';
+import { isValidObjectId } from '../utils/validation.js';
 
 // Helper to verify admin role
 const verifyAdminRole = (req, res, allowedRoles = ['SuperAdmin', 'Admin', 'ComplaintModerator']) => {
@@ -22,6 +24,14 @@ const verifyAdminRole = (req, res, allowedRoles = ['SuperAdmin', 'Admin', 'Compl
     return false;
   }
   return true;
+};
+
+// Helper to verify admin password for sensitive operations (Sudo Mode)
+const verifyAdminPassword = async (adminUser, password) => {
+  if (!password || typeof password !== 'string') return false;
+  const adminDoc = await User.findById(adminUser._id);
+  if (!adminDoc) return false;
+  return await adminDoc.matchPassword(password);
 };
 
 // @desc    Get dashboard metrics & revenue for Admin Panel
@@ -109,7 +119,15 @@ export const getAllUsers = async (req, res) => {
   try {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
 
-    const users = await User.find().select('-password').sort({ createdAt: -1 });
+    const { view } = req.query;
+    let query = {};
+    if (view === 'recycle_bin') {
+      query.isDeleted = true;
+    } else {
+      query.isDeleted = { $ne: true };
+    }
+
+    const users = await User.find(query).select('-password').sort({ createdAt: -1 });
     res.json(users || []);
   } catch (error) {
     console.error('Admin controller error:', error);
@@ -117,7 +135,7 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-// @desc    Update user role (RBAC assignment by Admin)
+// @desc    Update user role (RBAC assignment by Admin) with Admin Password Verification (Sudo Mode)
 // @route   PUT /api/admin/users/:id/role
 // @access  Private / SuperAdmin, Admin
 export const updateUserRole = async (req, res) => {
@@ -125,7 +143,20 @@ export const updateUserRole = async (req, res) => {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
 
     const { id } = req.params;
-    const { role } = req.body;
+    const { role, adminPassword } = req.body;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    if (!adminPassword) {
+      return res.status(401).json({ message: 'Admin password is required to change user roles' });
+    }
+
+    const isPasswordValid = await verifyAdminPassword(req.user, adminPassword);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Incorrect admin password. Action aborted.' });
+    }
 
     const validRoles = ['SuperAdmin', 'Admin', 'GymOwner', 'User', 'StoreManager', 'ComplaintModerator', 'FitnessInstructor', 'GymTrainer'];
     if (!validRoles.includes(role)) {
@@ -137,17 +168,33 @@ export const updateUserRole = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Protection: Admin cannot modify their own role
+    if (req.user._id.toString() === user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot change your own administrative role' });
+    }
+
+    // Protection: Only SuperAdmin can assign Admin or SuperAdmin role
+    const currentAdminRole = req.user.role || 'Admin';
+    if (['Admin', 'SuperAdmin'].includes(role) && currentAdminRole !== 'SuperAdmin') {
+      return res.status(403).json({ message: 'Only a SuperAdmin can promote users to Admin or SuperAdmin' });
+    }
+
+    // Protection: Regular Admin cannot alter a SuperAdmin's role
+    if (user.role === 'SuperAdmin' && currentAdminRole !== 'SuperAdmin') {
+      return res.status(403).json({ message: 'Only a SuperAdmin can modify another SuperAdmin' });
+    }
+
+    const oldRole = user.role;
     user.role = role;
     await user.save();
 
     const actorName = req.user?.name || 'Admin';
-
-    logAuditTrail(actorName, req.user?.role || 'Admin', 'Assigned User Role', id, `New Role: ${role}`, req);
+    logAuditTrail(actorName, req.user?.role || 'Admin', 'Assigned User Role', id, `Role changed from ${oldRole} to ${role}`, req);
 
     res.json({ message: `Role updated to ${role} for user ${user.name}`, user });
   } catch (error) {
-    console.error('Admin controller error:', error);
-    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
+    console.error('updateUserRole error:', error);
+    res.status(500).json({ message: 'An internal error occurred while updating user role' });
   }
 };
 
@@ -176,11 +223,6 @@ export const updateUserDetails = async (req, res) => {
     user.email = email.trim().toLowerCase();
     await user.save();
 
-    // The social graph (friends/followers/requests) and notification sender labels are
-    // still keyed by display name rather than ObjectId — without this cascade, a rename
-    // silently orphans every existing friendship/follow relationship and old notifications
-    // referencing this user under their previous name. Messages are unaffected: they are
-    // matched by ObjectId (see chatController.js) and intentionally keep the historical name.
     if (isRename) {
       await User.updateMany(
         { friends: oldName },
@@ -218,23 +260,133 @@ export const updateUserDetails = async (req, res) => {
   }
 };
 
-// @desc    Delete an account and its messages safely (admin only)
+// @desc    Soft-delete user account (move to Recycle Bin for 15 days)
+// @route   DELETE /api/admin/users/:id
+// @access  Private / SuperAdmin, Admin
 export const deleteUserByAdmin = async (req, res) => {
   try {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
-    const user = await User.findById(req.params.id);
+    const { id } = req.params;
+    const { adminPassword } = req.body;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    if (!adminPassword) {
+      return res.status(401).json({ message: 'Admin password is required to delete an account' });
+    }
+
+    const isPasswordValid = await verifyAdminPassword(req.user, adminPassword);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Incorrect admin password. Action aborted.' });
+    }
+
+    const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    if (req.user?._id?.toString() === user._id.toString()) return res.status(400).json({ message: 'You cannot delete your own admin account' });
-    await user.deleteOne();
-    logAuditTrail(req.user?.name || 'Admin', req.user?.role || 'Admin', 'Deleted User Account', req.params.id, `Deleted ${user.email}`, req);
-    res.json({ message: 'User account deleted' });
+    if (req.user._id.toString() === user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot delete your own admin account' });
+    }
+    if (user.role === 'SuperAdmin' && req.user.role !== 'SuperAdmin') {
+      return res.status(403).json({ message: 'Only a SuperAdmin can delete another SuperAdmin account' });
+    }
+
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    user.deletionScheduledPermanentAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // 15-day grace period
+    user.deletedBy = `Admin: ${req.user.name || 'Admin'}`;
+    user.accountStatus = 'Deleted';
+    await user.save();
+
+    logAuditTrail(req.user?.name || 'Admin', req.user?.role || 'Admin', 'Moved User to Recycle Bin', id, `Account ${user.email} moved to Recycle Bin (Permanent wipe in 15 days)`, req);
+    res.json({ message: `Account for ${user.name} moved to Recycle Bin. It can be restored within 15 days.` });
   } catch (error) {
     console.error('deleteUserByAdmin error:', error);
     res.status(500).json({ message: 'Failed to delete user account' });
   }
 };
 
-// @desc    Ban or Unban a user
+// @desc    Restore a user account from the Recycle Bin
+// @route   PUT /api/admin/users/:id/restore
+// @access  Private / SuperAdmin, Admin
+export const restoreUserByAdmin = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+    const { id } = req.params;
+    const { adminPassword } = req.body;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    if (!adminPassword) {
+      return res.status(401).json({ message: 'Admin password is required to restore an account' });
+    }
+
+    const isPasswordValid = await verifyAdminPassword(req.user, adminPassword);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Incorrect admin password. Action aborted.' });
+    }
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.isDeleted = false;
+    user.deletedAt = null;
+    user.deletionScheduledPermanentAt = null;
+    user.deletedBy = null;
+    user.accountStatus = user.isBanned ? 'Banned' : (user.isDeactivated ? 'Deactivated' : 'Active');
+    await user.save();
+
+    logAuditTrail(req.user?.name || 'Admin', req.user?.role || 'Admin', 'Restored User Account', id, `Restored ${user.email} from Recycle Bin`, req);
+    res.json({ message: `Account for ${user.name} has been restored successfully!`, user });
+  } catch (error) {
+    console.error('restoreUserByAdmin error:', error);
+    res.status(500).json({ message: 'Failed to restore user account' });
+  }
+};
+
+// @desc    Permanently purge a user account (hard delete - SuperAdmin only)
+// @route   DELETE /api/admin/users/:id/permanent
+// @access  Private / SuperAdmin
+export const permanentlyPurgeUserByAdmin = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin'])) return;
+    const { id } = req.params;
+    const { adminPassword } = req.body;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    if (!adminPassword) {
+      return res.status(400).json({ message: 'SuperAdmin password is required for permanent deletion' });
+    }
+
+    const isPasswordValid = await verifyAdminPassword(req.user, adminPassword);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Incorrect SuperAdmin password. Action aborted.' });
+    }
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (req.user._id.toString() === user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot permanently delete your own account' });
+    }
+
+    const userEmail = user.email;
+    const userName = user.name;
+    await user.deleteOne();
+
+    logAuditTrail(req.user?.name || 'SuperAdmin', req.user?.role || 'SuperAdmin', 'Permanently Purged User', id, `Permanently purged ${userEmail}`, req);
+    res.json({ message: `User ${userName} (${userEmail}) permanently purged from the database.` });
+  } catch (error) {
+    console.error('permanentlyPurgeUserByAdmin error:', error);
+    res.status(500).json({ message: 'Failed to permanently purge user' });
+  }
+};
+
+// @desc    Ban or Unban a user with Timed Ban durations & Admin Password Verification
 // @route   PUT /api/admin/users/:id/ban
 // @access  Private / SuperAdmin, Admin, ComplaintModerator
 export const toggleUserBan = async (req, res) => {
@@ -242,23 +394,75 @@ export const toggleUserBan = async (req, res) => {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin', 'ComplaintModerator'])) return;
 
     const { id } = req.params;
-    const { isBanned, banReason } = req.body;
-    
-    const user = await User.findById(id);
-    if (user) {
-        user.isBanned = Boolean(isBanned);
-        if (banReason !== undefined) user.banReason = banReason;
-        await user.save();
+    const { isBanned, banDuration, duration, banReason, reason, adminPassword } = req.body;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
     }
 
+    if (!adminPassword) {
+      return res.status(401).json({ message: 'Admin password is required to modify ban status' });
+    }
+
+    const isPasswordValid = await verifyAdminPassword(req.user, adminPassword);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Incorrect admin password. Action aborted.' });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (req.user._id.toString() === user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot ban your own account' });
+    }
+
+    if (user.role === 'SuperAdmin' && req.user.role !== 'SuperAdmin') {
+      return res.status(403).json({ message: 'Only a SuperAdmin can ban another SuperAdmin' });
+    }
+
+    const effectiveDuration = banDuration || duration;
+    const effectiveReason = banReason || reason;
+    const shouldBan = isBanned !== undefined ? Boolean(isBanned) : (effectiveDuration !== undefined ? true : !user.isBanned);
+
+    user.isBanned = shouldBan;
+    if (user.isBanned) {
+      user.banReason = effectiveReason?.trim() || 'Administrative suspension';
+      user.accountStatus = 'Banned';
+
+      const now = Date.now();
+      if (effectiveDuration === '24h') {
+        user.bannedUntil = new Date(now + 24 * 60 * 60 * 1000);
+      } else if (effectiveDuration === '7d') {
+        user.bannedUntil = new Date(now + 7 * 24 * 60 * 60 * 1000);
+      } else if (effectiveDuration === '30d') {
+        user.bannedUntil = new Date(now + 30 * 24 * 60 * 60 * 1000);
+      } else if (effectiveDuration === '1y') {
+        user.bannedUntil = new Date(now + 365 * 24 * 60 * 60 * 1000);
+      } else {
+        user.bannedUntil = null; // Permanent
+      }
+    } else {
+      user.bannedUntil = null;
+      user.banReason = '';
+      user.accountStatus = user.isDeleted ? 'Deleted' : (user.isDeactivated ? 'Deactivated' : 'Active');
+    }
+
+    await user.save();
+
     const actorName = req.user?.name || 'Admin';
+    logAuditTrail(actorName, req.user?.role || 'Admin', 'Updated User Ban Status', id, `Banned: ${user.isBanned}, Duration: ${effectiveDuration || 'Permanent'}, Reason: ${user.banReason || 'N/A'}`, req);
 
-    logAuditTrail(actorName, req.user?.role || 'Admin', 'Updated User Ban Status', id, `Banned: ${isBanned}, Reason: ${banReason || 'N/A'}`, req);
-
-    res.json({ message: `User ban status set to ${isBanned}`, user });
+    res.json({
+      message: user.isBanned 
+        ? `User ${user.name} has been suspended ${user.bannedUntil ? 'until ' + new Date(user.bannedUntil).toLocaleString() : 'permanently'}.`
+        : `User ${user.name} ban has been removed.`,
+      user
+    });
   } catch (error) {
-    console.error('Admin controller error:', error);
-    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
+    console.error('toggleUserBan error:', error);
+    res.status(500).json({ message: 'An internal error occurred while updating ban status' });
   }
 };
 
@@ -285,7 +489,7 @@ export const updateGymApprovalStatus = async (req, res) => {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
 
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, rejectionReason } = req.body;
 
     if (!['Approved', 'Rejected'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
@@ -305,19 +509,40 @@ export const updateGymApprovalStatus = async (req, res) => {
 
     gym.approvalStatus = status;
     gym.approvedAt = status === 'Approved' ? new Date() : null;
+    if (status === 'Rejected') {
+      gym.rejectionReason = rejectionReason?.trim() || 'Facility registration does not meet platform verification standards.';
+    } else {
+      gym.rejectionReason = '';
+    }
     await gym.save();
 
     const actorName = req.user?.name || 'Admin';
     try {
-      logAuditTrail(actorName, req.user?.role || 'Admin', 'Reviewed Gym Application', gym._id.toString(), `Status: ${status}`, req);
+      logAuditTrail(actorName, req.user?.role || 'Admin', 'Reviewed Gym Application', gym._id.toString(), `Status: ${status}${status === 'Rejected' ? ' (Reason: ' + gym.rejectionReason + ')' : ''}`, req);
+    } catch (e) {}
+
+    let ownerId = gym.ownerName || 'Gym Owner';
+    try {
+      const ownerDoc = await User.findOne({ $or: [{ email: gym.ownerEmail }, { name: gym.ownerName }] });
+      if (ownerDoc) {
+        ownerId = ownerDoc._id.toString();
+      }
     } catch (e) {}
 
     if (status === 'Approved') {
       try {
         await Notification.create({
-          userId: gym.ownerName || 'Gym Owner',
+          userId: ownerId,
           type: 'system',
-          message: 'Your gym facility has been approved by the Admin and is now public!'
+          message: `Congratulations! Your gym facility "${gym.name}" has been approved by administration and is now active.`
+        });
+      } catch (nErr) {}
+    } else if (status === 'Rejected') {
+      try {
+        await Notification.create({
+          userId: ownerId,
+          type: 'system',
+          message: `Your gym facility application for "${gym.name}" was rejected. Reason: ${gym.rejectionReason}`
         });
       } catch (nErr) {}
     }
@@ -337,28 +562,15 @@ export const getReportedPosts = async (req, res) => {
   try {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin', 'ComplaintModerator'])) return;
 
-    try {
-      const reportedPosts = await Post.find({ reportCount: { $gt: 0 } }).sort({ reportCount: -1 });
-      if (reportedPosts.length > 0) return res.json(reportedPosts);
-    } catch (e) {}
-
-    res.json([
-      {
-        _id: 'post_rep_1',
-        authorName: 'SpamUser99',
-        content: 'Unsolicited advertisement post.',
-        reportCount: 3,
-        reportedBy: ['User_Alex', 'User_Sarah', 'User_John'],
-        createdAt: new Date()
-      }
-    ]);
+    const reportedPosts = await Post.find({ reportCount: { $gt: 0 } }).sort({ reportCount: -1 });
+    return res.json(reportedPosts || []);
   } catch (error) {
-    console.error('Admin controller error:', error);
+    console.error('getReportedPosts error:', error);
     res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
 
-// @desc    Moderate Reported Post (Delete or Dismiss)
+// @desc    Moderate Reported Post (Delete, Dismiss, or Warn Author)
 // @route   PUT /api/admin/posts/:id/moderate
 // @access  Private / SuperAdmin, Admin, ComplaintModerator
 export const moderateReportedPost = async (req, res) => {
@@ -366,49 +578,121 @@ export const moderateReportedPost = async (req, res) => {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin', 'ComplaintModerator'])) return;
 
     const { id } = req.params;
-    const { action } = req.body; // 'delete' or 'dismiss'
+    const { action, reason } = req.body; // 'delete', 'dismiss', or 'warn'
     const actorName = req.user?.name || 'Admin';
+    const note = reason?.trim() || 'Standard community review';
 
-    logAuditTrail(actorName, req.user?.role || 'Admin', 'Moderated Reported Post', id, `Action: ${action}`, req);
+    logAuditTrail(actorName, req.user?.role || 'Admin', 'Moderated Reported Post', id, `Action: ${action}, Reason: ${note}`, req);
 
+    const post = await Post.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: 'Reported post not found' });
+    }
+
+    const authorName = post.authorName || 'User';
+    let authorId = authorName;
     try {
-      const post = await Post.findById(id);
-      if (action === 'delete') {
-        if (post && post.reportedBy) {
-          for (const reporter of post.reportedBy) {
-            const userName = typeof reporter === 'string' ? reporter : reporter.userName;
-            await Notification.create({
-              userId: userName,
-              type: 'system',
-              message: 'A post you reported has been reviewed and removed by admins.'
-            });
-          }
-        }
-        await Post.findByIdAndDelete(id);
-        return res.json({ message: 'Reported post deleted successfully' });
-      } else {
-        if (post) {
-          if (post.reportedBy) {
-            for (const reporter of post.reportedBy) {
-              const userName = typeof reporter === 'string' ? reporter : reporter.userName;
-              await Notification.create({
-                userId: userName,
-                type: 'system',
-                message: 'A post you reported was reviewed by admins and found to not violate guidelines.'
-              });
-            }
-          }
-          post.reportCount = 0;
-          post.reportedBy = [];
-          await post.save();
-          return res.json({ message: 'Reports dismissed, post kept live', post });
-        }
-      }
+      const authorDoc = await User.findOne({ $or: [{ _id: post.author }, { name: authorName }] });
+      if (authorDoc) authorId = authorDoc._id.toString();
     } catch (e) {}
 
-    res.json({ message: `Report action '${action}' completed` });
+    const reporters = Array.isArray(post.reportedBy) ? post.reportedBy : [];
+
+    if (action === 'delete') {
+      // 1. Notify all reporters
+      for (const reporter of reporters) {
+        let repId = reporter.userId?.toString() || reporter.userName || 'Member';
+        try {
+          if (!reporter.userId && reporter.userName) {
+            const repDoc = await User.findOne({ name: reporter.userName });
+            if (repDoc) repId = repDoc._id.toString();
+          }
+        } catch (e) {}
+
+        try {
+          await Notification.create({
+            userId: repId,
+            type: 'system',
+            message: `Update on your report: The post you reported by "${authorName}" was reviewed and removed by moderation. Reason: ${note}`
+          });
+        } catch (e) {}
+      }
+
+      // 2. Soft-remove with 15-day hold period allowing author appeal
+      post.isModerated = true;
+      post.moderationStatus = 'RemovedPendingAppeal';
+      post.moderationReason = note;
+      post.moderatedAt = new Date();
+      post.appealDeadline = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+      await post.save();
+
+      // 3. Notify post author about removal and 15-day appeal window
+      try {
+        await Notification.create({
+          userId: authorId,
+          type: 'system',
+          message: `Your post was removed by moderation for: "${note}". It is held for 15 days in your profile where you can review details or submit an appeal before permanent removal.`
+        });
+      } catch (e) {}
+
+      return res.json({ message: `Post by ${authorName} was removed and placed on 15-day appeal hold. Both author and reporters notified.` });
+    } else if (action === 'purge') {
+      // Immediate permanent wipe
+      await Post.findByIdAndDelete(id);
+      try {
+        const { removePost } = await import('../services/supabaseService.js');
+        await removePost(id, authorName, true);
+      } catch (e) {}
+      return res.json({ message: `Post by ${authorName} was permanently purged.` });
+    } else if (action === 'warn') {
+      // Send warning to author
+      try {
+        await Notification.create({
+          userId: authorId,
+          type: 'system',
+          message: `Official Community Warning: Your post has been flagged by community members. Note: ${note}`
+        });
+      } catch (e) {}
+      return res.json({ message: `Official moderation warning sent to ${authorName}.` });
+    } else {
+      // Dismiss reports
+      for (const reporter of reporters) {
+        let repId = reporter.userId?.toString() || reporter.userName || 'Member';
+        try {
+          if (!reporter.userId && reporter.userName) {
+            const repDoc = await User.findOne({ name: reporter.userName });
+            if (repDoc) repId = repDoc._id.toString();
+          }
+        } catch (e) {}
+
+        try {
+          await Notification.create({
+            userId: repId,
+            type: 'system',
+            message: `Update on your report: The post you reported by "${authorName}" was reviewed and found to comply with community standards.`
+          });
+        } catch (e) {}
+      }
+
+      // Notify author
+      if (authorName) {
+        try {
+          await Notification.create({
+            userId: authorName,
+            type: 'system',
+            message: `Notice: A report against your post was reviewed by moderators and dismissed. No action was required.`
+          });
+        } catch (e) {}
+      }
+
+      post.reportCount = 0;
+      post.reportedBy = [];
+      await post.save();
+
+      return res.json({ message: 'Reports dismissed, post kept live. Both author and reporters notified.', post });
+    }
   } catch (error) {
-    console.error('Admin controller error:', error);
+    console.error('moderateReportedPost error:', error);
     res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
   }
 };
@@ -582,7 +866,7 @@ export const getComplaintChatsInspection = async (req, res) => {
   }
 };
 
-// @desc    Remove a post with removal reason and notify author
+// @desc    Remove a post with removal reason and notify author (initiates 15-day appeal hold)
 // @route   DELETE /api/admin/posts/:id/remove-with-reason
 // @access  Private / SuperAdmin, Admin, ComplaintModerator
 export const removePostWithReason = async (req, res) => {
@@ -597,13 +881,32 @@ export const removePostWithReason = async (req, res) => {
     const post = await Post.findById(id);
     if (post) {
       authorName = post.authorName || authorName;
-      await Post.findByIdAndDelete(id);
+      post.isModerated = true;
+      post.moderationStatus = 'RemovedPendingAppeal';
+      post.moderationReason = reason || 'Violation of community guidelines';
+      post.moderatedAt = new Date();
+      post.appealDeadline = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+      await post.save();
+
+      let authorId = authorName;
+      try {
+        const u = await User.findOne({ name: authorName });
+        if (u) authorId = u._id.toString();
+      } catch (e) {}
+
+      try {
+        await Notification.create({
+          userId: authorId,
+          type: 'system',
+          message: `Your post was removed by moderation for: "${post.moderationReason}". It is held for 15 days in your profile where you can review details or submit an appeal before permanent removal.`
+        });
+      } catch (e) {}
     }
 
-    logAuditTrail(actorName, req.user?.role || 'Admin', 'Removed Post with Reason', id, `Reason: ${reason || 'Community Guidelines Violation'}`, req);
+    logAuditTrail(actorName, req.user?.role || 'Admin', 'Removed Post with Reason (15-day hold)', id, `Reason: ${reason || 'Community Guidelines Violation'}`, req);
 
     res.json({ 
-      message: 'Post removed successfully', 
+      message: 'Post removed and placed on 15-day appeal hold', 
       notificationSent: true,
       authorName,
       reason: reason || 'Violation of community guidelines' 
@@ -611,6 +914,99 @@ export const removePostWithReason = async (req, res) => {
   } catch (error) {
     console.error('Admin controller error:', error);
     res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
+  }
+};
+
+// @desc    Get Moderation Appeals & Held Posts (15-day hold review queue)
+// @route   GET /api/admin/posts/moderation-appeals
+// @access  Private / SuperAdmin, Admin, ComplaintModerator
+export const getModerationAppeals = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin', 'ComplaintModerator'])) return;
+    const appeals = await Post.find({ isModerated: true })
+      .sort({ isAppealSubmitted: -1, updatedAt: -1 });
+    res.json(appeals || []);
+  } catch (error) {
+    console.error('getModerationAppeals error:', error);
+    res.status(500).json({ message: 'Failed to fetch moderation appeals' });
+  }
+};
+
+// @desc    Admin resolves post appeal (reinstate, reject with 3-day notice, or purge)
+// @route   PUT /api/admin/posts/:id/resolve-appeal
+// @access  Private / SuperAdmin, Admin, ComplaintModerator
+export const resolvePostAppeal = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin', 'ComplaintModerator'])) return;
+    const { id } = req.params;
+    const { decision, replyReason } = req.body; // 'reinstate' | 'reject' | 'purge'
+    const actorName = req.user?.name || 'Admin';
+
+    const post = await Post.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found in moderation queue' });
+    }
+
+    const authorName = post.authorName || 'User';
+    let authorId = authorName;
+    try {
+      const u = await User.findOne({ name: authorName });
+      if (u) authorId = u._id.toString();
+    } catch (e) {}
+
+    if (decision === 'reinstate') {
+      post.isModerated = false;
+      post.moderationStatus = 'Active';
+      post.reportCount = 0;
+      post.reportedBy = [];
+      post.isAppealSubmitted = false;
+      post.adminAppealReply = replyReason || 'Appeal accepted. Content reinstated to community feed.';
+      await post.save();
+
+      logAuditTrail(actorName, req.user?.role || 'Admin', 'Reinstated Moderated Post', id, `Reply: ${post.adminAppealReply}`, req);
+
+      try {
+        await Notification.create({
+          userId: authorId,
+          type: 'system',
+          message: `Great news! Your appeal for your post has been APPROVED by our moderation team. Your post is now restored to the community feed.`
+        });
+      } catch (e) {}
+
+      return res.json({ message: `Post by ${authorName} reinstated successfully!`, post });
+    } else if (decision === 'reject') {
+      post.moderationStatus = 'AppealRejected';
+      post.adminAppealReply = replyReason || 'Appeal rejected following review.';
+      post.finalPurgeDeadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3-day notice before permanent wipe
+      await post.save();
+
+      logAuditTrail(actorName, req.user?.role || 'Admin', 'Rejected Post Appeal', id, `Final Purge in 3 days. Reply: ${post.adminAppealReply}`, req);
+
+      try {
+        await Notification.create({
+          userId: authorId,
+          type: 'system',
+          message: `Your appeal for your post was REJECTED: "${post.adminAppealReply}". You have a 3-day final notice period before this post is permanently wiped.`
+        });
+      } catch (e) {}
+
+      return res.json({ message: `Appeal rejected. 3-day final purge window initiated.`, post });
+    } else if (decision === 'purge') {
+      await Post.findByIdAndDelete(id);
+      try {
+        const { removePost } = await import('../services/supabaseService.js');
+        await removePost(id, authorName, true);
+      } catch (e) {}
+
+      logAuditTrail(actorName, req.user?.role || 'Admin', 'Purged Moderated Post', id, 'Permanently wiped post from database', req);
+
+      return res.json({ message: `Post by ${authorName} permanently purged from database.` });
+    } else {
+      return res.status(400).json({ message: 'Invalid appeal decision. Must be reinstate, reject, or purge.' });
+    }
+  } catch (error) {
+    console.error('resolvePostAppeal error:', error);
+    res.status(500).json({ message: 'Failed to resolve moderation appeal' });
   }
 };
 
@@ -682,34 +1078,84 @@ export const approveRefundCashback = async (req, res) => {
   }
 };
 
-// @desc    Send Broadcast Message to All Subscribers At Once
+// @desc    Send Broadcast Message to Platform Users / Groups
 // @route   POST /api/admin/broadcast
 // @access  Private / SuperAdmin, Admin
 export const sendSubscriberBroadcast = async (req, res) => {
   try {
     if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
 
-    const { title, message, eventType } = req.body;
+    const { title, message, eventType, targetAudience } = req.body;
     const sentBy = req.user?.name || 'Admin';
 
     if (!title || !message) {
       return res.status(400).json({ message: 'Title and message content are required' });
     }
 
-    logAuditTrail(sentBy, req.user?.role || 'Admin', 'Sent Event Broadcast to Subscribers', 'Subscribers', `Event: ${title}`, req);
+    // Determine target users
+    let query = {};
+    if (targetAudience === 'Gym Owners Only') {
+      query = { role: { $regex: /^gymowner$/i } };
+    } else if (targetAudience === 'Trainers Only') {
+      query = { role: { $regex: /^trainer$/i } };
+    } else if (targetAudience === 'All Users') {
+      query = { role: { $regex: /^user$/i } };
+    } else {
+      // Entire Platform or default
+      query = {};
+    }
+
+    let recipientCount = 0;
+    try {
+      const recipients = await User.find(query).select('_id');
+      recipientCount = recipients.length;
+
+      if (recipients.length > 0) {
+        const notifications = recipients.map(u => ({
+          userId: u._id.toString(),
+          recipientId: u._id,
+          senderId: req.user?._id || null,
+          type: 'system',
+          title: `[${eventType || 'Announcement'}] ${title}`,
+          message,
+          sender: sentBy,
+          isRead: false
+        }));
+        await Notification.insertMany(notifications);
+      }
+    } catch (err) {
+      console.error('Error inserting broadcast notifications:', err);
+    }
+
+    const broadcast = await Broadcast.create({
+      title,
+      message,
+      eventType: eventType || 'Announcement',
+      sentBy,
+      targetAudience: targetAudience || 'Entire Platform',
+      recipientCount
+    });
+
+    logAuditTrail(sentBy, req.user?.role || 'Admin', `Sent Broadcast to ${targetAudience || 'Entire Platform'}`, 'Broadcasts', `Event: ${title} (${recipientCount} recipients)`, req);
 
     res.status(201).json({
-      message: 'Broadcast announcement sent to all GymSync Subscribers successfully!',
-      broadcast: {
-        _id: `brd_${Date.now()}`,
-        title,
-        message,
-        eventType: eventType || 'ExclusiveEvent',
-        sentBy,
-        targetAudience: 'All Subscribers',
-        createdAt: new Date()
-      }
+      message: `Broadcast announcement dispatched successfully to ${recipientCount} recipients!`,
+      broadcast
     });
+  } catch (error) {
+    console.error('Admin controller error:', error);
+    res.status(500).json({ message: 'An internal error occurred during the administrative operation' });
+  }
+};
+
+// @desc    Get Broadcast History
+// @route   GET /api/admin/broadcasts
+// @access  Private / SuperAdmin, Admin
+export const getBroadcastHistory = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+    const broadcasts = await Broadcast.find().sort({ createdAt: -1 }).limit(50);
+    res.json(broadcasts);
   } catch (error) {
     console.error('Admin controller error:', error);
     res.status(500).json({ message: 'An internal error occurred during the administrative operation' });

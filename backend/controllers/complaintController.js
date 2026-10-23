@@ -10,21 +10,41 @@ export const createComplaint = async (req, res) => {
       return res.status(401).json({ message: 'Authentication required to submit a complaint' });
     }
 
-    const { reportedEntityType, reportedEntityId, reportedEntityTitle, reason, description } = req.body;
+    const { 
+      reportedEntityType, 
+      reportedEntityId, 
+      reportedEntityTitle, 
+      title, 
+      category, 
+      reason, 
+      description,
+      attachmentUrl
+    } = req.body;
+
     const reporterName = req.user.name;
     const reporterId = req.user._id;
     let evidenceUrls = [];
+
     if (req.file) {
       if (req.file.buffer) {
         evidenceUrls.push(`data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`);
       } else {
         evidenceUrls.push(`/uploads/${req.file.filename}`);
       }
+    } else if (attachmentUrl && typeof attachmentUrl === 'string') {
+      evidenceUrls.push(attachmentUrl);
     }
 
-    if (!reportedEntityType || !reportedEntityId || !reason || !description) {
-      return res.status(400).json({ message: 'All required complaint fields must be provided' });
+    const finalDescription = description?.trim();
+    if (!finalDescription) {
+      return res.status(400).json({ message: 'Complaint description is required' });
     }
+
+    const finalTitle = title?.trim() || reportedEntityTitle?.trim() || reason?.trim() || 'Support Grievance';
+    const finalReason = reason?.trim() || finalTitle;
+    const finalCategory = category || 'General';
+    const finalEntityType = reportedEntityType || 'General';
+    const finalEntityId = reportedEntityId || 'platform';
 
     try {
       // Collision-free, atomic entropy-backed unique identifier
@@ -34,12 +54,15 @@ export const createComplaint = async (req, res) => {
         complaintId,
         reporterName,
         reporterId,
-        reportedEntityType,
-        reportedEntityId,
-        reportedEntityTitle: reportedEntityTitle || 'N/A',
-        reason,
-        description,
+        reportedEntityType: finalEntityType,
+        reportedEntityId: finalEntityId,
+        reportedEntityTitle: finalTitle,
+        title: finalTitle,
+        category: finalCategory,
+        reason: finalReason,
+        description: finalDescription,
         evidenceUrls: evidenceUrls || [],
+        status: 'Pending',
         history: [{
           action: 'Created',
           performedBy: reporterName,
@@ -90,29 +113,82 @@ export const getAllComplaints = async (req, res) => {
 export const updateComplaintStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, adminReply, assignedModerator, moderatorName } = req.body;
+    const { status, adminReply, resolutionNotes, assignedModerator, moderatorName } = req.body;
 
     const complaint = await Complaint.findById(id);
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
     }
 
+    const effectiveNote = resolutionNotes || adminReply || '';
     if (status) complaint.status = status;
-    if (adminReply) complaint.adminReply = adminReply;
+    if (effectiveNote) {
+      complaint.adminReply = effectiveNote;
+      complaint.resolutionNotes = effectiveNote;
+    }
     if (assignedModerator) complaint.assignedAdminName = assignedModerator;
 
     const actor = moderatorName || req.user?.name || 'Admin Moderator';
     complaint.history.push({
       action: `Status updated to ${status || complaint.status}`,
       performedBy: actor,
-      notes: adminReply || 'Moderator action taken'
+      notes: effectiveNote || 'Moderator action taken'
     });
 
     await complaint.save();
+
+    // Notify user of complaint status change
+    try {
+      const Notification = (await import('../models/Notification.js')).default;
+      await Notification.create({
+        userId: String(complaint.reporterId || complaint.reporterName),
+        type: 'system',
+        message: `Your complaint #${complaint.complaintId} has been marked as "${complaint.status}". Note: ${effectiveNote || 'Status updated by administration.'}`
+      });
+    } catch (nErr) {
+      console.warn('Complaint notification warning:', nErr.message);
+    }
+
     return res.json(complaint);
   } catch (error) {
     console.error('Update complaint status error:', error);
     res.status(500).json({ message: 'Failed to update complaint status' });
+  }
+};
+
+// @desc    Reopen a resolved or closed complaint
+// @route   PUT /api/complaints/:id/reopen
+// @access  Private / User (Reporter) or Admin
+export const reopenComplaint = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason, remarks } = req.body;
+
+    const complaint = await Complaint.findById(id);
+    if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
+
+    const isReporter = req.user && complaint.reporterId && String(req.user._id) === String(complaint.reporterId);
+    const isStaff = req.user && ['admin', 'superadmin', 'complaintmoderator'].includes(req.user.role.toLowerCase());
+
+    if (!isReporter && !isStaff) {
+      return res.status(403).json({ message: 'Not authorized to reopen this complaint' });
+    }
+
+    const reopenNote = reason || remarks || 'User requested case reopening due to unresolved issue.';
+    complaint.status = 'Reopened';
+    complaint.reopenReason = reopenNote;
+    complaint.history.push({
+      action: 'Reopened',
+      performedBy: req.user.name || 'User',
+      notes: reopenNote
+    });
+
+    await complaint.save();
+
+    return res.json({ message: 'Complaint reopened successfully', complaint });
+  } catch (error) {
+    console.error('reopenComplaint error:', error);
+    res.status(500).json({ message: 'Failed to reopen complaint' });
   }
 };
 

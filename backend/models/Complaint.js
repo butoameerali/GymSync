@@ -6,11 +6,13 @@ const complaintSchema = new mongoose.Schema({
   reporterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   reportedEntityType: { 
     type: String, 
-    enum: ['User', 'Post', 'Comment', 'Gym', 'Product', 'SubscriptionRefund'], 
-    required: true 
+    enum: ['User', 'Post', 'Comment', 'Gym', 'Product', 'SubscriptionRefund', 'General', 'Billing', 'GymFacility', 'Trainer', 'TechnicalBug'], 
+    default: 'General'
   },
-  reportedEntityId: { type: String, required: true },
+  reportedEntityId: { type: String, default: 'platform' },
   reportedEntityTitle: { type: String, default: '' },
+  title: { type: String, default: '' },
+  category: { type: String, default: 'General' },
   reason: { type: String, required: true },
   description: { type: String, required: true },
   evidenceUrls: [{ type: String }],
@@ -24,11 +26,13 @@ const complaintSchema = new mongoose.Schema({
   approvedBy: { type: String, default: '' },
   status: { 
     type: String, 
-    enum: ['Pending', 'InReview', 'Resolved', 'Dismissed'], 
+    enum: ['Pending', 'InReview', 'In Progress', 'Resolved', 'Dismissed', 'Closed', 'Reopened'], 
     default: 'Pending' 
   },
   assignedAdminName: { type: String, default: 'Unassigned' },
   adminReply: { type: String, default: '' },
+  resolutionNotes: { type: String, default: '' },
+  reopenReason: { type: String, default: '' },
   chatMessages: [{
     senderName: { type: String, required: true },
     role: { type: String, default: 'User' },

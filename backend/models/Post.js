@@ -50,7 +50,22 @@ const postSchema = new mongoose.Schema({
       authorPic: { type: String },
       date: { type: Date, default: Date.now }
     }]
-  }]
+  }],
+  // Post Moderation & Appeal Lifecycle (15-day hold & 3-day reject grace period)
+  isModerated: { type: Boolean, default: false },
+  moderationStatus: {
+    type: String,
+    enum: ['Active', 'RemovedPendingAppeal', 'UnderReview', 'AppealRejected'],
+    default: 'Active'
+  },
+  moderationReason: { type: String, default: '' },
+  moderatedAt: { type: Date },
+  appealDeadline: { type: Date },
+  isAppealSubmitted: { type: Boolean, default: false },
+  appealReason: { type: String, default: '' },
+  appealedAt: { type: Date },
+  adminAppealReply: { type: String, default: '' },
+  finalPurgeDeadline: { type: Date }
 }, { timestamps: true });
 
 postSchema.index({ author: 1 });

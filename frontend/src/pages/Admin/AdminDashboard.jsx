@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import DashboardShell from '../../components/layout/DashboardShell';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
@@ -12,11 +13,14 @@ import PaymentManagement from '../../components/admin/PaymentManagement';
 import BroadcastManagement from '../../components/admin/BroadcastManagement';
 import AuditLogManagement from '../../components/admin/AuditLogManagement';
 import InstructorTaskManagement from '../../components/admin/InstructorTaskManagement';
+import AdminStoreOversight from '../../components/admin/AdminStoreOversight';
 
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(initialTab || 'overview');
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [complaints, setComplaints] = useState([]);
@@ -34,7 +38,7 @@ const AdminDashboard = () => {
   // Allowed tabs based on role
   const allowedTabs = isModerator 
     ? ['overview', 'moderation', 'reported_posts', 'complaints', 'complaint_chats']
-    : ['overview', 'users', 'users_instructors', 'instructor_tasks', 'gyms', 'gym_approvals', 'moderation', 'reported_posts', 'complaints', 'complaint_chats', 'payments', 'cashback', 'broadcast', 'audit', 'audit_logs'];
+    : ['overview', 'users', 'users_instructors', 'instructor_tasks', 'gyms', 'gym_approvals', 'store_oversight', 'moderation', 'reported_posts', 'complaints', 'complaint_chats', 'payments', 'cashback', 'broadcast', 'audit', 'audit_logs'];
 
   const fetchAdminData = useCallback(async () => {
     try {
@@ -84,13 +88,23 @@ const AdminDashboard = () => {
     fetchAdminData();
   }, [fetchAdminData]);
 
-  // Handle Tab Change with role protection
+  // Sync activeTab if searchParams change externally (e.g. from navbar link)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && allowedTabs.includes(tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams, allowedTabs, activeTab]);
+
+  // Handle Tab Change with role protection and query param sync
   const handleTabChange = (tabId) => {
     if (isModerator && !['overview', 'moderation', 'complaints'].includes(tabId)) {
       setActiveTab('overview');
+      setSearchParams({ tab: 'overview' });
       return;
     }
     setActiveTab(tabId);
+    setSearchParams({ tab: tabId });
   };
 
   // Safe normalized active tab ID
@@ -170,6 +184,11 @@ const AdminDashboard = () => {
                 pendingGyms={pendingGyms} 
                 onRefresh={fetchAdminData} 
               />
+            )}
+
+            {/* STORE & PRODUCT OVERSIGHT (Admin/SuperAdmin only) */}
+            {!isModerator && effectiveTab === 'store_oversight' && (
+              <AdminStoreOversight />
             )}
 
             {/* POST MODERATION QUEUE (Admin, SuperAdmin & ComplaintModerator) */}

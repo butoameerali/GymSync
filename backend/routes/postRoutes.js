@@ -1,6 +1,7 @@
 import express from 'express';
 import { 
   getPosts, 
+  getPostById,
   createPost, 
   toggleLike, 
   addComment, 
@@ -8,7 +9,9 @@ import {
   deletePost, 
   deleteReply, 
   editReply,
-  reportPost
+  reportPost,
+  submitPostAppeal,
+  getMyModeratedPosts
 } from '../controllers/postController.js';
 import { upload } from '../middleware/uploadMiddleware.js';
 import { protect } from '../middleware/authMiddleware.js';
@@ -19,7 +22,13 @@ router.route('/')
   .get(getPosts)
   .post(protect, upload.single('media'), createPost);
 
+router.get('/my-moderated', protect, getMyModeratedPosts);
+
+router.route('/:id/appeal')
+  .put(protect, submitPostAppeal);
+
 router.route('/:id')
+  .get(getPostById)
   .delete(protect, deletePost);
 
 router.route('/:id/like')

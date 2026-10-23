@@ -28,25 +28,67 @@ export const getPosts = async (req, res) => {
   try {
     const posts = await fetchAllPosts();
 
-    const sanitizedPosts = (posts || []).map(p => {
-      if (p && p.mediaUrl && typeof p.mediaUrl === 'string' && p.mediaUrl.startsWith('/uploads/')) {
-        try {
-          const fileName = p.mediaUrl.replace('/uploads/', '');
-          const localPath = path.join(uploadsDir, fileName);
-          if (!fs.existsSync(localPath)) {
+    const sanitizedPosts = (posts || [])
+      .filter(p => !p.isModerated && !p.is_moderated)
+      .map(p => {
+        if (p && p.mediaUrl && typeof p.mediaUrl === 'string' && p.mediaUrl.startsWith('/uploads/')) {
+          try {
+            const fileName = p.mediaUrl.replace('/uploads/', '');
+            const localPath = path.join(uploadsDir, fileName);
+            if (!fs.existsSync(localPath)) {
+              p.mediaUrl = '';
+            }
+          } catch (fsErr) {
             p.mediaUrl = '';
           }
-        } catch (fsErr) {
-          p.mediaUrl = '';
         }
-      }
-      return p;
-    });
+        return p;
+      });
 
     res.json(sanitizedPosts);
   } catch (error) {
     console.error('getPosts error:', error);
     res.status(500).json({ message: 'Failed to fetch posts' });
+  }
+};
+
+// @desc    Get post by ID (publicly accessible)
+// @route   GET /api/posts/:id
+// @access  Public
+export const getPostById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    let post = null;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      post = await Post.findById(id).populate('author', 'name profilePic role').lean();
+    }
+    if (!post) {
+      post = await Post.findOne({ _id: id }).lean();
+    }
+
+    if (!post) {
+      // Fallback: check Supabase fetchAllPosts
+      try {
+        const allPosts = await fetchAllPosts();
+        post = (allPosts || []).find(p => String(p._id || p.id) === String(id));
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.isModerated) {
+      return res.status(404).json({ message: 'This post has been temporarily held under moderation review' });
+    }
+
+    return res.json(post);
+  } catch (error) {
+    console.error('getPostById error:', error);
+    return res.status(500).json({ message: 'Failed to retrieve post' });
   }
 };
 
@@ -268,5 +310,84 @@ export const deletePost = async (req, res) => {
     }
     console.error('deletePost error:', error);
     res.status(500).json({ message: 'Failed to delete post' });
+  }
+};
+
+// @desc    Submit user appeal for a moderated/removed post
+// @route   PUT /api/posts/:id/appeal
+// @access  Private
+export const submitPostAppeal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { appealReason } = req.body;
+    const currentUserName = req.user.name;
+
+    if (!appealReason || !appealReason.trim()) {
+      return res.status(400).json({ message: 'Please provide an explanation for your appeal review.' });
+    }
+
+    const post = await Post.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found.' });
+    }
+
+    // Verify ownership
+    const isOwner = post.authorName === currentUserName || (post.author && String(post.author) === String(req.user._id));
+    if (!isOwner) {
+      return res.status(403).json({ message: 'You are not authorized to appeal this post.' });
+    }
+
+    if (!post.isModerated) {
+      return res.status(400).json({ message: 'This post is currently active and not removed by moderation.' });
+    }
+
+    // Check 15-day hold period
+    if (post.appealDeadline && new Date() > new Date(post.appealDeadline)) {
+      return res.status(400).json({ message: 'The 15-day appeal window has expired for this post.' });
+    }
+
+    post.isAppealSubmitted = true;
+    post.moderationStatus = 'UnderReview';
+    post.appealReason = appealReason.trim();
+    post.appealedAt = new Date();
+    await post.save();
+
+    // Notification confirmation for author
+    try {
+      await Notification.create({
+        userId: currentUserName,
+        type: 'system',
+        message: `Your appeal for your removed post has been submitted. Our moderation desk will review your statement shortly.`
+      });
+    } catch (nErr) {}
+
+    return res.json({
+      message: 'Your appeal has been successfully submitted and forwarded to our moderation team.',
+      post
+    });
+  } catch (error) {
+    console.error('submitPostAppeal error:', error);
+    res.status(500).json({ message: 'Failed to submit post appeal' });
+  }
+};
+
+// @desc    Get user's posts currently in moderation hold (for appeal view)
+// @route   GET /api/posts/my-moderated
+// @access  Private
+export const getMyModeratedPosts = async (req, res) => {
+  try {
+    const currentUserName = req.user.name;
+    const posts = await Post.find({
+      $or: [
+        { authorName: currentUserName },
+        { author: req.user._id }
+      ],
+      isModerated: true
+    }).sort({ updatedAt: -1 });
+
+    return res.json(posts || []);
+  } catch (error) {
+    console.error('getMyModeratedPosts error:', error);
+    res.status(500).json({ message: 'Failed to retrieve moderated posts' });
   }
 };

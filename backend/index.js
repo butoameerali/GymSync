@@ -1,6 +1,12 @@
 import dotenv from 'dotenv';
 import path from 'path';
-dotenv.config({ path: path.resolve(process.cwd(), 'backend/.env') });
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 import express from 'express';
 import cors from 'cors';
@@ -31,11 +37,6 @@ import activityRoutes from './routes/activityRoutes.js';
 import dietRoutes from './routes/dietRoutes.js';
 import completionReportRoutes from './routes/completionReportRoutes.js';
 import wellbeingRoutes from './routes/wellbeingRoutes.js';
-
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -71,6 +72,8 @@ app.use(cors({
       origin === 'http://localhost' ||
       origin.startsWith('http://127.0.0.1:') ||
       origin === 'http://127.0.0.1' ||
+      origin.endsWith('.netlify.app') ||
+      origin.endsWith('.vercel.app') ||
       allowedOrigins.includes(origin)
     ) {
       return callback(null, true);
@@ -143,9 +146,14 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 // Guard local server listen so it only runs in standalone local node environments
-if (process.env.NODE_ENV !== 'test' && !process.env.FUNCTION_TARGET && !process.env.K_SERVICE) {
-  app.listen(PORT, () => {
-    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+if (process.env.NODE_ENV !== 'test' && !process.env.FUNCTION_TARGET && !process.env.K_SERVICE && !process.env.VERCEL) {
+  app.listen(PORT, async () => {
+    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+    try {
+      await connectDB();
+    } catch (err) {
+      console.error('[Database Startup Connection Warning]:', err.message);
+    }
   });
 }
 

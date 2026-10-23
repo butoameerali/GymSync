@@ -130,6 +130,9 @@ const AdminOverview = ({ stats, isModerator = false, onNavigateTab }) => {
             <button className="btn btn-outline btn-sm" onClick={() => onNavigateTab && onNavigateTab('users')}>
               Manage Users
             </button>
+            <button className="btn btn-outline btn-sm" onClick={() => onNavigateTab && onNavigateTab('store_oversight')} style={{ borderColor: 'rgba(245, 158, 11, 0.4)', color: '#f59e0b' }}>
+              Store Oversight
+            </button>
             <button className="btn btn-outline btn-sm" onClick={() => onNavigateTab && onNavigateTab('gyms')}>
               Verify Gyms
             </button>

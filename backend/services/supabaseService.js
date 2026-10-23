@@ -15,6 +15,16 @@ import { safeRegex, safeExactRegex, isValidObjectId } from '../utils/validation.
 // ==============================================================================
 
 export const fetchAllPosts = async () => {
+  // Authoritative MongoDB Query (carries live moderation flags, comments, and replies)
+  try {
+    const mongoPosts = await Post.find({ isModerated: { $ne: true } }).populate('author', 'name role').sort({ createdAt: -1 }).lean();
+    if (mongoPosts && mongoPosts.length > 0) {
+      return mongoPosts;
+    }
+  } catch (e) {
+    console.warn('MongoDB fetchAllPosts fallback to Supabase:', e.message);
+  }
+
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase
@@ -25,7 +35,9 @@ export const fetchAllPosts = async () => {
       if (error) throw error;
 
       // Transform snake_case columns to camelCase expected by frontend
-      return (data || []).map(p => ({
+      return (data || [])
+        .filter(p => !p.is_moderated)
+        .map(p => ({
         _id: p.mongo_id || p.id,
         supabaseId: p.id,
         author: p.author_id,
@@ -42,12 +54,11 @@ export const fetchAllPosts = async () => {
         updatedAt: p.updated_at
       }));
     } catch (err) {
-      console.warn(`[Supabase fetchAllPosts Error]: ${err.message}. Falling back to MongoDB.`);
+      console.warn(`[Supabase fetchAllPosts Error]: ${err.message}.`);
     }
   }
 
-  // MongoDB Fallback
-  return await Post.find().populate('author', 'name role').sort({ createdAt: -1 }).lean();
+  return [];
 };
 
 export const insertPost = async ({ authorId, authorName, authorRole, content, mediaUrl }) => {
@@ -360,6 +371,35 @@ export const deletePostReply = async (postId, commentId, replyId, userName, isMo
 };
 
 export const reportPostService = async (postId, reporterName, reason, explanation) => {
+  let mongoPost = null;
+  if (isValidObjectId(postId)) {
+    mongoPost = await Post.findById(postId);
+  }
+  if (!mongoPost) {
+    mongoPost = await Post.findOne({ _id: postId }).catch(() => null);
+  }
+
+  let finalCount = 0;
+  let postAuthor = 'Author';
+
+  if (mongoPost) {
+    postAuthor = mongoPost.authorName || 'Author';
+    if (!mongoPost.reportedBy) mongoPost.reportedBy = [];
+    const alreadyReported = mongoPost.reportedBy.some(r => r && (r.userName === reporterName || r === reporterName));
+    if (!alreadyReported) {
+      mongoPost.reportedBy.push({
+        userName: reporterName,
+        reason: reason || 'Inappropriate',
+        explanation: explanation || '',
+        createdAt: new Date()
+      });
+      mongoPost.reportCount = (mongoPost.reportCount || 0) + 1;
+      await mongoPost.save();
+    }
+    finalCount = mongoPost.reportCount;
+  }
+
+  // Dual-sync to Supabase if configured
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data: post, error: fetchErr } = await supabase
@@ -385,29 +425,36 @@ export const reportPostService = async (postId, reporterName, reason, explanatio
             .update({ reported_by: reportedBy, report_count: count })
             .or(`id.eq.${postId},mongo_id.eq.${postId}`);
         }
-        return { message: 'Post reported to moderators', reportCount: count };
+        if (!mongoPost) finalCount = count;
       }
     } catch (err) {
-      console.warn(`[Supabase reportPostService Error]: ${err.message}. Falling back to MongoDB.`);
+      console.warn(`[Supabase reportPostService Error]: ${err.message}`);
     }
   }
 
-  // MongoDB Fallback
-  if (!isValidObjectId(postId)) return null;
-  const mongoPost = await Post.findById(postId);
-  if (!mongoPost) return null;
-  if (!mongoPost.reportedBy) mongoPost.reportedBy = [];
-  const alreadyReported = mongoPost.reportedBy.some(r => r.userName === reporterName);
-  if (!alreadyReported) {
-    mongoPost.reportedBy.push({
-      userName: reporterName,
-      reason: reason || 'Inappropriate',
-      explanation: explanation || ''
+  // 2-Way Notifications
+  try {
+    const Notification = (await import('../models/Notification.js')).default;
+    // 1. Notification to Reporter
+    await Notification.create({
+      userId: reporterName,
+      type: 'system',
+      message: `We received your report for the post by ${postAuthor}. Our moderation team is reviewing it.`
     });
-    mongoPost.reportCount = (mongoPost.reportCount || 0) + 1;
-    await mongoPost.save();
+
+    // 2. Notification to Post Author
+    if (mongoPost?.authorName && mongoPost.authorName !== reporterName) {
+      await Notification.create({
+        userId: mongoPost.authorName,
+        type: 'system',
+        message: 'A post you shared was flagged by community members and is currently under review by moderators.'
+      });
+    }
+  } catch (nErr) {
+    console.warn('Report post notification warning:', nErr.message);
   }
-  return { message: 'Post reported to moderators', reportCount: mongoPost.reportCount };
+
+  return { message: 'Post reported to moderators', reportCount: finalCount };
 };
 
 // ==============================================================================

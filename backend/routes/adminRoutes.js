@@ -17,12 +17,17 @@ import {
   getComplaintChatsInspection,
   getAuditLogs,
   removePostWithReason,
+  getModerationAppeals,
+  resolvePostAppeal,
   requestRefundCashback,
   approveRefundCashback,
   sendSubscriberBroadcast,
+  getBroadcastHistory,
   createInstructor,
   createDiscountCampaign,
-  getDiscountCampaigns
+  getDiscountCampaigns,
+  restoreUserByAdmin,
+  permanentlyPurgeUserByAdmin
 } from '../controllers/adminController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -37,7 +42,9 @@ router.get('/users', authorizeRoles('SuperAdmin', 'Admin'), getAllUsers);
 router.put('/users/:id/role', authorizeRoles('SuperAdmin', 'Admin'), updateUserRole);
 router.put('/users/:id', authorizeRoles('SuperAdmin', 'Admin'), updateUserDetails);
 router.delete('/users/:id', authorizeRoles('SuperAdmin', 'Admin'), deleteUserByAdmin);
-router.put('/users/:id/ban', authorizeRoles('SuperAdmin', 'Admin'), toggleUserBan);
+router.put('/users/:id/restore', authorizeRoles('SuperAdmin', 'Admin'), restoreUserByAdmin);
+router.delete('/users/:id/permanent', authorizeRoles('SuperAdmin'), permanentlyPurgeUserByAdmin);
+router.put('/users/:id/ban', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), toggleUserBan);
 
 // Gym Approvals
 router.get('/gyms/pending', authorizeRoles('SuperAdmin', 'Admin'), getPendingGymApprovals);
@@ -47,6 +54,8 @@ router.put('/gyms/:id/approval', authorizeRoles('SuperAdmin', 'Admin'), updateGy
 router.get('/posts/reported', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), getReportedPosts);
 router.put('/posts/:id/moderate', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), moderateReportedPost);
 router.delete('/posts/:id/remove-with-reason', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), removePostWithReason);
+router.get('/posts/moderation-appeals', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), getModerationAppeals);
+router.put('/posts/:id/resolve-appeal', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), resolvePostAppeal);
 
 // Cashback & Subscription Refund Approval Workflow
 router.post('/posts/cashback', authorizeRoles('SuperAdmin', 'Admin'), createCashbackPost);
@@ -56,8 +65,9 @@ router.put('/posts/:id/review-cashback', authorizeRoles('SuperAdmin'), reviewCas
 router.post('/complaints/:id/request-refund', authorizeRoles('SuperAdmin', 'Admin'), requestRefundCashback);
 router.put('/complaints/:id/approve-refund', authorizeRoles('SuperAdmin'), approveRefundCashback);
 
-// Admin Event Broadcast to All Subscribers
+// Admin Platform Broadcasts
 router.post('/broadcast', authorizeRoles('SuperAdmin', 'Admin'), sendSubscriberBroadcast);
+router.get('/broadcasts', authorizeRoles('SuperAdmin', 'Admin'), getBroadcastHistory);
 
 // Complaint Chat Thread & Senior Audit Inspection
 router.post('/complaints/:id/chat', authorizeRoles('SuperAdmin', 'Admin', 'ComplaintModerator'), addComplaintChatMessage);

@@ -398,43 +398,7 @@ export const sendMessage = async (req, res) => {
         isRead: true
       });
 
-      const ticketQuery = req.user?._id
-        ? { reporterId: req.user._id, reportedEntityType: 'User', status: { $in: ['Pending', 'InReview'] } }
-        : { reporterName: sender, reportedEntityType: 'User', status: { $in: ['Pending', 'InReview'] } };
-      let ticket = await Complaint.findOne(ticketQuery).sort({ createdAt: -1 });
-
-      if (!ticket) {
-        const ticketId = `TICKET-${Math.floor(100000 + Math.random() * 900000)}`;
-        ticket = await Complaint.create({
-          complaintId: ticketId,
-          reporterName: sender,
-          reporterId: req.user?._id || null,
-          reportedEntityType: 'User',
-          reportedEntityId: String(req.user?._id || sender),
-          reportedEntityTitle: `Support Request from ${sender}`,
-          reason: 'General Inquiry / Live Chat Support',
-          description: rawText,
-          status: 'Pending',
-          chatMessages: [
-            {
-              senderName: sender,
-              role: req.user?.role || 'User',
-              text: rawText,
-              timestamp: new Date()
-            }
-          ]
-        });
-      } else {
-        ticket.chatMessages.push({
-          senderName: sender,
-          role: req.user?.role || 'User',
-          text: rawText,
-          timestamp: new Date()
-        });
-        await ticket.save();
-      }
-
-      const replyText = `Thanks for reaching out! Your inquiry has been logged as Support Ticket #${ticket.complaintId}. Our staff has been notified and will respond to you shortly.`;
+      const replyText = `Hello! To file a complaint or request official support, please use the "Help & Complaints" portal from the top navigation bar (6-dot menu). You will be issued an official ticket and can track resolution in real time.`;
 
       const supportReply = await Message.create({
         sender: 'Gym Support',
@@ -446,8 +410,7 @@ export const sendMessage = async (req, res) => {
 
       return res.status(201).json({
         ...userMessage.toObject(),
-        supportReply,
-        ticketId: ticket.complaintId
+        supportReply
       });
     }
 

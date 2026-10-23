@@ -8,5 +8,8 @@
     "test:bridge": "cd backend && node tests/testExerciseBridge.js",
     "build": "cd frontend && npm install && npm run build",
     "lint:frontend": "cd frontend && npm run lint"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }

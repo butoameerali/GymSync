@@ -8,7 +8,8 @@ import {
   getGoalStatus,
   completeActiveGoal,
   startNextGoal,
-  swapFoodInPlan
+  swapFoodInPlan,
+  getOllamaStatus
 } from '../controllers/aiController.js';
 import { generatePlan } from '../controllers/recommendationEngine.js';
 import { optionalProtect, protect, authorizeRoles } from '../middleware/authMiddleware.js';
@@ -19,6 +20,9 @@ import {
 } from '../controllers/trainerReviewController.js';
 
 const router = express.Router();
+
+// GET /api/ai/ollama-status - Health check for local or Google Colab Ollama instance
+router.get('/ollama-status', getOllamaStatus);
 
 // POST /api/ai/chat & /api/ai/coach-chat (Accessible to authenticated users and guests)
 router.post('/chat', optionalProtect, handleChat);

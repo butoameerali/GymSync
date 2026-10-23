@@ -24,8 +24,22 @@ export const protect = async (req, res, next) => {
         return res.status(401).json({ message: 'Not authorized, user not found' });
       }
 
+      if (user.isDeleted) {
+        return res.status(401).json({ message: 'Not authorized, account is scheduled for deletion' });
+      }
+
       if (user.isBanned) {
-        return res.status(403).json({ message: 'Not authorized, user account is banned' });
+        if (user.bannedUntil && new Date(user.bannedUntil).getTime() <= Date.now()) {
+          user.isBanned = false;
+          user.bannedUntil = null;
+          user.banReason = '';
+          user.accountStatus = user.isDeactivated ? 'Deactivated' : 'Active';
+          await user.save();
+        } else {
+          return res.status(403).json({ 
+            message: `Not authorized, user account is suspended ${user.bannedUntil ? 'until ' + new Date(user.bannedUntil).toLocaleDateString() : 'permanently'}.${user.banReason ? ' Reason: ' + user.banReason : ''}` 
+          });
+        }
       }
 
       req.user = user;
@@ -58,8 +72,18 @@ export const optionalProtect = async (req, res, next) => {
       if (!user) {
         return res.status(401).json({ message: 'Not authorized, user not found' });
       }
+      if (user.isDeleted) {
+        return res.status(401).json({ message: 'Not authorized, account is deleted' });
+      }
       if (user.isBanned) {
-        return res.status(403).json({ message: 'Not authorized, user account is banned' });
+        if (user.bannedUntil && new Date(user.bannedUntil).getTime() <= Date.now()) {
+          user.isBanned = false;
+          user.bannedUntil = null;
+          user.banReason = '';
+          await user.save();
+        } else {
+          return res.status(403).json({ message: 'Not authorized, user account is suspended' });
+        }
       }
       req.user = user;
     } catch (error) {

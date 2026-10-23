@@ -71,8 +71,48 @@ const Profile = () => {
   const [passwordError, setPasswordError] = useState('');
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showDeactivateAccountModal, setShowDeactivateAccountModal] = useState(false);
+  const [isDeactivatingAccount, setIsDeactivatingAccount] = useState(false);
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
+
+  const handleDeactivateAccount = async () => {
+    setIsDeactivatingAccount(true);
+    try {
+      const response = await fetch('/api/users/deactivate', {
+        method: 'PUT',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Unable to deactivate account.');
+      ['userInfo', 'gymsync_token', 'gymsync_role', 'gymsync_user_name'].forEach(k => localStorage.removeItem(k));
+      setShowDeactivateAccountModal(false);
+      toast.info('Your account has been deactivated. You can reactivate anytime simply by logging back in.');
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1200);
+    } catch (err) {
+      toast.error(err.message || 'Failed to deactivate account');
+    } finally {
+      setIsDeactivatingAccount(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const response = await fetch('/api/users/me', { method: 'DELETE', headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Unable to delete account.');
+      ['userInfo', 'gymsync_token', 'gymsync_role', 'gymsync_user_name'].forEach(k => localStorage.removeItem(k));
+      setShowDeleteAccountModal(false);
+      toast.warning('Your account has been moved to the Recycle Bin. You have 15 days to log in and restore it.');
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1500);
+    } catch (err) { toast.error(err.message || 'Failed to delete account'); }
+    finally { setIsDeletingAccount(false); }
+  };
 
   const handleSendEmailOtp = async (e) => {
     e.preventDefault();
@@ -155,18 +195,6 @@ const Profile = () => {
   const handleDeleteReply = async (postId, commentId, replyId) => {
     try { const updated = await postService.deleteReply(postId, commentId, replyId); setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p))); }
     catch (err) { toast.error(err.message || 'Failed to delete reply'); }
-  };
-
-  const handleDeleteAccount = async () => {
-    setIsDeletingAccount(true);
-    try {
-      const response = await fetch('/api/users/me', { method: 'DELETE', headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} });
-      if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.message || 'Unable to delete account.'); }
-      ['userInfo', 'gymsync_token', 'gymsync_role', 'gymsync_user_name'].forEach(k => localStorage.removeItem(k));
-      setShowDeleteAccountModal(false);
-      window.location.href = '/';
-    } catch (err) { toast.error(err.message || 'Failed to delete account'); }
-    finally { setIsDeletingAccount(false); }
   };
 
   const handlePicUpload = (e) => {
@@ -378,10 +406,10 @@ const Profile = () => {
               handleAddReply={handleAddReply} handleDeleteReply={handleDeleteReply}
             />
           )}
-          {activeTab === 'history' && (
+          {activeTab === 'history' && isTrainee && (
             <ProfileHistoryTab upcoming={upcoming} todayHistory={todayHistory} safeHistory={safeHistory} aiPlan={aiPlan} workoutProgress={workoutProgress} />
           )}
-          {activeTab === 'bio' && <ProfileBioTab bio={bio} />}
+          {activeTab === 'bio' && isTrainee && <ProfileBioTab bio={bio} />}
           {activeTab === 'settings' && (
             <ProfileSettingsPanel
               activeSettingSection={activeSettingSection} setActiveSettingSection={setActiveSettingSection}
@@ -394,7 +422,15 @@ const Profile = () => {
               setHideHealthData={setHideHealthData} bio={bio} stats={stats}
               history={history} myPosts={myPosts} profilePic={profilePic}
               setShowDeleteAccountModal={setShowDeleteAccountModal}
+              setShowDeactivateAccountModal={setShowDeactivateAccountModal}
               setVerifyEmailInput={setVerifyEmailInput} setIsVerifyModalOpen={setIsVerifyModalOpen}
+              onProfileUpdate={(updatedUser) => {
+                setUserData(prev => ({ ...prev, ...updatedUser }));
+                if (updatedUser?.name && updatedUser.name !== userName) {
+                  localStorage.setItem('gymsync_user_name', updatedUser.name);
+                  window.dispatchEvent(new Event('gymsync_user_updated'));
+                }
+              }}
               toast={toast}
             />
           )}
@@ -418,14 +454,25 @@ const Profile = () => {
 
       <ConfirmDialog
         isOpen={showDeleteAccountModal}
-        title="Delete Account"
-        message="Are you ABSOLUTELY sure you want to permanently delete your account? This action cannot be undone and will permanently remove all your data."
-        confirmText="Delete Account"
-        confirmVariant="danger"
+        title="Schedule Account Deletion (15-Day Grace Period)"
+        message="Your account will be moved to the Recycle Bin and scheduled for permanent deletion in 15 days. You can log in at any time within the next 15 days to cancel deletion and restore your account. After 15 days, your data will be permanently wiped."
+        confirmText="Move to Recycle Bin"
+        isDanger={true}
         typedConfirmation="DELETE"
         loading={isDeletingAccount}
         onConfirm={handleDeleteAccount}
-        onCancel={() => setShowDeleteAccountModal(false)}
+        onClose={() => setShowDeleteAccountModal(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeactivateAccountModal}
+        title="Deactivate Account"
+        message="Are you sure you want to deactivate your account? Your profile and posts will be hidden from other members. You can reactivate your account at any time simply by logging back in."
+        confirmText="Deactivate Account"
+        isDanger={false}
+        loading={isDeactivatingAccount}
+        onConfirm={handleDeactivateAccount}
+        onClose={() => setShowDeactivateAccountModal(false)}
       />
     </div>
   );

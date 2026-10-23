@@ -62,7 +62,7 @@ const StoreManagerDashboard = () => {
     try {
       const headers = getHeaders();
       const [prodRes, ordRes] = await Promise.all([
-        fetch('/api/store/products?status=Approved'),
+        fetch('/api/store/products?status=all'),
         fetch('/api/store/orders', { headers })
       ]);
 

@@ -275,10 +275,24 @@ export const getPaymentConfigs = async (req, res) => {
 export const updatePaymentConfig = async (req, res) => {
   try {
     const { method } = req.params;
-    const { accountNumber, bankDetails, notes } = req.body;
+    const { accountNumber, bankDetails, notes, adminPassword } = req.body;
 
     if (!['Easypaisa', 'JazzCash'].includes(method)) {
       return res.status(400).json({ message: 'Unsupported payment method' });
+    }
+
+    if (!adminPassword) {
+      return res.status(401).json({ message: 'Admin password verification is required to update payment accounts' });
+    }
+
+    const adminUser = await User.findById(req.user._id);
+    if (!adminUser) {
+      return res.status(401).json({ message: 'Administrative user session invalid' });
+    }
+
+    const isMatch = await adminUser.matchPassword(adminPassword);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Incorrect admin password. Action aborted.' });
     }
 
     const config = await PaymentConfig.findOneAndUpdate(

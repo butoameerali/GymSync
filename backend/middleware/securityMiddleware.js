@@ -56,7 +56,7 @@ export const rateLimiter = (options = { windowMs: 15 * 60 * 1000, max: 100, scop
       }
 
       const isTestEnv = process.env.NODE_ENV === 'test';
-      const effectiveMax = (isTestEnv && ['auth', 'ai', 'global'].includes(options.scope))
+      const effectiveMax = (isTestEnv && ['auth', 'ai', 'global', 'login', 'otp'].includes(options.scope))
         ? 100000
         : (options.max || 100);
 

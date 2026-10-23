@@ -8,6 +8,7 @@ import WorkoutProgress from '../models/WorkoutProgress.js';
 import ExerciseRecord from '../models/ExerciseRecord.js';
 import ActivityLog from '../models/ActivityLog.js';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { 
   upsertProfileToSupabase, 
@@ -230,31 +231,182 @@ export const updateGymMembershipSettings = async (req, res) => {
   }
 };
 
-// @desc    Delete the currently authenticated account and its personal content
+// @desc    Soft-delete the currently authenticated account (move to Recycle Bin for 15 days)
 // @route   DELETE /api/users/me
 // @access  Private
 export const deleteCurrentUser = async (req, res) => {
   try {
-    const userName = req.user.name;
-    await Promise.all([
-      Post.deleteMany({ $or: [{ authorName: userName }, { 'author.name': userName }] }),
-      Message.deleteMany({ $or: [{ sender: userName }, { receiver: userName }] }),
-      Notification.deleteMany({ $or: [{ userId: userName }, { senderName: userName }] }),
-      User.updateMany({}, {
-        $pull: {
-          friends: userName,
-          sentRequests: userName,
-          receivedRequests: userName,
-          followers: userName,
-          following: userName
-        }
-      })
-    ]);
-    await User.findByIdAndDelete(req.user._id);
-    return res.json({ message: 'Account deleted successfully.' });
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    user.deletionScheduledPermanentAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // 15 days grace period
+    user.deletedBy = 'Self';
+    user.accountStatus = 'Deleted';
+    await user.save();
+
+    // Dispatch Urgent Security Email Alert
+    if (user.email && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      try {
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+          }
+        });
+
+        const expiryDateStr = new Date(Date.now() + 15 * 86400000).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        await transporter.sendMail({
+          from: `"GymSync Security" <${process.env.EMAIL_USER}>`,
+          to: user.email,
+          subject: '⚠️ Urgent Security Alert: GymSync Account Deletion Scheduled',
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #334155;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+                <h2 style="color: #ef4444; margin: 0; font-size: 20px;">⚠️ Urgent Security Notice: Account Deletion Scheduled</h2>
+              </div>
+              <p style="font-size: 15px; line-height: 1.6; color: #e2e8f0;">
+                Hello <strong>${user.name || 'Athlete'}</strong>,
+              </p>
+              <p style="font-size: 14px; line-height: 1.6; color: #cbd5e1;">
+                Your GymSync account was placed into the <strong>15-Day Recycle Bin Grace Period</strong> today.
+              </p>
+              <div style="background-color: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <strong style="color: #f87171; display: block; font-size: 14px; margin-bottom: 6px;">Did you request this deletion?</strong>
+                <p style="color: #e2e8f0; font-size: 13px; line-height: 1.5; margin: 0;">
+                  If you <strong>DID NOT</strong> initiate this deletion, your account may be compromised. Your data is safe in the Recycle Bin until <strong>${expiryDateStr}</strong>.
+                </p>
+              </div>
+              <p style="font-size: 14px; line-height: 1.6; color: #cbd5e1;">
+                To cancel this deletion and instantly restore full access to your profile, workouts, and memberships, simply log in to your account:
+              </p>
+              <div style="text-align: center; margin: 28px 0;">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="background-color: #6366f1; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);">
+                  Log In & Restore My Account
+                </a>
+              </div>
+              <p style="font-size: 12px; color: #94a3b8; border-top: 1px solid #334155; padding-top: 16px; margin-top: 24px;">
+                If you did request this, no further action is needed. Your account and personal records will be permanently purged after 15 days.
+              </p>
+            </div>
+          `
+        });
+      } catch (mailErr) {
+        console.error('Failed to dispatch deletion alert email:', mailErr.message);
+      }
+    }
+
+    return res.json({ 
+      message: 'Your account has been moved to the Recycle Bin and will be permanently deleted after 15 days. You can log in anytime within 15 days to cancel deletion and restore your account.' 
+    });
   } catch (error) {
     console.error('deleteCurrentUser error:', error);
     return res.status(500).json({ message: 'Failed to delete account' });
+  }
+};
+
+// @desc    Update General Profile Settings (Name, Phone, Fitness Goal, Bio)
+// @route   PUT /api/users/profile
+// @access  Private
+export const updateUserProfileController = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const { name, phone, fitnessGoal, bio, city, country, location, sudoPassword } = req.body;
+
+    if (name && name.trim()) {
+      const trimmedName = name.trim();
+      if (trimmedName.toLowerCase() !== user.name.toLowerCase()) {
+        // If sudoPassword is provided, verify it for sensitive name changes
+        if (sudoPassword) {
+          const isMatch = await bcrypt.compare(sudoPassword, user.password);
+          if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid password. 2MFA verification failed for name change.' });
+          }
+        }
+
+        const existing = await User.findOne({ name: { $regex: new RegExp(`^${trimmedName}$`, 'i') } });
+        if (existing && String(existing._id) !== String(user._id)) {
+          return res.status(400).json({ message: `Username '${trimmedName}' is already taken by another member` });
+        }
+        user.name = trimmedName;
+      }
+    }
+
+    if (phone !== undefined) user.phone = String(phone).trim();
+    if (city !== undefined) user.city = String(city).trim();
+    if (country !== undefined) user.country = String(country).trim();
+    if (location !== undefined) {
+      user.location = String(location).trim();
+    } else if (city !== undefined || country !== undefined) {
+      user.location = [user.city, user.country].filter(Boolean).join(', ');
+    }
+
+    if (fitnessGoal !== undefined) {
+      user.fitnessGoal = String(fitnessGoal).trim();
+      if (!user.bioData) user.bioData = {};
+      user.bioData.mainGoalArea = String(fitnessGoal).trim();
+    }
+    if (bio !== undefined) user.bio = String(bio).trim();
+
+    await user.save();
+
+    return res.json({
+      message: 'Profile settings updated successfully',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone || '',
+        city: user.city || '',
+        country: user.country || '',
+        location: user.location || '',
+        fitnessGoal: user.fitnessGoal || '',
+        bio: user.bio || '',
+        profilePic: user.profilePic || ''
+      }
+    });
+  } catch (error) {
+    console.error('updateUserProfileController error:', error);
+    return res.status(500).json({ message: 'Failed to update profile settings' });
+  }
+};
+
+// @desc    Deactivate the currently authenticated account temporarily
+// @route   PUT /api/users/deactivate
+// @access  Private
+export const deactivateCurrentUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.isDeactivated = true;
+    user.deactivatedAt = new Date();
+    user.accountStatus = 'Deactivated';
+    await user.save();
+
+    return res.json({ 
+      message: 'Your account has been deactivated. You can reactivate it at any time simply by logging back in.' 
+    });
+  } catch (error) {
+    console.error('deactivateCurrentUser error:', error);
+    return res.status(500).json({ message: 'Failed to deactivate account' });
   }
 };
 
@@ -561,14 +713,15 @@ export const sendVerificationOTP = async (req, res) => {
       return res.status(503).json({ message: 'We could not send the OTP email. Please check the mail configuration and try again.' });
     }
 
-    if (req.user?._id) {
-      const user = await User.findById(req.user._id);
-      if (user) {
-        user.otpCode = otp;
-        user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-        user.otpVerified = false;
-        await user.save();
-      }
+    const user = req.user?._id 
+      ? await User.findById(req.user._id) 
+      : (req.body.userName ? await User.findOne({ name: req.body.userName }) : await User.findOne({ email: targetEmail }));
+
+    if (user) {
+      user.otpCode = otp;
+      user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      user.otpVerified = false;
+      await user.save();
     }
     res.json({ message: 'Verification OTP sent to your Gmail address.' });
   } catch (error) {
@@ -581,14 +734,16 @@ export const sendVerificationOTP = async (req, res) => {
 // @route   PUT /api/users/verify-email-otp
 // @access  Public
 export const verifyEmailOTP = async (req, res) => {
-  const { email, otp, notificationId } = req.body;
+  const { email, otp, userName, notificationId } = req.body;
   if (!email || !otp) return res.status(400).json({ message: 'Email and 6-digit OTP code are required.' });
 
   try {
     const targetEmail = email.trim().toLowerCase();
 
-    const user = req.user?._id ? await User.findById(req.user._id) : await User.findOne({ email: targetEmail });
-    if (!user || !user.otpCode) return res.status(400).json({ message: 'No verification OTP requested for this email.' });
+    const user = req.user?._id 
+      ? await User.findById(req.user._id) 
+      : (userName ? await User.findOne({ name: userName }) : await User.findOne({ email: targetEmail }));
+    if (!user || !user.otpCode) return res.status(400).json({ message: 'No verification OTP requested for this account.' });
 
     const expiresAt = user.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
     if (Date.now() > expiresAt) {

@@ -8,23 +8,17 @@ import './GlobalChat.css';
 
 const SYSTEM_CONTACTS = [
   { id: 'ai', name: 'AI Workout Coach', role: 'Personal Coach', avatar: '🏋️', isSystem: true, isPremium: true, persona: 'workout_coach' },
-  { id: 'diet_ai', name: 'AI Nutritionist', role: 'Sports Nutritionist', avatar: '🥗', isSystem: true, isPremium: true, persona: 'nutritionist' },
-  { id: 'gym', name: 'Gym Support', role: 'Platform Support', avatar: '🏢', isSystem: true, isPremium: false }
+  { id: 'diet_ai', name: 'AI Nutritionist', role: 'Sports Nutritionist', avatar: '🥗', isSystem: true, isPremium: true, persona: 'nutritionist' }
 ];
 
 const SYSTEM_IDENTIFIERS = new Set([
   'ai',
   'diet_ai',
-  'gym',
   'ai trainer',
   'ai workout coach',
   'workout coach',
   'ai nutritionist',
-  'nutritionist',
-  'gym support',
-  'iron core support',
-  'support team',
-  'support'
+  'nutritionist'
 ]);
 
 const isSystemContact = (name) => {
@@ -149,8 +143,6 @@ const GlobalChat = () => {
       effectiveContact = SYSTEM_CONTACTS[0];
     } else if (lower === 'diet_ai' || lower === 'ai nutritionist' || lower === 'nutritionist') {
       effectiveContact = SYSTEM_CONTACTS[1];
-    } else if (lower === 'gym' || lower === 'gym support' || lower === 'iron core support' || lower === 'support team' || lower === 'support') {
-      effectiveContact = SYSTEM_CONTACTS[2];
     }
     setActiveContact(effectiveContact);
     if (!messages[effectiveContact.id]) {
@@ -318,7 +310,7 @@ const GlobalChat = () => {
         handleContactClick(SYSTEM_CONTACTS[0]);
         return;
       }
-      if (lower === 'gym' || lower === 'gym support' || lower === 'iron core support' || lower === 'support team' || lower === 'support') {
+      if (lower === 'diet_ai' || lower === 'nutritionist' || lower === 'ai nutritionist') {
         handleContactClick(SYSTEM_CONTACTS[1]);
         return;
       }
@@ -489,35 +481,6 @@ const GlobalChat = () => {
         }));
       }
     }
-    else if (activeContact.id === 'gym') {
-      try {
-        const token = localStorage.getItem('gymsync_token') || localStorage.getItem('token') || '';
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({
-            sender: userName,
-            receiver: 'Gym Support',
-            text: trimmed
-          })
-        });
-        const data = await response.json();
-        if (data.supportReply?.text) {
-          setMessages(prev => ({
-            ...prev,
-            [activeContact.id]: [...(prev[activeContact.id] || []), {
-              id: data.supportReply._id || generateMessageId(),
-              text: data.supportReply.text,
-              sender: 'other',
-              timestamp: new Date().toISOString()
-            }]
-          }));
-        }
-      } catch (err) { console.error("Support chat error:", err); }
-    }
     else {
       // Direct message to member / friend / trainer
       try {
@@ -591,9 +554,17 @@ const GlobalChat = () => {
   };
 
   // Route-guard early returns — placed right before return JSX after all hooks and handlers
-  if (['/messages', '/chat'].includes(location.pathname) || isGuest) {
+  const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(userRole);
+  if (['/messages', '/chat', '/reels'].includes(location.pathname) || isGuest || (isAdmin && location.pathname.startsWith('/admin'))) {
     return null;
   }
+
+  const visibleMemberContacts = memberContacts.filter(c => {
+    if (!isAdmin) return true;
+    const n = String(c.name || c.id || '').toLowerCase().trim();
+    if (isSystemContact(n) || n === 'gym support' || n === 'gymsupport' || n === 'support desk') return false;
+    return true;
+  });
 
   return (
     <div className="global-chat-wrapper">
@@ -662,57 +633,61 @@ const GlobalChat = () => {
 
         {!activeContact ? (
           <div className="contact-list" style={{ flex: 1, overflowY: 'auto' }}>
-            {/* Assistants Section */}
-            <div style={{ padding: '10px 16px 6px', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Assistants
-            </div>
-            {SYSTEM_CONTACTS.map(contact => (
-              <div
-                key={contact.id}
-                onClick={() => handleContactClick(contact)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  borderBottom: '1px solid rgba(255,255,255,0.05)',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <div style={{ width: '40px', height: '40px', minWidth: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', boxShadow: '0 2px 8px rgba(59,130,246,0.3)' }}>
-                  {contact.avatar}
+            {/* Assistants Section - Excluded for Platform Administrators */}
+            {!isAdmin && (
+              <>
+                <div style={{ padding: '10px 16px 6px', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Assistants
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <h4 style={{ margin: 0, fontSize: '0.92rem', color: 'var(--text-primary)' }}>{contact.name}</h4>
-                    {contact.isPremium && (
-                      <span style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
-                        AI
+                {SYSTEM_CONTACTS.map(contact => (
+                  <div
+                    key={contact.id}
+                    onClick={() => handleContactClick(contact)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 16px',
+                      borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ width: '40px', height: '40px', minWidth: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', boxShadow: '0 2px 8px rgba(59,130,246,0.3)' }}>
+                      {contact.avatar}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.92rem', color: 'var(--text-primary)' }}>{contact.name}</h4>
+                        {contact.isPremium && (
+                          <span style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                            AI
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block' }}>
+                        {contact.role}
                       </span>
-                    )}
+                    </div>
                   </div>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block' }}>
-                    {contact.role}
-                  </span>
-                </div>
-              </div>
-            ))}
+                ))}
+              </>
+            )}
 
             {/* Direct Messages Section */}
             <div style={{ padding: '14px 16px 6px', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Direct Messages</span>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 400 }}>{memberContacts.length}</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 400 }}>{visibleMemberContacts.length}</span>
             </div>
 
-            {memberContacts.length === 0 ? (
+            {visibleMemberContacts.length === 0 ? (
               <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
                 No conversations yet. Connect with members or trainers to start chatting!
               </div>
             ) : (
-              memberContacts.map(contact => (
+              visibleMemberContacts.map(contact => (
                 <div
                   key={contact.id}
                   onClick={() => handleContactClick(contact)}

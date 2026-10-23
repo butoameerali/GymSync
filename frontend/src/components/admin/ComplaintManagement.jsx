@@ -1,63 +1,98 @@
 import React, { useState } from 'react';
-import { MessageSquare, Send, Eye, Award, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { 
+  FileText, 
+  Eye, 
+  Award, 
+  CheckCircle, 
+  Clock, 
+  AlertCircle, 
+  RotateCcw, 
+  XCircle, 
+  Paperclip, 
+  X,
+  Send,
+  MessageSquare
+} from 'lucide-react';
 import { toast } from 'react-toastify';
-import Modal from '../common/Modal';
+
+const QUICK_RESOLUTIONS = [
+  'Issue investigated and resolved. Necessary corrective actions taken.',
+  'Payment/billing error verified and credit adjustment processed.',
+  'Facility management notified and required maintenance scheduled.',
+  'Trainer warned regarding policy violation; coaching adjustments made.',
+  'Inquiry reviewed. Provided guidance and closed ticket.'
+];
 
 const ComplaintManagement = ({ complaints, userName, userRole, isSeniorAdmin, onRefresh }) => {
-  const [selectedComplaint, setSelectedComplaint] = useState(null);
-  const [inspectionComplaint, setInspectionComplaint] = useState(null);
-  const [chatInput, setChatInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [isSendingChat, setIsSendingChat] = useState(false);
+  const [resolvingTicket, setResolvingTicket] = useState(null);
+  const [newStatus, setNewStatus] = useState('Resolved');
+  const [resolutionNotes, setResolutionNotes] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [inspectionTicket, setInspectionTicket] = useState(null);
 
-  const handleComplaintStatus = async (complaintId, status) => {
+  const handleResolveSubmit = async (e) => {
+    e?.preventDefault();
+    if (!resolvingTicket) return;
+    if (!resolutionNotes.trim()) {
+      toast.error('Please enter resolution notes explaining the decision to the member');
+      return;
+    }
+
+    setIsProcessing(true);
     try {
-      const res = await fetch(`/api/complaints/${complaintId}`, {
+      const res = await fetch(`/api/complaints/${resolvingTicket._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ 
+          status: newStatus,
+          resolutionNotes: resolutionNotes.trim(),
+          adminReply: resolutionNotes.trim(),
+          moderatorName: userName || 'Moderator'
+        })
       });
+
       if (res.ok) {
-        toast.success(`Complaint status marked as ${status}`);
+        toast.success(`Ticket #${resolvingTicket.complaintId || resolvingTicket._id} marked as ${newStatus}`);
+        setResolvingTicket(null);
+        setResolutionNotes('');
         if (onRefresh) onRefresh();
       } else {
         const d = await res.json();
-        toast.error(d.message || 'Failed to update complaint status');
+        toast.error(d.message || 'Failed to update ticket');
       }
     } catch (err) {
-      toast.error('Failed to update complaint status');
+      toast.error('Network error updating ticket');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleSendChatMessage = async (complaintId) => {
-    if (!chatInput.trim()) return;
-    setIsSendingChat(true);
+  const handleQuickStatus = async (ticketId, status) => {
     try {
-      const res = await fetch(`/api/admin/complaints/${complaintId}/chat`, {
-        method: 'POST',
+      const res = await fetch(`/api/complaints/${ticketId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         },
-        body: JSON.stringify({ text: chatInput.trim() })
+        body: JSON.stringify({ 
+          status,
+          moderatorName: userName || 'Moderator'
+        })
       });
       if (res.ok) {
-        const updatedComplaint = await res.json();
-        setSelectedComplaint(updatedComplaint);
-        setChatInput('');
-        toast.success('Reply sent to trainee');
+        toast.success(`Ticket marked as ${status}`);
         if (onRefresh) onRefresh();
       } else {
         const d = await res.json();
-        toast.error(d.message || 'Failed to send message');
+        toast.error(d.message || 'Failed to update status');
       }
-    } catch (err) {
-      toast.error('Failed to send message');
-    } finally {
-      setIsSendingChat(false);
+    } catch (e) {
+      toast.error('Failed to update status');
     }
   };
 
@@ -73,7 +108,6 @@ const ComplaintManagement = ({ complaints, userName, userRole, isSeniorAdmin, on
       });
       if (res.ok) {
         toast.info('Subscription refund cashback request sent to Higher Admin for approval!');
-        setSelectedComplaint(null);
         if (onRefresh) onRefresh();
       } else {
         const d = await res.json();
@@ -86,21 +120,38 @@ const ComplaintManagement = ({ complaints, userName, userRole, isSeniorAdmin, on
 
   const filteredComplaints = (complaints || []).filter(c => {
     if (statusFilter === 'All') return true;
-    return c.status === statusFilter;
+    return (c.status || '').toLowerCase() === statusFilter.toLowerCase();
   });
+
+  const getStatusBadge = (status) => {
+    const s = (status || 'Pending').toLowerCase();
+    if (s === 'resolved') {
+      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}><CheckCircle size={12} /> Resolved</span>;
+    }
+    if (s === 'in progress') {
+      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}><Clock size={12} /> In Progress</span>;
+    }
+    if (s === 'reopened') {
+      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(249, 115, 22, 0.15)', color: '#fb923c', border: '1px solid rgba(249, 115, 22, 0.3)', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}><RotateCcw size={12} /> Reopened</span>;
+    }
+    if (s === 'closed') {
+      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.3)', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}><XCircle size={12} /> Closed</span>;
+    }
+    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(234, 179, 8, 0.15)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}><Clock size={12} /> Pending</span>;
+  };
 
   return (
     <div className="glass-panel" style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
         <div>
-          <h3 style={{ margin: 0 }}>Complaints & Support Tickets Queue</h3>
-          <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>
-            Investigate grievances submitted by members, communicate via live ticket chat, and resolve tickets.
+          <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)' }}>Complaints & Support Tickets Queue</h3>
+          <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+            Investigate grievances submitted by members, review attachments, write official resolution notes, and resolve cases.
           </p>
         </div>
         <select 
           className="search-input" 
-          style={{ width: 'auto', minWidth: '160px' }}
+          style={{ width: 'auto', minWidth: '160px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-primary)' }}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -108,161 +159,326 @@ const ComplaintManagement = ({ complaints, userName, userRole, isSeniorAdmin, on
           <option value="Pending">Pending</option>
           <option value="In Progress">In Progress</option>
           <option value="Resolved">Resolved</option>
-          <option value="Approved">Approved</option>
-          <option value="Rejected">Rejected</option>
+          <option value="Closed">Closed</option>
+          <option value="Reopened">Reopened</option>
         </select>
       </div>
 
       {filteredComplaints.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-          <MessageSquare size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
-          <p>No complaints matching the selected filter.</p>
+        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text-secondary)' }}>
+          <FileText size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
+          <p style={{ fontSize: '0.95rem' }}>No complaints or support tickets matching "{statusFilter}".</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(330px, 1fr))', gap: '18px' }}>
           {filteredComplaints.map(c => (
-            <div key={c._id} className="glass-panel" style={{ padding: '18px', borderRadius: '14px', border: '1px solid var(--card-border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <strong>{c.complaintId || 'TICKET'}</strong>
-                <span className={`status-pill ${c.status === 'Resolved' || c.status === 'Approved' ? 'approved' : c.status === 'Rejected' ? 'rejected' : 'pending'}`}>
-                  {c.status}
-                </span>
-              </div>
-
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 6px 0' }}>
-                <strong>Member:</strong> {c.reporterName || 'Trainee'}
-                {c.assignedAdminName ? ` | Assigned: ${c.assignedAdminName}` : ''}
-              </p>
-
-              <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px 12px', borderRadius: '8px', margin: '8px 0', fontSize: '0.88rem', minHeight: '45px' }}>
-                {c.description}
-              </div>
-
-              {c.attachmentUrl && (
-                <div style={{ margin: '8px 0', fontSize: '0.8rem' }}>
-                  <a href={c.attachmentUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-accent)' }}>
-                    📎 View Ticket Attachment
-                  </a>
+            <div 
+              key={c._id} 
+              className="glass-panel" 
+              style={{ 
+                padding: '18px', 
+                borderRadius: '14px', 
+                border: '1px solid var(--card-border, rgba(255,255,255,0.08))',
+                background: 'rgba(255,255,255,0.02)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between'
+              }}
+            >
+              <div>
+                {/* Card Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                    #{c.complaintId || c._id?.slice(-8)}
+                  </span>
+                  {getStatusBadge(c.status)}
                 </div>
-              )}
 
-              <button 
-                className="btn btn-outline btn-sm" 
-                onClick={() => setSelectedComplaint(c)} 
-                style={{ marginTop: '8px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              >
-                <MessageSquare size={14} /> Open Live Resolution Chat
-              </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary-accent, #a5b4fc)', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                    {c.category || c.reportedEntityType || 'General'}
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    {c.reporterName || 'Trainee'}
+                  </span>
+                </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                <button 
-                  className="btn btn-sm btn-outline" 
-                  onClick={() => handleComplaintStatus(c._id, 'Pending')} 
-                  style={{ flex: 1 }}
-                >
-                  Pending
-                </button>
-                <button 
-                  className="btn btn-sm btn-primary" 
-                  onClick={() => handleComplaintStatus(c._id, 'Resolved')} 
-                  style={{ flex: 1, background: '#10b981', borderColor: '#10b981' }}
-                >
-                  Resolve
-                </button>
+                <h4 style={{ margin: '4px 0 8px 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  {c.title || c.reportedEntityTitle || c.reason || 'Support Grievance'}
+                </h4>
+
+                <div style={{ background: 'rgba(0,0,0,0.25)', padding: '10px 12px', borderRadius: '8px', margin: '8px 0', fontSize: '0.85rem', lineHeight: 1.4, color: 'var(--text-primary)' }}>
+                  {c.description}
+                </div>
+
+                {/* Reopen note */}
+                {c.reopenReason && (
+                  <div style={{ background: 'rgba(249, 115, 22, 0.08)', border: '1px solid rgba(249, 115, 22, 0.2)', padding: '8px 10px', borderRadius: '6px', fontSize: '0.8rem', color: '#fdba74', margin: '6px 0' }}>
+                    <strong>Reopen Remarks:</strong> {c.reopenReason}
+                  </div>
+                )}
+
+                {/* Evidence Attachment */}
+                {(c.attachmentUrl || (c.evidenceUrls && c.evidenceUrls.length > 0)) && (
+                  <div style={{ margin: '6px 0', fontSize: '0.8rem' }}>
+                    <a 
+                      href={c.attachmentUrl || c.evidenceUrls[0]} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      style={{ color: '#38bdf8', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'underline' }}
+                    >
+                      <Paperclip size={13} /> View Attached Proof
+                    </a>
+                  </div>
+                )}
+
+                {/* Existing Resolution Note */}
+                {(c.resolutionNotes || c.adminReply) && (
+                  <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '6px', padding: '8px 10px', margin: '8px 0', fontSize: '0.82rem', color: '#6ee7b7' }}>
+                    <strong>Resolution Note:</strong> {c.resolutionNotes || c.adminReply}
+                  </div>
+                )}
               </div>
 
-              {isSeniorAdmin && (
-                <button 
-                  className="btn btn-outline btn-sm" 
-                  onClick={() => setInspectionComplaint(c)} 
-                  style={{ marginTop: '8px', width: '100%', color: '#8b5cf6', borderColor: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                >
-                  <Eye size={14} /> Senior Inspection Log
-                </button>
-              )}
+              {/* Action Buttons */}
+              <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    className="btn btn-sm btn-primary" 
+                    onClick={() => {
+                      setResolvingTicket(c);
+                      setNewStatus('Resolved');
+                      setResolutionNotes(c.resolutionNotes || c.adminReply || '');
+                    }} 
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px 12px', fontSize: '0.82rem' }}
+                  >
+                    <CheckCircle size={14} /> Review & Resolve
+                  </button>
+
+                  <button 
+                    className="btn btn-sm btn-outline" 
+                    onClick={() => handleQuickStatus(c._id, 'In Progress')} 
+                    style={{ padding: '8px 12px', fontSize: '0.82rem', color: '#60a5fa', borderColor: 'rgba(59, 130, 246, 0.3)' }}
+                    title="Mark as Under Active Investigation"
+                  >
+                    Investigate
+                  </button>
+                </div>
+
+                {userRole !== 'ComplaintModerator' && (c.category === 'Billing' || c.reportedEntityType === 'Billing') && (
+                  <button 
+                    type="button"
+                    className="btn btn-outline btn-sm" 
+                    style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 10px' }}
+                    onClick={() => handleRequestRefund(c._id)}
+                  >
+                    <Award size={14} /> Request Subscription Refund Cashback ($29.99)
+                  </button>
+                )}
+
+                {isSeniorAdmin && (
+                  <button 
+                    className="btn btn-outline btn-sm" 
+                    onClick={() => setInspectionTicket(c)} 
+                    style={{ color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 10px' }}
+                  >
+                    <Eye size={14} /> Senior Audit Inspection
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Complaint Chat Thread Modal */}
-      <Modal isOpen={Boolean(selectedComplaint)} onClose={() => setSelectedComplaint(null)} title={`Complaint Thread #${selectedComplaint?.complaintId || 'TICKET'}`}>
-        <div>
-          <div style={{ maxHeight: '280px', overflowY: 'auto', background: 'var(--card-bg)', padding: '14px', borderRadius: '10px', marginBottom: '16px' }}>
-            {(selectedComplaint?.chatMessages || []).length === 0 ? (
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center', margin: '20px 0' }}>
-                No messages yet. Send a response to the trainee below.
-              </p>
-            ) : (
-              selectedComplaint?.chatMessages?.map((msg, i) => (
-                <div key={i} style={{ marginBottom: '12px', textAlign: msg.senderName === userName ? 'right' : 'left' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{msg.senderName} ({msg.role || 'Member'})</span>
-                  <div style={{ 
-                    background: msg.senderName === userName ? 'var(--primary-accent)' : 'rgba(255,255,255,0.08)', 
+      {/* REVIEW & RESOLVE MODAL */}
+      {resolvingTicket && (
+        <div className="modal-overlay" style={{ zIndex: 1150, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setResolvingTicket(null)}>
+          <div 
+            className="modal-content glass-panel" 
+            style={{ 
+              maxWidth: '560px', 
+              width: '92%', 
+              borderRadius: '16px', 
+              padding: '24px',
+              background: 'var(--card-bg, #111827)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.6)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                  Resolve Support Ticket #{resolvingTicket.complaintId || resolvingTicket._id}
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Member: {resolvingTicket.reporterName} • Category: {resolvingTicket.category || resolvingTicket.reportedEntityType}
+                </span>
+              </div>
+              <button 
+                onClick={() => setResolvingTicket(null)}
+                className="btn btn-icon"
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleResolveSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Target Resolution Status:
+                </label>
+                <select
+                  className="search-input"
+                  value={newStatus}
+                  onChange={e => setNewStatus(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff' }}
+                >
+                  <option value="Resolved" style={{ background: '#1e293b' }}>Resolved (Issue Addressed & Satisfied)</option>
+                  <option value="In Progress" style={{ background: '#1e293b' }}>In Progress (Requires Ongoing Action)</option>
+                  <option value="Closed" style={{ background: '#1e293b' }}>Closed (Completed / Inactive)</option>
+                  <option value="Pending" style={{ background: '#1e293b' }}>Pending (Needs Additional Trainee Input)</option>
+                </select>
+              </div>
+
+              {/* Quick Preset Resolutions */}
+              <div>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Quick Resolution Templates:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {QUICK_RESOLUTIONS.map((res, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setResolutionNotes(res)}
+                      style={{
+                        background: resolutionNotes === res ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        color: resolutionNotes === res ? '#6ee7b7' : 'var(--text-secondary)',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.74rem',
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {res.slice(0, 48)}...
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  Official Resolution Findings & Note to Member *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={resolutionNotes}
+                  onChange={e => setResolutionNotes(e.target.value)}
+                  placeholder="Explain actions taken to resolve this grievance. This explanation is dispatched directly to the member's notifications..."
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(255,255,255,0.15)',
                     color: '#fff',
-                    padding: '8px 12px', 
-                    borderRadius: '8px', 
-                    display: 'inline-block', 
-                    marginTop: '2px',
-                    maxWidth: '85%',
-                    textAlign: 'left'
-                  }}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))
-            )}
+                    fontSize: '0.85rem',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setResolvingTicket(null)}
+                  disabled={isProcessing}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ background: '#10b981', borderColor: '#10b981' }}
+                  disabled={isProcessing || !resolutionNotes.trim()}
+                >
+                  {isProcessing ? 'Updating...' : `Save & Mark as ${newStatus}`}
+                </button>
+              </div>
+            </form>
           </div>
-
-          <form onSubmit={(e) => { e.preventDefault(); handleSendChatMessage(selectedComplaint?._id); }} style={{ display: 'flex', gap: '8px' }}>
-            <input 
-              type="text" 
-              className="search-input" 
-              placeholder="Type message to user..."
-              value={chatInput}
-              disabled={isSendingChat}
-              onChange={e => setChatInput(e.target.value)}
-            />
-            <button type="submit" className="btn btn-primary" disabled={isSendingChat || !chatInput.trim()}>
-              <Send size={16} /> {isSendingChat ? 'Sending...' : 'Send'}
-            </button>
-          </form>
-
-          {userRole !== 'ComplaintModerator' && (
-            <button 
-              type="button"
-              className="btn btn-outline btn-sm" 
-              style={{ marginTop: '14px', width: '100%', color: '#f59e0b', borderColor: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              onClick={() => handleRequestRefund(selectedComplaint._id)}
-            >
-              <Award size={14} /> Request Subscription Refund Cashback Approval ($29.99)
-            </button>
-          )}
         </div>
-      </Modal>
+      )}
 
-      {/* Senior Super Admin Inspection Modal */}
-      <Modal isOpen={Boolean(inspectionComplaint)} onClose={() => setInspectionComplaint(null)} title={`Senior Admin Audit Inspection #${inspectionComplaint?.complaintId}`}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div>
-            <strong>Reported By:</strong> {inspectionComplaint?.reporterName} ({inspectionComplaint?.reporterRole || 'User'})
-          </div>
-          <div>
-            <strong>Description:</strong>
-            <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>{inspectionComplaint?.description}</p>
-          </div>
-          <div>
-            <strong>Transcript History ({inspectionComplaint?.chatMessages?.length || 0} messages):</strong>
-            <div style={{ maxHeight: '200px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px', marginTop: '6px' }}>
-              {(inspectionComplaint?.chatMessages || []).map((m, idx) => (
-                <div key={idx} style={{ marginBottom: '8px', fontSize: '0.85rem' }}>
-                  <strong>{m.senderName}:</strong> {m.text}
+      {/* SENIOR AUDIT INSPECTION MODAL */}
+      {inspectionTicket && (
+        <div className="modal-overlay" style={{ zIndex: 1150, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setInspectionTicket(null)}>
+          <div 
+            className="modal-content glass-panel" 
+            style={{ 
+              maxWidth: '560px', 
+              width: '92%', 
+              borderRadius: '16px', 
+              padding: '24px',
+              background: 'var(--card-bg, #111827)',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.6)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#c4b5fd' }}>
+                Senior Audit Log #{inspectionTicket.complaintId || inspectionTicket._id}
+              </h3>
+              <button 
+                onClick={() => setInspectionTicket(null)}
+                className="btn btn-icon"
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
+              <div>
+                <strong>Reported By:</strong> {inspectionTicket.reporterName} (ID: {inspectionTicket.reporterId || 'N/A'})
+              </div>
+              <div>
+                <strong>Original Grievance:</strong>
+                <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+                  {inspectionTicket.description}
+                </p>
+              </div>
+              <div>
+                <strong>History Audit Trail:</strong>
+                <div style={{ maxHeight: '180px', overflowY: 'auto', background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '8px', marginTop: '6px' }}>
+                  {(inspectionTicket.history || []).map((h, idx) => (
+                    <div key={idx} style={{ marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a5b4fc', fontSize: '0.78rem' }}>
+                        <span>{h.action} by {h.performedBy}</span>
+                        <span>{h.timestamp ? new Date(h.timestamp).toLocaleString() : ''}</span>
+                      </div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '2px' }}>
+                        {h.notes}
+                      </div>
+                    </div>
+                  ))}
+                  {(!inspectionTicket.history || inspectionTicket.history.length === 0) && (
+                    <div style={{ color: 'var(--text-secondary)' }}>No history events logged.</div>
+                  )}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </div>
-      </Modal>
+      )}
     </div>
   );
 };

@@ -1,5 +1,6 @@
-import React from 'react';
-import { MapPin, User, Target, Building, Image as ImageIcon, Send, Award, Dumbbell, BookOpen } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, User, Target, Building, Image as ImageIcon, Send, Award, Dumbbell, BookOpen, AlertTriangle, Clock, RotateCcw, FileText, X } from 'lucide-react';
+import { toast } from 'react-toastify';
 import UserAvatar from '../../components/common/UserAvatar';
 import PostList from '../../features/social/components/PostList';
 
@@ -28,6 +29,61 @@ const ProfileTimelineTab = ({
   handleAddReply,
   handleDeleteReply,
 }) => {
+  const [moderatedPosts, setModeratedPosts] = useState([]);
+  const [isAppealOpen, setIsAppealOpen] = useState(false);
+  const [appealTextMap, setAppealTextMap] = useState({});
+  const [submittingAppealId, setSubmittingAppealId] = useState(null);
+
+  const fetchModeratedPosts = async () => {
+    try {
+      const token = localStorage.getItem('gymsync_token') || '';
+      if (!token) return;
+      const res = await fetch('/api/posts/my-moderated', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setModeratedPosts(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.warn('Error fetching moderated posts:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchModeratedPosts();
+  }, [userName]);
+
+  const handleSubmitAppeal = async (postId) => {
+    const text = appealTextMap[postId]?.trim();
+    if (!text) {
+      toast.warning('Please provide an explanation for your appeal review.');
+      return;
+    }
+
+    setSubmittingAppealId(postId);
+    try {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch(`/api/posts/${postId}/appeal`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ appealReason: text })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to submit appeal');
+
+      toast.success('Your appeal has been submitted to moderators!');
+      setAppealTextMap(prev => ({ ...prev, [postId]: '' }));
+      fetchModeratedPosts();
+    } catch (err) {
+      toast.error(err.message || 'Error submitting appeal');
+    } finally {
+      setSubmittingAppealId(null);
+    }
+  };
   return (
     <div className="fb-profile-layout">
       {/* Left Column: Intro, Stats, Photos */}
@@ -127,6 +183,97 @@ const ProfileTimelineTab = ({
 
       {/* Right Column: Create Post Card + Interactive PostList */}
       <div className="fb-profile-feed">
+        {/* Moderation Hold & Appeal Banner */}
+        {moderatedPosts && moderatedPosts.length > 0 && (
+          <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f87171', fontWeight: 600, fontSize: '0.95rem' }}>
+                <AlertTriangle size={18} /> Community Moderation Hold ({moderatedPosts.length} Post{moderatedPosts.length === 1 ? '' : 's'})
+              </div>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171', fontSize: '0.78rem' }}
+                onClick={() => setIsAppealOpen(!isAppealOpen)}
+              >
+                {isAppealOpen ? 'Hide Notice' : 'View & Submit Appeal'}
+              </button>
+            </div>
+            <p style={{ margin: '6px 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              Posts removed for community guideline reviews remain on a 15-day hold period before permanent wipeout. You can review feedback or submit a counter-appeal.
+            </p>
+
+            {isAppealOpen && (
+              <div style={{ display: 'grid', gap: '12px', marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px' }}>
+                {moderatedPosts.map(post => {
+                  const daysLeft = post.appealDeadline ? Math.max(0, Math.ceil((new Date(post.appealDeadline) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
+                  const purgeDaysLeft = post.finalPurgeDeadline ? Math.max(0, Math.ceil((new Date(post.finalPurgeDeadline) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
+
+                  return (
+                    <div key={post._id} style={{ background: 'var(--card-bg, #111827)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                        <div>
+                          <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 600, background: 'rgba(239, 68, 68, 0.15)', padding: '2px 8px', borderRadius: '6px' }}>
+                            Removal Reason: {post.moderationReason || 'Community Guidelines Violation'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Clock size={12} />
+                          {post.moderationStatus === 'AppealRejected'
+                            ? `${purgeDaysLeft}d until permanent wipe`
+                            : `${daysLeft}d left in 15-day hold`}
+                        </span>
+                      </div>
+
+                      <div style={{ background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '8px', fontSize: '0.86rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                        "{post.content}"
+                      </div>
+
+                      {post.adminAppealReply && (
+                        <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '8px 10px', borderRadius: '8px', marginBottom: '10px', fontSize: '0.8rem' }}>
+                          <strong style={{ color: '#f59e0b' }}>Moderator Note:</strong> {post.adminAppealReply}
+                        </div>
+                      )}
+
+                      {post.isAppealSubmitted ? (
+                        <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', padding: '10px', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '0.78rem', color: '#60a5fa', fontWeight: 600 }}>Appeal Submitted — Under Review:</div>
+                          <div style={{ fontSize: '0.82rem', color: '#fff', marginTop: '2px', fontStyle: 'italic' }}>
+                            "{post.appealReason}"
+                          </div>
+                        </div>
+                      ) : post.moderationStatus !== 'AppealRejected' ? (
+                        <div style={{ marginTop: '8px' }}>
+                          <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                            Submit an Appeal Review (Explain why this post complies with community guidelines):
+                          </label>
+                          <textarea
+                            rows={2}
+                            className="input-field"
+                            style={{ width: '100%', fontSize: '0.82rem', marginBottom: '6px' }}
+                            placeholder="Provide your explanation or context for the moderators..."
+                            value={appealTextMap[post._id] || ''}
+                            onChange={e => setAppealTextMap({ ...appealTextMap, [post._id]: e.target.value })}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            disabled={submittingAppealId === post._id}
+                            onClick={() => handleSubmitAppeal(post._id)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <RotateCcw size={13} /> {submittingAppealId === post._id ? 'Submitting...' : 'Submit Appeal Review'}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Create Post Card */}
         <div className="glass-panel fb-create-post-card">
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>

@@ -1,5 +1,11 @@
 import express from 'express';
-import { createComplaint, getAllComplaints, updateComplaintStatus, addComplaintChat } from '../controllers/complaintController.js';
+import { 
+  createComplaint, 
+  getAllComplaints, 
+  updateComplaintStatus, 
+  reopenComplaint,
+  addComplaintChat 
+} from '../controllers/complaintController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 import { upload } from '../middleware/uploadMiddleware.js';
 
@@ -11,6 +17,9 @@ router.route('/')
 
 router.route('/:id')
   .put(protect, authorizeRoles('Admin', 'SuperAdmin', 'ComplaintModerator'), updateComplaintStatus);
+
+router.route('/:id/reopen')
+  .put(protect, reopenComplaint);
 
 router.route('/:id/chat')
   .post(protect, addComplaintChat);

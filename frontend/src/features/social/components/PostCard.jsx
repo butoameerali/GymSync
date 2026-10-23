@@ -1,7 +1,20 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ThumbsUp, MessageCircle, AlertTriangle, Trash2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { 
+  Dumbbell, 
+  MessageCircle, 
+  AlertTriangle, 
+  Trash2, 
+  MoreHorizontal, 
+  Copy, 
+  UserPlus, 
+  UserCheck, 
+  ExternalLink,
+  Share2,
+  X
+} from 'lucide-react';
 import UserAvatar from '../../../components/common/UserAvatar';
+import { toast } from 'react-toastify';
 
 const PostCard = ({
   post,
@@ -16,87 +29,358 @@ const PostCard = ({
   onReport,
   onAdminRemove
 }) => {
+  const navigate = useNavigate();
   const [showComments, setShowComments] = useState(false);
   const [commentInput, setCommentInput] = useState('');
   const [selectedMedia, setSelectedMedia] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const menuRef = useRef(null);
 
   if (!post || !post._id) return null;
 
   const authorName = post.authorName || post.author?.name || 'Unknown User';
-  const authorAvatar = globalUsers[authorName] || (authorName.charAt(0).toUpperCase() || 'U');
   const likes = Array.isArray(post.likes) ? post.likes : [];
   const comments = Array.isArray(post.comments) ? post.comments : [];
   const isLikedByMe = likes.includes(currentUserName);
   const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(userRole);
-  const isGuest = userRole === 'guest' || !userRole;
+  const isAuthor = authorName === currentUserName;
+  const isGuest = userRole === 'guest' || !userRole || !currentUserName || currentUserName === 'Guest User';
+  const token = localStorage.getItem('gymsync_token') || '';
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
+
+  const promptLogin = (action = 'interact with posts') => {
+    toast.info(`Please log in to ${action}`);
+  };
+
+  const handleCopyLink = (e) => {
+    if (e) e.stopPropagation();
+    const postUrl = `${window.location.origin}/post/${post._id}`;
+    navigator.clipboard.writeText(postUrl);
+    toast.success('Post link copied to clipboard!');
+    setShowMenu(false);
+  };
+
+  const handleToggleFollow = async (e) => {
+    if (e) e.stopPropagation();
+    if (isGuest || !token) {
+      promptLogin(`follow @${authorName}`);
+      setShowMenu(false);
+      return;
+    }
+    if (isAuthor) return;
+
+    setIsFollowLoading(true);
+    const nextState = !isFollowing;
+    setIsFollowing(nextState);
+
+    try {
+      const endpoint = nextState ? '/api/users/follow' : '/api/users/unfollow';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ followerName: currentUserName, targetName: authorName })
+      });
+      if (!res.ok) {
+        setIsFollowing(!nextState);
+        toast.error('Could not update follow status');
+      } else {
+        toast.success(nextState ? `Following @${authorName}` : `Unfollowed @${authorName}`);
+      }
+    } catch (err) {
+      setIsFollowing(!nextState);
+      toast.error('Network error updating follow status');
+    } finally {
+      setIsFollowLoading(false);
+      setShowMenu(false);
+    }
+  };
+
+  const handleOpenPostDetail = () => {
+    navigate(`/post/${post._id}`);
+  };
 
   const handleKeyDownComment = (e) => {
     if (e.key === 'Enter' && commentInput.trim()) {
+      if (isGuest) {
+        promptLogin('leave comments');
+        return;
+      }
       onAddComment(post._id, commentInput.trim());
       setCommentInput('');
     }
   };
 
   return (
-    <div className="post-card glass-panel" style={{ marginBottom: '20px' }}>
+    <div className="post-card glass-panel" style={{ marginBottom: '20px', position: 'relative', transition: 'box-shadow 0.2s ease' }}>
       {/* Post Header */}
       <div className="post-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <UserAvatar 
             src={globalUsers[authorName]} 
             name={authorName} 
-            size={40} 
+            size={42} 
           />
           <div className="post-meta">
             <h4 style={{ margin: 0, fontSize: '0.95rem' }}>
-              <Link to={authorName === currentUserName ? '/profile' : `/profile/${authorName}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>
+              <Link to={authorName === currentUserName ? '/profile' : `/profile/${authorName}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 600 }}>
                 {authorName}
               </Link>
             </h4>
             <span className="post-time" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              {post.createdAt ? new Date(post.createdAt).toLocaleString() : 'Recently'}
+              {post.createdAt ? new Date(post.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Recently'}
             </span>
           </div>
         </div>
 
-        {/* Header Action Controls */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {!isGuest && (
-            <button
-              onClick={() => onReport && onReport(post._id)}
-              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', padding: '4px 8px', borderRadius: '4px' }}
-              title="Report Post"
+        {/* 3-Dots Contextual Menu (Facebook-style) */}
+        <div style={{ position: 'relative' }} ref={menuRef}>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-secondary, #94a3b8)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Post options"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+
+          {showMenu && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: '6px',
+                background: 'var(--card-bg, #111827)',
+                border: '1px solid var(--card-border, rgba(255, 255, 255, 0.12))',
+                borderRadius: '12px',
+                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+                padding: '6px',
+                minWidth: '180px',
+                zIndex: 100,
+                animation: 'fadeIn 0.15s ease'
+              }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <AlertTriangle size={14} /> Report
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => onAdminRemove && onAdminRemove(post._id)}
-              style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', padding: '4px 8px', borderRadius: '4px' }}
-              title="Remove Post (Admin)"
-            >
-              <Trash2 size={14} /> Remove
-            </button>
+              {/* Copy Link to Post */}
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '8px 12px',
+                  background: 'none',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'var(--text-primary, #fff)',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+              >
+                <Copy size={15} color="var(--primary-accent)" /> Copy Post Link
+              </button>
+
+              {/* View Standalone Post */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMenu(false);
+                  handleOpenPostDetail();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '8px 12px',
+                  background: 'none',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'var(--text-primary, #fff)',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+              >
+                <ExternalLink size={15} color="#38bdf8" /> Open Post Details
+              </button>
+
+              {/* Follow / Unfollow Author (if not self) */}
+              {!isAuthor && (
+                <button
+                  type="button"
+                  onClick={handleToggleFollow}
+                  disabled={isFollowLoading}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '8px 12px',
+                    background: 'none',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: 'var(--text-primary, #fff)',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                >
+                  {isFollowing ? (
+                    <>
+                      <UserCheck size={15} color="#10b981" /> Unfollow @{authorName}
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={15} color="#ec4899" /> Follow @{authorName}
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Report Post */}
+              {!isGuest && !isAuthor && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    onReport && onReport(post._id);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '8px 12px',
+                    background: 'none',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#f59e0b',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                >
+                  <AlertTriangle size={15} /> Report Post
+                </button>
+              )}
+
+              {/* Delete Post (Author or Admin) */}
+              {(isAuthor || isAdmin) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    onAdminRemove && onAdminRemove(post._id);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '8px 12px',
+                    background: 'none',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#ef4444',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                >
+                  <Trash2 size={15} /> Delete Post
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
 
-      {/* Post Text Content */}
-      <p className="post-content" style={{ fontSize: '0.95rem', color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: '12px' }}>
+      {/* Post Text Content - Clickable to open details */}
+      <p 
+        className="post-content" 
+        onClick={handleOpenPostDetail}
+        style={{ 
+          fontSize: '0.95rem', 
+          color: 'var(--text-primary)', 
+          lineHeight: 1.5, 
+          marginBottom: '12px',
+          cursor: 'pointer'
+        }}
+        title="Click to view full post discussion"
+      >
         {post.content}
       </p>
 
-      {/* Post Media */}
+      {/* Post Media - Clickable */}
       {post.mediaUrl && (
-        <div className="post-media" style={{ marginBottom: '12px', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer' }} onClick={() => setSelectedMedia(post.mediaUrl)}>
+        <div 
+          className="post-media" 
+          style={{ 
+            marginBottom: '12px', 
+            borderRadius: '10px', 
+            overflow: 'hidden', 
+            cursor: 'pointer',
+            background: '#000',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }} 
+          onClick={handleOpenPostDetail}
+        >
           {post.mediaUrl.match(/\.(mp4|webm|ogg)$/i) ? (
-            <video src={post.mediaUrl} controls style={{ width: '100%', maxHeight: '400px', borderRadius: '8px' }} />
+            <video 
+              src={post.mediaUrl} 
+              controls 
+              style={{ width: '100%', maxHeight: '420px', borderRadius: '10px', display: 'block', objectFit: 'contain', background: '#000' }} 
+              onClick={(e) => e.stopPropagation()}
+            />
           ) : (
             <img
               src={post.mediaUrl}
               alt="Post media"
-              style={{ width: '100%', maxHeight: '400px', objectFit: 'cover', borderRadius: '8px' }}
+              style={{ width: '100%', maxHeight: '420px', objectFit: 'cover', borderRadius: '10px', display: 'block' }}
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.style.display = 'none';
@@ -107,21 +391,39 @@ const PostCard = ({
       )}
 
       {/* Post Action Buttons Bar */}
-      <div className="post-actions" style={{ display: 'flex', gap: '16px', borderTop: '1px solid var(--card-border)', paddingTop: '10px' }}>
+      <div className="post-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--card-border)', paddingTop: '10px' }}>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <button
+            className={`action-btn ${isLikedByMe ? 'liked' : ''}`}
+            onClick={() => {
+              if (isGuest) {
+                promptLogin('like posts');
+                return;
+              }
+              onLike && onLike(post._id);
+            }}
+            title="Like post"
+            style={{ background: 'none', border: 'none', color: isLikedByMe ? 'var(--primary-accent)' : 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+          >
+            <Dumbbell size={16} /> {likes.length}
+          </button>
+          <button
+            className="action-btn"
+            onClick={() => setShowComments(!showComments)}
+            title="View comments"
+            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+          >
+            <MessageCircle size={16} /> {comments.length}
+          </button>
+        </div>
+
         <button
-          className={`action-btn ${isLikedByMe ? 'liked' : ''}`}
-          onClick={() => onLike && onLike(post._id)}
-          disabled={isGuest}
-          style={{ background: 'none', border: 'none', color: isLikedByMe ? 'var(--primary-accent)' : 'var(--text-secondary)', cursor: isGuest ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+          type="button"
+          onClick={handleCopyLink}
+          style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}
+          title="Share post link"
         >
-          <ThumbsUp size={16} /> {likes.length} Likes
-        </button>
-        <button
-          className="action-btn"
-          onClick={() => setShowComments(!showComments)}
-          style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
-        >
-          <MessageCircle size={16} /> {comments.length} Comments
+          <Share2 size={15} />
         </button>
       </div>
 

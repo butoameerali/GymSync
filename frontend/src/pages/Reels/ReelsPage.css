@@ -1,0 +1,758 @@
+/* ==========================================================================
+   GymSync Reels Page Styling
+   Fully responsive across Desktop, Tablet, and Mobile devices
+   ========================================================================== */
+
+.reels-page-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 76px);
+  padding: 85px 16px 24px 16px;
+  background: var(--bg-primary, #0b0d14);
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Desktop Header Controls (Never collides with Navbar) */
+.reels-desktop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 440px;
+  margin-bottom: 12px;
+  z-index: 10;
+}
+
+.reels-header-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.reels-header-badge svg {
+  color: #ec4899;
+}
+
+.reels-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reels-index-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reels-upload-header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  border: none;
+  color: #fff;
+  padding: 7px 14px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.35);
+}
+
+.reels-upload-header-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
+}
+
+/* Wrapper containing the Reel Card & Desktop Navigation Arrows */
+.reels-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 900px;
+}
+
+/* Core Reel Player Card */
+.reel-card {
+  position: relative;
+  background: #000;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 440px;
+  height: min(760px, calc(100vh - 160px));
+  aspect-ratio: 9 / 16;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+/* Ambient Blurred Background Video for seamless aesthetics */
+.reel-video-ambient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(35px) brightness(0.32);
+  transform: scale(1.15);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.reel-ambient-fallback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #030712 100%);
+  background-size: cover;
+  background-position: center;
+  filter: blur(25px) brightness(0.35);
+  z-index: 1;
+}
+
+/* Main Display Video or GIF */
+.reel-video-main {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: transparent;
+}
+
+/* Double-Tap Heart Burst Animation */
+.reel-heart-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  z-index: 10;
+  pointer-events: none;
+  animation: popHeart 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  filter: drop-shadow(0 10px 25px rgba(236, 72, 153, 0.6));
+}
+
+@keyframes popHeart {
+  0% {
+    transform: translate(-50%, -50%) scale(0) rotate(-15deg);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.1) translateY(-30px);
+    opacity: 0;
+  }
+}
+
+/* Pause Overlay Indicator */
+.reel-pause-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.65);
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 5;
+  transition: transform 0.2s ease;
+  animation: pulsePlay 1.5s infinite;
+}
+
+@keyframes pulsePlay {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.06); }
+}
+
+/* Tap to unmute hint pill */
+.reel-mute-hint-pill {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 6;
+  backdrop-filter: blur(8px);
+  animation: fadeInDown 0.3s ease-out;
+  cursor: pointer;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Video Overlay UI */
+.reel-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.6) 0%,
+    transparent 18%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.85) 85%,
+    rgba(0, 0, 0, 0.95) 100%
+  );
+  z-index: 3;
+}
+
+/* Top Bar Inside Video */
+.reel-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: auto;
+  width: 100%;
+}
+
+.reel-badge {
+  background: rgba(236, 72, 153, 0.25);
+  border: 1px solid rgba(236, 72, 153, 0.5);
+  color: #f472b6;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  backdrop-filter: blur(8px);
+}
+
+.reel-top-right-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.reel-mobile-upload-btn {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  border: none;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 16px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(236, 72, 153, 0.4);
+}
+
+.reel-sound-toggle-btn {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.reel-sound-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+/* Right Side Interaction Column (Like, Comment, Share) */
+.reel-actions-column {
+  position: absolute;
+  right: 14px;
+  bottom: 85px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  pointer-events: auto;
+  z-index: 5;
+}
+
+.reel-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  gap: 5px;
+  transition: transform 0.2s ease;
+}
+
+.reel-action-btn:hover {
+  transform: scale(1.1);
+}
+
+.reel-action-btn:active {
+  transform: scale(0.92);
+}
+
+.reel-icon-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.reel-action-btn.liked .reel-icon-circle {
+  background: rgba(236, 72, 153, 0.35);
+  border-color: #ec4899;
+  color: #ec4899;
+  box-shadow: 0 0 20px rgba(236, 72, 153, 0.5);
+}
+
+.reel-action-btn.liked .icon-liked {
+  color: #ec4899;
+  fill: #ec4899;
+  transform: rotate(-15deg);
+  transition: transform 0.2s ease;
+}
+
+.reel-count-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+  color: #f1f5f9;
+}
+
+/* Bottom Caption Info (Athlete info & description) */
+.reel-bottom-info {
+  pointer-events: auto;
+  max-width: 80%;
+  margin-bottom: 4px;
+  z-index: 5;
+}
+
+.reel-author-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.reel-author-link {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reel-author-name {
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.96rem;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+  letter-spacing: -0.2px;
+}
+
+.reel-follow-btn {
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reel-follow-btn:hover {
+  background: #ec4899;
+  border-color: #ec4899;
+  color: #fff;
+}
+
+.reel-follow-btn.following {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.6);
+  color: #34d399;
+}
+
+.reel-caption-text {
+  color: #f8fafc;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 0;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+  cursor: pointer;
+}
+
+.reel-caption-toggle {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 2px;
+  display: inline-block;
+}
+
+.reel-caption-toggle:hover {
+  color: #fff;
+}
+
+/* Desktop Navigation Arrow Buttons */
+.reel-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.reel-nav-btn:hover {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  border-color: transparent;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 10px 25px rgba(236, 72, 153, 0.5);
+}
+
+.reel-nav-prev {
+  left: -70px;
+}
+
+.reel-nav-next {
+  right: -70px;
+}
+
+/* Sliding Comments Drawer */
+.reels-comments-drawer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 65%;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  flex-direction: column;
+  z-index: 25;
+  padding: 16px;
+  animation: slideDrawerUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.7);
+}
+
+@keyframes slideDrawerUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.reels-comments-header {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.reels-comments-drag-handle {
+  width: 36px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  margin: 0 auto 8px auto;
+}
+
+.reels-comments-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.reels-comments-close-btn {
+  position: absolute;
+  right: 0;
+  top: 4px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reels-comments-close-btn:hover {
+  color: #fff;
+}
+
+.reels-comments-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.reels-comments-empty {
+  text-align: center;
+  padding: 40px 10px;
+  color: #94a3b8;
+  font-size: 0.88rem;
+}
+
+.reel-comment-item {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.reel-comment-author {
+  font-size: 0.84rem;
+  color: #f472b6;
+  display: block;
+}
+
+.reel-comment-text {
+  margin: 4px 0 0 0;
+  font-size: 0.88rem;
+  color: #f1f5f9;
+  line-height: 1.4;
+}
+
+.reels-comment-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  align-items: center;
+}
+
+.reels-comment-input {
+  flex: 1;
+  padding: 11px 16px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.reels-comment-input:focus {
+  border-color: #ec4899;
+}
+
+.reels-comment-submit-btn {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.reels-comment-submit-btn:hover {
+  transform: scale(1.08);
+}
+
+/* ==========================================================================
+   Mobile & Tablet Responsiveness (@media queries)
+   Stabilizing for iPhone, Android, iPad, and small screens
+   ========================================================================== */
+
+/* Tablet & Smaller Laptops (<= 992px) */
+@media (max-width: 992px) {
+  .reel-nav-btn {
+    display: none;
+  }
+}
+
+/* Mobile Devices (<= 768px) - Full Edge-to-Edge Experience */
+@media (max-width: 768px) {
+  .reels-page-container {
+    padding: 60px 0 0 0;
+    min-height: 100dvh;
+    height: 100dvh;
+    width: 100vw;
+    max-width: 100vw;
+    margin: 0;
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .reels-desktop-header {
+    display: none;
+  }
+
+  .reels-wrapper {
+    height: calc(100dvh - 60px);
+    width: 100vw;
+    max-width: 100vw;
+    margin: 0;
+    padding: 0;
+  }
+
+  .reel-card {
+    width: 100vw;
+    height: 100%;
+    max-width: 100vw;
+    max-height: 100%;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    aspect-ratio: auto;
+  }
+
+  .reel-video-main {
+    object-fit: cover;
+  }
+
+  .reel-mobile-upload-btn {
+    display: inline-flex;
+  }
+
+  .reel-actions-column {
+    right: 12px;
+    bottom: 80px;
+    gap: 14px;
+  }
+
+  .reel-icon-circle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .reel-bottom-info {
+    max-width: 78%;
+    margin-bottom: env(safe-area-inset-bottom, 12px);
+    padding-left: 4px;
+  }
+
+  .reel-author-name {
+    font-size: 0.92rem;
+  }
+
+  .reel-caption-text {
+    font-size: 0.84rem;
+  }
+
+  .reels-comments-drawer {
+    height: 72%;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    padding: 14px 14px env(safe-area-inset-bottom, 14px) 14px;
+  }
+}
+
+/* Ultra-compact Mobile Screens (<= 400px) */
+@media (max-width: 400px) {
+  .reel-bottom-info {
+    max-width: 74%;
+  }
+
+  .reel-icon-circle {
+    width: 40px;
+    height: 40px;
+  }
+
+  .reel-count-label {
+    font-size: 0.72rem;
+  }
+}

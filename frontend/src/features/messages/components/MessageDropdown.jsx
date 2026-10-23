@@ -57,8 +57,20 @@ const MessageDropdown = ({ userName, onClose, unreadChatCount, setUnreadChatCoun
     navigate(`/messages?contact=${encodeURIComponent(contactName)}`);
   };
 
+  const userRole = localStorage.getItem('gymsync_role') || '';
+  const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(userRole);
+
+  const isExcludedForAdmin = (contactName) => {
+    const n = String(contactName || '').toLowerCase().trim();
+    return [
+      'ai', 'diet_ai', 'ai workout coach', 'ai nutritionist', 'workout coach', 'nutritionist',
+      'ai trainer', 'gym support', 'gymsupport', 'support desk'
+    ].includes(n);
+  };
+
   const filteredConversations = conversations.filter(conv => {
     const contactName = typeof conv === 'string' ? conv : (conv.name || conv.id || '');
+    if (isAdmin && isExcludedForAdmin(contactName)) return false;
     const unread = typeof conv === 'object' ? (conv.unreadCount || 0) : 0;
     const matchesSearch = contactName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filter === 'unread' ? unread > 0 : true;

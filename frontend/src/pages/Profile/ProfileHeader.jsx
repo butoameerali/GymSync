@@ -42,7 +42,7 @@ const ProfileHeader = ({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }}>
           <p className="bio-tagline" style={{ margin: 0 }}>
-            {bio.location ? <><MapPin size={16}/> {bio.location}</> : 'Fitness Enthusiast'}
+            {bio.location ? <><MapPin size={16}/> {bio.location}</> : (isAdminUser ? 'Platform Administration' : 'Fitness Enthusiast')}
           </p>
           {userData?.isGoogleApproved || userData?.isEmailVerified ? (
             <span className="category-badge" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 600 }}>

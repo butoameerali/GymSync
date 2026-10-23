@@ -26,6 +26,7 @@ const gymSchema = new mongoose.Schema({
     default: 'Approved' 
   },
   approvedBy: { type: String, default: '' },
+  rejectionReason: { type: String, default: '' },
   todayTrainingTip: {
     today: { type: String },
     tomorrow: { type: String }

@@ -1,6 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Activity, Bell, MessageSquare, Sun, Moon } from 'lucide-react';
+import { 
+  Menu, 
+  X, 
+  Activity, 
+  Bell, 
+  MessageSquare, 
+  Sun, 
+  Moon, 
+  Grip, 
+  LifeBuoy, 
+  ShoppingBag, 
+  Film, 
+  Home as HomeIcon, 
+  Dumbbell, 
+  Building2, 
+  Compass, 
+  Shield,
+  ShieldAlert,
+  Users,
+  Settings
+} from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import NotificationDropdown from '../../features/notifications/components/NotificationDropdown';
 import MessageDropdown from '../../features/messages/components/MessageDropdown';
@@ -9,6 +29,7 @@ import { messageService } from '../../features/messages/services/messageService'
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import UserAvatar from '../common/UserAvatar';
+import ComplaintHubModal from '../common/ComplaintHubModal';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -56,6 +77,11 @@ const Navbar = () => {
   const profileDropdownRef = useRef(null);
   const notifDropdownRef = useRef(null);
   const messageDropdownRef = useRef(null);
+  const gripDropdownRef = useRef(null);
+
+  // Quick Action Launcher & Complaint Hub State
+  const [showGripMenu, setShowGripMenu] = useState(false);
+  const [showComplaintHub, setShowComplaintHub] = useState(false);
 
   // Close menus when route changes
   useEffect(() => {
@@ -63,6 +89,7 @@ const Navbar = () => {
     setShowProfileMenu(false);
     setShowNotifications(false);
     setShowMessages(false);
+    setShowGripMenu(false);
   }, [location]);
 
   // Click outside to close dropdowns
@@ -77,6 +104,9 @@ const Navbar = () => {
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
         setShowProfileMenu(false);
         setShowRequests(false);
+      }
+      if (gripDropdownRef.current && !gripDropdownRef.current.contains(event.target)) {
+        setShowGripMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -110,6 +140,11 @@ const Navbar = () => {
         .then(res => res.ok ? res.json() : null)
         .then(user => {
            if(user && !user.message) {
+             const currentRole = localStorage.getItem('gymsync_role');
+             if (user.role && currentRole && user.role !== currentRole) {
+               localStorage.setItem('gymsync_role', user.role);
+               window.location.reload();
+             }
              if (user.profilePic) {
                setProfilePic(user.profilePic);
                localStorage.setItem(`gymsync_${userName.replace(/\s+/g, '_')}_pic`, user.profilePic);
@@ -172,12 +207,32 @@ const Navbar = () => {
         </Link>
 
         <div className={`nav-links ${isMenuOpen ? 'active' : ''}`}>
-          <Link to="/home" className="nav-link">Home</Link>
-          {!isStaff && <Link to="/explore" className="nav-link">Explore Gyms</Link>}
-          {!isStaff && <Link to="/ai-trainer" className="nav-link text-gradient" style={{fontWeight: 700}}>Workout Hub</Link>}
-          {!isStaff && <Link to="/your-gym" className="nav-link">Your Gym</Link>}
-          {!isStaff && <Link to="/store" className="nav-link">Store</Link>}
-          {isLoggedIn && isAdmin && <Link to="/admin" className="nav-link" style={{ color: 'var(--primary-accent)', fontWeight: 600 }}>Admin Panel</Link>}
+          <Link to="/home" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <HomeIcon size={16} /> Home
+          </Link>
+          <Link to="/reels" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Film size={16} color="#ec4899" /> Reels
+          </Link>
+          {!isStaff && (
+            <Link to="/ai-trainer" className="nav-link text-gradient" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}>
+              <Dumbbell size={16} /> Workout Hub
+            </Link>
+          )}
+          {!isStaff && (
+            <Link to="/your-gym" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Building2 size={16} /> Your Gym
+            </Link>
+          )}
+          {!isStaff && (
+            <Link to="/explore" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Compass size={16} /> Explore Gyms
+            </Link>
+          )}
+          {isLoggedIn && isAdmin && (
+            <Link to="/admin" className="nav-link" style={{ color: 'var(--primary-accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Shield size={16} /> Admin Panel
+            </Link>
+          )}
           {isLoggedIn && isGymOwner && <Link to="/gym-owner" className="nav-link" style={{ color: '#8b5cf6', fontWeight: 600 }}>Gym Panel</Link>}
           {isLoggedIn && isFitnessInstructor && <Link to="/fitness-instructor" className="nav-link" style={{ color: '#10b981', fontWeight: 600 }}>Instructor Panel</Link>}
           {isLoggedIn && isGymTrainer && <Link to="/gym-trainer" className="nav-link" style={{ color: '#3b82f6', fontWeight: 600 }}>Trainer Panel</Link>}
@@ -194,14 +249,419 @@ const Navbar = () => {
 
         <div className="nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           
-          <button 
-            onClick={toggleTheme} 
-            className="btn btn-icon" 
-            style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '6px' }}
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-          >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+          {/* 3x3 Dots App Launcher (Store, Theme & Support Hub) */}
+          <div className="grip-launcher-container" ref={gripDropdownRef} style={{ position: 'relative' }}>
+            <button 
+              onClick={() => {
+                setShowGripMenu(prev => !prev);
+                setShowNotifications(false);
+                setShowMessages(false);
+                setShowProfileMenu(false);
+              }} 
+              className="btn btn-icon" 
+              style={{ 
+                background: showGripMenu ? 'rgba(255, 255, 255, 0.1)' : 'none', 
+                border: 'none', 
+                color: 'var(--text-primary)', 
+                cursor: 'pointer', 
+                padding: '6px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s ease'
+              }}
+              title="Apps & Utilities"
+              aria-label="Open Apps Menu"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <circle cx="3.5" cy="3.5" r="2" />
+                <circle cx="10" cy="3.5" r="2" />
+                <circle cx="16.5" cy="3.5" r="2" />
+                <circle cx="3.5" cy="10" r="2" />
+                <circle cx="10" cy="10" r="2" />
+                <circle cx="16.5" cy="10" r="2" />
+                <circle cx="3.5" cy="16.5" r="2" />
+                <circle cx="10" cy="16.5" r="2" />
+                <circle cx="16.5" cy="16.5" r="2" />
+              </svg>
+            </button>
+
+            {showGripMenu && (
+              <div 
+                className="glass-panel" 
+                style={{ 
+                  position: 'absolute', 
+                  top: '100%', 
+                  right: '0', 
+                  marginTop: '10px', 
+                  width: '280px', 
+                  padding: '12px', 
+                  borderRadius: '16px', 
+                  zIndex: 1000, 
+                  boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+                  background: 'var(--card-bg, #111827)',
+                  border: '1px solid var(--card-border, rgba(255,255,255,0.1))'
+                }}
+              >
+                <div style={{ padding: '4px 8px 10px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>GymSync Apps</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--primary-accent)' }}>Quick Access</span>
+                </div>
+
+                {/* 3:3 Column Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  {/* Item 1: Store (Trainees / Members only; Admins see Admin Desk) */}
+                  {isAdmin ? (
+                    <Link
+                      to="/admin"
+                      onClick={() => setShowGripMenu(false)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '12px 6px',
+                        borderRadius: '10px',
+                        textDecoration: 'none',
+                        color: 'var(--text-primary, #fff)',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(99, 102, 241, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                      }}
+                    >
+                      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Shield size={20} color="#818cf8" />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Admin Desk</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/store"
+                      onClick={() => setShowGripMenu(false)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '12px 6px',
+                        borderRadius: '10px',
+                        textDecoration: 'none',
+                        color: 'var(--text-primary, #fff)',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                      }}
+                    >
+                      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <ShoppingBag size={20} color="#f59e0b" />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Store</span>
+                    </Link>
+                  )}
+
+                  {/* Item 2: Theme Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleTheme();
+                      setShowGripMenu(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '12px 6px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: 'var(--text-primary, #fff)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(99, 102, 241, 0.12)';
+                      e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                    }}
+                  >
+                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: theme === 'dark' ? 'rgba(250, 204, 21, 0.15)' : 'rgba(129, 140, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {theme === 'dark' ? <Sun size={20} color="#facc15" /> : <Moon size={20} color="#818cf8" />}
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+                  </button>
+
+                  {/* Item 3: Support / Complaints Desk */}
+                  {isAdmin ? (
+                    <Link
+                      to="/admin?tab=complaints"
+                      onClick={() => setShowGripMenu(false)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '12px 6px',
+                        borderRadius: '10px',
+                        textDecoration: 'none',
+                        color: 'var(--text-primary, #fff)',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                      }}
+                    >
+                      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <MessageSquare size={20} color="#ef4444" />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Complaints</span>
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowGripMenu(false);
+                        setShowComplaintHub(true);
+                      }}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '12px 6px',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        background: 'rgba(255,255,255,0.03)',
+                        color: 'var(--text-primary, #fff)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                      }}
+                    >
+                      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <LifeBuoy size={20} color="#ef4444" />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Support</span>
+                    </button>
+                  )}
+
+                  {/* Item 4: Settings & Privacy */}
+                  <Link
+                    to="/settings"
+                    onClick={() => setShowGripMenu(false)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '12px 6px',
+                      borderRadius: '10px',
+                      textDecoration: 'none',
+                      color: 'var(--text-primary, #fff)',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
+                      e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                    }}
+                  >
+                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Settings size={20} color="#38bdf8" />
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Settings</span>
+                  </Link>
+
+                  {/* Item 5: Moderation Desk (Admin) vs Workout Hub (User) */}
+                  {isAdmin ? (
+                    <Link
+                      to="/admin?tab=moderation"
+                      onClick={() => setShowGripMenu(false)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '12px 6px',
+                        borderRadius: '10px',
+                        textDecoration: 'none',
+                        color: 'var(--text-primary, #fff)',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(168, 85, 247, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                      }}
+                    >
+                      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <ShieldAlert size={20} color="#a855f7" />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Moderation</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/ai-trainer"
+                      onClick={() => setShowGripMenu(false)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '12px 6px',
+                        borderRadius: '10px',
+                        textDecoration: 'none',
+                        color: 'var(--text-primary, #fff)',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(168, 85, 247, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                      }}
+                    >
+                      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Dumbbell size={20} color="#a855f7" />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Workouts</span>
+                    </Link>
+                  )}
+
+                  {/* Item 6: User Management (Admin) vs Explore Gyms (User) */}
+                  {isAdmin ? (
+                    <Link
+                      to="/admin?tab=users"
+                      onClick={() => setShowGripMenu(false)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '12px 6px',
+                        borderRadius: '10px',
+                        textDecoration: 'none',
+                        color: 'var(--text-primary, #fff)',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(16, 185, 129, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                      }}
+                    >
+                      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Users size={20} color="#10b981" />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Users</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/explore"
+                      onClick={() => setShowGripMenu(false)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '12px 6px',
+                        borderRadius: '10px',
+                        textDecoration: 'none',
+                        color: 'var(--text-primary, #fff)',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(16, 185, 129, 0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                      }}
+                    >
+                      <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Compass size={20} color="#10b981" />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Explore</span>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Notification & Message Center */}
           {isLoggedIn && (
@@ -308,6 +768,11 @@ const Navbar = () => {
           </button>
         </div>
       </div>
+
+      <ComplaintHubModal 
+        isOpen={showComplaintHub} 
+        onClose={() => setShowComplaintHub(false)} 
+      />
     </nav>
   );
 };

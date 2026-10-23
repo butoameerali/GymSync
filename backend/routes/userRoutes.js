@@ -12,6 +12,7 @@ import {
   getUserDashboardData,
   getGymMembers,
   deleteCurrentUser,
+  deactivateCurrentUser,
   sendVerificationOTP,
   verifyEmailOTP,
   saveWorkoutProgressController,
@@ -20,11 +21,15 @@ import {
   getExerciseRecordsController,
   exportWorkoutHistoryPdfController,
   saveUserBioController,
-  getUserBioController
+  getUserBioController,
+  updateUserProfileController
 } from '../controllers/userController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+router.route('/profile')
+  .put(protect, updateUserProfileController);
 
 router.route('/bio')
   .put(protect, saveUserBioController)
@@ -65,6 +70,9 @@ router.route('/membership-settings')
 
 router.route('/me')
   .delete(protect, deleteCurrentUser);
+
+router.route('/deactivate')
+  .put(protect, deactivateCurrentUser);
 
 router.route('/request')
   .post(protect, sendFriendRequest);

@@ -19,8 +19,11 @@ const RunningTracker = lazy(() => import('./pages/Running/RunningTracker'));
 const ExploreGyms = lazy(() => import('./pages/Explore/ExploreGyms'));
 const GymDetails = lazy(() => import('./pages/Explore/GymDetails'));
 const Home = lazy(() => import('./pages/Home/Home'));
+const ReelsPage = lazy(() => import('./pages/Reels/ReelsPage'));
 const Profile = lazy(() => import('./pages/Profile/Profile'));
 const PublicProfile = lazy(() => import('./pages/Profile/PublicProfile'));
+const PostDetailPage = lazy(() => import('./pages/PostDetail/PostDetailPage'));
+const SettingsPage = lazy(() => import('./pages/Settings/SettingsPage'));
 const YourGym = lazy(() => import('./pages/YourGym/YourGym'));
 const Store = lazy(() => import('./pages/Store/Store'));
 const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
@@ -48,7 +51,7 @@ const RootRoute = () => {
 const ConsumerRoute = ({ children }) => {
   const userRole = localStorage.getItem('gymsync_role') || '';
   const normalized = userRole.toLowerCase().replace(/[_\s]/g, '');
-  const staffRoles = ['fitnessinstructor', 'gymtrainer', 'gymowner', 'storemanager', 'complaintmoderator'];
+  const staffRoles = ['fitnessinstructor', 'gymtrainer', 'gymowner', 'storemanager', 'complaintmoderator', 'admin', 'superadmin'];
   if (staffRoles.includes(normalized)) {
     return <Navigate to={getRoleRedirectPath(userRole)} replace />;
   }
@@ -101,25 +104,33 @@ function App() {
               <Route path="/register" element={<AuthPortal />} />
               <Route path="/forgot-password" element={<AuthPortal />} />
               
-              {/* Trainee Workout Routes guarded from Guest and Staff access */}
-              <Route path="/ai-trainer" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin']}><AITrainer /></ProtectedRoute>} />
-              <Route path="/running" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin']}><RunningTracker /></ProtectedRoute>} />
+              {/* Trainee Workout Routes strictly guarded to Trainees only */}
+              <Route path="/ai-trainer" element={<ProtectedRoute allowedRoles={['User']}><AITrainer /></ProtectedRoute>} />
+              <Route path="/running" element={<ProtectedRoute allowedRoles={['User']}><RunningTracker /></ProtectedRoute>} />
               
               {/* Public Consumer Gym Discovery & Store: accessible to guests & users, redirected for staff */}
               <Route path="/explore" element={<ConsumerRoute><ExploreGyms /></ConsumerRoute>} />
               <Route path="/gym/:id" element={<ConsumerRoute><GymDetails /></ConsumerRoute>} />
               <Route path="/store" element={<ConsumerRoute><Store /></ConsumerRoute>} />
               
-              {/* Trainee Hub & Dashboard: guarded to trainee users and admins */}
-              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin']}><UserDashboard /></ProtectedRoute>} />
-              <Route path="/your-gym" element={<ProtectedRoute allowedRoles={['User', 'Admin', 'SuperAdmin']}><YourGym /></ProtectedRoute>} />
+              {/* Public Standalone Post Details View (Accessible without login; actions require login) */}
+              <Route path="/post/:id" element={<PostDetailPage />} />
+
+              {/* Trainee Hub & Dashboard: strictly guarded to trainee users only */}
+              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['User']}><UserDashboard /></ProtectedRoute>} />
+              <Route path="/your-gym" element={<ProtectedRoute allowedRoles={['User']}><YourGym /></ProtectedRoute>} />
               
               {/* Protected Universal Community Routes (All authenticated roles participate in social feed, profile & chat) */}
               <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+              <Route path="/reels" element={<ProtectedRoute><ReelsPage /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
               <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              
+              {/* Settings & Privacy Deep Links */}
+              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/settings/:section" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               
               {/* Role-Specific Management Panels */}
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}><AdminDashboard /></ProtectedRoute>} />
@@ -138,7 +149,7 @@ function App() {
           </Suspense>
         </main>
         <GlobalChat />
-        {!isAuthPage && <Footer />}
+        {!isAuthPage && location.pathname !== '/reels' && <Footer />}
         
         {showOnboarding && (
           <OnboardingWizard 

@@ -22,8 +22,8 @@ export const getProducts = async (req, res) => {
     let filter = {};
 
     if (category && category !== 'All') filter.category = category;
-    if (status) filter.status = status;
-    else filter.status = 'Approved';
+    if (status && status.toLowerCase() !== 'all') filter.status = status;
+    else if (!status) filter.status = 'Approved';
 
     let products = await Product.find(filter).sort({ createdAt: -1 });
 
@@ -53,22 +53,26 @@ export const createProduct = async (req, res) => {
     const actorName = req.user?.name || 'Store Manager';
     const actorRole = req.user?.role || 'StoreManager';
 
-    if (!name || !category || !price || !image) {
-      return res.status(400).json({ message: 'Name, category, price, and image are required' });
+    if (!name || !category || !price) {
+      return res.status(400).json({ message: 'Name, category, and price are required' });
     }
 
+    const defaultImage = 'https://images.unsplash.com/photo-1593095948071-474c5cc2989d?q=80&w=1470&auto=format&fit=crop';
+    const isDirectApproved = ['Admin', 'SuperAdmin'].includes(actorRole);
     const product = await Product.create({
       name,
       category,
       price: Number(price),
       stock: Number(stock) || 50,
-      image,
+      image: image || defaultImage,
       badge: badge || '',
-      status: 'Approved',
-      createdBy: actorName
+      status: isDirectApproved ? 'Approved' : 'Pending',
+      createdBy: actorName,
+      approvedBy: isDirectApproved ? actorName : '',
+      approvedAt: isDirectApproved ? new Date() : null
     });
 
-    logAuditTrail(actorName, actorRole, 'Created Product', name, `Price: $${price}`, req);
+    logAuditTrail(actorName, actorRole, 'Created Product', name, `Price: $${price}, Status: ${product.status}`, req);
     res.status(201).json(product);
   } catch (error) {
     console.error('createProduct error:', error);
@@ -82,7 +86,7 @@ export const createProduct = async (req, res) => {
 export const updateProductStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, reason, rejectionReason } = req.body;
     const actorName = req.user?.name || 'Store Manager';
     const actorRole = req.user?.role || 'StoreManager';
 
@@ -91,7 +95,18 @@ export const updateProductStatus = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    product.status = status;
+    if (status === 'Approved') {
+      product.status = 'Approved';
+      product.approvedBy = actorName;
+      product.approvedAt = new Date();
+      product.rejectionReason = '';
+    } else if (status === 'Rejected') {
+      product.status = 'Rejected';
+      product.rejectionReason = reason || rejectionReason || 'Rejected during administrative catalog review';
+    } else {
+      product.status = status;
+    }
+
     await product.save();
 
     logAuditTrail(actorName, actorRole, 'Updated Product Status', product.name, `New Status: ${status}`, req);
@@ -99,6 +114,69 @@ export const updateProductStatus = async (req, res) => {
   } catch (error) {
     console.error('updateProductStatus error:', error);
     res.status(500).json({ message: 'Failed to update product status' });
+  }
+};
+
+// @desc    Get Comprehensive Admin Store Oversight (Analytics, Pending Queue, Sales by Manager)
+// @route   GET /api/store/admin/overview
+// @access  Private / Admin, SuperAdmin
+export const getAdminStoreOverview = async (req, res) => {
+  try {
+    const products = await Product.find().sort({ createdAt: -1 });
+    const orders = await Order.find().sort({ createdAt: -1 });
+
+    const totalProducts = products.length;
+    const pendingProducts = products.filter(p => p.status === 'Pending');
+    const approvedProducts = products.filter(p => p.status === 'Approved');
+    const rejectedProducts = products.filter(p => p.status === 'Rejected');
+
+    const totalSales = orders.reduce((sum, o) => sum + (o.paymentStatus === 'Paid' ? (o.totalAmount || 0) : 0), 0);
+    const totalUnitsSold = products.reduce((sum, p) => sum + (p.unitsSold || 0), 0);
+
+    // Sales and product breakdown per store manager
+    const managerStatsMap = {};
+    products.forEach(p => {
+      const mgr = p.createdBy || 'Unknown';
+      if (!managerStatsMap[mgr]) {
+        managerStatsMap[mgr] = {
+          managerName: mgr,
+          totalListed: 0,
+          pending: 0,
+          approved: 0,
+          rejected: 0,
+          unitsSold: 0,
+          revenueGenerated: 0
+        };
+      }
+      managerStatsMap[mgr].totalListed += 1;
+      if (p.status === 'Pending') managerStatsMap[mgr].pending += 1;
+      if (p.status === 'Approved') managerStatsMap[mgr].approved += 1;
+      if (p.status === 'Rejected') managerStatsMap[mgr].rejected += 1;
+      managerStatsMap[mgr].unitsSold += (p.unitsSold || 0);
+      managerStatsMap[mgr].revenueGenerated += (p.revenueGenerated || 0);
+    });
+
+    const storeManagerStats = Object.values(managerStatsMap);
+
+    res.json({
+      metrics: {
+        totalProducts,
+        pendingCount: pendingProducts.length,
+        approvedCount: approvedProducts.length,
+        rejectedCount: rejectedProducts.length,
+        totalSales: Number(totalSales.toFixed(2)),
+        totalUnitsSold,
+        totalOrders: orders.length
+      },
+      pendingProducts,
+      allProducts: products,
+      storeManagerStats,
+      managerPerformance: storeManagerStats,
+      recentOrders: orders.slice(0, 10)
+    });
+  } catch (error) {
+    console.error('getAdminStoreOverview error:', error);
+    res.status(500).json({ message: 'Failed to fetch store oversight data' });
   }
 };
 
@@ -248,11 +326,18 @@ export const createOrder = async (req, res) => {
       orderStatus: payment.status === 'Completed' ? 'Processing' : 'Pending'
     });
 
-    // Atomically decrement stock for products
+    // Atomically decrement stock and increment sales tracking for products
     for (const item of verifiedItems) {
+      const itemRev = (Number(item.price) || 0) * (Number(item.quantity) || 1);
       await Product.updateOne(
         { _id: item.id, stock: { $gte: item.quantity } },
-        { $inc: { stock: -item.quantity } }
+        { 
+          $inc: { 
+            stock: -item.quantity,
+            unitsSold: item.quantity,
+            revenueGenerated: itemRev
+          } 
+        }
       );
     }
 

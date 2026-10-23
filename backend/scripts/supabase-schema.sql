@@ -117,26 +117,41 @@ EXCEPTION
         RAISE NOTICE 'Storage bucket setup notice: %', SQLERRM;
 END $$;
 
--- STORAGE POLICIES: Allow public read access to media
+-- STORAGE POLICIES: Hardened for GymSync Security
+-- Resolves Supabase Database Linter Warning: public_bucket_allows_listing
+-- Dropping SELECT policy prevents anonymous bucket listing; files are still publicly accessible by direct URL.
+-- Dropping anon INSERT/DELETE policies ensures uploads occur exclusively via backend service_role.
 DO $$
 BEGIN
     DROP POLICY IF EXISTS "Public Read Access on gymsync-media" ON storage.objects;
-    CREATE POLICY "Public Read Access on gymsync-media"
-    ON storage.objects FOR SELECT
-    USING (bucket_id = 'gymsync-media');
-
     DROP POLICY IF EXISTS "Allow Upload Access on gymsync-media" ON storage.objects;
-    CREATE POLICY "Allow Upload Access on gymsync-media"
-    ON storage.objects FOR INSERT
-    WITH CHECK (bucket_id = 'gymsync-media');
-
     DROP POLICY IF EXISTS "Allow Delete Access on gymsync-media" ON storage.objects;
-    CREATE POLICY "Allow Delete Access on gymsync-media"
-    ON storage.objects FOR DELETE
-    USING (bucket_id = 'gymsync-media');
 EXCEPTION
     WHEN OTHERS THEN
         RAISE NOTICE 'Storage policy notice: %', SQLERRM;
 END $$;
 
+-- 8. ROW LEVEL SECURITY (RLS) POLICIES
+-- Resolves Supabase Database Linter Warning: rls_disabled_in_public
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exercises ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_exercise_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_workout_progress ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read access to exercises
+DROP POLICY IF EXISTS "Allow Public Read on Exercises" ON public.exercises;
+CREATE POLICY "Allow Public Read on Exercises"
+ON public.exercises FOR SELECT
+TO anon, authenticated
+USING (true);
+
+-- Allow public read access to published posts
+DROP POLICY IF EXISTS "Allow Public Read on Published Posts" ON public.posts;
+CREATE POLICY "Allow Public Read on Published Posts"
+ON public.posts FOR SELECT
+TO anon, authenticated
+USING (approval_status = 'published');
+
 -- Schema setup completed successfully.
+

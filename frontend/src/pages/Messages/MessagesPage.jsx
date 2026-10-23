@@ -33,15 +33,34 @@ const MessagesPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const userRole = user?.role || localStorage.getItem('gymsync_role') || '';
+  const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(userRole);
+
+  const isExcludedForAdmin = (contactName) => {
+    const n = String(contactName || '').toLowerCase().trim();
+    return [
+      'ai', 'diet_ai', 'ai workout coach', 'ai nutritionist', 'workout coach', 'nutritionist',
+      'ai trainer', 'gym support', 'gymsupport', 'support desk'
+    ].includes(n);
+  };
+
   // 1. Fetch conversation list
   const loadConversations = async () => {
     try {
       const data = await messageService.getConversations(currentUserName);
-      const convList = Array.isArray(data) ? data : [];
+      let convList = Array.isArray(data) ? data : [];
+      if (isAdmin) {
+        convList = convList.filter(c => {
+          const contactName = typeof c === 'string' ? c : (c.name || c.id || '');
+          return !isExcludedForAdmin(contactName);
+        });
+      }
       setConversations(convList);
       setLoadingConvs(false);
 
-      if (!activeContact && convList.length > 0) {
+      if (isAdmin && activeContact && isExcludedForAdmin(activeContact)) {
+        setActiveContact('');
+      } else if (!activeContact && convList.length > 0) {
         const firstContact = typeof convList[0] === 'string' ? convList[0] : (convList[0].name || convList[0].id);
         setActiveContact(firstContact);
       }
@@ -200,6 +219,7 @@ const MessagesPage = () => {
 
   const filteredConversations = conversations.filter(c => {
     const name = typeof c === 'string' ? c : (c.name || c.id || '');
+    if (isAdmin && isExcludedForAdmin(name)) return false;
     return name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 

@@ -5,6 +5,7 @@ import exerciseRegistry from '../services/workout/exerciseRegistry.js';
 import { paginateQuery } from '../utils/pagination.js';
 import { apiCache } from '../utils/cache.js';
 import { safeRegex, safeExactRegex } from '../utils/validation.js';
+import { getOllamaChatUrl } from '../services/ai/ollamaCoachService.js';
 
 // GET /api/exercises - Public / User fetch with search, filters and optional cursor pagination
 export const getAllExercises = async (req, res) => {
@@ -448,8 +449,8 @@ export const aiAssistExercise = async (req, res) => {
     // 1. Try local Ollama Qwen if enabled
     if (process.env.ENABLE_OLLAMA === 'true') {
       try {
-        const ollamaHost = process.env.OLLAMA_HOST || 'http://localhost:11434/api/chat';
-        const ollamaModel = process.env.OLLAMA_MODEL || 'qwen2.5:0.5b';
+        const ollamaHost = getOllamaChatUrl(process.env.OLLAMA_HOST);
+        const ollamaModel = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
 
         const prompt = `You are a certified sports science & biomechanics specialist.
 Analyze this exercise:
@@ -479,11 +480,16 @@ Respond ONLY with a valid raw JSON object (no markdown, no backticks, no text) c
 }`;
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 12000);
+        const timeout = setTimeout(() => controller.abort(), 15000);
 
         const aiRes = await fetch(ollamaHost, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+            'Bypass-Tunnel-Reminder': 'true',
+            'User-Agent': 'GymSync-AI-Client'
+          },
           signal: controller.signal,
           body: JSON.stringify({
             model: ollamaModel,

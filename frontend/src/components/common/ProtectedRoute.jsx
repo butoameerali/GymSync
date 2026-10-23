@@ -15,8 +15,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const isAuthenticated = Boolean((user || token) && userRole.toLowerCase() !== 'guest');
 
   if (!isAuthenticated) {
-    // Redirect unauthenticated user to auth portal / landing page
-    return <Navigate to="/" state={{ from: location }} replace />;
+    // Redirect unauthenticated user to login while preserving deep link
+    const redirectPath = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${redirectPath}`} state={{ from: location }} replace />;
   }
 
   if (allowedRoles && allowedRoles.length > 0) {

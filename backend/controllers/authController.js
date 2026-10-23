@@ -26,12 +26,12 @@ const createTransporter = () => nodemailer.createTransport({
 });
 
 // Generate JWT
-const generateToken = (id) => {
+const generateToken = (id, expiresIn = '30d') => {
   if (!process.env.JWT_SECRET) {
     throw new Error('CRITICAL: JWT_SECRET environment variable is missing.');
   }
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '30d',
+    expiresIn,
   });
 };
 
@@ -144,52 +144,130 @@ export const loginUser = async (req, res) => {
     await checkDBConnection();
     const user = await User.findOne({ email: email.trim().toLowerCase() });
 
-    if (user && (await user.matchPassword(password))) {
-      const requires2FA = ['Admin', 'SuperAdmin', 'GymOwner', 'StoreManager'].includes(user.role) || user.twoFactorEnabled;
-      
-      if (requires2FA) {
-        const otp = crypto.randomInt(100000, 999999).toString();
-        try {
-          const transporter = createTransporter();
-          await transporter.sendMail({
-            from: `"GymSync" <${process.env.EMAIL_USER}>`,
-            to: user.email,
-            subject: 'GymSync — 2FA Login Code',
-            html: `
-              <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;background:#0f172a;color:#f8fafc;padding:40px;border-radius:16px;border:1px solid #1e293b;">
-                <h2 style="color:#3b82f6;margin-bottom:8px;">GymSync Login</h2>
-                <p style="color:#94a3b8;margin-bottom:24px;">Your secure two-factor authentication code is below.</p>
-                <div style="background:#1e293b;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px;">
-                  <span style="font-size:2.5rem;font-weight:bold;color:#10b981;letter-spacing:8px;">${otp}</span>
-                </div>
-                <p style="color:#94a3b8;font-size:0.85rem;">This code expires in <strong style="color:#f59e0b;">5 minutes</strong>.</p>
-              </div>
-            `
-          });
-        } catch (e) {
-          console.error('2FA email delivery failed:', e.message);
-        }
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
 
-        const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
-        user.otpCode = hashedOtp;
-        user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
-        user.otpVerified = false;
-        user.otpAttempts = 0;
+    // Check if account is suspended / banned (with automatic timed ban expiration)
+    if (user.isBanned) {
+      if (user.bannedUntil && new Date(user.bannedUntil).getTime() <= Date.now()) {
+        // Ban expired! Automatically lift the ban
+        user.isBanned = false;
+        user.bannedUntil = null;
+        user.banReason = '';
+        user.accountStatus = user.isDeleted ? 'Deleted' : (user.isDeactivated ? 'Deactivated' : 'Active');
         await user.save();
+      } else {
+        const expiryStr = user.bannedUntil
+          ? `until ${new Date(user.bannedUntil).toLocaleDateString()} ${new Date(user.bannedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+          : 'permanently';
+        const reasonStr = user.banReason ? ` Reason: ${user.banReason}` : '';
+        return res.status(403).json({
+          message: `Your account has been suspended ${expiryStr}.${reasonStr}`
+        });
+      }
+    }
 
-        return res.json({ requiresOtp: true, email: user.email, tempToken: generateToken(user._id, '5m') });
+    // Check if account is currently locked due to previous failed attempts
+    if (user.lockUntil && new Date(user.lockUntil).getTime() > Date.now()) {
+      const remainingMs = new Date(user.lockUntil).getTime() - Date.now();
+      const remainingMinutes = Math.max(1, Math.ceil(remainingMs / (60 * 1000)));
+      return res.status(423).json({
+        message: `Account is temporarily locked due to multiple failed login attempts. Please try again in ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}.`
+      });
+    }
+
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+      if (user.failedLoginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes lockout
+        user.failedLoginAttempts = 0;
+        await user.save();
+        return res.status(423).json({
+          message: 'Account has been temporarily locked for 15 minutes due to 5 consecutive failed login attempts.'
+        });
+      }
+      await user.save();
+      const remaining = 5 - user.failedLoginAttempts;
+      return res.status(401).json({
+        message: `Invalid email or password. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining before account lockout.`
+      });
+    }
+
+    // Reset failed login attempts and clear lockout on successful password match
+    if (user.failedLoginAttempts > 0 || user.lockUntil) {
+      user.failedLoginAttempts = 0;
+      user.lockUntil = null;
+    }
+
+    // Check if account is in 15-day Recycle Bin grace period
+    if (user.isDeleted) {
+      if (user.deletionScheduledPermanentAt && new Date(user.deletionScheduledPermanentAt).getTime() > Date.now()) {
+        const daysRemaining = Math.max(1, Math.ceil((new Date(user.deletionScheduledPermanentAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+        return res.status(200).json({
+          requiresRestore: true,
+          email: user.email,
+          daysRemaining,
+          message: `Your account is scheduled for permanent deletion in ${daysRemaining} day${daysRemaining > 1 ? 's' : ''}. Would you like to restore it?`
+        });
+      } else {
+        return res.status(403).json({ message: 'This account was permanently deleted.' });
+      }
+    }
+
+    // Auto-reactivate deactivated account upon successful login
+    if (user.isDeactivated || user.accountStatus === 'Deactivated') {
+      user.isDeactivated = false;
+      user.deactivatedAt = null;
+      user.accountStatus = 'Active';
+    }
+
+    const requires2FA = ['Admin', 'SuperAdmin', 'GymOwner', 'StoreManager'].includes(user.role) || user.twoFactorEnabled;
+    
+    if (requires2FA) {
+      const otp = crypto.randomInt(100000, 999999).toString();
+      try {
+        const transporter = createTransporter();
+        await transporter.sendMail({
+          from: `"GymSync" <${process.env.EMAIL_USER}>`,
+          to: user.email,
+          subject: 'GymSync — 2FA Login Code',
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;background:#0f172a;color:#f8fafc;padding:40px;border-radius:16px;border:1px solid #1e293b;">
+              <h2 style="color:#3b82f6;margin-bottom:8px;">GymSync Login</h2>
+              <p style="color:#94a3b8;margin-bottom:24px;">Your secure two-factor authentication code is below.</p>
+              <div style="background:#1e293b;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px;">
+                <span style="font-size:2.5rem;font-weight:bold;color:#10b981;letter-spacing:8px;">${otp}</span>
+              </div>
+              <p style="color:#94a3b8;font-size:0.85rem;">This code expires in <strong style="color:#f59e0b;">5 minutes</strong>.</p>
+            </div>
+          `
+        });
+      } catch (e) {
+        console.error('2FA email delivery failed:', e.message);
       }
 
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        token: generateToken(user._id),
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid email or password' });
+      const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+      user.otpCode = hashedOtp;
+      user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+      user.otpVerified = false;
+      user.otpAttempts = 0;
+      user.lastOtpSentAt = new Date();
+      await user.save();
+
+      return res.json({ requiresOtp: true, email: user.email, tempToken: generateToken(user._id, '5m') });
     }
+
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token: generateToken(user._id),
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'An internal error occurred during login. Please try again later.' });
@@ -548,14 +626,14 @@ export const getMe = async (req, res) => {
 // @access  Public
 export const verifyLoginOtp = async (req, res) => {
   const { email, otp, tempToken } = req.body;
-  if (!email || !otp) {
+  if (!email?.trim() || !otp) {
     return res.status(400).json({ message: 'Email and OTP are required' });
   }
 
   try {
     const user = await User.findOne({ email: email.trim().toLowerCase() });
     if (!user || !user.otpCode) {
-      return res.status(400).json({ message: 'Invalid or expired OTP' });
+      return res.status(400).json({ message: 'Invalid or expired OTP. Please log in again.' });
     }
 
     if (user.otpExpiresAt && new Date(user.otpExpiresAt).getTime() <= Date.now()) {
@@ -563,29 +641,35 @@ export const verifyLoginOtp = async (req, res) => {
       user.otpExpiresAt = null;
       user.otpAttempts = 0;
       await user.save();
-      return res.status(400).json({ message: 'OTP has expired. Please log in again.' });
+      return res.status(400).json({ message: 'OTP has expired. Please request a new one or log in again.' });
     }
 
     const inputHash = crypto.createHash('sha256').update(otp.toString().trim()).digest('hex');
     
     if (user.otpCode !== inputHash) {
       user.otpAttempts = (user.otpAttempts || 0) + 1;
-      if (user.otpAttempts >= 5) {
+      if (user.otpAttempts >= 3) {
         user.otpCode = null;
         user.otpExpiresAt = null;
         user.otpAttempts = 0;
         await user.save();
-        return res.status(400).json({ message: 'Too many failed attempts. Please log in again.' });
+        return res.status(429).json({ message: 'Too many incorrect OTP attempts. This code has been invalidated. Please log in again.' });
       }
       await user.save();
-      return res.status(400).json({ message: 'Invalid OTP code' });
+      const remaining = 3 - user.otpAttempts;
+      return res.status(400).json({
+        message: `Invalid OTP code. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining.`,
+        attemptsRemaining: remaining
+      });
     }
 
-    // Success
+    // Success - consume OTP immediately
     user.otpCode = null;
     user.otpExpiresAt = null;
     user.otpAttempts = 0;
     user.otpVerified = true;
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
     await user.save();
 
     res.json({
@@ -601,3 +685,129 @@ export const verifyLoginOtp = async (req, res) => {
     res.status(500).json({ message: 'Failed to verify OTP' });
   }
 };
+
+// @desc    Resend 2FA OTP with 60-second cooldown
+// @route   POST /api/auth/resend-login-otp
+// @access  Public
+export const resendLoginOtp = async (req, res) => {
+  const { email, tempToken } = req.body;
+  if (!email?.trim()) {
+    return res.status(400).json({ message: 'Email is required.' });
+  }
+
+  try {
+    if (tempToken) {
+      try {
+        jwt.verify(tempToken, process.env.JWT_SECRET);
+      } catch (tokErr) {
+        return res.status(401).json({ message: 'Session expired. Please log in again.' });
+      }
+    }
+
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Check 60-second cooldown
+    const COOLDOWN_MS = 60 * 1000;
+    if (user.lastOtpSentAt) {
+      const elapsed = Date.now() - new Date(user.lastOtpSentAt).getTime();
+      if (elapsed < COOLDOWN_MS) {
+        const waitSeconds = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+        return res.status(429).json({
+          message: `Please wait ${waitSeconds} second${waitSeconds > 1 ? 's' : ''} before requesting a new OTP.`,
+          secondsRemaining: waitSeconds
+        });
+      }
+    }
+
+    const otp = crypto.randomInt(100000, 999999).toString();
+    try {
+      const transporter = createTransporter();
+      await transporter.sendMail({
+        from: `"GymSync" <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: 'GymSync — 2FA Login Code',
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;background:#0f172a;color:#f8fafc;padding:40px;border-radius:16px;border:1px solid #1e293b;">
+            <h2 style="color:#3b82f6;margin-bottom:8px;">GymSync Login Code</h2>
+            <p style="color:#94a3b8;margin-bottom:24px;">Your new two-factor authentication code is below.</p>
+            <div style="background:#1e293b;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px;">
+              <span style="font-size:2.5rem;font-weight:bold;color:#10b981;letter-spacing:8px;">${otp}</span>
+            </div>
+            <p style="color:#94a3b8;font-size:0.85rem;">This code expires in <strong style="color:#f59e0b;">5 minutes</strong>.</p>
+          </div>
+        `
+      });
+    } catch (e) {
+      console.error('2FA resend email delivery failed:', e.message);
+    }
+
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    user.otpCode = hashedOtp;
+    user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    user.otpVerified = false;
+    user.otpAttempts = 0;
+    user.lastOtpSentAt = new Date();
+    await user.save();
+
+    return res.json({
+      message: 'A new security code has been sent to your email.',
+      tempToken: generateToken(user._id, '5m')
+    });
+  } catch (error) {
+    console.error('resendLoginOtp error:', error);
+    return res.status(500).json({ message: 'Failed to resend OTP. Please try again.' });
+  }
+};
+
+// @desc    Self-restore account from 15-day Recycle Bin grace period
+// @route   POST /api/auth/restore-self
+// @access  Public
+export const restoreSelfAccount = async (req, res) => {
+  const { email, password } = req.body;
+  if (!email?.trim() || !password) {
+    return res.status(400).json({ message: 'Email and password are required' });
+  }
+
+  try {
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    if (!user.isDeleted) {
+      return res.status(400).json({ message: 'Account is already active' });
+    }
+
+    if (user.deletionScheduledPermanentAt && new Date(user.deletionScheduledPermanentAt).getTime() <= Date.now()) {
+      return res.status(403).json({ message: 'The 15-day recovery window has expired. This account was permanently deleted.' });
+    }
+
+    user.isDeleted = false;
+    user.deletedAt = null;
+    user.deletionScheduledPermanentAt = null;
+    user.deletedBy = null;
+    user.accountStatus = user.isBanned ? 'Banned' : 'Active';
+    await user.save();
+
+    res.json({
+      message: 'Welcome back! Your account has been restored successfully.',
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token: generateToken(user._id)
+    });
+  } catch (error) {
+    console.error('restoreSelfAccount error:', error);
+    res.status(500).json({ message: 'Failed to restore account. Please try again later.' });
+  }
+};
+

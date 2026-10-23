@@ -5,11 +5,12 @@ const broadcastSchema = new mongoose.Schema({
   message: { type: String, required: true },
   eventType: { 
     type: String, 
-    enum: ['ExclusiveEvent', 'FreeGift', 'SubscriberSpecial'], 
-    default: 'ExclusiveEvent' 
+    enum: ['Announcement', 'SystemNotice', 'FeatureUpdate', 'Promotion', 'UrgentAlert', 'ExclusiveEvent', 'FreeGift', 'SubscriberSpecial'], 
+    default: 'Announcement' 
   },
   sentBy: { type: String, required: true },
-  targetAudience: { type: String, default: 'All Subscribers' }
+  targetAudience: { type: String, default: 'All Users' },
+  recipientCount: { type: Number, default: 0 }
 }, { timestamps: true });
 
 export default mongoose.model('Broadcast', broadcastSchema);

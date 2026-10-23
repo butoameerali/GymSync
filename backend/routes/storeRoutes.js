@@ -11,12 +11,14 @@ import {
   getMyOrders,
   cancelMyOrder,
   requestOrderRefund,
-  trackOrderByCode
+  trackOrderByCode,
+  getAdminStoreOverview
 } from '../controllers/storeController.js';
 import { protect, optionalProtect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+router.get('/admin/overview', protect, authorizeRoles('Admin', 'SuperAdmin'), getAdminStoreOverview);
 router.get('/track/:code', trackOrderByCode);
 
 router.route('/products')
@@ -28,6 +30,9 @@ router.route('/products/:id')
   .delete(protect, authorizeRoles('StoreManager', 'Admin', 'SuperAdmin'), deleteProduct);
 
 router.route('/products/:id/status')
+  .put(protect, authorizeRoles('StoreManager', 'Admin', 'SuperAdmin'), updateProductStatus);
+
+router.route('/admin/products/:id/status')
   .put(protect, authorizeRoles('StoreManager', 'Admin', 'SuperAdmin'), updateProductStatus);
 
 router.route('/orders')

@@ -13,6 +13,15 @@ export const postService = {
     }
   },
 
+  async getPostById(postId) {
+    const res = await apiFetch(`/api/posts/${postId}`);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || 'Failed to fetch post');
+    }
+    return await res.json();
+  },
+
   async createPost(formData) {
     const res = await apiFetch('/api/posts', {
       method: 'POST',
