@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Activity, 
@@ -10,15 +10,18 @@ import {
   ShoppingBag, 
   MessageSquare, 
   Bell, 
-  Shield, 
-  ShieldAlert, 
-  UserCheck, 
+  Menu as MenuIcon, 
   Settings, 
   LifeBuoy, 
   Sun, 
   Moon, 
   LogOut, 
-  LogIn 
+  User as UserIcon, 
+  LogIn, 
+  ChevronUp, 
+  Shield, 
+  ShieldAlert, 
+  UserCheck 
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -40,7 +43,7 @@ const AppSidebar = () => {
   const isLoggedIn = Boolean(userRole && userRole !== 'guest' && token);
   const userName = authName || user?.name || localStorage.getItem('gymsync_user_name') || 'Guest';
 
-  // Privileged Roles
+  // Privileged Staff Roles
   const isAdmin = normalizedRole === 'admin' || normalizedRole === 'superadmin';
   const isModerator = normalizedRole === 'complaintmoderator';
   const isGymOwner = normalizedRole === 'gymowner';
@@ -52,8 +55,36 @@ const AppSidebar = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [profilePic, setProfilePic] = useState('');
+  
+  // Popovers
+  const [showMenuPopover, setShowMenuPopover] = useState(false);
+  const [showProfilePopover, setShowProfilePopover] = useState(false);
   const [showComplaintHub, setShowComplaintHub] = useState(false);
 
+  const menuPopoverRef = useRef(null);
+  const profilePopoverRef = useRef(null);
+
+  // Close popovers on route change
+  useEffect(() => {
+    setShowMenuPopover(false);
+    setShowProfilePopover(false);
+  }, [location.pathname]);
+
+  // Click outside to dismiss popovers
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuPopoverRef.current && !menuPopoverRef.current.contains(e.target)) {
+        setShowMenuPopover(false);
+      }
+      if (profilePopoverRef.current && !profilePopoverRef.current.contains(e.target)) {
+        setShowProfilePopover(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Sync Unread Count & Profile Photo
   useEffect(() => {
     if (isLoggedIn && token) {
       const authHeader = { Authorization: `Bearer ${token}` };
@@ -83,12 +114,13 @@ const AppSidebar = () => {
         })
         .catch(() => {});
 
-      const interval = setInterval(syncCounts, 10000);
+      const interval = setInterval(syncCounts, 12000);
       return () => clearInterval(interval);
     }
   }, [isLoggedIn, token, userName]);
 
   const handleLogout = () => {
+    setShowProfilePopover(false);
     if (logout) {
       logout();
     } else {
@@ -109,162 +141,211 @@ const AppSidebar = () => {
   return (
     <>
       <aside className="app-sidebar">
-        {/* Brand Header */}
-        <Link to="/home" className="sidebar-brand">
-          <div className="sidebar-brand-icon">
-            <Activity size={24} />
-          </div>
-          <span className="sidebar-brand-title">GymSync</span>
-        </Link>
-
-        {/* Primary Navigation */}
-        <div className="sidebar-nav-group">
-          <Link to="/home" className={`sidebar-link ${isActive('/home') ? 'active' : ''}`}>
-            <span className="sidebar-icon"><Home size={20} /></span>
-            <span className="sidebar-label">Home</span>
-          </Link>
-
-          <Link to="/reels" className={`sidebar-link ${isActive('/reels') ? 'active' : ''}`}>
-            <span className="sidebar-icon"><Film size={20} /></span>
-            <span className="sidebar-label">Reels</span>
-          </Link>
-
-          {!isStaff && (
-            <Link to="/ai-trainer" className={`sidebar-link ${isActive('/ai-trainer') ? 'active' : ''}`}>
-              <span className="sidebar-icon"><Dumbbell size={20} /></span>
-              <span className="sidebar-label">Workout Hub</span>
-            </Link>
-          )}
-
-          {!isStaff && (
-            <Link to="/your-gym" className={`sidebar-link ${isActive('/your-gym') ? 'active' : ''}`}>
-              <span className="sidebar-icon"><Building2 size={20} /></span>
-              <span className="sidebar-label">Your Gym</span>
-            </Link>
-          )}
-
-          <Link to="/explore" className={`sidebar-link ${isActive('/explore') ? 'active' : ''}`}>
-            <span className="sidebar-icon"><Compass size={20} /></span>
-            <span className="sidebar-label">Explore Gyms</span>
-          </Link>
-
-          <Link to="/store" className={`sidebar-link ${isActive('/store') ? 'active' : ''}`}>
-            <span className="sidebar-icon"><ShoppingBag size={20} /></span>
-            <span className="sidebar-label">Store</span>
-          </Link>
-
-          {isLoggedIn && (
-            <Link to="/messages" className={`sidebar-link ${isActive('/messages') || isActive('/chat') ? 'active' : ''}`}>
-              <span className="sidebar-icon"><MessageSquare size={20} /></span>
-              <span className="sidebar-label">Messages</span>
-              {unreadChatCount > 0 && <span className="sidebar-badge">{unreadChatCount}</span>}
-            </Link>
-          )}
-
-          {isLoggedIn && (
-            <Link to="/notifications" className={`sidebar-link ${isActive('/notifications') ? 'active' : ''}`}>
-              <span className="sidebar-icon"><Bell size={20} /></span>
-              <span className="sidebar-label">Notifications</span>
-              {unreadCount > 0 && <span className="sidebar-badge">{unreadCount}</span>}
-            </Link>
-          )}
-
-          {/* Role-Specific Panels */}
-          {isLoggedIn && (isAdmin || isModerator || isGymOwner || isFitnessInstructor || isGymTrainer || isStoreManager) && (
-            <>
-              <div className="sidebar-section-label">Management</div>
-              {isAdmin && (
-                <Link to="/admin" className={`sidebar-link ${isActive('/admin') ? 'active' : ''}`}>
-                  <span className="sidebar-icon"><Shield size={20} /></span>
-                  <span className="sidebar-label">Admin Panel</span>
-                </Link>
-              )}
-              {isModerator && (
-                <Link to="/moderator" className={`sidebar-link ${isActive('/moderator') ? 'active' : ''}`}>
-                  <span className="sidebar-icon"><ShieldAlert size={20} /></span>
-                  <span className="sidebar-label">Moderator Hub</span>
-                </Link>
-              )}
-              {isGymOwner && (
-                <Link to="/gym-owner" className={`sidebar-link ${isActive('/gym-owner') ? 'active' : ''}`}>
-                  <span className="sidebar-icon"><Building2 size={20} /></span>
-                  <span className="sidebar-label">Gym Owner</span>
-                </Link>
-              )}
-              {isFitnessInstructor && (
-                <Link to="/fitness-instructor" className={`sidebar-link ${isActive('/fitness-instructor') ? 'active' : ''}`}>
-                  <span className="sidebar-icon"><Activity size={20} /></span>
-                  <span className="sidebar-label">Instructor</span>
-                </Link>
-              )}
-              {isGymTrainer && (
-                <Link to="/gym-trainer" className={`sidebar-link ${isActive('/gym-trainer') ? 'active' : ''}`}>
-                  <span className="sidebar-icon"><UserCheck size={20} /></span>
-                  <span className="sidebar-label">Trainer Panel</span>
-                </Link>
-              )}
-              {isStoreManager && (
-                <Link to="/store-manager" className={`sidebar-link ${isActive('/store-manager') ? 'active' : ''}`}>
-                  <span className="sidebar-icon"><ShoppingBag size={20} /></span>
-                  <span className="sidebar-label">Store Manager</span>
-                </Link>
-              )}
-            </>
-          )}
-
-          {/* Settings & Support */}
-          {isLoggedIn && (
-            <Link to="/settings" className={`sidebar-link ${isActive('/settings') ? 'active' : ''}`}>
-              <span className="sidebar-icon"><Settings size={20} /></span>
-              <span className="sidebar-label">Settings</span>
-            </Link>
-          )}
-
-          {isLoggedIn && (
-            <button 
-              type="button" 
-              className="sidebar-link" 
-              onClick={() => setShowComplaintHub(true)}
-              style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none' }}
-            >
-              <span className="sidebar-icon" style={{ color: '#ef4444' }}><LifeBuoy size={20} /></span>
-              <span className="sidebar-label">Help & Support</span>
-            </button>
-          )}
-        </div>
-
-        {/* Footer Area: Theme Toggle & User Info */}
-        <div className="sidebar-footer">
-          <button 
-            type="button" 
-            className="theme-toggle-btn" 
-            onClick={toggleTheme}
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-          >
-            <div className="theme-toggle-left">
-              {theme === 'dark' ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} color="#3b82f6" />}
-              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        {/* Top: Brand Logo & Navigation */}
+        <div className="sidebar-top">
+          <Link to="/home" className="sidebar-brand">
+            <div className="sidebar-brand-icon">
+              <Activity size={22} />
             </div>
-          </button>
+            <span className="sidebar-brand-title">GymSync</span>
+          </Link>
 
-          {!isGuest ? (
-            <div className="sidebar-user-card">
-              <Link to="/profile" className="sidebar-user-info">
-                <UserAvatar src={profilePic} name={userName} size={36} />
-                <div className="sidebar-user-details">
-                  <span className="sidebar-user-name">{userName}</span>
-                  <span className="sidebar-user-role">{userRole}</span>
-                </div>
+          <nav className="sidebar-nav-group">
+            <Link to="/home" className={`sidebar-link ${isActive('/home') ? 'active' : ''}`}>
+              <span className="sidebar-icon"><Home size={20} /></span>
+              <span className="sidebar-label">Home</span>
+            </Link>
+
+            <Link to="/reels" className={`sidebar-link ${isActive('/reels') ? 'active' : ''}`}>
+              <span className="sidebar-icon"><Film size={20} /></span>
+              <span className="sidebar-label">Reels</span>
+            </Link>
+
+            {!isStaff && (
+              <Link to="/ai-trainer" className={`sidebar-link ${isActive('/ai-trainer') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><Dumbbell size={20} /></span>
+                <span className="sidebar-label">Workout Hub</span>
               </Link>
+            )}
+
+            {!isStaff && (
+              <Link to="/your-gym" className={`sidebar-link ${isActive('/your-gym') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><Building2 size={20} /></span>
+                <span className="sidebar-label">Your Gym</span>
+              </Link>
+            )}
+
+            <Link to="/explore" className={`sidebar-link ${isActive('/explore') ? 'active' : ''}`}>
+              <span className="sidebar-icon"><Compass size={20} /></span>
+              <span className="sidebar-label">Explore Gyms</span>
+            </Link>
+
+            <Link to="/store" className={`sidebar-link ${isActive('/store') ? 'active' : ''}`}>
+              <span className="sidebar-icon"><ShoppingBag size={20} /></span>
+              <span className="sidebar-label">Store</span>
+            </Link>
+
+            {isLoggedIn && (
+              <Link to="/messages" className={`sidebar-link ${isActive('/messages') || isActive('/chat') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><MessageSquare size={20} /></span>
+                <span className="sidebar-label">Messages</span>
+                {unreadChatCount > 0 && <span className="sidebar-badge">{unreadChatCount}</span>}
+              </Link>
+            )}
+
+            {isLoggedIn && (
+              <Link to="/notifications" className={`sidebar-link ${isActive('/notifications') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><Bell size={20} /></span>
+                <span className="sidebar-label">Notifications</span>
+                {unreadCount > 0 && <span className="sidebar-badge">{unreadCount}</span>}
+              </Link>
+            )}
+
+            {/* Menu Button & Secondary Flyout Menu */}
+            <div className="sidebar-popover-wrapper" ref={menuPopoverRef}>
               <button 
                 type="button" 
-                onClick={handleLogout} 
-                className="sidebar-logout-btn" 
-                title="Log Out"
-                aria-label="Log Out"
+                className={`sidebar-link ${showMenuPopover ? 'active' : ''}`}
+                onClick={() => {
+                  setShowMenuPopover(prev => !prev);
+                  setShowProfilePopover(false);
+                }}
+                title="More Options"
               >
-                <LogOut size={18} />
+                <span className="sidebar-icon"><MenuIcon size={20} /></span>
+                <span className="sidebar-label">Menu</span>
               </button>
+
+              {showMenuPopover && (
+                <div className="sidebar-popover">
+                  {/* Theme Switcher */}
+                  <button 
+                    type="button" 
+                    className="popover-item"
+                    onClick={() => {
+                      toggleTheme();
+                      setShowMenuPopover(false);
+                    }}
+                  >
+                    {theme === 'dark' ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} color="#3b82f6" />}
+                    <span>{theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
+                  </button>
+
+                  {/* Settings */}
+                  {isLoggedIn && (
+                    <Link to="/settings" className="popover-item" onClick={() => setShowMenuPopover(false)}>
+                      <Settings size={18} />
+                      <span>Settings & Privacy</span>
+                    </Link>
+                  )}
+
+                  {/* Help & Support Hub */}
+                  <button 
+                    type="button" 
+                    className="popover-item"
+                    onClick={() => {
+                      setShowComplaintHub(true);
+                      setShowMenuPopover(false);
+                    }}
+                  >
+                    <LifeBuoy size={18} color="#ef4444" />
+                    <span>Help & Support</span>
+                  </button>
+
+                  {/* Role Specific Management Panels if staff */}
+                  {isLoggedIn && isStaff && (
+                    <>
+                      <div className="popover-divider" />
+                      {isAdmin && (
+                        <Link to="/admin" className="popover-item" onClick={() => setShowMenuPopover(false)}>
+                          <Shield size={18} color="var(--primary-accent)" />
+                          <span>Admin Portal</span>
+                        </Link>
+                      )}
+                      {isModerator && (
+                        <Link to="/moderator" className="popover-item" onClick={() => setShowMenuPopover(false)}>
+                          <ShieldAlert size={18} color="#f59e0b" />
+                          <span>Moderation Hub</span>
+                        </Link>
+                      )}
+                      {isGymOwner && (
+                        <Link to="/gym-owner" className="popover-item" onClick={() => setShowMenuPopover(false)}>
+                          <Building2 size={18} color="#8b5cf6" />
+                          <span>Gym Owner Panel</span>
+                        </Link>
+                      )}
+                      {isFitnessInstructor && (
+                        <Link to="/fitness-instructor" className="popover-item" onClick={() => setShowMenuPopover(false)}>
+                          <Activity size={18} color="#10b981" />
+                          <span>Instructor Panel</span>
+                        </Link>
+                      )}
+                      {isGymTrainer && (
+                        <Link to="/gym-trainer" className="popover-item" onClick={() => setShowMenuPopover(false)}>
+                          <UserCheck size={18} color="#3b82f6" />
+                          <span>Trainer Panel</span>
+                        </Link>
+                      )}
+                      {isStoreManager && (
+                        <Link to="/store-manager" className="popover-item" onClick={() => setShowMenuPopover(false)}>
+                          <ShoppingBag size={18} color="#f59e0b" />
+                          <span>Store Manager</span>
+                        </Link>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </nav>
+        </div>
+
+        {/* Bottom: Profile Trigger & Popover */}
+        <div className="sidebar-bottom">
+          {!isGuest ? (
+            <div className="sidebar-popover-wrapper" ref={profilePopoverRef}>
+              <button 
+                type="button" 
+                className="sidebar-profile-btn"
+                onClick={() => {
+                  setShowProfilePopover(prev => !prev);
+                  setShowMenuPopover(false);
+                }}
+              >
+                <div className="sidebar-profile-left">
+                  <UserAvatar src={profilePic} name={userName} size={34} />
+                  <div className="sidebar-profile-details">
+                    <span className="sidebar-profile-name">{userName}</span>
+                    <span className="sidebar-profile-role">{userRole}</span>
+                  </div>
+                </div>
+                <ChevronUp size={16} className="sidebar-profile-arrow" style={{ color: 'var(--text-secondary)' }} />
+              </button>
+
+              {/* Profile Popover with View Profile & Logout */}
+              {showProfilePopover && (
+                <div className="sidebar-popover">
+                  <Link 
+                    to="/profile" 
+                    className="popover-item"
+                    onClick={() => setShowProfilePopover(false)}
+                  >
+                    <UserIcon size={18} color="var(--primary-accent)" />
+                    <span>View Profile</span>
+                  </Link>
+
+                  <div className="popover-divider" />
+
+                  <button 
+                    type="button" 
+                    className="popover-item danger"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={18} color="#ef4444" />
+                    <span>Log Out</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <Link to="/login" className="sidebar-link active" style={{ justifyContent: 'center' }}>
