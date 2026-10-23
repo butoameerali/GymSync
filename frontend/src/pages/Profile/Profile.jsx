@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import ImageCropper from '../../components/layout/ImageCropper';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { toast } from 'react-toastify';
-import { Flame, Dumbbell, Zap, Trophy, Edit3 } from 'lucide-react';
 import './Profile.css';
 import { postService } from '../../services/postService';
 
@@ -345,20 +344,6 @@ const Profile = () => {
   const todayHistory = safeHistory.filter(h => h && h.date && new Date(h.date).toDateString() === todayDate);
   const photoPosts = myPosts.filter(p => p.mediaUrl).slice(0, 6);
 
-  const joinDate = userData?.createdAt
-    ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    : 'Active Member';
-
-  const totalExercises = 
-    (workoutProgress?.completedExercises?.length) ||
-    (history?.reduce((acc, h) => acc + (h.exercises?.length || 1), 0)) ||
-    (stats?.points ? Math.floor(stats.points / 10) : 0);
-
-  const heightVal = bio?.height || userData?.bioData?.height || "5'10\"";
-  const rawWeight = bio?.weight || userData?.bioData?.weight;
-  const weightVal = rawWeight ? (String(rawWeight).includes('kg') ? rawWeight : `${rawWeight} kg`) : "72 kg";
-  const locationVal = bio?.location ? bio.location : (isAdminUser ? 'HQ Arena' : 'GymSync Arena');
-
   // ─── Loading skeleton ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -375,179 +360,82 @@ const Profile = () => {
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="profile-page">
-      <div className="container profile-container">
-        <div className="profile-desktop-grid">
-          {/* LEFT COLUMN: Athlete Trading Card & Card Actions (~40%) */}
-          <aside className="profile-card-column">
-            <ProfileHeader
-              userName={userName}
-              userRole={userRole}
-              bio={bio}
-              profilePic={profilePic}
-              userData={userData}
-              stats={stats}
-              instructorStats={instructorStats}
-              isTrainee={isTrainee}
-              fileInputRef={fileInputRef}
-              handlePicUpload={handlePicUpload}
-              setVerifyEmailInput={setVerifyEmailInput}
-              setIsVerifyModalOpen={setIsVerifyModalOpen}
-              workoutProgress={workoutProgress}
-              history={history}
-              setActiveTab={setActiveTab}
+      <div className="container">
+        <ProfileHeader
+          userName={userName}
+          userRole={userRole}
+          bio={bio}
+          profilePic={profilePic}
+          userData={userData}
+          stats={stats}
+          instructorStats={instructorStats}
+          isTrainee={isTrainee}
+          fileInputRef={fileInputRef}
+          handlePicUpload={handlePicUpload}
+          setVerifyEmailInput={setVerifyEmailInput}
+          setIsVerifyModalOpen={setIsVerifyModalOpen}
+          workoutProgress={workoutProgress}
+          history={history}
+          setActiveTab={setActiveTab}
+        />
+
+        {/* Today's Energy & Unified Calorie Tracker */}
+        {isTrainee && (
+          <TodaysEnergyCard bio={bio} currentWeight={userData?.bioData?.weight} />
+        )}
+
+        {/* Navigation Tabs */}
+        <div className="profile-tabs glass-panel">
+          <button className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>Timeline</button>
+          {isTrainee && <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Workout History</button>}
+          {isTrainee && <button className={`tab-btn ${activeTab === 'bio' ? 'active' : ''}`} onClick={() => setActiveTab('bio')}>Health Bio</button>}
+          {userRole === 'GymOwner' && <button className={`tab-btn ${activeTab === 'gig' ? 'active' : ''}`} onClick={() => setActiveTab('gig')}>Your Gym Gig</button>}
+          <button className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings &amp; Privacy</button>
+        </div>
+
+        <div className="profile-content">
+          {activeTab === 'posts' && (
+            <ProfileTimelineTab
+              bio={bio} userRole={userRole} isAdminUser={isAdminUser} isTrainee={isTrainee}
+              hideHealthData={hideHealthData} stats={stats} instructorStats={instructorStats}
+              photoPosts={photoPosts} profilePic={profilePic} userName={userName}
+              myPosts={myPosts} newPostText={newPostText} setNewPostText={setNewPostText}
+              selectedPostFile={selectedPostFile} setSelectedPostFile={setSelectedPostFile}
+              postFileInputRef={postFileInputRef} isPublishingPost={isPublishingPost}
+              handleCreateProfilePost={handleCreateProfilePost} handleLikePost={handleLikePost}
+              handleAddComment={handleAddComment} handleDeleteComment={handleDeleteComment}
+              handleAddReply={handleAddReply} handleDeleteReply={handleDeleteReply}
             />
-          </aside>
-
-          {/* RIGHT COLUMN: Athlete Intro, Quick Stats, Energy Tracker, Tabs & Tab Content (~60%) */}
-          <section className="profile-info-column">
-            {/* Athlete Intro Banner */}
-            <div className="profile-intro-banner glass-panel">
-              <div className="intro-banner-header">
-                <div className="intro-title-group">
-                  <div className="intro-badges">
-                    <span className="athlete-badge-role">{userRole || 'Athlete'}</span>
-                    <span className="athlete-badge-seniority">Member Since {joinDate}</span>
-                  </div>
-                  <h1 className="intro-athlete-name">{userName}</h1>
-                  <p className="intro-athlete-desc">
-                    {bio?.fitnessGoals || bio?.mainGoalArea || 'Dedicated GymSync Athlete focused on performance, physical conditioning, and personal PR milestones.'}
-                  </p>
-                </div>
-
-                <button 
-                  type="button" 
-                  className="btn btn-outline btn-sm edit-bio-quick-btn"
-                  onClick={() => {
-                    setActiveTab('bio');
-                    localStorage.setItem('gymsync_onboarding_skip_date', '');
-                    window.dispatchEvent(new Event('open-onboarding'));
-                  }}
-                  title="Update biological profile"
-                >
-                  <Edit3 size={14} />
-                  <span>Edit Bio</span>
-                </button>
-              </div>
-
-              <div className="intro-quick-chips">
-                <div className="intro-chip">
-                  <span className="chip-label">Height</span>
-                  <span className="chip-val">{heightVal}</span>
-                </div>
-                <div className="intro-chip">
-                  <span className="chip-label">Weight</span>
-                  <span className="chip-val">{weightVal}</span>
-                </div>
-                <div className="intro-chip">
-                  <span className="chip-label">Training Schedule</span>
-                  <span className="chip-val">{bio?.trainingDaysPerWeek || 3} Days/Wk</span>
-                </div>
-                <div className="intro-chip">
-                  <span className="chip-label">Equipment Access</span>
-                  <span className="chip-val">{bio?.equipmentAccess || 'Full Gym'}</span>
-                </div>
-                <div className="intro-chip">
-                  <span className="chip-label">Arena Location</span>
-                  <span className="chip-val">{locationVal}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Fitness Quick Stats Highlights Matrix */}
-            <div className="profile-quick-stats-grid">
-              <div className="quick-stat-box streak-box">
-                <div className="stat-icon-wrap streak-icon"><Flame size={20} color="#f97316" /></div>
-                <div className="stat-info">
-                  <span className="stat-label">Active Streak</span>
-                  <span className="stat-value">{stats.streak} <small>Days</small></span>
-                </div>
-              </div>
-
-              <div className="quick-stat-box exercises-box">
-                <div className="stat-icon-wrap exercises-icon"><Dumbbell size={20} color="#38bdf8" /></div>
-                <div className="stat-info">
-                  <span className="stat-label">Exercises Done</span>
-                  <span className="stat-value">{totalExercises} <small>Exer</small></span>
-                </div>
-              </div>
-
-              <div className="quick-stat-box points-box">
-                <div className="stat-icon-wrap points-icon"><Zap size={20} color="#facc15" /></div>
-                <div className="stat-info">
-                  <span className="stat-label">Athlete Score</span>
-                  <span className="stat-value">{stats.points} <small>XP</small></span>
-                </div>
-              </div>
-
-              <div className="quick-stat-box baseline-box">
-                <div className="stat-icon-wrap baseline-icon"><Trophy size={20} color="#a855f7" /></div>
-                <div className="stat-info">
-                  <span className="stat-label">Push-up Baseline</span>
-                  <span className="stat-value">{bio?.pushupBaseline ? `${bio.pushupBaseline}` : '10'} <small>Reps</small></span>
-                </div>
-              </div>
-            </div>
-
-            {/* Today's Energy & Unified Calorie Tracker */}
-            {isTrainee && (
-              <TodaysEnergyCard bio={bio} currentWeight={userData?.bioData?.weight} />
-            )}
-
-            {/* Navigation Tabs */}
-            <div className="profile-tabs glass-panel">
-              <button className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>Timeline</button>
-              {isTrainee && <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Workout History</button>}
-              {isTrainee && <button className={`tab-btn ${activeTab === 'bio' ? 'active' : ''}`} onClick={() => setActiveTab('bio')}>Health Bio</button>}
-              {userRole === 'GymOwner' && <button className={`tab-btn ${activeTab === 'gig' ? 'active' : ''}`} onClick={() => setActiveTab('gig')}>Your Gym Gig</button>}
-              <button className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings &amp; Privacy</button>
-            </div>
-
-            {/* Active Tab Content */}
-            <div className="profile-content">
-              {activeTab === 'posts' && (
-                <ProfileTimelineTab
-                  bio={bio} userRole={userRole} isAdminUser={isAdminUser} isTrainee={isTrainee}
-                  hideHealthData={hideHealthData} stats={stats} instructorStats={instructorStats}
-                  photoPosts={photoPosts} profilePic={profilePic} userName={userName}
-                  myPosts={myPosts} newPostText={newPostText} setNewPostText={setNewPostText}
-                  selectedPostFile={selectedPostFile} setSelectedPostFile={setSelectedPostFile}
-                  postFileInputRef={postFileInputRef} isPublishingPost={isPublishingPost}
-                  handleCreateProfilePost={handleCreateProfilePost} handleLikePost={handleLikePost}
-                  handleAddComment={handleAddComment} handleDeleteComment={handleDeleteComment}
-                  handleAddReply={handleAddReply} handleDeleteReply={handleDeleteReply}
-                />
-              )}
-              {activeTab === 'history' && isTrainee && (
-                <ProfileHistoryTab upcoming={upcoming} todayHistory={todayHistory} safeHistory={safeHistory} aiPlan={aiPlan} workoutProgress={workoutProgress} />
-              )}
-              {activeTab === 'bio' && isTrainee && <ProfileBioTab bio={bio} />}
-              {activeTab === 'settings' && (
-                <ProfileSettingsPanel
-                  activeSettingSection={activeSettingSection} setActiveSettingSection={setActiveSettingSection}
-                  userName={userName} userRole={userRole} userData={userData}
-                  currentPassword={currentPassword} setCurrentPassword={setCurrentPassword}
-                  newPassword={newPassword} setNewPassword={setNewPassword}
-                  confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword}
-                  passwordMessage={passwordMessage} passwordError={passwordError}
-                  handleChangePassword={handleChangePassword} hideHealthData={hideHealthData}
-                  setHideHealthData={setHideHealthData} bio={bio} stats={stats}
-                  history={history} myPosts={myPosts} profilePic={profilePic}
-                  setShowDeleteAccountModal={setShowDeleteAccountModal}
-                  setShowDeactivateAccountModal={setShowDeactivateAccountModal}
-                  setVerifyEmailInput={setVerifyEmailInput} setIsVerifyModalOpen={setIsVerifyModalOpen}
-                  onProfileUpdate={(updatedUser) => {
-                    setUserData(prev => ({ ...prev, ...updatedUser }));
-                    if (updatedUser?.name && updatedUser.name !== userName) {
-                      localStorage.setItem('gymsync_user_name', updatedUser.name);
-                      window.dispatchEvent(new Event('gymsync_user_updated'));
-                    }
-                  }}
-                  toast={toast}
-                />
-              )}
-              {activeTab === 'gig' && <ProfileGigTab myGymGig={myGymGig} />}
-            </div>
-          </section>
+          )}
+          {activeTab === 'history' && isTrainee && (
+            <ProfileHistoryTab upcoming={upcoming} todayHistory={todayHistory} safeHistory={safeHistory} aiPlan={aiPlan} workoutProgress={workoutProgress} />
+          )}
+          {activeTab === 'bio' && isTrainee && <ProfileBioTab bio={bio} />}
+          {activeTab === 'settings' && (
+            <ProfileSettingsPanel
+              activeSettingSection={activeSettingSection} setActiveSettingSection={setActiveSettingSection}
+              userName={userName} userRole={userRole} userData={userData}
+              currentPassword={currentPassword} setCurrentPassword={setCurrentPassword}
+              newPassword={newPassword} setNewPassword={setNewPassword}
+              confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword}
+              passwordMessage={passwordMessage} passwordError={passwordError}
+              handleChangePassword={handleChangePassword} hideHealthData={hideHealthData}
+              setHideHealthData={setHideHealthData} bio={bio} stats={stats}
+              history={history} myPosts={myPosts} profilePic={profilePic}
+              setShowDeleteAccountModal={setShowDeleteAccountModal}
+              setShowDeactivateAccountModal={setShowDeactivateAccountModal}
+              setVerifyEmailInput={setVerifyEmailInput} setIsVerifyModalOpen={setIsVerifyModalOpen}
+              onProfileUpdate={(updatedUser) => {
+                setUserData(prev => ({ ...prev, ...updatedUser }));
+                if (updatedUser?.name && updatedUser.name !== userName) {
+                  localStorage.setItem('gymsync_user_name', updatedUser.name);
+                  window.dispatchEvent(new Event('gymsync_user_updated'));
+                }
+              }}
+              toast={toast}
+            />
+          )}
+          {activeTab === 'gig' && <ProfileGigTab myGymGig={myGymGig} />}
         </div>
       </div>
 
