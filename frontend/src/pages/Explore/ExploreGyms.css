@@ -73,16 +73,24 @@
   color: #10b981;
 }
 
-/* Search Bar & Filters */
+/* Search Bar, Filter Dropdown & Controls */
 .explore-controls {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+}
+
+.explore-search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
 }
 
 .explore-search-wrapper {
   position: relative;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .explore-search-icon {
@@ -96,7 +104,7 @@
 
 .explore-search-input {
   width: 100%;
-  padding: 12px 14px 12px 42px;
+  padding: 11px 36px 11px 42px;
   border-radius: 12px;
   background: var(--card-bg-light);
   border: 1px solid var(--card-border);
@@ -112,34 +120,233 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
-.explore-filters-row {
+.search-clear-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: color 0.15s ease;
 }
 
-.explore-filter-pill {
-  padding: 6px 14px;
-  border-radius: 20px;
+.search-clear-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Filter Dropdown Wrapper & Trigger Button */
+.filter-dropdown-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.explore-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
   background: var(--card-bg-light);
   border: 1px solid var(--card-border);
-  color: var(--text-secondary);
-  font-size: 0.82rem;
+  color: var(--text-primary);
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.explore-filter-btn:hover {
+  border-color: var(--primary-accent);
+  color: var(--primary-accent);
+}
+
+.explore-filter-btn.active {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: var(--primary-accent);
+  color: var(--primary-accent);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
+.filter-reset-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-accent);
+  color: #ffffff;
+  font-size: 0.7rem;
+  margin-left: 2px;
+  transition: transform 0.15s ease;
+}
+
+.filter-reset-badge:hover {
+  transform: scale(1.15);
+}
+
+/* Filter Popover Dropdown */
+.explore-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 230px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 920;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: filterFadeIn 0.15s ease-out;
+}
+
+@keyframes filterFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.filter-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 8px 6px;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-reset-action {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.filter-reset-action:hover {
+  text-decoration: underline;
+}
+
+.filter-dropdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.filter-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
   transition: all 0.15s ease;
 }
 
-.explore-filter-pill:hover {
-  color: var(--text-primary);
-  border-color: var(--primary-accent);
+.filter-dropdown-item:hover {
+  background: var(--card-bg-light);
+  color: var(--primary-accent);
 }
 
-.explore-filter-pill.active {
+.filter-dropdown-item.active {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--primary-accent);
+  font-weight: 700;
+}
+
+.filter-check {
+  color: var(--primary-accent);
+}
+
+/* Map View Toggle Button */
+.explore-map-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.explore-map-btn:hover {
+  border-color: var(--primary-accent);
+  color: var(--primary-accent);
+}
+
+.explore-map-btn.active {
   background: var(--primary-accent);
   border-color: var(--primary-accent);
   color: #ffffff;
+}
+
+/* Active Filter Pill indicator */
+.active-filter-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  width: fit-content;
+}
+
+.clear-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.clear-filter-pill:hover {
+  text-decoration: underline;
 }
 
 /* Free OpenStreetMap Interactive Preview Card */
@@ -344,6 +551,29 @@
   }
   .explore-title {
     font-size: 1.35rem;
+  }
+  .explore-search-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .explore-search-wrapper {
+    width: 100%;
+    flex: auto;
+  }
+  .filter-dropdown-wrapper {
+    flex: 1;
+  }
+  .explore-filter-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .explore-map-btn {
+    flex: 1;
+    justify-content: center;
+  }
+  .explore-filter-dropdown {
+    width: 260px;
+    right: 0;
   }
   .compact-gyms-grid {
     grid-template-columns: 1fr;

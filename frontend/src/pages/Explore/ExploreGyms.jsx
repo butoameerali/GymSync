@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   MapPin, 
@@ -12,7 +12,10 @@ import {
   CheckCircle, 
   Map, 
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  SlidersHorizontal,
+  Check,
+  X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -55,10 +58,23 @@ const ExploreGyms = () => {
   const [isLocating, setIsLocating] = useState(false);
   const [locationStatus, setLocationStatus] = useState('');
   const [showMapPreview, setShowMapPreview] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const filterDropdownRef = useRef(null);
   const debouncedSearch = useDebounce(searchTerm, 300);
   const navigate = useNavigate();
+
+  // Close filter dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target)) {
+        setShowFilterMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Load Real Gyms from MongoDB Backend
   useEffect(() => {
@@ -197,41 +213,128 @@ const ExploreGyms = () => {
           </div>
         )}
 
-        {/* Search Input & Filters */}
+        {/* Search Input, Filter Button & Map View Toggle */}
         <div className="explore-controls">
-          <div className="explore-search-wrapper">
-            <Search size={18} className="explore-search-icon" />
-            <input 
-              type="text"
-              className="explore-search-input"
-              placeholder="Search gyms by name, city, or neighborhood..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          <div className="explore-search-row">
+            <div className="explore-search-wrapper">
+              <Search size={18} className="explore-search-icon" />
+              <input 
+                type="text"
+                className="explore-search-input"
+                placeholder="Search gyms by name, city, or neighborhood..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button 
+                  type="button" 
+                  className="search-clear-btn" 
+                  onClick={() => setSearchTerm('')}
+                  title="Clear Search"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
 
-          <div className="explore-filters-row">
-            {['All', 'Under $40', 'Top Rated', 'Trainer Included', '24 Hours'].map((f) => (
+            {/* Filter Trigger Button & Dropdown */}
+            <div className="filter-dropdown-wrapper" ref={filterDropdownRef}>
               <button
-                key={f}
                 type="button"
-                className={`explore-filter-pill ${activeFilter === f ? 'active' : ''}`}
-                onClick={() => setActiveFilter(f)}
+                className={`explore-filter-btn ${activeFilter !== 'All' ? 'active' : ''}`}
+                onClick={() => setShowFilterMenu(prev => !prev)}
+                title="Filter Gyms"
               >
-                {f}
+                <SlidersHorizontal size={17} />
+                <span className="filter-btn-text">
+                  {activeFilter === 'All' ? 'Filters' : activeFilter}
+                </span>
+                {activeFilter !== 'All' && (
+                  <span 
+                    className="filter-reset-badge" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveFilter('All');
+                    }}
+                    title="Reset Filter"
+                  >
+                    <X size={13} />
+                  </span>
+                )}
               </button>
-            ))}
 
+              {/* Filter Popover Dropdown */}
+              {showFilterMenu && (
+                <div className="explore-filter-dropdown">
+                  <div className="filter-dropdown-header">
+                    <span>Filter By</span>
+                    {activeFilter !== 'All' && (
+                      <button 
+                        type="button" 
+                        className="filter-reset-action"
+                        onClick={() => {
+                          setActiveFilter('All');
+                          setShowFilterMenu(false);
+                        }}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                  <div className="filter-dropdown-list">
+                    {[
+                      { label: 'All Gyms', value: 'All' },
+                      { label: 'Under $40 / mo', value: 'Under $40' },
+                      { label: 'Top Rated (4.5+ ⭐)', value: 'Top Rated' },
+                      { label: 'Trainer Included', value: 'Trainer Included' },
+                      { label: '24 Hours Open', value: '24 Hours' }
+                    ].map((item) => {
+                      const isSelected = activeFilter === item.value;
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          className={`filter-dropdown-item ${isSelected ? 'active' : ''}`}
+                          onClick={() => {
+                            setActiveFilter(item.value);
+                            setShowFilterMenu(false);
+                          }}
+                        >
+                          <span>{item.label}</span>
+                          {isSelected && <Check size={16} className="filter-check" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Map View Toggle Button */}
             <button
               type="button"
-              className={`explore-filter-pill ${showMapPreview ? 'active' : ''}`}
-              style={{ marginLeft: 'auto' }}
+              className={`explore-map-btn ${showMapPreview ? 'active' : ''}`}
               onClick={() => setShowMapPreview(prev => !prev)}
+              title={showMapPreview ? 'Hide Map' : 'Show Map View'}
             >
-              <Map size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-              {showMapPreview ? 'Hide Map' : 'Show Map View'}
+              <Map size={17} />
+              <span className="map-btn-text">{showMapPreview ? 'Hide Map' : 'Map View'}</span>
             </button>
           </div>
+
+          {/* Active Filter Pill indicator if filtered */}
+          {activeFilter !== 'All' && (
+            <div className="active-filter-indicator">
+              <span>Showing: <strong>{activeFilter}</strong></span>
+              <button 
+                type="button" 
+                className="clear-filter-pill"
+                onClick={() => setActiveFilter('All')}
+              >
+                <X size={13} /> Clear filter
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
