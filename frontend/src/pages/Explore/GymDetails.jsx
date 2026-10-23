@@ -92,6 +92,9 @@ const GymDetails = () => {
     if (searchParams.get('bookTour') === 'true') {
       setIsTourModalOpen(true);
     }
+    if (searchParams.get('subscribe') === 'true') {
+      setIsPaymentModalOpen(true);
+    }
   }, [id, isGuest, userName, searchParams]);
 
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);

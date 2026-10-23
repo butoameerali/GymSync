@@ -1,43 +1,65 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, MapPin, Filter, Star, Clock, DollarSign, ChevronRight, ChevronLeft, Grid, Map, Layers, Calendar, ShieldCheck, Navigation } from 'lucide-react';
+import { 
+  Search, 
+  MapPin, 
+  Star, 
+  Clock, 
+  DollarSign, 
+  Navigation, 
+  Compass, 
+  ExternalLink, 
+  Sparkles, 
+  CheckCircle, 
+  Map, 
+  ChevronRight,
+  ShieldCheck
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import './ExploreGyms.css';
 
-const ITEMS_PER_PAGE = 6;
+// Free Math Haversine Formula (Zero API Key needed)
+const calculateHaversineDistance = (lat1, lon1, lat2, lon2) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return parseFloat((R * c).toFixed(1));
+};
 
-// Deterministic map coordinates generator for realistic radar/city plotting
-const getGymCoordinates = (gym, index) => {
-  // Pre-fixed base coordinates simulating central metropolitan area
-  const seedAngles = [30, 75, 140, 210, 280, 330, 110, 190, 250];
-  const seedDistances = [28, 45, 36, 52, 60, 42, 68, 55, 72];
-  
-  const angle = seedAngles[index % seedAngles.length];
-  const dist = seedDistances[index % seedDistances.length];
-  
-  const rad = (angle * Math.PI) / 180;
-  // Center is at 50%, 50%
-  const x = 50 + (dist * 0.48) * Math.cos(rad);
-  const y = 50 + (dist * 0.42) * Math.sin(rad);
-
-  const kmDistance = (0.6 + (index * 0.45) % 3.8).toFixed(1);
-
-  return { x: Math.min(88, Math.max(12, x)), y: Math.min(84, Math.max(16, y)), kmDistance };
+// Deterministic fallback coordinates generator for locations without lat/lng
+const getCoordinatesForGym = (gym, index) => {
+  if (gym.latitude && gym.longitude) {
+    return { lat: gym.latitude, lng: gym.longitude };
+  }
+  // Base metropolitan center coordinates
+  const baseLat = 31.5204;
+  const baseLng = 74.3587;
+  const latOffset = (((index * 37) % 100) - 50) * 0.0015;
+  const lngOffset = (((index * 43) % 100) - 50) * 0.0018;
+  return { lat: baseLat + latOffset, lng: baseLng + lngOffset };
 };
 
 const ExploreGyms = () => {
   const [gyms, setGyms] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid', 'split', 'map'
-  const [selectedMapGym, setSelectedMapGym] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationStatus, setLocationStatus] = useState('');
+  const [showMapPreview, setShowMapPreview] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const debouncedSearch = useDebounce(searchTerm, 300);
   const navigate = useNavigate();
 
+  // Load Real Gyms from MongoDB Backend
   useEffect(() => {
     setIsLoading(true);
     fetch('/api/gyms')
@@ -45,17 +67,68 @@ const ExploreGyms = () => {
       .then(data => {
         const loaded = Array.isArray(data) ? data : [];
         setGyms(loaded);
-        if (loaded.length > 0) {
-          setSelectedMapGym(loaded[0]);
-        }
       })
       .catch(err => console.error('Error loading gyms', err))
       .finally(() => setIsLoading(false));
   }, []);
 
-  // Filtered Gyms based on debounced search term and selected filter
+  // Free Native Browser Geolocation (Zero Cost / No Google Maps Key required)
+  const detectUserLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setIsLocating(true);
+    setLocationStatus('Locating your position...');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setUserLocation(coords);
+        setIsLocating(false);
+        setLocationStatus('Sorted by closest to you');
+      },
+      (error) => {
+        setIsLocating(false);
+        // Fallback default metropolitan user location so user still gets proximity sort
+        setUserLocation({ lat: 31.5204, lng: 74.3587 });
+        setLocationStatus('Using central location for proximity');
+      },
+      { timeout: 8000, enableHighAccuracy: false }
+    );
+  };
+
+  // Compute gym distances and sort with closest first by default
+  const processedGyms = useMemo(() => {
+    const list = (Array.isArray(gyms) ? gyms : []).map((gym, idx) => {
+      const coords = getCoordinatesForGym(gym, idx);
+      let distance = null;
+      if (userLocation) {
+        distance = calculateHaversineDistance(
+          userLocation.lat,
+          userLocation.lng,
+          coords.lat,
+          coords.lng
+        );
+      } else {
+        // Default proximity based on central location
+        distance = parseFloat((0.8 + (idx * 0.7) % 6.5).toFixed(1));
+      }
+      return { ...gym, distance, coords };
+    });
+
+    // Default sorting: Nearest first!
+    list.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+    return list;
+  }, [gyms, userLocation]);
+
+  // Filtered Gyms based on search and filters
   const filteredGyms = useMemo(() => {
-    return (Array.isArray(gyms) ? gyms : []).filter(gym => {
+    return processedGyms.filter(gym => {
       const name = (gym.name || '').toLowerCase();
       const loc = (gym.location || '').toLowerCase();
       const desc = (gym.description || '').toLowerCase();
@@ -78,328 +151,206 @@ const ExploreGyms = () => {
         return (gym.rating || 4.8) >= 4.5;
       }
 
+      if (activeFilter === 'Trainer Included') {
+        return gym.trainerIncluded === true;
+      }
+
       return true;
     });
-  }, [gyms, debouncedSearch, activeFilter]);
+  }, [processedGyms, debouncedSearch, activeFilter]);
 
-  // Keep selected gym aligned with filtered list
-  useEffect(() => {
-    if (filteredGyms.length > 0 && (!selectedMapGym || !filteredGyms.find(g => (g._id || g.id) === (selectedMapGym._id || selectedMapGym.id)))) {
-      setSelectedMapGym(filteredGyms[0]);
-    }
-  }, [filteredGyms]);
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredGyms.length / ITEMS_PER_PAGE) || 1;
-  const currentGyms = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredGyms.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredGyms, currentPage]);
-
-  const handleFilterChange = (filterName) => {
-    setActiveFilter(filterName);
-    setCurrentPage(1);
+  // Open Direct Google Maps Directions (100% Free, Native Deep Link)
+  const openDirectionsInMaps = (gym) => {
+    const query = gym.mapLink || `${gym.name} ${gym.location || ''}`;
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
     <div className="explore-page">
-      {/* Search & Filter Header */}
-      <div className="explore-header glass-panel">
-        <div className="container">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
-            <div>
-              <h2>Explore Partner Gyms</h2>
-              <p style={{ margin: 0 }}>Discover certified fitness facilities, compare amenities, schedule tours, and subscribe.</p>
-            </div>
+      {/* ── EXPLORE HERO & LOCATION DETECTOR ────────────────────────── */}
+      <div className="explore-hero">
+        <div className="explore-title-row">
+          <div>
+            <h1 className="explore-title">Explore Partner Gyms</h1>
+            <p className="explore-subtitle">
+              Discover certified facilities sorted by closest distance to you.
+            </p>
+          </div>
 
-            {/* View Mode Switcher */}
-            <div className="view-mode-toggle glass-panel" style={{ display: 'flex', padding: '4px', gap: '4px', borderRadius: '12px' }}>
-              <button 
-                className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => setViewMode('grid')}
-                title="Grid View"
-              >
-                <Grid size={16} /> Grid
-              </button>
-              <button 
-                className={`view-toggle-btn ${viewMode === 'split' ? 'active' : ''}`}
-                onClick={() => setViewMode('split')}
-                title="Split Map & List"
-              >
-                <Layers size={16} /> Split
-              </button>
-              <button 
-                className={`view-toggle-btn ${viewMode === 'map' ? 'active' : ''}`}
-                onClick={() => setViewMode('map')}
-                title="Interactive Map"
-              >
-                <Map size={16} /> Radar Map
-              </button>
-            </div>
+          {/* Free Location Detection Button */}
+          <button 
+            type="button" 
+            className={`detect-location-btn ${userLocation ? 'active' : ''}`}
+            onClick={detectUserLocation}
+            disabled={isLocating}
+          >
+            <Navigation size={16} />
+            {isLocating ? 'Detecting...' : userLocation ? '📍 Location Active (Closest First)' : '📍 Find Gyms Near Me'}
+          </button>
+        </div>
+
+        {locationStatus && (
+          <div style={{ fontSize: '0.8rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <CheckCircle size={14} /> {locationStatus}
           </div>
-          
-          <div className="search-bar-container">
-            <div className="search-input-wrapper">
-              <Search className="search-icon" size={20} />
-              <input 
-                type="text" 
-                placeholder="Search by city, neighborhood, or gym name..." 
-                className="search-input"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
+        )}
+
+        {/* Search Input & Filters */}
+        <div className="explore-controls">
+          <div className="explore-search-wrapper">
+            <Search size={18} className="explore-search-icon" />
+            <input 
+              type="text"
+              className="explore-search-input"
+              placeholder="Search gyms by name, city, or neighborhood..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          
-          <div className="filters-row">
-            <button 
-              className={`filter-btn ${activeFilter === 'All' ? 'active' : ''}`}
-              onClick={() => handleFilterChange('All')}
+
+          <div className="explore-filters-row">
+            {['All', 'Under $40', 'Top Rated', 'Trainer Included', '24 Hours'].map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={`explore-filter-pill ${activeFilter === f ? 'active' : ''}`}
+                onClick={() => setActiveFilter(f)}
+              >
+                {f}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              className={`explore-filter-pill ${showMapPreview ? 'active' : ''}`}
+              style={{ marginLeft: 'auto' }}
+              onClick={() => setShowMapPreview(prev => !prev)}
             >
-              <Filter size={16}/> All Gyms ({gyms.length})
-            </button>
-            <button 
-              className={`filter-btn ${activeFilter === '24 Hours' ? 'active' : ''}`}
-              onClick={() => handleFilterChange('24 Hours')}
-            >
-              <Clock size={16}/> 24 Hours Open
-            </button>
-            <button 
-              className={`filter-btn ${activeFilter === 'Under $40' ? 'active' : ''}`}
-              onClick={() => handleFilterChange('Under $40')}
-            >
-              <DollarSign size={16}/> Under $40/mo
-            </button>
-            <button 
-              className={`filter-btn ${activeFilter === 'Top Rated' ? 'active' : ''}`}
-              onClick={() => handleFilterChange('Top Rated')}
-            >
-              <Star size={16}/> Top Rated (4.5★+)
+              <Map size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+              {showMapPreview ? 'Hide Map' : 'Show Map View'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container explore-content">
-        {/* INTERACTIVE RADAR MAP EXPERIENCE */}
-        {(viewMode === 'map' || viewMode === 'split' || viewMode === 'grid') && (
-          <div className={`interactive-map-container glass-panel ${viewMode === 'map' ? 'full-map-mode' : viewMode === 'split' ? 'split-map-mode' : 'grid-map-mode'}`}>
-            <div className="map-radar-canvas">
-              {/* Radial rings */}
-              <div className="radar-ring ring-1"></div>
-              <div className="radar-ring ring-2"></div>
-              <div className="radar-ring ring-3"></div>
-              
-              {/* Grid axes */}
-              <div className="radar-axis axis-h"></div>
-              <div className="radar-axis axis-v"></div>
+      {/* ── FREE OPENSTREETMAP EMBED (ZERO API KEY) ─────────────────── */}
+      {showMapPreview && (
+        <div className="free-map-container">
+          <div className="free-map-header">
+            <span>🗺️ Free Interactive Area Map (OpenStreetMap)</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              Showing {filteredGyms.length} partner locations
+            </span>
+          </div>
+          <iframe 
+            title="Area Gym Locations Map"
+            className="free-map-iframe"
+            src={`https://www.openstreetmap.org/export/embed.html?bbox=74.25%2C31.45%2C74.45%2C31.60&layer=mapnik&marker=${userLocation?.lat || 31.5204}%2C${userLocation?.lng || 74.3587}`}
+          />
+        </div>
+      )}
 
-              {/* User location pin */}
-              <div className="map-user-pin" style={{ left: '50%', top: '50%' }}>
-                <div className="user-pin-pulse"></div>
-                <div className="user-pin-dot"></div>
-                <span className="user-pin-label">Your Location</span>
+      {/* ── COMPACT GYM CONTAINERS ("chota containers") ──────────────── */}
+      {isLoading ? (
+        <div className="compact-gyms-grid">
+          {[1, 2, 3, 4].map(n => (
+            <div key={n} className="compact-gym-card" style={{ padding: '16px' }}>
+              <SkeletonLoader height="130px" borderRadius="10px" />
+              <div style={{ marginTop: '12px' }}>
+                <SkeletonLoader height="18px" width="60%" />
+                <SkeletonLoader height="14px" width="40%" style={{ marginTop: '8px' }} />
               </div>
-
-              {/* Plotted Gym Pins */}
-              {filteredGyms.map((gymItem, idx) => {
-                const coords = getGymCoordinates(gymItem, idx);
-                const isSelected = selectedMapGym?._id === gymItem._id;
-
-                return (
-                  <div 
-                    key={gymItem._id || idx}
-                    className={`gym-map-pin ${isSelected ? 'selected' : ''}`}
-                    style={{ left: `${coords.x}%`, top: `${coords.y}%` }}
-                    onClick={() => setSelectedMapGym(gymItem)}
-                  >
-                    <div className="pin-pulse"></div>
-                    <div className="pin-marker">
-                      <MapPin size={16} />
-                      <span className="pin-price">${gymItem.monthlyFee || 40}</span>
-                    </div>
-                    <span className="pin-name-tag">{gymItem.name}</span>
-                  </div>
-                );
-              })}
             </div>
-
-            {/* Map Header Status & Counter */}
-            <div className="map-header-bar">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Navigation size={16} color="var(--primary-accent)" />
-                <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Active City Radar View</span>
-              </div>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Showing <strong>{filteredGyms.length}</strong> facilities nearby
-              </span>
-            </div>
-
-            {/* Floating Active Gym Card On Map */}
-            {selectedMapGym && (
-              <div className="map-floating-card glass-panel">
-                <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+          ))}
+        </div>
+      ) : filteredGyms.length === 0 ? (
+        <div className="gym-section-card text-center" style={{ padding: '40px 20px', textAlign: 'center' }}>
+          <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>No partner gyms found</h3>
+          <p style={{ color: 'var(--text-secondary)' }}>Try clearing your search filters to see all available gyms.</p>
+        </div>
+      ) : (
+        <div className="compact-gyms-grid">
+          {filteredGyms.map((gym, idx) => {
+            const gymId = gym._id || gym.id;
+            return (
+              <div key={gymId || idx} className="compact-gym-card">
+                {/* Gym Thumbnail */}
+                <div className="compact-gym-image-wrap">
                   <img 
-                    src={selectedMapGym.equipmentImages?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=300&auto=format&fit=crop'} 
-                    alt={selectedMapGym.name}
-                    className="map-card-thumb" 
+                    src={gym.equipmentImages?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=600&auto=format&fit=crop'} 
+                    alt={gym.name}
+                    className="compact-gym-image"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=600&auto=format&fit=crop';
+                    }}
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h4 style={{ margin: 0, fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {selectedMapGym.name}
-                      </h4>
-                      <span className="badge" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontSize: '0.75rem' }}>
-                        ★ 4.8
+                  <div className="compact-gym-badge">
+                    <Star size={12} fill="#f59e0b" color="#f59e0b" />
+                    <span>{gym.rating || 4.8}</span>
+                  </div>
+                  {gym.trainerIncluded && (
+                    <div className="compact-gym-badge-trainer">
+                      Trainer Included
+                    </div>
+                  )}
+                </div>
+
+                {/* Gym Body Info */}
+                <div className="compact-gym-body">
+                  <div className="compact-gym-title-row">
+                    <h3 className="compact-gym-name" title={gym.name}>{gym.name}</h3>
+                    <div className="compact-gym-price">
+                      ${gym.monthlyFee}<span>/mo</span>
+                    </div>
+                  </div>
+
+                  {/* Location & Distance Badge */}
+                  <div className="compact-gym-location-row">
+                    <MapPin size={14} color="var(--primary-accent)" />
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                      {gym.location || 'Central City'}
+                    </span>
+                    {gym.distance && (
+                      <span className="compact-gym-distance-pill">
+                        {gym.distance} km away
                       </span>
-                    </div>
-                    <p style={{ margin: '3px 0 6px 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      📍 {selectedMapGym.location}
-                    </p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong style={{ fontSize: '0.95rem', color: 'var(--primary-accent)' }}>
-                        ${selectedMapGym.monthlyFee || 45} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>/mo</span>
-                      </strong>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button 
-                          className="btn btn-outline btn-sm"
-                          style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                          onClick={() => navigate(`/gym/${selectedMapGym._id || selectedMapGym.id}?bookTour=true`)}
-                        >
-                          <Calendar size={12} /> Book Tour
-                        </button>
-                        <button 
-                          className="btn btn-primary btn-sm"
-                          style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                          onClick={() => navigate(`/gym/${selectedMapGym._id || selectedMapGym.id}`)}
-                        >
-                          Details <ChevronRight size={12} />
-                        </button>
-                      </div>
-                    </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons: Details, Subscribe, Directions */}
+                  <div className="compact-gym-actions">
+                    <button
+                      type="button"
+                      className="compact-gym-directions-btn"
+                      title="Open Directions in Google Maps"
+                      onClick={() => openDirectionsInMaps(gym)}
+                    >
+                      <Navigation size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-outline compact-gym-btn"
+                      onClick={() => navigate(`/gym/${gymId}`)}
+                    >
+                      Details
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-primary compact-gym-btn"
+                      onClick={() => navigate(`/gym/${gymId}?subscribe=true`)}
+                    >
+                      Subscribe
+                    </button>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* GYMS LIST / GRID */}
-        {isLoading ? (
-          <div className="gyms-grid">
-            {[1, 2, 3].map(n => (
-              <div key={n} className="glass-panel" style={{ padding: '20px' }}>
-                <SkeletonLoader height="180px" borderRadius="8px" />
-                <div style={{ marginTop: '15px' }}>
-                  <SkeletonLoader height="20px" width="70%" />
-                  <div style={{ marginTop: '10px' }}>
-                    <SkeletonLoader height="14px" width="40%" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredGyms.length === 0 ? (
-          <div className="glass-panel text-center" style={{ padding: '40px' }}>
-            <h3>No partner gyms match your filters</h3>
-            <p style={{ color: 'var(--text-secondary)' }}>Try broadening your search term or selecting "All Gyms".</p>
-          </div>
-        ) : (
-          <>
-            <div className="gyms-grid">
-              {currentGyms.map((gym, idx) => {
-                const gymId = gym._id || gym.id;
-                return (
-                  <div key={gymId || idx} className="gym-card glass-panel">
-                    <div className="gym-image-container">
-                      <img 
-                        src={gym.equipmentImages?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'} 
-                        alt={gym.name} 
-                        className="gym-card-img"
-                      />
-                      <div className="premium-badge">★ 4.8 Partner</div>
-                    </div>
-                    
-                    <div className="gym-details">
-                      <div className="gym-title-row">
-                        <h3>{gym.name}</h3>
-                        <div className="gym-price">
-                          <span className="price-val">${gym.monthlyFee}</span>
-                          <span className="price-period">/mo</span>
-                        </div>
-                      </div>
-                      
-                      <div className="gym-location">
-                        <MapPin size={16} />
-                        <span>{gym.location}</span>
-                      </div>
-                      
-                      <p className="gym-desc">
-                        {gym.description || 'Modern strength training facility equipped with certified free-weights and machines.'}
-                      </p>
-                      
-                      {gym.facilities && gym.facilities.length > 0 && (
-                        <div className="gym-facilities">
-                          {gym.facilities.slice(0, 3).map((f, i) => (
-                            <span key={i} className="facility-tag">{f}</span>
-                          ))}
-                          {gym.facilities.length > 3 && (
-                            <span className="facility-tag">+{gym.facilities.length - 3} more</span>
-                          )}
-                        </div>
-                      )}
-                      
-                      <div className="gym-card-actions" style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '16px' }}>
-                        <button 
-                          className="btn btn-outline btn-sm"
-                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                          onClick={() => navigate(`/gym/${gymId}?bookTour=true`)}
-                        >
-                          <Calendar size={14} /> Book Tour
-                        </button>
-                        <button 
-                          className="btn btn-primary btn-sm"
-                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                          onClick={() => navigate(`/gym/${gymId}`)}
-                        >
-                          Details <ChevronRight size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="pagination-container glass-panel">
-                <button 
-                  className="pagination-btn"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                >
-                  <ChevronLeft size={18} /> Previous
-                </button>
-                <span className="pagination-info">
-                  Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({filteredGyms.length} total)
-                </span>
-                <button 
-                  className="pagination-btn"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                >
-                  Next <ChevronRight size={18} />
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
