@@ -18,24 +18,16 @@ const ProfileHeader = ({
   setActiveTab,
 }) => {
   const [isHdModalOpen, setIsHdModalOpen] = useState(false);
-  const isAdminUser = ['SuperAdmin', 'Admin', 'ComplaintModerator'].includes(userRole);
-  const points = stats?.points || 0;
-  const streak = stats?.streak || 0;
-  const level = Math.max(1, Math.floor(points / 100) + 1);
-  const hp = Math.max(100, points + 120);
-
-  const totalExercises = 
-    (workoutProgress?.completedExercises?.length) ||
-    (history?.reduce((acc, h) => acc + (h.exercises?.length || 1), 0)) ||
-    (points ? Math.floor(points / 10) : 0);
-
+  const points = Number(stats?.points ?? 0);
+  const streak = Number(stats?.streak ?? 0);
+  const totalExercises = workoutProgress?.completedExercises?.length
+    ?? (Array.isArray(history) ? history.reduce((acc, item) => acc + (Array.isArray(item.exercises) ? item.exercises.length : 0), 0) : null);
   const joinDate = userData?.createdAt
     ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    : 'Active Member';
-
-  const heightVal = bio?.height || userData?.bioData?.height || "5'10\"";
-  const rawWeight = bio?.weight || userData?.bioData?.weight;
-  const weightVal = rawWeight ? (String(rawWeight).includes('kg') ? rawWeight : `${rawWeight} kg`) : "72 kg";
+    : null;
+  const heightVal = bio?.height || userData?.bioData?.height || null;
+  const rawWeight = bio?.weight || userData?.bioData?.weight || null;
+  const weightVal = rawWeight ? (String(rawWeight).toLowerCase().includes('kg') ? rawWeight : `${rawWeight} kg`) : null;
 
   const handleEditProfile = () => {
     if (setActiveTab) setActiveTab('bio');
@@ -45,152 +37,35 @@ const ProfileHeader = ({
 
   const renderCard = (isHd = false) => (
     <div className={`pokemon-fullart-card ${isHd ? 'pokemon-card-hd' : ''}`}>
-      {/* Holographic Rainbow Foil Sheen */}
-      <div className="pokemon-card-holo-sheen" />
-
-      {/* Top Header Bar */}
+      <div className="pokemon-card-holo-sheen" aria-hidden="true" />
       <div className="pokemon-card-top-bar">
-        <div className="pokemon-stage-badge">
-          <span className="stage-tag">BASIC</span>
-          <span className="stage-role">{userRole || 'Athlete'}</span>
-        </div>
-
-        <h2 className="pokemon-card-name" title={userName}>{userName}</h2>
-
-        <div className="pokemon-hp-group">
-          <span className="pokemon-hp-label">HP</span>
-          <span className="pokemon-hp-value">{hp}</span>
-          <div className="pokemon-energy-orb" title="Energy: Electric">
-            <Zap size={12} />
-          </div>
-        </div>
+        <span className="pokemon-card-member-label">{userRole || 'Member'}</span>
+        <h2 className="pokemon-card-name" title={userName}>{userName || 'GymSync Member'}</h2>
+        {points > 0 && <span className="pokemon-card-xp">{points.toLocaleString()} XP</span>}
       </div>
-
-      {/* Center: Dedicated Character Art Frame (Authentic Pokémon illustration window) */}
       <div className="pokemon-card-art-frame">
         {profilePic ? (
-          <img 
-            src={profilePic} 
-            alt={userName} 
-            className="pokemon-card-hero-img" 
-          />
+          <img src={profilePic} alt={userName ? `${userName} profile` : 'Profile'} className="pokemon-card-hero-img" />
         ) : (
-          <div className="pokemon-card-fallback-avatar">
-            <UserAvatar src="" name={userName} size={130} />
-          </div>
+          <div className="pokemon-card-fallback-avatar"><UserAvatar src="" name={userName} size={130} /></div>
         )}
-
-        {/* Level Ribbon on Art Frame */}
-        <div className="pokemon-card-lvl-badge">
-          <Sparkles size={11} />
-          <span>LVL {level}</span>
-        </div>
-
-        {/* Change Photo Overlay Button */}
         {!isHd && (
-          <button 
-            type="button" 
-            className="pokemon-card-photo-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              fileInputRef.current && fileInputRef.current.click();
-            }}
-            title="Upload new photo or cutout"
-          >
-            <Camera size={12} />
-            <span>Change</span>
-          </button>
-        )}
-
-        {/* Inspect HD Card Button */}
-        {!isHd && (
-          <button 
-            type="button" 
-            className="pokemon-card-inspect-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsHdModalOpen(true);
-            }}
-            title="Open HD Full Screen Card"
-          >
-            <Maximize2 size={12} />
-            <span>HD</span>
+          <button type="button" className="pokemon-card-photo-btn" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} title="Change profile photo">
+            <Camera size={13} /><span>Change photo</span>
           </button>
         )}
       </div>
-
-      {/* Sub-strip Pokedex Stats */}
-      <div className="pokemon-card-substrip">
-        <span>NO. 001</span>
-        <span>•</span>
-        <span>HT: {heightVal}</span>
-        <span>•</span>
-        <span>WT: {weightVal}</span>
-        <span>•</span>
-        <span>{bio?.location ? bio.location : (isAdminUser ? 'Headquarters' : 'GymSync Arena')}</span>
+      <div className="pokemon-card-real-details">
+        {heightVal && <span><small>HEIGHT</small><strong>{heightVal}</strong></span>}
+        {weightVal && <span><small>WEIGHT</small><strong>{weightVal}</strong></span>}
+        {joinDate && <span><small>MEMBER SINCE</small><strong>{joinDate}</strong></span>}
       </div>
-
-      {/* Floating Moves & Power Overlays (Streak, Exercises, Points, Join Date) */}
-      <div className="pokemon-card-moves">
-        {/* Move 1: Streak */}
-        <div className="pokemon-card-move-row">
-          <div className="pokemon-move-cost-pills">
-            <span className="cost-orb fire"><Flame size={11} /></span>
-            <span className="cost-orb fire"><Flame size={11} /></span>
-          </div>
-          <div className="pokemon-move-content">
-            <div className="pokemon-move-title-row">
-              <span className="move-title">Streak Blaze</span>
-              <span className="move-power">{streak} DAYS</span>
-            </div>
-            <p className="move-desc">Continuous active workout consistency & discipline.</p>
-          </div>
-        </div>
-
-        {/* Move 2: Total Exercises */}
-        <div className="pokemon-card-move-row">
-          <div className="pokemon-move-cost-pills">
-            <span className="cost-orb steel"><Dumbbell size={11} /></span>
-            <span className="cost-orb steel"><Dumbbell size={11} /></span>
-          </div>
-          <div className="pokemon-move-content">
-            <div className="pokemon-move-title-row">
-              <span className="move-title">Exercise Mastery</span>
-              <span className="move-power">{totalExercises} EXER</span>
-            </div>
-            <p className="move-desc">Total gym movements & training drills completed.</p>
-          </div>
-        </div>
-
-        {/* Move 3: Total Points & Seniority */}
-        <div className="pokemon-card-move-row">
-          <div className="pokemon-move-cost-pills">
-            <span className="cost-orb electric"><Zap size={11} /></span>
-            <span className="cost-orb electric"><Trophy size={11} /></span>
-          </div>
-          <div className="pokemon-move-content">
-            <div className="pokemon-move-title-row">
-              <span className="move-title">XP Overdrive</span>
-              <span className="move-power">{points} XP</span>
-            </div>
-            <p className="move-desc">Member Seniority: Joined {joinDate} • Rank: Tier {level}</p>
-          </div>
-        </div>
+      <div className="pokemon-card-progress">
+        {typeof streak === 'number' && <div><Flame size={17} /><span><strong>{streak}</strong><small>Day streak</small></span></div>}
+        {points > 0 && <div><Zap size={17} /><span><strong>{points.toLocaleString()}</strong><small>Points</small></span></div>}
+        {typeof totalExercises === 'number' && totalExercises > 0 && <div><Dumbbell size={17} /><span><strong>{totalExercises}</strong><small>Exercises completed</small></span></div>}
       </div>
-
-      {/* Card Footer */}
-      <div className="pokemon-card-bottom">
-        <div className="card-weakness-bar">
-          <span>Weakness: Rest Day ×2</span>
-          <span>•</span>
-          <span>Resistance: Fatigue -30</span>
-          <span>•</span>
-          <span>Retreat: ⚡</span>
-        </div>
-        <div className="card-collector-code">
-          GymSync 1st Edition • Card #GS-001 • Holographic Ultra Rare ★★★
-        </div>
-      </div>
+      <div className="pokemon-card-bottom"><span>GYMSYNC</span><span>ATHLETE PROFILE</span></div>
     </div>
   );
 
@@ -254,9 +129,9 @@ const ProfileHeader = ({
             <p className="profile-overview-name">{userName || 'GymSync Athlete'}</p>
             <p className="profile-overview-role">{userRole || 'Athlete'} · Member since {joinDate}</p>
             <div className="profile-overview-details">
-              <div><span>Height</span><strong>{heightVal}</strong></div>
-              <div><span>Weight</span><strong>{weightVal}</strong></div>
-              <div className="profile-overview-location"><span>Location</span><strong>{bio?.location || 'GymSync Arena'}</strong></div>
+              {heightVal && <div><span>Height</span><strong>{heightVal}</strong></div>}
+              {weightVal && <div><span>Weight</span><strong>{weightVal}</strong></div>}
+              <div className="profile-overview-location"><span>Location</span><strong>{bio?.location || userData?.bioData?.location || 'Not added'}</strong></div>
             </div>
             <button type="button" className="profile-overview-edit" onClick={handleEditProfile}><Edit3 size={15} /> Edit profile &amp; bio</button>
           </section>
@@ -267,7 +142,7 @@ const ProfileHeader = ({
               <div className="profile-overview-stat"><span>⚡</span><div><strong>{points.toLocaleString()}</strong><small>Total XP</small></div></div>
               <div className="profile-overview-stat"><span>🔥</span><div><strong>{streak}</strong><small>Day streak</small></div></div>
               <div className="profile-overview-stat"><span>🏋️</span><div><strong>{totalExercises}</strong><small>Exercises</small></div></div>
-              <div className="profile-overview-stat"><span>✦</span><div><strong>{level}</strong><small>Current level</small></div></div>
+              
             </div>
           </section>
           <p className="profile-overview-hint">Your progress, one workout at a time.</p>
