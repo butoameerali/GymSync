@@ -3,17 +3,17 @@
   command = "npm run build"
   publish = "dist"
 
-# Proxy backend API requests to Firebase Hosting domain
+# Proxy backend API requests to Vercel backend
 [[redirects]]
   from = "/api/*"
-  to = "https://gymsync-40e8b.web.app/api/:splat"
+  to = "https://gymsycn.vercel.app/api/:splat"
   status = 200
   force = true
 
 # Proxy static uploads if applicable
 [[redirects]]
   from = "/uploads/*"
-  to = "https://gymsync-40e8b.web.app/uploads/:splat"
+  to = "https://gymsycn.vercel.app/uploads/:splat"
   status = 200
   force = true
 
