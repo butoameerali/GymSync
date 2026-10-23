@@ -8,8 +8,6 @@ import {
   VolumeX, 
   Play, 
   Pause, 
-  ChevronUp, 
-  ChevronDown, 
   X, 
   Send,
   UserCheck,
@@ -380,15 +378,6 @@ const ReelsPage = () => {
 
   return (
     <div className="reels-page-container">
-      {/* Desktop Helper Header (Clean & Minimal) */}
-      <div className="reels-desktop-header" style={{ justifyContent: 'flex-end' }}>
-        <div className="reels-header-actions">
-          <span className="reels-index-pill">
-            {currentIndex + 1} / {reels.length}
-          </span>
-        </div>
-      </div>
-
       <div 
         className="reels-wrapper"
         onWheel={handleWheel}
@@ -396,16 +385,6 @@ const ReelsPage = () => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Desktop Side Navigation Buttons */}
-        <button 
-          className="reel-nav-btn reel-nav-prev" 
-          onClick={handlePrev} 
-          title="Previous Reel (Up Arrow / Scroll Up)"
-          aria-label="Previous Reel"
-        >
-          <ChevronUp size={24} />
-        </button>
-
         {/* Video Reel Player Card */}
         {currentReel && (
           <div className="reel-card" onClick={handleDoubleTap}>
@@ -647,16 +626,6 @@ const ReelsPage = () => {
             )}
           </div>
         )}
-
-        {/* Desktop Side Navigation Buttons */}
-        <button 
-          className="reel-nav-btn reel-nav-next" 
-          onClick={handleNext} 
-          title="Next Reel (Down Arrow / Scroll Down)"
-          aria-label="Next Reel"
-        >
-          <ChevronDown size={24} />
-        </button>
       </div>
     </div>
   );

@@ -17,38 +17,43 @@ const AppLayout = ({ children }) => {
   // Pages that display the right suggestions column (20% width)
   // On Home, Explore, Store, Social views, the 3-column layout shines!
   const hasRightSidebar = ['/home', '/', '/explore', '/store'].includes(location.pathname);
+  const isReelsPage = location.pathname === '/reels';
 
   return (
-    <div className="app-3col-layout">
-      {/* Mobile Top Header Bar (Only visible on screens < 768px) */}
-      <header className="mobile-top-header">
-        <Link to="/home" className="mobile-top-logo">
-          <Activity size={24} color="var(--primary-accent)" />
-          <span>GymSync</span>
-        </Link>
-        <div className="mobile-top-actions">
-          <Link to="/notifications" className="mobile-header-btn" title="Notifications">
-            <Bell size={21} />
+    <div className={`app-3col-layout ${isReelsPage ? 'reels-page-active' : ''}`}>
+      {/* Mobile Top Header Bar (Only visible on screens < 768px, hide on reels) */}
+      {!isReelsPage && (
+        <header className="mobile-top-header">
+          <Link to="/home" className="mobile-top-logo">
+            <Activity size={24} color="var(--primary-accent)" />
+            <span>GymSync</span>
           </Link>
-        </div>
-      </header>
+          <div className="mobile-top-actions">
+            <Link to="/notifications" className="mobile-header-btn" title="Notifications">
+              <Bell size={21} />
+            </Link>
+          </div>
+        </header>
+      )}
 
       {/* Left Navigation Column: 20% width */}
       <div className="app-left-column">
         <AppSidebar />
       </div>
 
-      {/* Middle Content Column: 60% width (or 80% if right sidebar not needed) */}
-      <main className={`app-middle-column ${!hasRightSidebar ? 'full-width' : ''}`}>
+      {/* Middle Content Column: 60% width */}
+      <main className={`app-middle-column ${isReelsPage ? 'reels-mode' : (!hasRightSidebar ? 'full-width' : '')}`}>
         {children}
       </main>
 
-      {/* Right Suggestions Column: 20% width */}
-      {hasRightSidebar && (
+      {/* Right Suggestions Column: 20% width (or empty placeholder on reels) */}
+      {hasRightSidebar ? (
         <div className="app-right-column">
           <RightSuggestions />
         </div>
-      )}
+      ) : isReelsPage ? (
+        <div className="app-right-column reels-right-empty" aria-hidden="true" />
+      ) : null}
     </div>
   );
 };
