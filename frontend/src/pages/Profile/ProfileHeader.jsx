@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flame, Zap, Camera, Dumbbell, Sparkles, CheckCircle2, AlertTriangle, Maximize2, X } from 'lucide-react';
+import { Flame, Zap, Camera, Dumbbell, Sparkles, Maximize2, X, Edit3, Trophy, CheckCircle2 } from 'lucide-react';
 import UserAvatar from '../../components/common/UserAvatar';
 
 const ProfileHeader = ({
@@ -13,16 +13,35 @@ const ProfileHeader = ({
   isTrainee,
   fileInputRef,
   handlePicUpload,
-  setVerifyEmailInput,
-  setIsVerifyModalOpen,
+  workoutProgress,
+  history,
+  setActiveTab,
 }) => {
   const [isHdModalOpen, setIsHdModalOpen] = useState(false);
   const isAdminUser = ['SuperAdmin', 'Admin', 'ComplaintModerator'].includes(userRole);
-  const isVerified = Boolean(userData?.isGoogleApproved || userData?.isEmailVerified);
   const points = stats?.points || 0;
   const streak = stats?.streak || 0;
   const level = Math.max(1, Math.floor(points / 100) + 1);
   const hp = Math.max(100, points + 120);
+
+  const totalExercises = 
+    (workoutProgress?.completedExercises?.length) ||
+    (history?.reduce((acc, h) => acc + (h.exercises?.length || 1), 0)) ||
+    (points ? Math.floor(points / 10) : 0);
+
+  const joinDate = userData?.createdAt
+    ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : 'Active Member';
+
+  const heightVal = bio?.height || userData?.bioData?.height || "5'10\"";
+  const rawWeight = bio?.weight || userData?.bioData?.weight;
+  const weightVal = rawWeight ? (String(rawWeight).includes('kg') ? rawWeight : `${rawWeight} kg`) : "72 kg";
+
+  const handleEditProfile = () => {
+    if (setActiveTab) setActiveTab('bio');
+    localStorage.setItem('gymsync_onboarding_skip_date', '');
+    window.dispatchEvent(new Event('open-onboarding'));
+  };
 
   const renderCard = (isHd = false) => (
     <div className={`pokemon-fullart-card ${isHd ? 'pokemon-card-hd' : ''}`}>
@@ -47,8 +66,8 @@ const ProfileHeader = ({
         </div>
       </div>
 
-      {/* Center: Hero Cutout / Photo Background Stage */}
-      <div className="pokemon-card-art-stage">
+      {/* Center: Dedicated Character Art Frame (Authentic Pokémon illustration window) */}
+      <div className="pokemon-card-art-frame">
         {profilePic ? (
           <img 
             src={profilePic} 
@@ -61,6 +80,12 @@ const ProfileHeader = ({
           </div>
         )}
 
+        {/* Level Ribbon on Art Frame */}
+        <div className="pokemon-card-lvl-badge">
+          <Sparkles size={11} />
+          <span>LVL {level}</span>
+        </div>
+
         {/* Change Photo Overlay Button */}
         {!isHd && (
           <button 
@@ -70,10 +95,10 @@ const ProfileHeader = ({
               e.stopPropagation();
               fileInputRef.current && fileInputRef.current.click();
             }}
-            title="Upload cutout or photo"
+            title="Upload new photo or cutout"
           >
-            <Camera size={13} />
-            <span>Change Photo</span>
+            <Camera size={12} />
+            <span>Change</span>
           </button>
         )}
 
@@ -86,32 +111,26 @@ const ProfileHeader = ({
               e.stopPropagation();
               setIsHdModalOpen(true);
             }}
-            title="Open HD Card Photo View"
+            title="Open HD Full Screen Card"
           >
-            <Maximize2 size={13} />
-            <span>HD Card</span>
+            <Maximize2 size={12} />
+            <span>HD</span>
           </button>
         )}
-
-        {/* Level Ribbon */}
-        <div className="pokemon-card-lvl-badge">
-          <Sparkles size={11} />
-          <span>LVL {level}</span>
-        </div>
       </div>
 
       {/* Sub-strip Pokedex Stats */}
       <div className="pokemon-card-substrip">
         <span>NO. 001</span>
         <span>•</span>
-        <span>HT: {bio?.height || "5'10\""}</span>
+        <span>HT: {heightVal}</span>
         <span>•</span>
-        <span>WT: {bio?.weight || "72 kg"}</span>
+        <span>WT: {weightVal}</span>
         <span>•</span>
         <span>{bio?.location ? bio.location : (isAdminUser ? 'Headquarters' : 'GymSync Arena')}</span>
       </div>
 
-      {/* Floating Moves & Power Overlays */}
+      {/* Floating Moves & Power Overlays (Streak, Exercises, Points, Join Date) */}
       <div className="pokemon-card-moves">
         {/* Move 1: Streak */}
         <div className="pokemon-card-move-row">
@@ -128,43 +147,33 @@ const ProfileHeader = ({
           </div>
         </div>
 
-        {/* Move 2: XP / Instructor */}
+        {/* Move 2: Total Exercises */}
         <div className="pokemon-card-move-row">
           <div className="pokemon-move-cost-pills">
-            <span className="cost-orb electric"><Zap size={11} /></span>
-            <span className="cost-orb electric"><Zap size={11} /></span>
+            <span className="cost-orb steel"><Dumbbell size={11} /></span>
+            <span className="cost-orb steel"><Dumbbell size={11} /></span>
           </div>
           <div className="pokemon-move-content">
             <div className="pokemon-move-title-row">
-              <span className="move-title">{userRole === 'FitnessInstructor' ? 'Master Coaching' : 'XP Overdrive'}</span>
-              <span className="move-power">
-                {userRole === 'FitnessInstructor' ? `${instructorStats?.programs || 0} PRG` : `${points} XP`}
-              </span>
+              <span className="move-title">Exercise Mastery</span>
+              <span className="move-power">{totalExercises} EXER</span>
             </div>
-            <p className="move-desc">Accumulated sets, PR milestones, and performance output.</p>
+            <p className="move-desc">Total gym movements & training drills completed.</p>
           </div>
         </div>
 
-        {/* Ability: Account Defense */}
-        <div className="pokemon-card-ability-row">
-          <span className="ability-pill">ABILITY</span>
-          <span className="ability-name">Account Defense</span>
-          <div className="ability-status">
-            {isVerified ? (
-              <span className="verified-chip"><CheckCircle2 size={11} /> Verified</span>
-            ) : (
-              <button 
-                type="button" 
-                className="verify-chip-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setVerifyEmailInput(userData?.email || '');
-                  setIsVerifyModalOpen(true);
-                }}
-              >
-                <AlertTriangle size={11} /> Verify Email
-              </button>
-            )}
+        {/* Move 3: Total Points & Seniority */}
+        <div className="pokemon-card-move-row">
+          <div className="pokemon-move-cost-pills">
+            <span className="cost-orb electric"><Zap size={11} /></span>
+            <span className="cost-orb electric"><Trophy size={11} /></span>
+          </div>
+          <div className="pokemon-move-content">
+            <div className="pokemon-move-title-row">
+              <span className="move-title">XP Overdrive</span>
+              <span className="move-power">{points} XP</span>
+            </div>
+            <p className="move-desc">Member Seniority: Joined {joinDate} • Rank: Tier {level}</p>
           </div>
         </div>
       </div>
@@ -194,6 +203,34 @@ const ProfileHeader = ({
           title="Click to view HD card image"
         >
           {renderCard(false)}
+        </div>
+
+        {/* Card Quick Action Bar: Edit Profile, Change Photo, HD Preview */}
+        <div className="pokemon-card-action-bar">
+          <button 
+            type="button" 
+            className="card-action-btn edit-btn"
+            onClick={handleEditProfile}
+          >
+            <Edit3 size={15} />
+            <span>Edit Profile & Bio</span>
+          </button>
+          <button 
+            type="button" 
+            className="card-action-btn photo-btn"
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+          >
+            <Camera size={15} />
+            <span>Change Photo</span>
+          </button>
+          <button 
+            type="button" 
+            className="card-action-btn inspect-btn"
+            onClick={() => setIsHdModalOpen(true)}
+          >
+            <Maximize2 size={15} />
+            <span>HD View</span>
+          </button>
         </div>
 
         <input 
@@ -226,7 +263,30 @@ const ProfileHeader = ({
             </div>
 
             <div className="pokemon-hd-modal-footer">
-              <span className="pokemon-hd-hint">Click outside or press X to close</span>
+              <button 
+                type="button" 
+                className="card-action-btn edit-btn"
+                onClick={() => {
+                  setIsHdModalOpen(false);
+                  handleEditProfile();
+                }}
+                style={{ padding: '8px 18px' }}
+              >
+                <Edit3 size={15} />
+                <span>Edit Profile & Bio</span>
+              </button>
+              <button 
+                type="button" 
+                className="card-action-btn photo-btn"
+                onClick={() => {
+                  setIsHdModalOpen(false);
+                  fileInputRef.current && fileInputRef.current.click();
+                }}
+                style={{ padding: '8px 18px' }}
+              >
+                <Camera size={15} />
+                <span>Change Photo</span>
+              </button>
             </div>
           </div>
         </div>

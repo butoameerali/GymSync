@@ -374,6 +374,9 @@ const Profile = () => {
           handlePicUpload={handlePicUpload}
           setVerifyEmailInput={setVerifyEmailInput}
           setIsVerifyModalOpen={setIsVerifyModalOpen}
+          workoutProgress={workoutProgress}
+          history={history}
+          setActiveTab={setActiveTab}
         />
 
         {/* Today's Energy & Unified Calorie Tracker */}
