@@ -282,3 +282,18 @@ input:focus, select:focus, textarea:focus {
   transform: translateY(-2px);
   border-color: var(--primary-accent);
 }
+
+/* Hide Netlify Drawer & Feedback Badge */
+[data-netlify-drawer],
+netlify-drawer,
+#netlify-drawer,
+.netlify-drawer,
+div[class*="netlify-drawer"],
+iframe[title*="Netlify"],
+iframe[src*="netlify"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
