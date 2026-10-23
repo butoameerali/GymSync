@@ -8,6 +8,7 @@ import DashboardShell from '../../components/layout/DashboardShell';
 import StatCard from '../../components/ui/StatCard';
 import EquipmentManager from './EquipmentManager';
 import OffersManager from './OffersManager';
+import { getSafeImageUrl } from '../../utils/imageUtils';
 import './GymOwnerDashboard.css';
 
 const GymOwnerDashboard = () => {
@@ -718,7 +719,7 @@ const GymOwnerDashboard = () => {
                   <div className="gym-gig-display">
                     {dashboardData.gym.equipmentImages?.[0] && (
                       <div style={{ width: '100%', height: '200px', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
-                        <img src={dashboardData.gym.equipmentImages[0]} alt="Gym Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={getSafeImageUrl(dashboardData.gym.equipmentImages[0])} alt="Gym Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </div>
                     )}
                     <h2 style={{ marginBottom: '10px' }}>{dashboardData.gym.name}</h2>

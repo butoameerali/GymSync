@@ -60,7 +60,7 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 56px;
+  height: 60px;
   background: var(--glass-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -76,7 +76,7 @@
   align-items: center;
   gap: 8px;
   font-family: 'Outfit', sans-serif;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   font-weight: 800;
   text-decoration: none;
   background: var(--accent-gradient);
@@ -88,7 +88,31 @@
 .mobile-top-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+
+.mobile-header-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg-light);
+  color: var(--text-primary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-header-btn:hover {
+  background: var(--card-border);
+}
+
+.mobile-header-btn svg {
+  width: 20px;
+  height: 20px;
 }
 
 /* Responsive Breakpoints */

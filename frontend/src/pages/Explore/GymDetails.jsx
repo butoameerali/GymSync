@@ -6,6 +6,7 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import Modal from '../../components/common/Modal';
 import TrackingModal from '../../components/common/TrackingModal';
 import { toast } from 'react-toastify';
+import { getSafeImageUrl } from '../../utils/imageUtils';
 import './GymDetails.css';
 
 const DEFAULT_REVIEWS = [
@@ -179,7 +180,7 @@ const GymDetails = () => {
     }
   };
 
-  const bannerImage = gym?.equipmentImages?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop';
+  const bannerImage = getSafeImageUrl(gym?.equipmentImages?.[0], 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop');
   const membershipAmount = Number(gym?.monthlyFee || 0) * (membershipType === 'Yearly' ? 12 : 1);
 
   if (loading) {
@@ -201,10 +202,13 @@ const GymDetails = () => {
 
   const galleryImages = [
     bannerImage,
-    ...(gym.equipmentImages && gym.equipmentImages.length > 1 ? gym.equipmentImages.slice(1) : [
-      'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=800&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=800&auto=format&fit=crop'
-    ])
+    ...(gym.equipmentImages && gym.equipmentImages.length > 1 
+      ? gym.equipmentImages.slice(1).map(img => getSafeImageUrl(img)) 
+      : [
+          'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=800&auto=format&fit=crop',
+          'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=800&auto=format&fit=crop'
+        ]
+    )
   ];
 
   return (

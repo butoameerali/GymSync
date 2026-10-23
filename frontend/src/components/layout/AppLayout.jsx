@@ -1,7 +1,8 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Activity, Sun, Moon, Bell } from 'lucide-react';
+import { Activity, Sun, Moon, Bell, MessageSquare } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import AppSidebar from './AppSidebar';
 import RightSuggestions from './RightSuggestions';
 import './AppLayout.css';
@@ -9,6 +10,9 @@ import './AppLayout.css';
 const AppLayout = ({ children }) => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
+  const token = user?.token || localStorage.getItem('gymsync_token');
+  const isLoggedIn = Boolean(token && user?.role !== 'guest');
 
   // Pages that display the right suggestions column (20% width)
   // On Home, Explore, Store, Social views, the 3-column layout shines!
@@ -19,22 +23,28 @@ const AppLayout = ({ children }) => {
       {/* Mobile Top Header Bar (Only visible on screens < 768px) */}
       <header className="mobile-top-header">
         <Link to="/home" className="mobile-top-logo">
-          <Activity size={22} color="var(--primary-accent)" />
+          <Activity size={24} color="var(--primary-accent)" />
           <span>GymSync</span>
         </Link>
         <div className="mobile-top-actions">
           <button 
             type="button" 
             onClick={toggleTheme} 
-            className="btn-icon" 
-            style={{ padding: '6px', border: 'none', background: 'none' }}
+            className="mobile-header-btn" 
             title="Toggle Theme"
           >
-            {theme === 'dark' ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} color="#3b82f6" />}
+            {theme === 'dark' ? <Sun size={21} color="#f59e0b" /> : <Moon size={21} color="#3b82f6" />}
           </button>
-          <Link to="/notifications" className="btn-icon" style={{ padding: '6px', border: 'none', background: 'none', color: 'var(--text-primary)' }}>
-            <Bell size={18} />
-          </Link>
+          {isLoggedIn && (
+            <Link to="/messages" className="mobile-header-btn" title="Messages">
+              <MessageSquare size={21} />
+            </Link>
+          )}
+          {isLoggedIn && (
+            <Link to="/notifications" className="mobile-header-btn" title="Notifications">
+              <Bell size={21} />
+            </Link>
+          )}
         </div>
       </header>
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, ShoppingBag, Star, Sparkles, MapPin, ArrowRight } from 'lucide-react';
+import { getSafeImageUrl } from '../../utils/imageUtils';
 import './RightSuggestions.css';
 
 const RightSuggestions = () => {
@@ -92,7 +93,7 @@ const RightSuggestions = () => {
               </span>
               {gym.image || gym.equipmentImages?.[0] ? (
                 <img 
-                  src={gym.image || gym.equipmentImages[0]} 
+                  src={getSafeImageUrl(gym.image || gym.equipmentImages[0])} 
                   alt={gym.name} 
                   className="suggestion-card-image" 
                   onError={(e) => { e.target.style.display = 'none'; }}

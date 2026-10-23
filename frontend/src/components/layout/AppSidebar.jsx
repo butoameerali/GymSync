@@ -152,42 +152,42 @@ const AppSidebar = () => {
 
           <nav className="sidebar-nav-group">
             <Link to="/home" className={`sidebar-link ${isActive('/home') ? 'active' : ''}`}>
-              <span className="sidebar-icon"><Home size={20} /></span>
+              <span className="sidebar-icon"><Home size={22} /></span>
               <span className="sidebar-label">Home</span>
             </Link>
 
             <Link to="/reels" className={`sidebar-link ${isActive('/reels') ? 'active' : ''}`}>
-              <span className="sidebar-icon"><Film size={20} /></span>
+              <span className="sidebar-icon"><Film size={22} /></span>
               <span className="sidebar-label">Reels</span>
             </Link>
 
             {!isStaff && (
               <Link to="/ai-trainer" className={`sidebar-link ${isActive('/ai-trainer') ? 'active' : ''}`}>
-                <span className="sidebar-icon"><Dumbbell size={20} /></span>
+                <span className="sidebar-icon"><Dumbbell size={22} /></span>
                 <span className="sidebar-label">Workout Hub</span>
               </Link>
             )}
 
             {!isStaff && (
-              <Link to="/your-gym" className={`sidebar-link ${isActive('/your-gym') ? 'active' : ''}`}>
-                <span className="sidebar-icon"><Building2 size={20} /></span>
+              <Link to="/your-gym" className={`sidebar-link hide-on-mobile ${isActive('/your-gym') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><Building2 size={22} /></span>
                 <span className="sidebar-label">Your Gym</span>
               </Link>
             )}
 
             <Link to="/explore" className={`sidebar-link ${isActive('/explore') ? 'active' : ''}`}>
-              <span className="sidebar-icon"><Compass size={20} /></span>
+              <span className="sidebar-icon"><Compass size={22} /></span>
               <span className="sidebar-label">Explore Gyms</span>
             </Link>
 
             <Link to="/store" className={`sidebar-link hide-on-mobile ${isActive('/store') ? 'active' : ''}`}>
-              <span className="sidebar-icon"><ShoppingBag size={20} /></span>
+              <span className="sidebar-icon"><ShoppingBag size={22} /></span>
               <span className="sidebar-label">Store</span>
             </Link>
 
             {isLoggedIn && (
-              <Link to="/messages" className={`sidebar-link ${isActive('/messages') || isActive('/chat') ? 'active' : ''}`}>
-                <span className="sidebar-icon"><MessageSquare size={20} /></span>
+              <Link to="/messages" className={`sidebar-link hide-on-mobile ${isActive('/messages') || isActive('/chat') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><MessageSquare size={22} /></span>
                 <span className="sidebar-label">Messages</span>
                 {unreadChatCount > 0 && <span className="sidebar-badge">{unreadChatCount}</span>}
               </Link>
@@ -195,7 +195,7 @@ const AppSidebar = () => {
 
             {isLoggedIn && (
               <Link to="/notifications" className={`sidebar-link hide-on-mobile ${isActive('/notifications') ? 'active' : ''}`}>
-                <span className="sidebar-icon"><Bell size={20} /></span>
+                <span className="sidebar-icon"><Bell size={22} /></span>
                 <span className="sidebar-label">Notifications</span>
                 {unreadCount > 0 && <span className="sidebar-badge">{unreadCount}</span>}
               </Link>
@@ -212,12 +212,38 @@ const AppSidebar = () => {
                 }}
                 title="More Options"
               >
-                <span className="sidebar-icon"><MenuIcon size={20} /></span>
+                <span className="sidebar-icon"><MenuIcon size={22} /></span>
                 <span className="sidebar-label">Menu</span>
               </button>
 
               {showMenuPopover && (
                 <div className="sidebar-popover">
+                  {/* Your Gym (Mobile shortcut) */}
+                  {!isStaff && (
+                    <Link to="/your-gym" className="popover-item show-on-mobile-flex" onClick={() => setShowMenuPopover(false)}>
+                      <Building2 size={18} color="var(--primary-accent)" />
+                      <span>Your Gym</span>
+                    </Link>
+                  )}
+
+                  {/* Messages (Mobile shortcut) */}
+                  {isLoggedIn && (
+                    <Link to="/messages" className="popover-item show-on-mobile-flex" onClick={() => setShowMenuPopover(false)}>
+                      <MessageSquare size={18} color="#3b82f6" />
+                      <span>Messages</span>
+                      {unreadChatCount > 0 && <span className="sidebar-badge" style={{ marginLeft: 'auto' }}>{unreadChatCount}</span>}
+                    </Link>
+                  )}
+
+                  {/* Notifications (Mobile shortcut) */}
+                  {isLoggedIn && (
+                    <Link to="/notifications" className="popover-item show-on-mobile-flex" onClick={() => setShowMenuPopover(false)}>
+                      <Bell size={18} color="#f59e0b" />
+                      <span>Notifications</span>
+                      {unreadCount > 0 && <span className="sidebar-badge" style={{ marginLeft: 'auto' }}>{unreadCount}</span>}
+                    </Link>
+                  )}
+
                   {/* Theme Switcher */}
                   <button 
                     type="button" 
@@ -299,6 +325,29 @@ const AppSidebar = () => {
                         </Link>
                       )}
                     </>
+                  )}
+
+                  {/* Mobile Profile & Logout */}
+                  {isLoggedIn ? (
+                    <div className="show-on-mobile-flex" style={{ flexDirection: 'column', gap: '4px' }}>
+                      <div className="popover-divider" />
+                      <Link to="/profile" className="popover-item" onClick={() => setShowMenuPopover(false)}>
+                        <UserIcon size={18} color="var(--primary-accent)" />
+                        <span>My Profile ({userName})</span>
+                      </Link>
+                      <button type="button" className="popover-item danger" onClick={handleLogout}>
+                        <LogOut size={18} color="#ef4444" />
+                        <span>Log Out</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="show-on-mobile-flex" style={{ flexDirection: 'column', gap: '4px' }}>
+                      <div className="popover-divider" />
+                      <Link to="/login" className="popover-item" onClick={() => setShowMenuPopover(false)}>
+                        <LogIn size={18} color="var(--primary-accent)" />
+                        <span>Log In</span>
+                      </Link>
+                    </div>
                   )}
                 </div>
               )}

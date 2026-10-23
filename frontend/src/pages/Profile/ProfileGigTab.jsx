@@ -1,5 +1,6 @@
 import React from 'react';
 import { Building } from 'lucide-react';
+import { getSafeImageUrl } from '../../utils/imageUtils';
 
 const ProfileGigTab = ({ myGymGig }) => {
   return (
@@ -9,7 +10,7 @@ const ProfileGigTab = ({ myGymGig }) => {
         <div className="gym-gig-display" style={{ marginTop: '20px' }}>
           {myGymGig.equipmentImages?.[0] && (
             <div style={{ width: '100%', height: '200px', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
-              <img src={myGymGig.equipmentImages[0]} alt="Gym Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={getSafeImageUrl(myGymGig.equipmentImages[0])} alt="Gym Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           )}
           <h2 style={{ marginBottom: '10px' }}>{myGymGig.name}</h2>

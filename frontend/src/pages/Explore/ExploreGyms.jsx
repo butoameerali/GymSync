@@ -17,6 +17,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
+import { getSafeImageUrl } from '../../utils/imageUtils';
 import './ExploreGyms.css';
 
 // Free Math Haversine Formula (Zero API Key needed)
@@ -278,7 +279,7 @@ const ExploreGyms = () => {
                 {/* Gym Thumbnail */}
                 <div className="compact-gym-image-wrap">
                   <img 
-                    src={gym.equipmentImages?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=600&auto=format&fit=crop'} 
+                    src={getSafeImageUrl(gym.equipmentImages?.[0])} 
                     alt={gym.name}
                     className="compact-gym-image"
                     onError={(e) => {

@@ -118,8 +118,18 @@
   transition: transform 0.2s ease;
 }
 
+.sidebar-icon svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.1px;
+}
+
 .sidebar-link:hover .sidebar-icon {
   transform: scale(1.08);
+}
+
+.show-on-mobile-flex {
+  display: none !important;
 }
 
 .sidebar-label {
@@ -301,7 +311,7 @@
   }
 }
 
-/* Mobile Bottom Navigation (< 768px) - Clean Icon Only */
+/* Mobile Bottom Navigation (< 768px) - Clean, Prominent Icons */
 @media (max-width: 768px) {
   .app-sidebar {
     position: fixed;
@@ -309,11 +319,11 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 56px;
+    height: 64px;
     flex-direction: row;
     align-items: center;
     justify-content: space-around;
-    padding: 0 12px;
+    padding: 0 8px;
     border-right: none;
     border-top: 1px solid var(--sidebar-border);
     background: var(--glass-bg);
@@ -328,6 +338,7 @@
     flex-direction: row;
     align-items: center;
     width: 100%;
+    height: 100%;
     justify-content: space-around;
     gap: 0;
   }
@@ -342,6 +353,7 @@
     align-items: center;
     justify-content: space-around;
     width: 100%;
+    height: 100%;
     gap: 4px;
   }
 
@@ -350,22 +362,27 @@
     display: none !important;
   }
 
+  .show-on-mobile-flex {
+    display: flex !important;
+  }
+
   .sidebar-link {
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 52px;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 12px;
+    border-radius: 14px;
     background: none;
     border: none;
+    transition: all 0.2s ease;
   }
 
   .sidebar-link.active {
     background: var(--accent-gradient);
     color: #ffffff;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
   }
 
   /* Force icon-only on mobile - NO colliding text */
@@ -377,20 +394,30 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 28px;
+    height: 28px;
+  }
+
+  .sidebar-icon svg {
+    width: 26px !important;
+    height: 26px !important;
+    stroke-width: 2.3px !important;
   }
 
   .sidebar-badge {
     position: absolute;
-    top: 4px;
-    right: 4px;
-    padding: 1px 5px;
-    font-size: 0.62rem;
+    top: 6px;
+    right: 6px;
+    padding: 2px 6px;
+    font-size: 0.65rem;
   }
 
   .sidebar-popover {
     bottom: calc(100% + 12px);
     left: auto;
     right: 12px;
-    width: 240px;
+    width: 250px;
+    max-height: 80vh;
+    overflow-y: auto;
   }
 }
