@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Dumbbell, Calendar, FileText, Activity, MessageSquare, AlertCircle, CheckCircle } from 'lucide-react';
+import { 
+  Dumbbell, 
+  Calendar, 
+  FileText, 
+  Activity, 
+  MessageSquare, 
+  AlertCircle, 
+  CheckCircle, 
+  Check, 
+  Clock, 
+  Sparkles,
+  MapPin,
+  ArrowRight
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import './YourGym.css';
 
 const YourGym = () => {
   const [gymData, setGymData] = useState(null);
@@ -11,6 +25,7 @@ const YourGym = () => {
   const [membership, setMembership] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('updates'); // 'updates', 'plans', 'equipment', 'attendance'
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelSuccessMsg, setCancelSuccessMsg] = useState('');
   const { user } = useAuth();
@@ -28,7 +43,7 @@ const YourGym = () => {
           setError("Request timed out while fetching gym data.");
           setLoading(false);
         }
-      }, 10000); // 10s fallback timeout
+      }, 10000);
 
       const token = localStorage.getItem('gymsync_token');
       fetch(`/api/gyms/my-gym-data/${encodeURIComponent(userName || '')}`, {
@@ -59,10 +74,6 @@ const YourGym = () => {
         .catch(err => {
           clearTimeout(timeoutId);
           if (isMounted) {
-            console.error("Error fetching Gym Details", err);
-            // A previous pending/failed payment could leave this browser flag
-            // behind. Clear only that stale flag so the member sees the proper
-            // membership state instead of a broken data page.
             if (err.message === 'No active gym membership was found for this account.') {
               localStorage.removeItem('gymsync_user_gym');
               setIsSubscribed(false);
@@ -81,18 +92,17 @@ const YourGym = () => {
 
   if (!isSubscribed) {
     return (
-      <div className="container" style={{paddingTop: '130px', minHeight: '100vh', textAlign: 'center'}}>
-        <div className="glass-panel" style={{padding: '50px 30px', maxWidth: '580px', margin: '0 auto', borderRadius: '16px'}}>
-          <Dumbbell size={56} color="var(--primary-accent)" style={{marginBottom: '16px'}}/>
-          <h2 style={{marginBottom: '10px', fontSize: '1.6rem'}}>Your Gym</h2>
-          <p style={{color: '#10b981', fontWeight: 600, fontSize: '0.95rem', marginBottom: '8px'}}>
-            No gym currently joined.
+      <div className="your-gym-page">
+        <div className="gym-hero-card" style={{ textAlign: 'center', padding: '48px 24px', alignItems: 'center' }}>
+          <div className="gym-hero-icon" style={{ margin: '0 auto 16px' }}>
+            <Dumbbell size={32} />
+          </div>
+          <h2 style={{ fontSize: '1.6rem', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>Your Gym Portal</h2>
+          <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 24px', lineHeight: 1.6 }}>
+            You haven't joined a verified gym facility yet. Join a fitness center on GymSync to access assigned routines, trainer guidance, and equipment tracking.
           </p>
-          <p style={{color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '28px', fontSize: '0.92rem'}}>
-            You haven't joined a gym yet. Discover registered fitness centers on GymSync to unlock custom training routines, trainer consultations, and gym facilities.
-          </p>
-          <Link to="/explore" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 28px', borderRadius: '10px', fontSize: '0.95rem' }}>
-            Explore Gyms to Join
+          <Link to="/explore" className="btn btn-primary">
+            Explore Gyms to Join <ArrowRight size={16} />
           </Link>
         </div>
       </div>
@@ -101,21 +111,23 @@ const YourGym = () => {
 
   if (loading) {
     return (
-      <div className="container" style={{paddingTop: '150px', minHeight: '100vh', textAlign: 'center'}}>
-        <div style={{ width: '40px', height: '40px', border: '3px solid var(--primary-accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }}></div>
-        <p style={{ color: 'var(--text-secondary)' }}>Loading Dynamic Gym Data...</p>
+      <div className="your-gym-page" style={{ textAlign: 'center', padding: '60px 0' }}>
+        <div style={{ width: '40px', height: '40px', border: '3px solid var(--primary-accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
+        <p style={{ color: 'var(--text-secondary)' }}>Loading your gym facility data...</p>
       </div>
     );
   }
 
   if (error || !gymData) {
     return (
-      <div className="container" style={{paddingTop: '150px', minHeight: '100vh', textAlign: 'center'}}>
-        <div className="glass-panel" style={{padding: '50px', maxWidth: '600px', margin: '0 auto'}}>
-          <Activity size={64} color="#ef4444" style={{marginBottom: '20px'}}/>
-          <h2 style={{marginBottom: '15px'}}>Data Unavailable</h2>
-          <p style={{color: 'var(--text-secondary)', marginBottom: '30px'}}>{error || "We couldn't retrieve your gym details. Your gym owner might not have published their data yet."}</p>
-          <Link to="/home" className="btn btn-primary">Return Home</Link>
+      <div className="your-gym-page">
+        <div className="gym-hero-card" style={{ textAlign: 'center', padding: '40px 24px', alignItems: 'center' }}>
+          <Activity size={48} color="#ef4444" style={{ marginBottom: '16px' }} />
+          <h2 style={{ color: 'var(--text-primary)', marginBottom: '10px' }}>Facility Information</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', maxWidth: '480px' }}>
+            {error || "Could not retrieve facility details at this moment."}
+          </p>
+          <Link to="/home" className="btn btn-primary">Return to Home</Link>
         </div>
       </div>
     );
@@ -124,21 +136,38 @@ const YourGym = () => {
   const togglePlanCompletion = async (planId, scheduleId) => {
     try {
       const token = localStorage.getItem('gymsync_token');
-      const res = await fetch(`/api/gyms/plans/${planId}/schedule/${scheduleId}/complete`, { method: 'PUT', headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`/api/gyms/plans/${planId}/schedule/${scheduleId}/complete`, { 
+        method: 'PUT', 
+        headers: token ? { Authorization: `Bearer ${token}` } : {} 
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-      setPlans(current => current.map(plan => plan._id !== planId ? plan : { ...plan, schedule: plan.schedule.map(day => day._id === scheduleId ? { ...day, completedAt: data.completedAt } : day) }));
-    } catch (err) { setError(err.message || 'Could not update routine completion'); }
+      setPlans(current => current.map(plan => plan._id !== planId ? plan : {
+        ...plan,
+        schedule: plan.schedule.map(day => day._id === scheduleId ? { ...day, completedAt: data.completedAt } : day)
+      }));
+    } catch (err) { 
+      setError(err.message || 'Could not update routine completion'); 
+    }
   };
 
   const updateAutoRenew = async (autoRenew) => {
     try {
       const token = localStorage.getItem('gymsync_token');
-      const res = await fetch('/api/users/membership-settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ autoRenew }) });
+      const res = await fetch('/api/users/membership-settings', { 
+        method: 'PUT', 
+        headers: { 
+          'Content-Type': 'application/json', 
+          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+        }, 
+        body: JSON.stringify({ autoRenew }) 
+      });
       if (!res.ok) throw new Error('Could not update renewal preference');
       setMembership(current => ({ ...current, autoRenew }));
       setCancelSuccessMsg('');
-    } catch (err) { setError(err.message); }
+    } catch (err) { 
+      setError(err.message); 
+    }
   };
 
   const handleCancelRenewal = async () => {
@@ -164,94 +193,283 @@ const YourGym = () => {
   const daysToExpiry = membership?.expiresAt ? Math.ceil((new Date(membership.expiresAt) - new Date()) / 86400000) : null;
 
   return (
-    <div className="container" style={{ paddingTop: '100px', minHeight: '100vh', paddingBottom: '60px' }}>
-      <div className="glass-panel" style={{ padding: '40px', marginBottom: '30px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          <div style={{ background: 'var(--accent-gradient)', padding: '20px', borderRadius: '12px' }}>
-            <Dumbbell size={40} color="white" />
+    <div className="your-gym-page">
+      {/* ── GYM HERO CARD ──────────────────────────────────────────────── */}
+      <div className="gym-hero-card">
+        <div className="gym-hero-header">
+          <div className="gym-hero-icon">
+            <Dumbbell size={32} />
           </div>
-          <div style={{ flex: 1, minWidth: '240px' }}>
-            <h1 style={{ margin: '0 0 5px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {gymData.name || 'Your Premium Gym'}
+          <div className="gym-hero-info">
+            <h1 className="gym-hero-name">
+              {gymData.name || 'Your Gym Facility'}
+              <span className="gym-badge-active">
+                <Check size={12} /> Active Membership
+              </span>
               {gymData.trainerIncluded && (
-                <span style={{ fontSize: '0.85rem', padding: '4px 8px', borderRadius: '20px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                  Trainer Included ✅
+                <span className="gym-badge-trainer">
+                  <Sparkles size={12} /> Trainer Included
                 </span>
               )}
             </h1>
-            <p style={{ color: 'var(--primary-accent)', fontWeight: 'bold', margin: '0 0 12px 0' }}>Active Membership</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-              <Link to="/ai-trainer" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <Dumbbell size={16} /> GO TO WORKOUT HUB
+            {gymData.location && (
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <MapPin size={14} /> {gymData.location}
+              </span>
+            )}
+            <div className="gym-hero-actions">
+              <Link to="/ai-trainer" className="btn btn-primary btn-sm">
+                <Dumbbell size={16} /> Go to Workout Hub
               </Link>
               <button
                 type="button"
                 className="btn btn-outline btn-sm"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                onClick={() => navigate(`/messages?contact=${encodeURIComponent(gymData.ownerName || gymData.name || 'Gym Support')}`)}
+                onClick={() => navigate(`/messages?contact=${encodeURIComponent(gymData.ownerName || gymData.name || 'Gym')}`)}
               >
-                <MessageSquare size={16} /> MESSAGE GYM
+                <MessageSquare size={16} /> Message Gym
               </button>
             </div>
           </div>
         </div>
 
+        {/* Membership Details & Auto-renew Banner */}
         {membership?.expiresAt && (
-          <div style={{ padding: '16px', borderRadius: '12px', background: daysToExpiry <= 7 ? 'rgba(245, 158, 11, .15)' : 'rgba(16, 185, 129, .1)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <strong style={{ fontSize: '1.05rem' }}>{membership.type || 'Membership'} membership</strong> · expires {new Date(membership.expiresAt).toLocaleDateString()}{daysToExpiry <= 7 && ` (${Math.max(daysToExpiry, 0)} days left)`}
-                <div style={{ marginTop: '6px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                  Auto-renew status: {membership.autoRenew ? <span style={{ color: '#10b981', fontWeight: 600 }}>Active</span> : <span style={{ color: '#94a3b8' }}>Turned Off (No upcoming charges)</span>}
-                </div>
-              </div>
-              <div>
-                {membership.autoRenew ? (
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline"
-                    style={{ borderColor: '#ef4444', color: '#ef4444' }}
-                    onClick={() => setShowCancelModal(true)}
-                  >
-                    CANCEL RENEWAL
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline"
-                    style={{ borderColor: '#10b981', color: '#10b981' }}
-                    onClick={() => updateAutoRenew(true)}
-                  >
-                    Re-enable Auto-Renew
-                  </button>
+          <div className="membership-banner">
+            <div className="membership-banner-details">
+              <span className="membership-banner-title">
+                {membership.type || 'Standard'} Plan · Expires {new Date(membership.expiresAt).toLocaleDateString()}
+                {daysToExpiry <= 7 && daysToExpiry >= 0 && (
+                  <span style={{ color: '#f59e0b', marginLeft: '6px' }}>({daysToExpiry} days remaining)</span>
                 )}
-              </div>
+              </span>
+              <span className="membership-banner-sub">
+                Auto-renewal: {membership.autoRenew ? (
+                  <strong style={{ color: '#10b981' }}>Active</strong>
+                ) : (
+                  <strong style={{ color: 'var(--text-secondary)' }}>Off (No upcoming charges)</strong>
+                )}
+              </span>
             </div>
-            {cancelSuccessMsg && (
-              <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle size={14} /> {cancelSuccessMsg}
-              </div>
-            )}
+            <div>
+              {membership.autoRenew ? (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline"
+                  style={{ borderColor: '#ef4444', color: '#ef4444' }}
+                  onClick={() => setShowCancelModal(true)}
+                >
+                  Cancel Renewal
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline"
+                  style={{ borderColor: '#10b981', color: '#10b981' }}
+                  onClick={() => updateAutoRenew(true)}
+                >
+                  Enable Auto-Renew
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {cancelSuccessMsg && (
+          <div style={{ color: '#10b981', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <CheckCircle size={15} /> {cancelSuccessMsg}
           </div>
         )}
       </div>
 
+      {/* ── TABS NAVIGATION ────────────────────────────────────────────── */}
+      <div className="your-gym-tabs">
+        <button
+          type="button"
+          className={`your-gym-tab-btn ${activeTab === 'updates' ? 'active' : ''}`}
+          onClick={() => setActiveTab('updates')}
+        >
+          <Activity size={16} /> Updates & Posts ({posts.length})
+        </button>
+        <button
+          type="button"
+          className={`your-gym-tab-btn ${activeTab === 'plans' ? 'active' : ''}`}
+          onClick={() => setActiveTab('plans')}
+        >
+          <FileText size={16} /> Assigned Plans ({plans.length})
+        </button>
+        <button
+          type="button"
+          className={`your-gym-tab-btn ${activeTab === 'equipment' ? 'active' : ''}`}
+          onClick={() => setActiveTab('equipment')}
+        >
+          <Dumbbell size={16} /> Equipment Status ({gymData.equipmentStatus?.length || 0})
+        </button>
+        <button
+          type="button"
+          className={`your-gym-tab-btn ${activeTab === 'attendance' ? 'active' : ''}`}
+          onClick={() => setActiveTab('attendance')}
+        >
+          <Calendar size={16} /> Attendance Log ({attendance.length})
+        </button>
+      </div>
+
+      {/* ── TAB CONTENT ────────────────────────────────────────────────── */}
+      {/* 1. Updates & Posts Tab */}
+      {activeTab === 'updates' && (
+        <div className="gym-section-card">
+          <h2 className="gym-section-title">
+            <Activity size={20} color="var(--primary-accent)" /> Gym Announcements & Feed
+          </h2>
+          {posts.length === 0 ? (
+            <div className="gym-empty-state">
+              <Activity size={36} className="gym-empty-icon" />
+              <p>No recent announcements posted by {gymData.name || 'your gym'} yet.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {posts.map((post, idx) => (
+                <div key={idx} className="gym-list-item">
+                  <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                    {post.content}
+                  </p>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    {new Date(post.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2. Assigned Plans Tab */}
+      {activeTab === 'plans' && (
+        <div className="gym-section-card">
+          <h2 className="gym-section-title">
+            <FileText size={20} color="#10b981" /> Workout & Diet Routines
+          </h2>
+          {plans.length === 0 ? (
+            <div className="gym-empty-state">
+              <FileText size={36} className="gym-empty-icon" />
+              <p>No custom plans have been assigned to your profile by trainers yet.</p>
+              <Link to="/ai-trainer" className="btn btn-outline btn-sm">
+                Generate with AI Trainer
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {plans.map((plan, idx) => (
+                <div key={idx} className="gym-list-item">
+                  <h4 style={{ margin: '0 0 4px 0', color: plan.planType === 'Diet' ? 'var(--primary-accent)' : '#10b981' }}>
+                    {plan.planType}: {plan.title}
+                  </h4>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0, whiteSpace: 'pre-wrap' }}>
+                    {plan.description}
+                  </p>
+                  {plan.schedule?.map((day, sIdx) => (
+                    <div key={sIdx} style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--card-border)' }}>
+                      <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+                        {day.date ? new Date(day.date).toLocaleDateString() : day.day || 'Routine'}
+                      </strong>
+                      {day.exercises?.length > 0 && (
+                        <p style={{ margin: '4px 0', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                          {day.exercises.map(ex => `${ex.name} (${ex.sets || 3} sets)`).join(', ')}
+                        </p>
+                      )}
+                      {day._id && (
+                        <button 
+                          className="btn btn-sm btn-outline" 
+                          style={{ marginTop: '6px' }}
+                          onClick={() => togglePlanCompletion(plan._id, day._id)}
+                        >
+                          {day.completedAt ? 'Completed ✓ (Undo)' : 'Mark Day Completed'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3. Equipment Status Tab */}
+      {activeTab === 'equipment' && (
+        <div className="gym-section-card">
+          <h2 className="gym-section-title">
+            <Dumbbell size={20} color="#f59e0b" /> Facilities & Equipment Tracking
+          </h2>
+          {!gymData.equipmentStatus || gymData.equipmentStatus.length === 0 ? (
+            <div className="gym-empty-state">
+              <Dumbbell size={36} className="gym-empty-icon" />
+              <p>Equipment tracking has not been configured by the facility owner yet.</p>
+            </div>
+          ) : (
+            <div className="equipment-grid">
+              {gymData.equipmentStatus.map((eq, idx) => (
+                <div key={idx} className="gym-list-item" style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>{eq.name}</strong>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      Qty: {eq.quantity} {eq.notes && `· ${eq.notes}`}
+                    </div>
+                  </div>
+                  <span className={`equipment-badge ${eq.status === 'Available' ? 'available' : 'maintenance'}`}>
+                    {eq.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. Attendance Log Tab */}
+      {activeTab === 'attendance' && (
+        <div className="gym-section-card">
+          <h2 className="gym-section-title">
+            <Calendar size={20} color="var(--primary-accent)" /> Member Check-In History
+          </h2>
+          {attendance.length === 0 ? (
+            <div className="gym-empty-state">
+              <Calendar size={36} className="gym-empty-icon" />
+              <p>No check-in entries recorded for your membership yet.</p>
+            </div>
+          ) : (
+            <div className="attendance-grid">
+              {attendance.map((log, idx) => (
+                <div key={idx} className="attendance-pill">
+                  <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                    {new Date(log.checkInTime).toLocaleDateString()}
+                  </h4>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Clock size={12} /> In: {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  {log.checkOutTime && (
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                      <Clock size={12} /> Out: {new Date(log.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
       {showCancelModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-          <div className="glass-panel" style={{ maxWidth: '480px', width: '100%', padding: '28px', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.35)', background: 'var(--panel-bg)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', color: '#ef4444' }}>
-              <AlertCircle size={26} />
-              <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Cancel Membership Renewal</h3>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div className="gym-section-card" style={{ maxWidth: '440px', width: '100%', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ef4444' }}>
+              <AlertCircle size={24} />
+              <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>Cancel Auto-Renewal?</h3>
             </div>
-            <p style={{ lineHeight: '1.5', color: 'var(--text-primary)', marginBottom: '12px' }}>
-              Your membership will <strong>remain active until {membership?.expiresAt ? new Date(membership.expiresAt).toLocaleDateString() : 'the end of your billing cycle'}</strong>.
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+              Your membership will remain active until the end of the current billing cycle. Auto-charge will be deactivated immediately.
             </p>
-            <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', marginBottom: '20px', fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-              • Auto-renew will be turned off immediately.<br/>
-              • You will <strong>not</strong> be charged for the next renewal.<br/>
-              • Your gym access and training plans will <strong>not</strong> disappear today.
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
               <button
                 type="button"
                 className="btn btn-outline btn-sm"
@@ -262,143 +480,18 @@ const YourGym = () => {
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                style={{ background: '#ef4444', borderColor: '#ef4444', color: 'white' }}
+                style={{ background: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
                 onClick={async () => {
                   await handleCancelRenewal();
                   setShowCancelModal(false);
                 }}
               >
-                Confirm Cancel Renewal
+                Confirm Deactivate
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
-        
-        {/* Posts from Gym */}
-        <div className="glass-panel" style={{ padding: '30px' }}>
-          <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Activity size={24} color="#8b5cf6" /> Gym Updates & Posts
-          </h2>
-          {posts.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)' }}>No recent updates from your gym.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: '15px' }}>
-              {posts.map((post, idx) => (
-                <div key={idx} style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
-                  <p style={{ margin: 0, fontSize: '1rem', lineHeight: '1.5' }}>{post.content}</p>
-                  <small style={{ color: 'var(--text-secondary)', display: 'block', marginTop: '10px' }}>
-                    {new Date(post.createdAt).toLocaleDateString()}
-                  </small>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Gym Equipment Status */}
-        <div className="glass-panel" style={{ padding: '30px' }}>
-          <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Dumbbell size={24} color="#f59e0b" /> Equipment Status
-          </h2>
-          {!gymData.equipmentStatus || gymData.equipmentStatus.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)' }}>No equipment tracked.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {gymData.equipmentStatus.map((eq, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                  <div>
-                    <strong style={{ display: 'block', fontSize: '1.05rem' }}>{eq.name}</strong>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Qty: {eq.quantity} {eq.notes && `· ${eq.notes}`}</span>
-                  </div>
-                  <span style={{ 
-                    padding: '4px 10px', 
-                    borderRadius: '20px', 
-                    fontSize: '0.8rem',
-                    fontWeight: 'bold',
-                    background: eq.status === 'Available' ? 'rgba(16, 185, 129, 0.15)' : eq.status === 'Maintenance' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                    color: eq.status === 'Available' ? '#10b981' : eq.status === 'Maintenance' ? '#f59e0b' : '#ef4444'
-                  }}>
-                    {eq.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Workout and Diet Plans */}
-        <div className="glass-panel" style={{ padding: '30px' }}>
-          <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <FileText size={24} color="#10b981" /> Assigned Plans
-          </h2>
-          {plans.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)' }}>You don't have any custom plans assigned yet.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: '15px' }}>
-              {plans.map((plan, idx) => (
-                <div key={idx} style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
-                  <h4 style={{ margin: '0 0 5px 0', color: plan.planType === 'Diet' ? '#3b82f6' : '#10b981' }}>
-                    {plan.planType}: {plan.title}
-                  </h4>
-                  <p style={{ fontSize: '0.95rem', lineHeight: '1.5', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
-                    {plan.description}
-                  </p>
-                  {plan.schedule?.map((day, scheduleIndex) => (
-                    <div key={scheduleIndex} style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                      <strong style={{ fontSize: '.88rem' }}>{day.date ? new Date(day.date).toLocaleDateString() : day.day || 'Scheduled routine'}</strong>
-                      {day.exercises?.length > 0 && <p style={{ margin: '5px 0', fontSize: '.88rem', color: 'var(--text-secondary)' }}>{day.exercises.map(exercise => `${exercise.name}${exercise.sets ? ` (${exercise.sets} × ${exercise.reps || ''})` : ''}`).join(', ')}</p>}
-                      {day.dietInstructions && <p style={{ margin: '5px 0 0', fontSize: '.88rem', color: '#60a5fa' }}>Diet: {day.dietInstructions}</p>}
-                      {day._id && <button className="btn btn-sm btn-outline" style={{ marginTop: '8px' }} onClick={() => togglePlanCompletion(plan._id, day._id)}>{day.completedAt ? 'Completed ✓ (undo)' : 'Mark day complete'}</button>}
-                    </div>
-                  ))}
-                  {plan.assignedBy && <small style={{ color: 'var(--text-secondary)' }}>Assigned by {plan.assignedBy}</small>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Attendance Calendar Log */}
-        <div className="glass-panel" style={{ padding: '30px', gridColumn: '1 / -1' }}>
-          <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Calendar size={24} color="#f59e0b" /> Attendance Log
-          </h2>
-          {attendance.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)' }}>You have no recorded check-ins yet.</p>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
-              {attendance.map((log, idx) => (
-                <div key={idx} style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', borderLeft: `4px solid ${log.status === 'CheckedIn' ? '#10b981' : '#8b5cf6'}` }}>
-                  <h4 style={{ margin: '0 0 5px 0' }}>{new Date(log.checkInTime).toLocaleDateString()}</h4>
-                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                    Check-in: {new Date(log.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                  {log.checkOutTime && (
-                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                      Check-out: {new Date(log.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  )}
-                  {log.notes && (
-                    <p style={{ margin: '8px 0 0 0', fontSize: '0.9rem', fontStyle: 'italic', color: '#cbd5e1' }}>
-                      "{log.notes}"
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      <div style={{ marginTop: '40px', padding: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-          <strong>Legal Policy:</strong> Subscriptions can be canceled at any time. Fees are strictly non-refundable. Only security deposits (if applicable) are refundable according to local government guidelines and the Gym's individual policies.
-        </p>
-      </div>
     </div>
   );
 };
