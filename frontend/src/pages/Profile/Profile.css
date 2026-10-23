@@ -1178,15 +1178,20 @@
    ======================================================== */
 @media (max-width: 768px) {
   .profile-page {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
     min-height: auto;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
   }
 
   .profile-page .container {
-    width: 100%;
-    max-width: 100%;
-    padding: 0 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
   }
 
   /* Hide Desktop Grid on Mobile */
@@ -1199,9 +1204,10 @@
     display: block !important;
     overflow: hidden;
     position: relative;
-    width: 100%;
-    margin-top: 0 !important;
-    padding-top: 4px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   /* Lock vertical scrolling when viewing the Card on mobile */
@@ -1227,57 +1233,72 @@
     box-sizing: border-box;
   }
 
-  /* Slide 0: Athlete Card (Completely Fixed, Zero Vertical Scroll, Fills Screen) */
+  /* Slide 0: Athlete Card (Centered, Consumes Full Screen Height, Balanced Borders) */
   .profile-card-slide {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start !important;
-    height: calc(100dvh - 115px) !important;
-    max-height: calc(100dvh - 115px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    height: calc(100dvh - 118px) !important;
+    max-height: calc(100dvh - 118px) !important;
     overflow: hidden !important;
     touch-action: pan-x;
-    padding-top: 2px !important;
+    padding: 4px 10px 8px 10px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
   }
 
   .profile-card-slide .pokemon-card-wrapper {
-    margin-bottom: 0;
-    width: 100%;
-    display: flex;
-    justify-content: center;
+    margin: 0 auto !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
   }
 
   .profile-card-slide .pokemon-fullart-card {
-    width: min(370px, calc(100vw - 16px)) !important;
-    height: min(520px, calc(100dvh - 150px)) !important;
-    margin: 0 auto;
-    padding: 8px 10px;
+    width: 100% !important;
+    max-width: min(380px, calc(100vw - 20px)) !important;
+    height: clamp(520px, calc(100dvh - 170px), 660px) !important;
+    max-height: calc(100dvh - 170px) !important;
+    margin: 0 auto !important;
+    padding: 8px 12px !important;
     touch-action: pan-x;
+    box-sizing: border-box !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 
   .profile-card-slide .pokemon-card-art-frame {
-    height: clamp(145px, 25dvh, 200px);
-    margin: 4px 0;
+    height: clamp(165px, 28dvh, 250px) !important;
+    margin: 6px 0 !important;
   }
 
   .profile-card-slide .pokemon-card-top-bar {
-    padding: 5px 10px;
+    padding: 6px 12px !important;
   }
 
   .profile-card-slide .pokemon-card-name {
-    font-size: 1.12rem !important;
+    font-size: 1.14rem !important;
   }
 
   .profile-card-slide .pokemon-card-substrip {
-    margin: 3px 0;
+    margin: 4px 0 !important;
     font-size: 0.74rem !important;
-    padding: 4px 8px;
+    padding: 5px 10px !important;
   }
 
   .profile-card-slide .pokemon-card-moves {
-    gap: 4px;
-    margin: 3px 0;
-    padding: 6px 10px;
+    gap: 6px !important;
+    margin: 4px 0 !important;
+    padding: 8px 12px !important;
+  }
+
+  .profile-card-slide .pokemon-card-move-row {
+    padding: 3px 0 !important;
   }
 
   .profile-card-slide .move-title {
@@ -1291,21 +1312,22 @@
   }
 
   .profile-card-slide .move-desc {
-    font-size: 0.7rem !important;
+    font-size: 0.72rem !important;
     color: #cbd5e1 !important;
   }
 
   .profile-card-slide .pokemon-card-bottom {
-    margin-top: 3px;
+    margin-top: 4px !important;
+    padding-top: 5px !important;
   }
 
   .profile-card-slide .card-weakness-bar {
-    font-size: 0.7rem !important;
+    font-size: 0.72rem !important;
     color: #f1f5f9 !important;
   }
 
   .profile-card-slide .card-collector-code {
-    font-size: 0.64rem !important;
+    font-size: 0.65rem !important;
     color: #fbbf24 !important;
   }
 
@@ -1328,14 +1350,14 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    margin-top: 8px;
-    padding: 5px 14px;
-    font-size: 0.76rem;
+    margin: 4px auto 0 auto !important;
+    padding: 6px 16px;
+    font-size: 0.78rem;
     color: #d4af37;
     font-weight: 700;
     cursor: pointer;
-    background: rgba(212, 175, 55, 0.1);
-    border: 1px solid rgba(212, 175, 55, 0.3);
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.4);
     border-radius: 20px;
     transition: all 0.2s ease;
   }

@@ -210,6 +210,12 @@
     max-height: calc(100dvh - 60px) !important;
     overflow: hidden !important;
   }
+  .app-middle-column.profile-mode {
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
   .app-right-column {
     display: none;
   }

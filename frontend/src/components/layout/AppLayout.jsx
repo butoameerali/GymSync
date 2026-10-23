@@ -20,6 +20,7 @@ const AppLayout = ({ children }) => {
   const hasRightSidebar = ['/home', '/', '/explore', '/store'].some(p => currentPath === p || currentPath === `${p}/`);
   const isReelsPage = currentPath === '/reels' || currentPath.startsWith('/reels/');
   const isMessagesPage = currentPath === '/messages' || currentPath.startsWith('/messages/') || currentPath === '/chat' || currentPath.startsWith('/chat/');
+  const isProfilePage = currentPath === '/profile' || currentPath.startsWith('/profile/');
 
   return (
     <div className={`app-3col-layout ${isReelsPage ? 'reels-page-active' : ''}`}>
@@ -44,7 +45,7 @@ const AppLayout = ({ children }) => {
       </div>
 
       {/* Middle Content Column */}
-      <main className={`app-middle-column ${isReelsPage ? 'reels-mode' : isMessagesPage ? 'messages-mode' : (!hasRightSidebar ? 'full-width' : '')}`}>
+      <main className={`app-middle-column ${isReelsPage ? 'reels-mode' : isMessagesPage ? 'messages-mode' : isProfilePage ? 'profile-mode' : (!hasRightSidebar ? 'full-width' : '')}`}>
         {children}
       </main>
 
