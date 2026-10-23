@@ -81,18 +81,20 @@ const ProfileHeader = ({
 
         {/* Top Header Bar */}
         <div className="pokemon-card-top-bar">
-          <div className="pokemon-stage-badge">
-            <span className="stage-tag">ATHLETE</span>
-            <span className="stage-role">{userRole || 'Member'}</span>
+          <div className="pokemon-card-header-main">
+            <div className="pokemon-stage-badge">
+              <span className="stage-tag">ATHLETE</span>
+              <span className="stage-sep">•</span>
+              <span className="stage-role">{userRole || 'Member'}</span>
+            </div>
+            <h2 className="pokemon-card-name" title={userName}>{userName}</h2>
           </div>
 
-          <h2 className="pokemon-card-name" title={userName}>{userName}</h2>
-
           <div className="pokemon-card-top-controls">
-            <div className="pokemon-power-badge">
+            <div className="pokemon-power-badge" title="Athlete Power Level">
               <span className="power-label">PWR</span>
               <span className="power-val">{powerScore}</span>
-              <Zap size={11} className="power-icon" />
+              <Zap size={13} className="power-icon" />
             </div>
 
             {/* Small top-right edit option to edit profile pic */}
@@ -106,7 +108,7 @@ const ProfileHeader = ({
               title="Edit photo"
               aria-label="Edit photo"
             >
-              <Camera size={13} />
+              <Camera size={14} />
             </button>
           </div>
         </div>
@@ -131,20 +133,20 @@ const ProfileHeader = ({
 
           {/* Level Ribbon Badge */}
           <div className="pokemon-card-lvl-badge">
-            <Sparkles size={11} />
+            <Sparkles size={12} />
             <span>LEVEL {level}</span>
           </div>
         </div>
 
         {/* Sub-strip: Real Measurements (Height, Weight, Location) */}
         <div className="pokemon-card-substrip">
-          <span>HT: {heightVal}</span>
-          <span>•</span>
-          <span>WT: {weightVal}</span>
+          <span className="substrip-item"><strong className="substrip-label">HEIGHT:</strong> {heightVal}</span>
+          <span className="substrip-bullet">•</span>
+          <span className="substrip-item"><strong className="substrip-label">WEIGHT:</strong> {weightVal}</span>
           {bio?.location && (
             <>
-              <span>•</span>
-              <span className="card-substrip-location">{bio.location}</span>
+              <span className="substrip-bullet">•</span>
+              <span className="substrip-item card-substrip-location">{bio.location}</span>
             </>
           )}
         </div>
@@ -154,42 +156,42 @@ const ProfileHeader = ({
           {/* Metric 1: Streak */}
           <div className="pokemon-card-move-row">
             <div className="pokemon-move-cost-pills">
-              <span className="cost-orb fire"><Flame size={12} /></span>
+              <span className="cost-orb fire"><Flame size={13} /></span>
             </div>
             <div className="pokemon-move-content">
               <div className="pokemon-move-title-row">
-                <span className="move-title">Streak Blaze</span>
+                <span className="move-title">Workout Streak</span>
                 <span className="move-power">{streak} DAYS</span>
               </div>
-              <p className="move-desc">Active continuous workout streak.</p>
+              <p className="move-desc">Current active consecutive workout streak</p>
             </div>
           </div>
 
           {/* Metric 2: Completed Exercises */}
           <div className="pokemon-card-move-row">
             <div className="pokemon-move-cost-pills">
-              <span className="cost-orb steel"><Dumbbell size={12} /></span>
+              <span className="cost-orb steel"><Dumbbell size={13} /></span>
             </div>
             <div className="pokemon-move-content">
               <div className="pokemon-move-title-row">
-                <span className="move-title">Exercise Mastery</span>
-                <span className="move-power">{totalExercises} EXER</span>
+                <span className="move-title">Total Exercises</span>
+                <span className="move-power">{totalExercises}</span>
               </div>
-              <p className="move-desc">Total gym exercises completed.</p>
+              <p className="move-desc">Total completed exercises logged</p>
             </div>
           </div>
 
           {/* Metric 3: Total XP & Seniority */}
           <div className="pokemon-card-move-row">
             <div className="pokemon-move-cost-pills">
-              <span className="cost-orb electric"><Trophy size={12} /></span>
+              <span className="cost-orb electric"><Trophy size={13} /></span>
             </div>
             <div className="pokemon-move-content">
               <div className="pokemon-move-title-row">
-                <span className="move-title">XP Overdrive</span>
+                <span className="move-title">Total Points</span>
                 <span className="move-power">{points.toLocaleString()} XP</span>
               </div>
-              <p className="move-desc">Member Since: {joinDate} • Tier {level}</p>
+              <p className="move-desc">Member Since: {joinDate} • Tier Level {level}</p>
             </div>
           </div>
         </div>
@@ -197,7 +199,7 @@ const ProfileHeader = ({
         {/* Authentic Collectible Card Footer */}
         <div className="pokemon-card-bottom">
           <div className="card-weakness-bar">
-            <span>GymSync Verified Athlete</span>
+            <span>GymSync Athlete</span>
             <span>•</span>
             <span>Member Since {joinDate}</span>
           </div>
