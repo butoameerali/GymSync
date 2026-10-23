@@ -204,8 +204,11 @@
   }
   .app-middle-column.messages-mode {
     width: 100% !important;
-    padding: 0 0 65px 0 !important;
-    height: 100vh;
+    padding: 0 !important;
+    margin: 0 !important;
+    height: calc(100dvh - 60px) !important;
+    max-height: calc(100dvh - 60px) !important;
+    overflow: hidden !important;
   }
   .app-right-column {
     display: none;

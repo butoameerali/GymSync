@@ -16,9 +16,10 @@ const AppLayout = ({ children }) => {
 
   // Pages that display the right suggestions column (20% width)
   // On Home, Explore, Store, Social views, the 3-column layout shines!
-  const hasRightSidebar = ['/home', '/', '/explore', '/store'].includes(location.pathname);
-  const isReelsPage = location.pathname === '/reels';
-  const isMessagesPage = location.pathname === '/messages' || location.pathname === '/chat';
+  const currentPath = (location.pathname || '').toLowerCase();
+  const hasRightSidebar = ['/home', '/', '/explore', '/store'].some(p => currentPath === p || currentPath === `${p}/`);
+  const isReelsPage = currentPath === '/reels' || currentPath.startsWith('/reels/');
+  const isMessagesPage = currentPath === '/messages' || currentPath.startsWith('/messages/') || currentPath === '/chat' || currentPath.startsWith('/chat/');
 
   return (
     <div className={`app-3col-layout ${isReelsPage ? 'reels-page-active' : ''}`}>

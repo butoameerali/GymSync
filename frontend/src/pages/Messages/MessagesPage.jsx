@@ -90,10 +90,18 @@ const MessagesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const messagesEndRef = useRef(null);
+  const chatMessagesContainerRef = useRef(null);
   const currentUserName = user?.name || localStorage.getItem('gymsync_user_name') || 'User';
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior = 'smooth') => {
+    if (chatMessagesContainerRef.current) {
+      chatMessagesContainerRef.current.scrollTo({
+        top: chatMessagesContainerRef.current.scrollHeight,
+        behavior
+      });
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior });
+    }
   };
 
   const userRole = user?.role || localStorage.getItem('gymsync_role') || '';
@@ -124,8 +132,12 @@ const MessagesPage = () => {
       if (isAdmin && activeContact && isExcludedForAdmin(activeContact)) {
         setActiveContact('');
       } else if (!activeContact && convList.length > 0) {
-        const firstContact = typeof convList[0] === 'string' ? convList[0] : (convList[0].name || convList[0].id);
-        setActiveContact(firstContact);
+        if (initialContact) {
+          setActiveContact(initialContact);
+        } else if (window.innerWidth >= 768) {
+          const firstContact = typeof convList[0] === 'string' ? convList[0] : (convList[0].name || convList[0].id);
+          setActiveContact(firstContact);
+        }
       }
     } catch (err) {
       console.error('Error fetching conversations:', err);
@@ -386,7 +398,7 @@ const MessagesPage = () => {
               </div>
 
               {/* Chat History Messages */}
-              <div className="chat-messages-container">
+              <div className="chat-messages-container" ref={chatMessagesContainerRef}>
                 {loadingMsgs && messages.length === 0 ? (
                   <div className="msgs-loading"><p>Loading messages...</p></div>
                 ) : messages.length === 0 ? (
