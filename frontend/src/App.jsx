@@ -37,15 +37,13 @@ const NotificationsPage = lazy(() => import('./pages/Notifications/Notifications
 const MessagesPage = lazy(() => import('./pages/Messages/MessagesPage'));
 const LegalPage = lazy(() => import('./pages/Legal/LegalPage'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
-const LandingPage = lazy(() => import('./pages/LandingPage'));
-
 const RootRoute = () => {
   const token = localStorage.getItem('gymsync_token');
   const userRole = localStorage.getItem('gymsync_role');
   if (token && userRole && userRole !== 'guest') {
     return <Navigate to={getRoleRedirectPath(userRole)} replace />;
   }
-  return <LandingPage />;
+  return <Navigate to="/login" replace />;
 };
 
 const ConsumerRoute = ({ children }) => {

@@ -19,7 +19,8 @@ import {
   Shield,
   ShieldAlert,
   Users,
-  Settings
+  Settings,
+  LogIn
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import NotificationDropdown from '../../features/notifications/components/NotificationDropdown';
@@ -755,8 +756,8 @@ const Navbar = () => {
             </div>
           ) : (
             <Link to="/login" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-               <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>?</div>
-               Log In
+               <LogIn size={18} />
+               <span>Log In</span>
             </Link>
           )}
           
