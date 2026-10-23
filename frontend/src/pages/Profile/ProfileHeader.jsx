@@ -1,5 +1,5 @@
-import React from 'react';
-import { Flame, Zap, Camera, Dumbbell, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Flame, Zap, Camera, Dumbbell, Sparkles, CheckCircle2, AlertTriangle, Maximize2, X } from 'lucide-react';
 import UserAvatar from '../../components/common/UserAvatar';
 
 const ProfileHeader = ({
@@ -16,6 +16,7 @@ const ProfileHeader = ({
   setVerifyEmailInput,
   setIsVerifyModalOpen,
 }) => {
+  const [isHdModalOpen, setIsHdModalOpen] = useState(false);
   const isAdminUser = ['SuperAdmin', 'Admin', 'ComplaintModerator'].includes(userRole);
   const isVerified = Boolean(userData?.isGoogleApproved || userData?.isEmailVerified);
   const points = stats?.points || 0;
@@ -23,194 +24,214 @@ const ProfileHeader = ({
   const level = Math.max(1, Math.floor(points / 100) + 1);
   const hp = Math.max(100, points + 120);
 
-  return (
-    <div className="pokemon-card-wrapper">
-      {/* Outer Golden / Holo Card Frame */}
-      <div className="pokemon-card">
-        {/* Holographic Shimmer Effect Overlay */}
-        <div className="pokemon-card-holo-sheen" />
+  const renderCard = (isHd = false) => (
+    <div className={`pokemon-fullart-card ${isHd ? 'pokemon-card-hd' : ''}`}>
+      {/* Holographic Rainbow Foil Sheen */}
+      <div className="pokemon-card-holo-sheen" />
 
-        {/* Card Header: Stage, Name, HP, Type */}
-        <div className="pokemon-card-header">
-          <div className="pokemon-stage-badge">
-            <span className="stage-tag">BASIC</span>
-            <span className="stage-role">{userRole || 'Athlete'}</span>
-          </div>
-
-          <h2 className="pokemon-name">{userName}</h2>
-
-          <div className="pokemon-hp-group">
-            <span className="pokemon-hp-label">HP</span>
-            <span className="pokemon-hp-value">{hp}</span>
-            <div className="pokemon-energy-orb" title="Energy: Electric / Fitness">
-              <Zap size={14} className="energy-icon" />
-            </div>
-          </div>
+      {/* Top Header Bar */}
+      <div className="pokemon-card-top-bar">
+        <div className="pokemon-stage-badge">
+          <span className="stage-tag">BASIC</span>
+          <span className="stage-role">{userRole || 'Athlete'}</span>
         </div>
 
-        {/* Card Art / Photo Window */}
-        <div 
-          className="pokemon-art-window avatar-clickable"
-          onClick={() => fileInputRef.current && fileInputRef.current.click()}
-          title="Click to change card photo"
-        >
-          {profilePic ? (
-            <img 
-              src={profilePic} 
-              alt={userName} 
-              className="pokemon-character-art" 
-            />
-          ) : (
-            <div className="pokemon-character-fallback">
-              <UserAvatar 
-                src="" 
-                name={userName} 
-                size={110} 
-                className="pokemon-art-avatar"
-              />
-            </div>
-          )}
+        <h2 className="pokemon-card-name" title={userName}>{userName}</h2>
 
-          <div className="pokemon-art-edit-overlay">
-            <Camera size={14} />
-            <span>Change Photo</span>
+        <div className="pokemon-hp-group">
+          <span className="pokemon-hp-label">HP</span>
+          <span className="pokemon-hp-value">{hp}</span>
+          <div className="pokemon-energy-orb" title="Energy: Electric">
+            <Zap size={12} />
           </div>
+        </div>
+      </div>
 
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            accept="image/*" 
-            style={{ display: 'none' }} 
-            onChange={handlePicUpload} 
+      {/* Center: Hero Cutout / Photo Background Stage */}
+      <div className="pokemon-card-art-stage">
+        {profilePic ? (
+          <img 
+            src={profilePic} 
+            alt={userName} 
+            className="pokemon-card-hero-img" 
           />
+        ) : (
+          <div className="pokemon-card-fallback-avatar">
+            <UserAvatar src="" name={userName} size={130} />
+          </div>
+        )}
 
-          {/* Level & Rarity Ribbon on the Art Window */}
-          <div className="pokemon-art-badge">
-            <Sparkles size={13} />
-            <span>LVL {level}</span>
+        {/* Change Photo Overlay Button */}
+        {!isHd && (
+          <button 
+            type="button" 
+            className="pokemon-card-photo-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current && fileInputRef.current.click();
+            }}
+            title="Upload cutout or photo"
+          >
+            <Camera size={13} />
+            <span>Change Photo</span>
+          </button>
+        )}
+
+        {/* Inspect HD Card Button */}
+        {!isHd && (
+          <button 
+            type="button" 
+            className="pokemon-card-inspect-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsHdModalOpen(true);
+            }}
+            title="Open HD Card Photo View"
+          >
+            <Maximize2 size={13} />
+            <span>HD Card</span>
+          </button>
+        )}
+
+        {/* Level Ribbon */}
+        <div className="pokemon-card-lvl-badge">
+          <Sparkles size={11} />
+          <span>LVL {level}</span>
+        </div>
+      </div>
+
+      {/* Sub-strip Pokedex Stats */}
+      <div className="pokemon-card-substrip">
+        <span>NO. 001</span>
+        <span>•</span>
+        <span>HT: {bio?.height || "5'10\""}</span>
+        <span>•</span>
+        <span>WT: {bio?.weight || "72 kg"}</span>
+        <span>•</span>
+        <span>{bio?.location ? bio.location : (isAdminUser ? 'Headquarters' : 'GymSync Arena')}</span>
+      </div>
+
+      {/* Floating Moves & Power Overlays */}
+      <div className="pokemon-card-moves">
+        {/* Move 1: Streak */}
+        <div className="pokemon-card-move-row">
+          <div className="pokemon-move-cost-pills">
+            <span className="cost-orb fire"><Flame size={11} /></span>
+            <span className="cost-orb fire"><Flame size={11} /></span>
+          </div>
+          <div className="pokemon-move-content">
+            <div className="pokemon-move-title-row">
+              <span className="move-title">Streak Blaze</span>
+              <span className="move-power">{streak} DAYS</span>
+            </div>
+            <p className="move-desc">Continuous active workout consistency & discipline.</p>
           </div>
         </div>
 
-        {/* Sub-strip info: Specs / Pokedex style line */}
-        <div className="pokemon-spec-strip">
-          <span>NO. 001</span>
-          <span>•</span>
-          <span>HT: {bio?.height || "5'10\""}</span>
-          <span>•</span>
-          <span>WT: {bio?.weight || "72 kg"}</span>
-          <span>•</span>
-          <span>{bio?.location ? bio.location : (isAdminUser ? 'Headquarters' : 'GymSync Arena')}</span>
-        </div>
-
-        {/* Attacks / Moves / Power Section */}
-        <div className="pokemon-moves-container">
-          {/* Move 1: Streak Power */}
-          <div className="pokemon-move">
-            <div className="pokemon-move-cost">
-              <span className="energy-dot fire" title="Fire Energy"><Flame size={13} /></span>
-              <span className="energy-dot fire" title="Fire Energy"><Flame size={13} /></span>
-            </div>
-            <div className="pokemon-move-details">
-              <div className="pokemon-move-name-row">
-                <span className="pokemon-move-name">Streak Blaze</span>
-                <span className="pokemon-move-damage">{streak} DAYS</span>
-              </div>
-              <p className="pokemon-move-desc">
-                Unleashes uninterrupted workout consistency. Amplifies daily athletic discipline and focus.
-              </p>
-            </div>
+        {/* Move 2: XP / Instructor */}
+        <div className="pokemon-card-move-row">
+          <div className="pokemon-move-cost-pills">
+            <span className="cost-orb electric"><Zap size={11} /></span>
+            <span className="cost-orb electric"><Zap size={11} /></span>
           </div>
-
-          <div className="pokemon-move-divider" />
-
-          {/* Move 2: XP Power Strike or Instructor Moves */}
-          {userRole === 'FitnessInstructor' ? (
-            <div className="pokemon-move">
-              <div className="pokemon-move-cost">
-                <span className="energy-dot lightning"><Zap size={13} /></span>
-                <span className="energy-dot lightning"><Dumbbell size={13} /></span>
-              </div>
-              <div className="pokemon-move-details">
-                <div className="pokemon-move-name-row">
-                  <span className="pokemon-move-name">Master Coaching</span>
-                  <span className="pokemon-move-damage">{instructorStats?.programs || 0} PRG</span>
-                </div>
-                <p className="pokemon-move-desc">
-                  Engineered workout plans and fitness guides for athletes across GymSync.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="pokemon-move">
-              <div className="pokemon-move-cost">
-                <span className="energy-dot lightning"><Zap size={13} /></span>
-                <span className="energy-dot lightning"><Zap size={13} /></span>
-                <span className="energy-dot lightning"><Zap size={13} /></span>
-              </div>
-              <div className="pokemon-move-details">
-                <div className="pokemon-move-name-row">
-                  <span className="pokemon-move-name">XP Overdrive</span>
-                  <span className="pokemon-move-damage">{points} XP</span>
-                </div>
-                <p className="pokemon-move-desc">
-                  Channels all accumulated workout points, exercise repetitions, and personal best milestones.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="pokemon-move-divider" />
-
-          {/* Special Ability: Gmail Authenticated / Shield */}
-          <div className="pokemon-ability">
-            <div className="pokemon-ability-tag">ABILITY</div>
-            <div className="pokemon-ability-content">
-              <span className="pokemon-ability-title">Account Defense</span>
-              <span className="pokemon-ability-status">
-                {isVerified ? (
-                  <span className="verified-badge"><CheckCircle2 size={13} /> Gmail Verified</span>
-                ) : (
-                  <span className="unverified-group">
-                    <span className="unverified-badge"><AlertTriangle size={13} /> Unverified</span>
-                    <button
-                      type="button"
-                      className="pokemon-verify-btn"
-                      onClick={() => {
-                        setVerifyEmailInput(userData?.email || '');
-                        setIsVerifyModalOpen(true);
-                      }}
-                    >
-                      Verify Now
-                    </button>
-                  </span>
-                )}
+          <div className="pokemon-move-content">
+            <div className="pokemon-move-title-row">
+              <span className="move-title">{userRole === 'FitnessInstructor' ? 'Master Coaching' : 'XP Overdrive'}</span>
+              <span className="move-power">
+                {userRole === 'FitnessInstructor' ? `${instructorStats?.programs || 0} PRG` : `${points} XP`}
               </span>
             </div>
+            <p className="move-desc">Accumulated sets, PR milestones, and performance output.</p>
           </div>
         </div>
 
-        {/* Card Footer: Weakness, Resistance, Retreat */}
-        <div className="pokemon-card-footer">
-          <div className="footer-stat">
-            <span className="footer-stat-label">Weakness</span>
-            <span className="footer-stat-val">Rest Day ×2</span>
-          </div>
-          <div className="footer-stat">
-            <span className="footer-stat-label">Resistance</span>
-            <span className="footer-stat-val">Fatigue -30</span>
-          </div>
-          <div className="footer-stat">
-            <span className="footer-stat-label">Retreat Cost</span>
-            <span className="footer-stat-val"><Zap size={11} /> 1</span>
+        {/* Ability: Account Defense */}
+        <div className="pokemon-card-ability-row">
+          <span className="ability-pill">ABILITY</span>
+          <span className="ability-name">Account Defense</span>
+          <div className="ability-status">
+            {isVerified ? (
+              <span className="verified-chip"><CheckCircle2 size={11} /> Verified</span>
+            ) : (
+              <button 
+                type="button" 
+                className="verify-chip-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setVerifyEmailInput(userData?.email || '');
+                  setIsVerifyModalOpen(true);
+                }}
+              >
+                <AlertTriangle size={11} /> Verify Email
+              </button>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Collector Tiny Print */}
-        <div className="pokemon-card-bottom-bar">
-          <span>GymSync 1st Edition • Card #GS-001 • Holographic Ultra Rare ★★★</span>
+      {/* Card Footer */}
+      <div className="pokemon-card-bottom">
+        <div className="card-weakness-bar">
+          <span>Weakness: Rest Day ×2</span>
+          <span>•</span>
+          <span>Resistance: Fatigue -30</span>
+          <span>•</span>
+          <span>Retreat: ⚡</span>
+        </div>
+        <div className="card-collector-code">
+          GymSync 1st Edition • Card #GS-001 • Holographic Ultra Rare ★★★
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <div className="pokemon-card-wrapper">
+        <div 
+          className="pokemon-card-clickable-container"
+          onClick={() => setIsHdModalOpen(true)}
+          title="Click to view HD card image"
+        >
+          {renderCard(false)}
+        </div>
+
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          accept="image/*" 
+          style={{ display: 'none' }} 
+          onChange={handlePicUpload} 
+        />
+      </div>
+
+      {/* HD Card Lightbox / Modal */}
+      {isHdModalOpen && (
+        <div className="pokemon-hd-modal-overlay" onClick={() => setIsHdModalOpen(false)}>
+          <div className="pokemon-hd-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="pokemon-hd-modal-header">
+              <span className="pokemon-hd-title">GymSync Athlete Trading Card (HD View)</span>
+              <button 
+                type="button" 
+                className="pokemon-hd-close-btn" 
+                onClick={() => setIsHdModalOpen(false)}
+                aria-label="Close HD Card"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="pokemon-hd-card-stage">
+              {renderCard(true)}
+            </div>
+
+            <div className="pokemon-hd-modal-footer">
+              <span className="pokemon-hd-hint">Click outside or press X to close</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
