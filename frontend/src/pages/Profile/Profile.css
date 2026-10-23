@@ -971,13 +971,94 @@
 }
 
 
-/* Responsive premium athlete profile layout */
+/* Responsive premium athlete profile layout & 3D Collectible Card */
 .profile-page .container { width: min(100% - 40px, 1240px); max-width: 1240px; margin-inline: auto; padding-inline: 0; }
 .profile-athlete-hero { display: grid; grid-template-columns: minmax(320px,410px) minmax(0,1fr); align-items: start; gap: clamp(22px,3vw,38px); width: 100%; margin: 12px 0 28px; }
 .profile-athlete-card-column { min-width: 0; display: flex; flex-direction: column; align-items: center; }
 .profile-athlete-card-column .pokemon-card-wrapper { width: 100%; margin: 0; }
-.profile-athlete-card-column .pokemon-card-clickable-container { max-width: 100%; }
+.profile-athlete-card-column .pokemon-card-clickable-container { max-width: 100%; perspective: 1000px; }
 .profile-athlete-card-column .pokemon-fullart-card { width: min(100%,380px); }
+
+/* 3D Athlete Card Polish */
+.athlete-3d-card {
+  transform-style: preserve-3d;
+  will-change: transform;
+  border: 5px solid #d4af37 !important;
+  outline: 1.5px solid rgba(212, 175, 55, 0.45) !important;
+  background: radial-gradient(ellipse at 50% 25%, #182234 0%, #080b12 100%) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px rgba(212, 175, 55, 0.25) !important;
+}
+
+/* Power Badge */
+.pokemon-power-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(249, 115, 22, 0.2) 100%);
+  border: 1px solid rgba(234, 179, 8, 0.5);
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+.power-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: 0.5px;
+}
+.power-val {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+}
+.power-icon {
+  color: #f59e0b;
+}
+
+/* Natural Photo Pop-Out Artwork Effect */
+.athlete-art-frame {
+  position: relative;
+  overflow: visible !important;
+  background: radial-gradient(circle at 50% 40%, rgba(59, 130, 246, 0.18) 0%, rgba(15, 23, 42, 0.85) 80%) !important;
+  border: 2px solid rgba(212, 175, 55, 0.85) !important;
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.85), 0 6px 18px rgba(0, 0, 0, 0.5) !important;
+}
+
+.athlete-art-ambient-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: radial-gradient(ellipse at 50% 30%, rgba(212, 175, 55, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.athlete-hero-popout-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 3;
+}
+
+.athlete-hero-popout-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain !important;
+  object-position: center !important;
+  transform: scale(1.15) translateY(-8px);
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.72)) drop-shadow(0 2px 6px rgba(212, 175, 55, 0.35)) !important;
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.pokemon-card-art-frame:hover .athlete-hero-popout-img {
+  transform: scale(1.2) translateY(-12px);
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.82)) drop-shadow(0 4px 10px rgba(212, 175, 55, 0.5)) !important;
+}
+
+/* Athlete Overview Panels */
 .profile-athlete-overview { min-width: 0; display: grid; gap: 16px; }
 .profile-overview-panel { padding: clamp(18px,2.2vw,26px); border: 1px solid var(--card-border,rgba(255,255,255,.1)); border-radius: 18px; background: linear-gradient(145deg,rgba(22,28,39,.96),rgba(10,14,22,.96)); box-shadow: 0 14px 35px rgba(0,0,0,.16); }
 .profile-overview-eyebrow { margin: 0 0 7px; color: #d6ad43; font-size: .69rem; font-weight: 800; letter-spacing: .16em; }
@@ -998,28 +1079,100 @@
 .profile-overview-stat strong { color: var(--text-primary,#fff); font-size: 1.18rem; line-height: 1.1; }
 .profile-overview-hint { margin: 0; color: var(--text-secondary,#9ca3af); font-size: .82rem; text-align: center; }
 .profile-mobile-card-launch { display: none; align-items: center; justify-content: center; gap: 9px; width: 100%; max-width: 380px; min-height: 46px; margin: 0 0 12px; border: 1px solid rgba(214,173,67,.5); border-radius: 12px; background: linear-gradient(135deg,#292215,#12151d); color: #f4d77e; font-weight: 800; cursor: pointer; }
-.pokemon-card-art-frame .pokemon-card-hero-img { object-fit: contain; object-position: center; padding: 4px; box-sizing: border-box; filter: drop-shadow(0 5px 10px rgba(0,0,0,.32)); }
-.pokemon-card-art-frame { background: radial-gradient(ellipse at 50% 35%,rgba(214,173,67,.12),transparent 68%),linear-gradient(145deg,#111827,#060911); }
+
+/* Mobile Navigation Pills & Carousel */
+.profile-mobile-nav-pills { display: none; }
+.profile-mobile-dots { display: none; }
+
 @media (max-width: 900px) {
   .profile-athlete-hero { grid-template-columns: minmax(280px,360px) minmax(0,1fr); gap: 18px; }
   .profile-athlete-card-column .pokemon-fullart-card { width: min(100%,350px); }
   .profile-overview-panel { padding: 17px; }
 }
+
 @media (max-width: 700px) {
   .profile-page .container { width: 100%; max-width: 100%; padding-inline: 12px; }
-  .profile-athlete-hero { grid-template-columns: minmax(0,1fr); gap: 16px; margin-top: 8px; }
+  
+  /* Mobile Pill Bar */
+  .profile-mobile-nav-pills {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 10px 0 16px;
+    background: rgba(15, 23, 42, 0.6);
+    padding: 6px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .mobile-nav-pill {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary, #94a3b8);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .mobile-nav-pill.active {
+    background: rgba(212, 175, 55, 0.18);
+    color: #f1cf73;
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .profile-athlete-hero { grid-template-columns: minmax(0,1fr); gap: 16px; margin-top: 4px; }
   .profile-mobile-card-launch { display: inline-flex; }
+
+  /* Mobile Slide Hidden States */
+  .mobile-slide-hidden {
+    display: none !important;
+  }
+  .mobile-panel-hidden {
+    display: none !important;
+  }
+
+  /* Dot Indicators */
+  .profile-mobile-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 12px 0 20px;
+  }
+  .profile-mobile-dots .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .profile-mobile-dots .dot.active {
+    width: 20px;
+    border-radius: 6px;
+    background: #d4af37;
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
+  }
+
   .profile-athlete-card-column .pokemon-card-wrapper { margin-bottom: 0; }
-  .profile-athlete-card-column .pokemon-card-clickable-container, .profile-athlete-card-column .pokemon-card-action-bar { display: none; }
   .profile-athlete-overview { gap: 12px; }
   .profile-overview-panel { padding: 18px; border-radius: 15px; }
   .profile-overview-stats { gap: 9px; }
   .profile-overview-stat { padding: 11px; gap: 9px; }
   .profile-overview-stat > span { flex-basis: 32px; width: 32px; height: 32px; }
+
   .pokemon-hd-modal-overlay { padding: 10px; overflow-y: auto; align-items: flex-start; }
   .pokemon-hd-modal-content { width: 100%; padding: 4px 0 12px; }
   .pokemon-fullart-card.pokemon-card-hd { width: min(410px,calc(100vw - 28px)); height: min(590px,calc(100dvh - 150px)); min-height: 470px; }
   .pokemon-fullart-card.pokemon-card-hd .pokemon-card-art-frame { height: clamp(150px,27dvh,220px); }
   .pokemon-hd-modal-footer { flex-wrap: wrap; }
 }
-@media (max-width: 380px) { .profile-overview-stat { gap: 7px; padding: 9px; } .pokemon-fullart-card { padding: 8px; border-width: 4px; } }
+
+@media (max-width: 380px) { 
+  .profile-overview-stat { gap: 7px; padding: 9px; } 
+  .pokemon-fullart-card { padding: 8px; border-width: 4px; } 
+  .mobile-nav-pill { font-size: 0.72rem; padding: 6px 4px; }
+}
+
