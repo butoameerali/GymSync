@@ -196,7 +196,12 @@ const ProfileHeader = ({
 
   return (
     <>
-      <div className="pokemon-card-wrapper">
+      <section className="profile-athlete-hero">
+        <div className="profile-athlete-card-column">
+          <button type="button" className="profile-mobile-card-launch" onClick={() => setIsHdModalOpen(true)}>
+            <Maximize2 size={16} /><span>View Athlete Card</span>
+          </button>
+          <div className="pokemon-card-wrapper">
         <div 
           className="pokemon-card-clickable-container"
           onClick={() => setIsHdModalOpen(true)}
@@ -240,7 +245,34 @@ const ProfileHeader = ({
           style={{ display: 'none' }} 
           onChange={handlePicUpload} 
         />
-      </div>
+          </div>
+        </div>
+        <aside className="profile-athlete-overview" aria-label="Athlete overview">
+          <section className="profile-overview-panel">
+            <p className="profile-overview-eyebrow">ATHLETE PROFILE</p>
+            <h2>Intro</h2>
+            <p className="profile-overview-name">{userName || 'GymSync Athlete'}</p>
+            <p className="profile-overview-role">{userRole || 'Athlete'} · Member since {joinDate}</p>
+            <div className="profile-overview-details">
+              <div><span>Height</span><strong>{heightVal}</strong></div>
+              <div><span>Weight</span><strong>{weightVal}</strong></div>
+              <div className="profile-overview-location"><span>Location</span><strong>{bio?.location || 'GymSync Arena'}</strong></div>
+            </div>
+            <button type="button" className="profile-overview-edit" onClick={handleEditProfile}><Edit3 size={15} /> Edit profile &amp; bio</button>
+          </section>
+          <section className="profile-overview-panel">
+            <p className="profile-overview-eyebrow">YOUR PROGRESS</p>
+            <h2>Fitness Stats</h2>
+            <div className="profile-overview-stats">
+              <div className="profile-overview-stat"><span>⚡</span><div><strong>{points.toLocaleString()}</strong><small>Total XP</small></div></div>
+              <div className="profile-overview-stat"><span>🔥</span><div><strong>{streak}</strong><small>Day streak</small></div></div>
+              <div className="profile-overview-stat"><span>🏋️</span><div><strong>{totalExercises}</strong><small>Exercises</small></div></div>
+              <div className="profile-overview-stat"><span>✦</span><div><strong>{level}</strong><small>Current level</small></div></div>
+            </div>
+          </section>
+          <p className="profile-overview-hint">Your progress, one workout at a time.</p>
+        </aside>
+      </section>
 
       {/* HD Card Lightbox / Modal */}
       {isHdModalOpen && (
