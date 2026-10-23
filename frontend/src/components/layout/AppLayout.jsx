@@ -18,11 +18,12 @@ const AppLayout = ({ children }) => {
   // On Home, Explore, Store, Social views, the 3-column layout shines!
   const hasRightSidebar = ['/home', '/', '/explore', '/store'].includes(location.pathname);
   const isReelsPage = location.pathname === '/reels';
+  const isMessagesPage = location.pathname === '/messages' || location.pathname === '/chat';
 
   return (
     <div className={`app-3col-layout ${isReelsPage ? 'reels-page-active' : ''}`}>
-      {/* Mobile Top Header Bar (Only visible on screens < 768px, hide on reels) */}
-      {!isReelsPage && (
+      {/* Mobile Top Header Bar (Only visible on screens < 768px, hide on reels & messages) */}
+      {!isReelsPage && !isMessagesPage && (
         <header className="mobile-top-header">
           <Link to="/home" className="mobile-top-logo">
             <Activity size={24} color="var(--primary-accent)" />
@@ -41,8 +42,8 @@ const AppLayout = ({ children }) => {
         <AppSidebar />
       </div>
 
-      {/* Middle Content Column: 60% width */}
-      <main className={`app-middle-column ${isReelsPage ? 'reels-mode' : (!hasRightSidebar ? 'full-width' : '')}`}>
+      {/* Middle Content Column */}
+      <main className={`app-middle-column ${isReelsPage ? 'reels-mode' : isMessagesPage ? 'messages-mode' : (!hasRightSidebar ? 'full-width' : '')}`}>
         {children}
       </main>
 

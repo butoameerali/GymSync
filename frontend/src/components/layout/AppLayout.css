@@ -58,6 +58,18 @@
   justify-content: center;
 }
 
+/* Messages Full-Height Native Layout */
+.app-middle-column.messages-mode {
+  padding: 0 !important;
+  width: 80% !important;
+  max-width: none !important;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Right Column: 20% Suggestions */
 .app-right-column {
   width: 20%;
@@ -187,6 +199,11 @@
     padding: 12px 14px 80px 14px;
   }
   .app-3col-layout.reels-page-active .app-middle-column.reels-mode {
+    padding: 0 0 65px 0 !important;
+    height: 100vh;
+  }
+  .app-middle-column.messages-mode {
+    width: 100% !important;
     padding: 0 0 65px 0 !important;
     height: 100vh;
   }

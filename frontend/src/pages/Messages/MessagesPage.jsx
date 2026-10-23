@@ -12,6 +12,69 @@ const formatTime = (dateString) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+const renderFormattedText = (rawText) => {
+  if (!rawText) return null;
+
+  const lines = rawText.split('\n');
+
+  return lines.map((line, lineIdx) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      return <div key={lineIdx} style={{ height: '6px' }} />;
+    }
+
+    if (trimmed.startsWith('#')) {
+      const headingText = trimmed.replace(/^#+\s*/, '');
+      return (
+        <div key={lineIdx} style={{ fontWeight: 800, fontSize: '0.98rem', marginTop: '6px', marginBottom: '4px', color: 'inherit' }}>
+          {headingText}
+        </div>
+      );
+    }
+
+    const isBullet = trimmed.startsWith('- ') || trimmed.startsWith('• ');
+    const content = isBullet ? trimmed.replace(/^[-•]\s+/, '') : line;
+
+    // Parse **bold** inside content
+    const parts = [];
+    const regex = /\*\*(.*?)\*\*/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(content.substring(lastIndex, match.index));
+      }
+      parts.push(
+        <strong key={match.index} style={{ fontWeight: 700, color: 'inherit' }}>
+          {match[1]}
+        </strong>
+      );
+      lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < content.length) {
+      parts.push(content.substring(lastIndex));
+    }
+
+    const finalContent = parts.length > 0 ? parts : content;
+
+    if (isBullet) {
+      return (
+        <div key={lineIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', margin: '2px 0 2px 6px' }}>
+          <span style={{ color: 'var(--primary-accent, #38bdf8)', lineHeight: 1.5, fontWeight: 'bold' }}>•</span>
+          <span style={{ flex: 1 }}>{finalContent}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div key={lineIdx} style={{ margin: '2px 0' }}>
+        {finalContent}
+      </div>
+    );
+  });
+};
+
 const MessagesPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -334,9 +397,9 @@ const MessagesPage = () => {
                   messages.map((msg, idx) => {
                     const isMine = msg.sender === currentUserName;
                     return (
-                      <div key={msg._id} className={`chat-bubble-wrapper ${isMine ? 'mine' : 'theirs'}`}>
+                      <div key={msg._id || idx} className={`chat-bubble-wrapper ${isMine ? 'mine' : 'theirs'}`}>
                         <div className={`chat-bubble ${isMine ? 'bubble-mine' : 'bubble-theirs'}`}>
-                          <p className="bubble-text">{msg.text}</p>
+                          <div className="bubble-text">{renderFormattedText(msg.text)}</div>
                           <div className="bubble-meta">
                             <span className="bubble-time">{formatTime(msg.createdAt)}</span>
                             {isMine && msg.isRead && <UserCheck size={14} className="read-receipt-icon" title="Read" />}
