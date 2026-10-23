@@ -169,6 +169,13 @@ const MessagesPage = () => {
   };
 
   useEffect(() => {
+    document.body.style.overflow = '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
+  useEffect(() => {
     loadConversations();
   }, [currentUserName]);
 

@@ -27,20 +27,12 @@ const Profile = () => {
   const touchEndYRef = useRef(0);
 
   useEffect(() => {
-    const handleBodyOverflow = () => {
-      if (window.innerWidth <= 768) {
-        document.body.style.overflow = mobileSlide === 0 ? 'hidden' : '';
-      } else {
-        document.body.style.overflow = '';
-      }
-    };
-    handleBodyOverflow();
-    window.addEventListener('resize', handleBodyOverflow);
+    // Keep global body overflow unset; slide locking is scoped to .profile-mobile-locked in CSS
+    document.body.style.overflow = '';
     return () => {
       document.body.style.overflow = '';
-      window.removeEventListener('resize', handleBodyOverflow);
     };
-  }, [mobileSlide]);
+  }, []);
 
   const handleMobileTouchStart = (e) => {
     touchStartXRef.current = e.targetTouches[0].clientX;
