@@ -311,7 +311,7 @@
   }
 }
 
-/* Mobile Bottom Navigation (< 768px) - Clean, Prominent Icons */
+/* Mobile Bottom Navigation (< 768px) - Full-Width Edge-to-Edge Navigation */
 @media (max-width: 768px) {
   .app-sidebar {
     position: fixed;
@@ -319,16 +319,15 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 64px;
+    height: 60px;
     flex-direction: row;
     align-items: center;
-    justify-content: space-around;
-    padding: 0 8px;
+    justify-content: space-evenly;
+    padding: 0;
+    margin: 0;
     border-right: none;
     border-top: 1px solid var(--sidebar-border);
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: var(--sidebar-bg) !important; /* Solid background prevents card content bleed-through */
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
     overflow: visible !important;
     z-index: 1000;
@@ -339,50 +338,64 @@
     align-items: center;
     width: 100%;
     height: 100%;
-    justify-content: space-around;
+    justify-content: space-evenly;
     gap: 0;
+    padding: 0;
+    margin: 0;
   }
 
   .sidebar-brand,
-  .sidebar-bottom {
+  .sidebar-bottom,
+  .sidebar-popover-wrapper {
     display: none !important;
   }
 
   .sidebar-nav-group {
     flex-direction: row;
     align-items: center;
-    justify-content: space-around;
+    justify-content: space-evenly;
     width: 100%;
     height: 100%;
-    gap: 4px;
+    gap: 0;
+    padding: 0 4px;
+    margin: 0;
   }
 
-  /* Desktop-only links hidden on mobile bottom bar */
+  /* Desktop-only elements hidden on mobile bottom bar */
   .hide-on-mobile {
     display: none !important;
   }
 
   .show-on-mobile-flex {
-    display: flex !important;
+    display: none !important;
   }
 
   .sidebar-link {
-    width: 52px;
-    height: 52px;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
     padding: 0;
+    margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 14px;
+    border-radius: 8px;
     background: none;
     border: none;
-    transition: all 0.2s ease;
+    position: relative;
+    transition: all 0.15s ease;
   }
 
   .sidebar-link.active {
-    background: var(--accent-gradient);
-    color: #ffffff;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    background: none;
+    color: var(--primary-accent);
+    box-shadow: none;
+  }
+
+  .sidebar-link.active .sidebar-icon svg {
+    color: var(--primary-accent) !important;
+    stroke-width: 2.6px !important;
+    transform: scale(1.15);
   }
 
   /* Force icon-only on mobile - NO colliding text */
@@ -394,30 +407,26 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
   }
 
   .sidebar-icon svg {
-    width: 26px !important;
-    height: 26px !important;
-    stroke-width: 2.3px !important;
+    width: 22px !important;
+    height: 22px !important;
+    stroke-width: 2.0px !important;
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
   }
 
   .sidebar-badge {
     position: absolute;
-    top: 6px;
-    right: 6px;
-    padding: 2px 6px;
-    font-size: 0.65rem;
-  }
-
-  .sidebar-popover {
-    bottom: calc(100% + 12px);
-    left: auto;
-    right: 12px;
-    width: 250px;
-    max-height: 80vh;
-    overflow-y: auto;
+    top: 8px;
+    right: 22%;
+    padding: 1px 5px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    background: #ef4444;
+    color: #ffffff;
+    border-radius: 10px;
+    line-height: 1.2;
   }
 }

@@ -169,7 +169,7 @@ const AppSidebar = () => {
             )}
 
             {!isStaff && (
-              <Link to="/your-gym" className={`sidebar-link hide-on-mobile ${isActive('/your-gym') ? 'active' : ''}`}>
+              <Link to="/your-gym" className={`sidebar-link ${isActive('/your-gym') ? 'active' : ''}`}>
                 <span className="sidebar-icon"><Building2 size={22} /></span>
                 <span className="sidebar-label">Your Gym</span>
               </Link>
@@ -180,13 +180,13 @@ const AppSidebar = () => {
               <span className="sidebar-label">Explore Gyms</span>
             </Link>
 
-            <Link to="/store" className={`sidebar-link hide-on-mobile ${isActive('/store') ? 'active' : ''}`}>
+            <Link to="/store" className={`sidebar-link ${isActive('/store') ? 'active' : ''}`}>
               <span className="sidebar-icon"><ShoppingBag size={22} /></span>
               <span className="sidebar-label">Store</span>
             </Link>
 
             {isLoggedIn && (
-              <Link to="/messages" className={`sidebar-link hide-on-mobile ${isActive('/messages') || isActive('/chat') ? 'active' : ''}`}>
+              <Link to="/messages" className={`sidebar-link ${isActive('/messages') || isActive('/chat') ? 'active' : ''}`}>
                 <span className="sidebar-icon"><MessageSquare size={22} /></span>
                 <span className="sidebar-label">Messages</span>
                 {unreadChatCount > 0 && <span className="sidebar-badge">{unreadChatCount}</span>}
@@ -194,15 +194,15 @@ const AppSidebar = () => {
             )}
 
             {isLoggedIn && (
-              <Link to="/notifications" className={`sidebar-link hide-on-mobile ${isActive('/notifications') ? 'active' : ''}`}>
+              <Link to="/notifications" className={`sidebar-link ${isActive('/notifications') ? 'active' : ''}`}>
                 <span className="sidebar-icon"><Bell size={22} /></span>
                 <span className="sidebar-label">Notifications</span>
                 {unreadCount > 0 && <span className="sidebar-badge">{unreadCount}</span>}
               </Link>
             )}
 
-            {/* Menu Button & Secondary Flyout Menu */}
-            <div className="sidebar-popover-wrapper" ref={menuPopoverRef}>
+            {/* Menu Button & Secondary Flyout Menu (Desktop Sidebar Only) */}
+            <div className="sidebar-popover-wrapper hide-on-mobile" ref={menuPopoverRef}>
               <button 
                 type="button" 
                 className={`sidebar-link ${showMenuPopover ? 'active' : ''}`}

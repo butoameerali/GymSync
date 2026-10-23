@@ -197,6 +197,17 @@
   transform: scale(1.1);
 }
 
+@media (max-width: 768px) {
+  .global-chat-wrapper {
+    bottom: 72px;
+    right: 16px;
+  }
+  .chat-fab {
+    width: 48px;
+    height: 48px;
+  }
+}
+
 @media (max-width: 480px) {
   .chat-window {
     position: fixed;
