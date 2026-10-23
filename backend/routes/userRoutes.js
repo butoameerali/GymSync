@@ -1,6 +1,7 @@
 import express from 'express';
 import { 
   getUsers, 
+  getTrainers,
   getUserByName, 
   updateProfilePic, 
   updateGymMembershipSettings,
@@ -88,6 +89,9 @@ router.route('/follow')
 
 router.route('/unfollow')
   .post(protect, unfollowUser);
+
+router.route('/trainers')
+  .get(protect, getTrainers);
 
 router.route('/:name')
   .get(getUserByName);

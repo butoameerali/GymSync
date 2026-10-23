@@ -34,6 +34,28 @@ export const getUsers = async (req, res) => {
   }
 };
 
+// @desc    Get trainers for a gym or all trainers
+// @route   GET /api/users/trainers
+// @access  Private
+export const getTrainers = async (req, res) => {
+  try {
+    const { gym } = req.query;
+    const trainerRoles = ['GymTrainer', 'gym_trainer', 'FitnessInstructor', 'fitness_instructor', 'gymtrainer', 'fitnessinstructor'];
+    const query = { role: { $in: trainerRoles } };
+    if (gym) {
+      query.$or = [
+        { assignedGym: gym },
+        { subscribedGymName: gym }
+      ];
+    }
+    const trainers = await User.find(query).select('_id name profilePic role email assignedGym');
+    res.json(trainers);
+  } catch (error) {
+    console.error('getTrainers error:', error);
+    res.json([]);
+  }
+};
+
 // @desc    Get members subscribed to a gym facility
 // @route   GET /api/users/gym-members/:gymName
 // @access  Private / GymOwner, GymTrainer, Admin, SuperAdmin

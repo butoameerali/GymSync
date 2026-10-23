@@ -301,7 +301,7 @@
   }
 }
 
-/* Mobile Bottom Navigation (< 768px) */
+/* Mobile Bottom Navigation (< 768px) - Clean Icon Only */
 @media (max-width: 768px) {
   .app-sidebar {
     position: fixed;
@@ -309,11 +309,11 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 60px;
+    height: 56px;
     flex-direction: row;
     align-items: center;
     justify-content: space-around;
-    padding: 4px 8px;
+    padding: 0 12px;
     border-right: none;
     border-top: 1px solid var(--sidebar-border);
     background: var(--glass-bg);
@@ -321,6 +321,7 @@
     -webkit-backdrop-filter: blur(20px);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
     overflow: visible !important;
+    z-index: 1000;
   }
 
   .sidebar-top {
@@ -333,7 +334,7 @@
 
   .sidebar-brand,
   .sidebar-bottom {
-    display: none;
+    display: none !important;
   }
 
   .sidebar-nav-group {
@@ -341,30 +342,55 @@
     align-items: center;
     justify-content: space-around;
     width: 100%;
-    gap: 0;
+    gap: 4px;
+  }
+
+  /* Desktop-only links hidden on mobile bottom bar */
+  .hide-on-mobile {
+    display: none !important;
   }
 
   .sidebar-link {
-    flex-direction: column;
-    gap: 2px;
-    padding: 4px 8px;
-    border-radius: 8px;
-    font-size: 0.65rem;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: none;
+    border: none;
   }
 
   .sidebar-link.active {
-    box-shadow: none;
+    background: var(--accent-gradient);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
   }
 
+  /* Force icon-only on mobile - NO colliding text */
   .sidebar-label {
-    display: block;
+    display: none !important;
+  }
+
+  .sidebar-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebar-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    padding: 1px 5px;
     font-size: 0.62rem;
   }
 
   .sidebar-popover {
-    bottom: calc(100% + 8px);
+    bottom: calc(100% + 12px);
     left: auto;
-    right: 8px;
-    width: 220px;
+    right: 12px;
+    width: 240px;
   }
 }

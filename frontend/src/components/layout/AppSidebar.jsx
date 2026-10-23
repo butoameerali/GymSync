@@ -180,7 +180,7 @@ const AppSidebar = () => {
               <span className="sidebar-label">Explore Gyms</span>
             </Link>
 
-            <Link to="/store" className={`sidebar-link ${isActive('/store') ? 'active' : ''}`}>
+            <Link to="/store" className={`sidebar-link hide-on-mobile ${isActive('/store') ? 'active' : ''}`}>
               <span className="sidebar-icon"><ShoppingBag size={20} /></span>
               <span className="sidebar-label">Store</span>
             </Link>
@@ -194,7 +194,7 @@ const AppSidebar = () => {
             )}
 
             {isLoggedIn && (
-              <Link to="/notifications" className={`sidebar-link ${isActive('/notifications') ? 'active' : ''}`}>
+              <Link to="/notifications" className={`sidebar-link hide-on-mobile ${isActive('/notifications') ? 'active' : ''}`}>
                 <span className="sidebar-icon"><Bell size={20} /></span>
                 <span className="sidebar-label">Notifications</span>
                 {unreadCount > 0 && <span className="sidebar-badge">{unreadCount}</span>}
@@ -230,6 +230,12 @@ const AppSidebar = () => {
                     {theme === 'dark' ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} color="#3b82f6" />}
                     <span>{theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
                   </button>
+
+                  {/* Store Link */}
+                  <Link to="/store" className="popover-item" onClick={() => setShowMenuPopover(false)}>
+                    <ShoppingBag size={18} color="var(--primary-accent)" />
+                    <span>GymSync Store</span>
+                  </Link>
 
                   {/* Settings */}
                   {isLoggedIn && (

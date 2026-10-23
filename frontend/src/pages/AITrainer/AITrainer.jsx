@@ -19,7 +19,7 @@ const MyAIDietHub = lazy(() => import('./MyAIDietHub'));
 const LearnArticles = lazy(() => import('../../components/trainee/LearnArticles'));
 
 const AITrainer = () => {
-  const [activeMode, setActiveMode] = useState('library'); // 'library', 'ai', 'assigned'
+  const [activeMode, setActiveMode] = useState('ai'); // Default selected: 'ai' ('My Workouts')
   const [favorites, setFavorites] = useState([]);
   const [aiModeChoice, setAiModeChoice] = useState(null); // null | 'with_ai' | 'without_ai'
 
@@ -1169,7 +1169,7 @@ const AITrainer = () => {
               setCurrentExercise(null);
             }}
           >
-            <Sparkles size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> My AI Workouts
+            <Sparkles size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> My Workouts
           </button>
           <button
             className={`tab-btn ${activeMode === 'assigned' ? 'active' : ''}`}

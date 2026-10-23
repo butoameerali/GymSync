@@ -417,11 +417,8 @@ const ReelsPage = () => {
 
   return (
     <div className="reels-page-container">
-      {/* Desktop Helper Header (Never overlaps Navbar) */}
-      <div className="reels-desktop-header">
-        <div className="reels-header-badge">
-          <Film size={16} /> GymSync Reels
-        </div>
+      {/* Desktop Helper Header (Clean & Minimal) */}
+      <div className="reels-desktop-header" style={{ justifyContent: 'flex-end' }}>
         <div className="reels-header-actions">
           <span className="reels-index-pill">
             {currentIndex + 1} / {reels.length}
@@ -532,39 +529,38 @@ const ReelsPage = () => {
 
             {/* Video Overlay UI Controls & Info */}
             <div className="reel-overlay">
-              {/* Top Bar inside Video */}
-              <div className="reel-top-bar" onClick={e => e.stopPropagation()}>
-                <div className="reel-badge">
-                  <Film size={13} /> GymSync Reel
-                </div>
-
-                <div className="reel-top-right-group">
-                  <button
-                    onClick={() => {
-                      if (!requireAuth('upload reels')) return;
-                      setShowUploadModal(true);
-                    }}
-                    className="reel-mobile-upload-btn"
-                    title="Upload Reel"
+              {/* Top Controls inside Video */}
+              <div className="reel-top-bar" onClick={e => e.stopPropagation()} style={{ justifyContent: 'flex-end' }}>
+                {!isCurrentGif && (
+                  <button 
+                    onClick={toggleMute}
+                    className="reel-sound-toggle-btn"
+                    title={isMuted ? 'Unmute' : 'Mute'}
+                    aria-label={isMuted ? 'Unmute' : 'Mute'}
                   >
-                    <Plus size={15} /> Upload
+                    {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                   </button>
-
-                  {!isCurrentGif && (
-                    <button 
-                      onClick={toggleMute}
-                      className="reel-sound-toggle-btn"
-                      title={isMuted ? 'Unmute' : 'Mute'}
-                      aria-label={isMuted ? 'Unmute' : 'Mute'}
-                    >
-                      {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
 
-              {/* Right Side Interaction Column (Like, Comment, Share) */}
+              {/* Right Side Interaction Column (Upload, Like, Comment, Share) */}
               <div className="reel-actions-column" onClick={e => e.stopPropagation()}>
+                {/* Upload Reel Button */}
+                <button 
+                  className="reel-action-btn"
+                  onClick={() => {
+                    if (!requireAuth('upload reels')) return;
+                    setShowUploadModal(true);
+                  }}
+                  title="Upload Reel"
+                  aria-label="Upload Reel"
+                >
+                  <div className="reel-icon-circle" style={{ background: 'var(--accent-gradient)', color: '#ffffff' }}>
+                    <Plus size={20} />
+                  </div>
+                  <span className="reel-count-label">Upload</span>
+                </button>
+
                 {/* Like Button with Dumbbell Icon */}
                 <button 
                   className={`reel-action-btn ${isLikedByMe ? 'liked' : ''}`}

@@ -246,7 +246,7 @@ const GlobalChat = () => {
         const contactsArray = Array.from(contactMap.values());
         const hydrated = await Promise.all(
           contactsArray.map(async (c) => {
-            if (c.avatar) return c;
+            if (c.avatar || isSystemContact(c.name) || c.name?.toLowerCase().includes('support')) return c;
             try {
               const res = await fetch(`/api/users/${encodeURIComponent(c.name)}`, { headers: authHeader });
               if (res.ok) {
