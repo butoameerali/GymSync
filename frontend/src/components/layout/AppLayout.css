@@ -1,0 +1,145 @@
+/* =========================================================
+   GymSync 3-Column Master Application Layout
+   Left 20% | Middle 60% | Right 20%
+   ========================================================= */
+
+.app-3col-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  position: relative;
+}
+
+/* Left Column: 20% Sidebar */
+.app-left-column {
+  width: 20%;
+  min-width: 220px;
+  max-width: 280px;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+
+/* Middle Column: 60% Content */
+.app-middle-column {
+  width: 60%;
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-middle-column.full-width {
+  width: 80%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Right Column: 20% Suggestions */
+.app-right-column {
+  width: 20%;
+  min-width: 240px;
+  max-width: 320px;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+
+/* Mobile Header (Only visible on < 768px) */
+.mobile-top-header {
+  display: none;
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 56px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--sidebar-border);
+  padding: 0 16px;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 950;
+}
+
+.mobile-top-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-decoration: none;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.mobile-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1200px) and (min-width: 901px) {
+  .app-left-column {
+    width: 72px;
+    min-width: 72px;
+  }
+  .app-middle-column {
+    width: calc(100% - 72px - 260px);
+    padding: 20px;
+  }
+  .app-right-column {
+    width: 260px;
+    min-width: 260px;
+  }
+}
+
+@media (max-width: 900px) and (min-width: 769px) {
+  .app-left-column {
+    width: 72px;
+    min-width: 72px;
+  }
+  .app-middle-column {
+    width: calc(100% - 72px);
+    padding: 16px;
+  }
+  .app-right-column {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-3col-layout {
+    flex-direction: column;
+  }
+  .mobile-top-header {
+    display: flex;
+  }
+  .app-left-column {
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    max-width: none;
+    position: static;
+  }
+  .app-middle-column {
+    width: 100% !important;
+    padding: 12px 14px 80px 14px;
+  }
+  .app-right-column {
+    display: none;
+  }
+}

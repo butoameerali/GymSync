@@ -1,15 +1,16 @@
 .home-page {
-  padding-top: 100px;
+  width: 100%;
   min-height: 100vh;
-  background: var(--bg-color);
-  padding-bottom: 60px;
+  background: transparent;
+  padding-bottom: 40px;
 }
 
 .feed-container {
-  display: grid;
-  grid-template-columns: 250px minmax(0, 1fr) 250px;
-  gap: 24px;
-  align-items: flex-start;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .feed-main {

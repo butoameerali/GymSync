@@ -202,22 +202,7 @@ const Home = () => {
 
   return (
     <div className="home-page">
-      <div className="container feed-container" style={!isTrainee ? { display: 'block', maxWidth: '800px', margin: '0 auto' } : {}}>
-        
-        {/* Left Sidebar Suggestions - Trainee Only */}
-        {isTrainee && (
-          <div className="feed-sidebar">
-            {leftAds.map(ad => (
-              <div key={ad._id} className="glass-panel sidebar-widget ad-widget">
-                <h4>Suggested {ad.type}</h4>
-                <p className="ad-title">{ad.title}</p>
-                <p className="ad-desc">{ad.description}</p>
-                <button className="btn btn-outline btn-sm w-100 mt-10">View details</button>
-              </div>
-            ))}
-          </div>
-        )}
-
+      <div className="feed-container">
         {/* Main Social Feed Column */}
         <div className="feed-main">
           {!isGuest && (
@@ -286,20 +271,6 @@ const Home = () => {
             />
           )}
         </div>
-
-        {/* Right Sidebar Suggestions - Trainee Only */}
-        {isTrainee && (
-          <div className="feed-sidebar">
-            {rightAds.map(ad => (
-              <div key={ad._id} className="glass-panel sidebar-widget ad-widget">
-                <h4>Suggested {ad.type}</h4>
-                <p className="ad-title">{ad.title}</p>
-                <p className="ad-desc">{ad.description}</p>
-                <button className="btn btn-outline btn-sm w-100 mt-10">View details</button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Admin Removal Reason Modal */}
@@ -347,7 +318,7 @@ const Home = () => {
               placeholder="Additional details (optional)..."
               value={reportExplanation}
               onChange={(e) => setReportExplanation(e.target.value)}
-              style={{ width: '100%', minHeight: '80px', marginBottom: '16px', borderRadius: '8px', padding: '8px', background: 'var(--bg-secondary)', border: '1px solid var(--card-border)', color: '#fff' }}
+              style={{ width: '100%', minHeight: '80px', marginBottom: '16px', borderRadius: '8px', padding: '8px', background: 'var(--bg-secondary)', border: '1px solid var(--card-border)', color: 'var(--text-primary)' }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button className="btn btn-outline" onClick={() => setReportPostId(null)}>Cancel</button>

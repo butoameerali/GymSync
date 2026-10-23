@@ -6,8 +6,8 @@ export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    // Check localStorage first, otherwise fallback to dark
-    return localStorage.getItem('gymsync_theme') || 'dark';
+    // Official theme is light by default, with persistent user preference
+    return localStorage.getItem('gymsync_theme') || 'light';
   });
 
   useEffect(() => {

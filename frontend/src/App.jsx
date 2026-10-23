@@ -1,13 +1,13 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import Navbar from './components/layout/Navbar';
-import Footer from './components/layout/Footer';
+import AppLayout from './components/layout/AppLayout';
 import GlobalChat from './components/chat/GlobalChat';
 import OnboardingWizard from './components/onboarding/OnboardingWizard';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import { getRoleRedirectPath } from './context/AuthContext';
+import { useTheme } from './context/ThemeContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
@@ -89,66 +89,75 @@ function App() {
     setShowOnboarding(false);
   };
 
+  const { theme } = useTheme();
+
+  const appRoutes = (
+    <Suspense fallback={<LoadingSpinner size="large" message="Loading GymSync module..." />}>
+      <Routes>
+        <Route path="/" element={<RootRoute />} />
+        <Route path="/login" element={<AuthPortal />} />
+        <Route path="/register" element={<AuthPortal />} />
+        <Route path="/forgot-password" element={<AuthPortal />} />
+        
+        {/* Trainee Workout Routes strictly guarded to Trainees only */}
+        <Route path="/ai-trainer" element={<ProtectedRoute allowedRoles={['User']}><AITrainer /></ProtectedRoute>} />
+        <Route path="/running" element={<ProtectedRoute allowedRoles={['User']}><RunningTracker /></ProtectedRoute>} />
+        
+        {/* Public Consumer Gym Discovery & Store: accessible to guests & users, redirected for staff */}
+        <Route path="/explore" element={<ConsumerRoute><ExploreGyms /></ConsumerRoute>} />
+        <Route path="/gym/:id" element={<ConsumerRoute><GymDetails /></ConsumerRoute>} />
+        <Route path="/store" element={<ConsumerRoute><Store /></ConsumerRoute>} />
+        
+        {/* Public Standalone Post Details View (Accessible without login; actions require login) */}
+        <Route path="/post/:id" element={<PostDetailPage />} />
+
+        {/* Trainee Hub & Dashboard: strictly guarded to trainee users only */}
+        <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['User']}><UserDashboard /></ProtectedRoute>} />
+        <Route path="/your-gym" element={<ProtectedRoute allowedRoles={['User']}><YourGym /></ProtectedRoute>} />
+        
+        {/* Protected Universal Community Routes (All authenticated roles participate in social feed, profile & chat) */}
+        <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+        <Route path="/reels" element={<ProtectedRoute><ReelsPage /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+        <Route path="/chat" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        
+        {/* Settings & Privacy Deep Links */}
+        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/settings/:section" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        
+        {/* Role-Specific Management Panels */}
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/moderator" element={<ProtectedRoute allowedRoles={['ComplaintModerator', 'Admin', 'SuperAdmin']}><ComplaintModeratorDashboard /></ProtectedRoute>} />
+        <Route path="/gym-owner" element={<ProtectedRoute allowedRoles={['GymOwner', 'gym_owner']}><GymOwnerDashboard /></ProtectedRoute>} />
+        <Route path="/fitness-instructor" element={<ProtectedRoute allowedRoles={['FitnessInstructor', 'Admin', 'SuperAdmin']}><FitnessInstructorDashboard /></ProtectedRoute>} />
+        <Route path="/gym-trainer" element={<ProtectedRoute allowedRoles={['GymTrainer', 'GymOwner', 'gym_owner']}><GymTrainerDashboard /></ProtectedRoute>} />
+        <Route path="/store-manager" element={<ProtectedRoute allowedRoles={['StoreManager', 'Admin', 'SuperAdmin']}><StoreManagerDashboard /></ProtectedRoute>} />
+        <Route path="/privacy" element={<LegalPage type="privacy" />} />
+        <Route path="/terms" element={<LegalPage type="terms" />} />
+        <Route path="/regulations" element={<LegalPage type="regulations" />} />
+        
+        <Route path="/profile/:userName" element={<PublicProfile />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
+  );
+
   return (
     <ErrorBoundary key={location.key}>
       <div className="app-container">
-        <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-        {!isAuthPage && <Navbar />}
-        <main className="main-content">
-          <Suspense fallback={<LoadingSpinner size="large" message="Loading GymSync module..." />}>
-            <Routes>
-              <Route path="/" element={<RootRoute />} />
-              <Route path="/login" element={<AuthPortal />} />
-              <Route path="/register" element={<AuthPortal />} />
-              <Route path="/forgot-password" element={<AuthPortal />} />
-              
-              {/* Trainee Workout Routes strictly guarded to Trainees only */}
-              <Route path="/ai-trainer" element={<ProtectedRoute allowedRoles={['User']}><AITrainer /></ProtectedRoute>} />
-              <Route path="/running" element={<ProtectedRoute allowedRoles={['User']}><RunningTracker /></ProtectedRoute>} />
-              
-              {/* Public Consumer Gym Discovery & Store: accessible to guests & users, redirected for staff */}
-              <Route path="/explore" element={<ConsumerRoute><ExploreGyms /></ConsumerRoute>} />
-              <Route path="/gym/:id" element={<ConsumerRoute><GymDetails /></ConsumerRoute>} />
-              <Route path="/store" element={<ConsumerRoute><Store /></ConsumerRoute>} />
-              
-              {/* Public Standalone Post Details View (Accessible without login; actions require login) */}
-              <Route path="/post/:id" element={<PostDetailPage />} />
-
-              {/* Trainee Hub & Dashboard: strictly guarded to trainee users only */}
-              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['User']}><UserDashboard /></ProtectedRoute>} />
-              <Route path="/your-gym" element={<ProtectedRoute allowedRoles={['User']}><YourGym /></ProtectedRoute>} />
-              
-              {/* Protected Universal Community Routes (All authenticated roles participate in social feed, profile & chat) */}
-              <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-              <Route path="/reels" element={<ProtectedRoute><ReelsPage /></ProtectedRoute>} />
-              <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-              <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-              <Route path="/chat" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              
-              {/* Settings & Privacy Deep Links */}
-              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-              <Route path="/settings/:section" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-              
-              {/* Role-Specific Management Panels */}
-              <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/moderator" element={<ProtectedRoute allowedRoles={['ComplaintModerator', 'Admin', 'SuperAdmin']}><ComplaintModeratorDashboard /></ProtectedRoute>} />
-              <Route path="/gym-owner" element={<ProtectedRoute allowedRoles={['GymOwner', 'gym_owner']}><GymOwnerDashboard /></ProtectedRoute>} />
-              <Route path="/fitness-instructor" element={<ProtectedRoute allowedRoles={['FitnessInstructor', 'Admin', 'SuperAdmin']}><FitnessInstructorDashboard /></ProtectedRoute>} />
-              <Route path="/gym-trainer" element={<ProtectedRoute allowedRoles={['GymTrainer', 'GymOwner', 'gym_owner']}><GymTrainerDashboard /></ProtectedRoute>} />
-              <Route path="/store-manager" element={<ProtectedRoute allowedRoles={['StoreManager', 'Admin', 'SuperAdmin']}><StoreManagerDashboard /></ProtectedRoute>} />
-              <Route path="/privacy" element={<LegalPage type="privacy" />} />
-              <Route path="/terms" element={<LegalPage type="terms" />} />
-              <Route path="/regulations" element={<LegalPage type="regulations" />} />
-              
-              <Route path="/profile/:userName" element={<PublicProfile />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </main>
+        <ToastContainer position="top-right" autoClose={3000} theme={theme === 'dark' ? 'dark' : 'light'} />
+        {isAuthPage ? (
+          <main className="main-content-auth" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {appRoutes}
+          </main>
+        ) : (
+          <AppLayout>
+            {appRoutes}
+          </AppLayout>
+        )}
         <GlobalChat />
-        {!isAuthPage && location.pathname !== '/reels' && <Footer />}
-        
         {showOnboarding && (
           <OnboardingWizard 
             onComplete={handleCompleteOnboarding} 

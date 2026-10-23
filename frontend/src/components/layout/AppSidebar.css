@@ -1,0 +1,340 @@
+/* =========================================================
+   GymSync Left Navigation Sidebar - Modern 20% Width Architecture
+   ========================================================= */
+
+.app-sidebar {
+  width: 100%;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  padding: 20px 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 900;
+  transition: all 0.25s ease;
+}
+
+/* Custom Sleek Scrollbar */
+.app-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+.app-sidebar::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 4px;
+}
+
+/* Sidebar Brand Header */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 24px;
+  text-decoration: none;
+  color: var(--text-primary);
+  border-radius: 14px;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-brand:hover {
+  transform: scale(1.02);
+  color: var(--text-primary);
+}
+
+.sidebar-brand-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  flex-shrink: 0;
+}
+
+.sidebar-brand-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Navigation Links Group */
+.sidebar-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.sidebar-section-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.8px;
+  padding: 10px 14px 4px 14px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  position: relative;
+  border: 1px solid transparent;
+}
+
+.sidebar-link:hover {
+  color: var(--text-primary);
+  background: var(--card-bg-light);
+  border-color: var(--card-border);
+}
+
+.sidebar-link.active {
+  color: #ffffff;
+  background: var(--accent-gradient);
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
+}
+
+.sidebar-link.active .sidebar-icon {
+  color: #ffffff;
+}
+
+.sidebar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-link:hover .sidebar-icon {
+  transform: scale(1.1);
+}
+
+.sidebar-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.sidebar-badge {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  line-height: 1.2;
+}
+
+/* Sidebar Footer & User Profile */
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sidebar-border);
+  margin-top: auto;
+}
+
+/* Theme Switcher Button */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--primary-accent);
+  background: var(--bg-secondary);
+}
+
+.theme-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* User Card in Sidebar */
+.sidebar-user-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.sidebar-user-card:hover {
+  border-color: var(--primary-accent);
+  color: var(--text-primary);
+}
+
+.sidebar-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar-user-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role {
+  font-size: 0.72rem;
+  color: var(--primary-accent);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.sidebar-logout-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.sidebar-logout-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+/* Tablet Rail View (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .app-sidebar {
+    padding: 16px 8px;
+  }
+  .sidebar-brand-title,
+  .sidebar-label,
+  .sidebar-section-label,
+  .theme-toggle-btn span,
+  .sidebar-user-details {
+    display: none;
+  }
+  .sidebar-brand {
+    justify-content: center;
+    padding: 8px 0;
+  }
+  .sidebar-link {
+    justify-content: center;
+    padding: 12px;
+  }
+  .theme-toggle-btn {
+    justify-content: center;
+    padding: 10px 0;
+  }
+  .sidebar-user-card {
+    justify-content: center;
+    padding: 8px;
+  }
+  .sidebar-logout-btn {
+    display: none;
+  }
+}
+
+/* Mobile Bottom Navigation (< 768px) */
+@media (max-width: 768px) {
+  .app-sidebar {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 64px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    padding: 6px 12px;
+    border-right: none;
+    border-top: 1px solid var(--sidebar-border);
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    overflow: visible;
+  }
+
+  .sidebar-brand,
+  .sidebar-section-label,
+  .sidebar-footer {
+    display: none;
+  }
+
+  .sidebar-nav-group {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    width: 100%;
+    gap: 0;
+  }
+
+  .sidebar-link {
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.68rem;
+  }
+
+  .sidebar-link.active {
+    box-shadow: none;
+  }
+
+  .sidebar-label {
+    display: block;
+    font-size: 0.65rem;
+  }
+}
