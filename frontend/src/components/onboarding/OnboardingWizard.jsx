@@ -437,14 +437,27 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
   };
 
   return (
-    <div className="onboarding-overlay">
-      <div className="onboarding-modal" style={{ maxWidth: '640px' }}>
-        <button type="button" className="skip-btn" onClick={onSkip}>Skip for now <X size={16} /></button>
-        
+    <div className="onboarding-overlay" onClick={onSkip}>
+      <div className="onboarding-modal" onClick={e => e.stopPropagation()}>
         <div className="progress-bar-container">
           <div className="progress-bar" style={{ width: `${(step / totalSteps) * 100}%` }}></div>
         </div>
-        <div className="step-indicator">Step {step} of {totalSteps} • Health & Fitness Bio</div>
+
+        <div className="onboarding-modal-header">
+          <div className="onboarding-step-badge">
+            Step {step} of {totalSteps}
+          </div>
+          <button 
+            type="button" 
+            className="onboarding-close-btn" 
+            onClick={onSkip}
+            title="Dismiss for now"
+            aria-label="Dismiss for now"
+          >
+            <span className="onboarding-close-text">Dismiss</span>
+            <X size={16} />
+          </button>
+        </div>
 
         <div className="onboarding-content">
           {renderStepContent()}

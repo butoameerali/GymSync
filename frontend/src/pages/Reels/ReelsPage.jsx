@@ -10,10 +10,8 @@ import {
   Pause, 
   ChevronUp, 
   ChevronDown, 
-  Plus, 
   X, 
   Send,
-  Film,
   UserCheck,
   UserPlus,
   Sparkles,
@@ -78,10 +76,6 @@ const ReelsPage = () => {
   const [expandedCaption, setExpandedCaption] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [uploadVideoFile, setUploadVideoFile] = useState(null);
-  const [uploadCaption, setUploadCaption] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
   const [doubleTapHeart, setDoubleTapHeart] = useState(false);
   const [videoError, setVideoError] = useState(false);
 
@@ -268,7 +262,7 @@ const ReelsPage = () => {
 
   // Desktop Mouse Wheel Navigation
   const handleWheel = (e) => {
-    if (showComments || showUploadModal) return;
+    if (showComments) return;
     const now = Date.now();
     if (now - lastWheelTime.current < 500) return; // Debounce 500ms
 
@@ -284,7 +278,7 @@ const ReelsPage = () => {
   // Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (showComments || showUploadModal) return;
+      if (showComments) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         handleNext();
@@ -304,7 +298,7 @@ const ReelsPage = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, reels.length, isPlaying, showComments, showUploadModal, isMuted, handleNext, handlePrev]);
+  }, [currentIndex, reels.length, isPlaying, showComments, isMuted, handleNext, handlePrev]);
 
   const handleLike = async (forceLike = false) => {
     if (!currentReel) return;
@@ -371,37 +365,6 @@ const ReelsPage = () => {
     }
   };
 
-  const handleUploadReel = async (e) => {
-    e.preventDefault();
-    if (!requireAuth('upload reels')) return;
-    if (!uploadVideoFile) {
-      toast.error('Please select a video file');
-      return;
-    }
-
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append('content', uploadCaption || 'New Workout Reel 🔥');
-    formData.append('media', uploadVideoFile);
-
-    try {
-      const created = await postService.createPost(formData);
-      created.author = { name: currentUserName };
-      created.likes = [];
-      created.comments = [];
-      setReels([created, ...reels]);
-      setCurrentIndex(0);
-      setShowUploadModal(false);
-      setUploadVideoFile(null);
-      setUploadCaption('');
-      toast.success('Reel uploaded and published!');
-    } catch (err) {
-      toast.error(err.message || 'Failed to upload reel');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="reels-page-container">
@@ -423,15 +386,6 @@ const ReelsPage = () => {
           <span className="reels-index-pill">
             {currentIndex + 1} / {reels.length}
           </span>
-          <button
-            onClick={() => {
-              if (!requireAuth('upload reels')) return;
-              setShowUploadModal(true);
-            }}
-            className="reels-upload-header-btn"
-          >
-            <Plus size={16} /> Upload Reel
-          </button>
         </div>
       </div>
 
@@ -543,24 +497,8 @@ const ReelsPage = () => {
                 )}
               </div>
 
-              {/* Right Side Interaction Column (Upload, Like, Comment, Share) */}
+              {/* Right Side Interaction Column (Like, Comment, Share) */}
               <div className="reel-actions-column" onClick={e => e.stopPropagation()}>
-                {/* Upload Reel Button */}
-                <button 
-                  className="reel-action-btn"
-                  onClick={() => {
-                    if (!requireAuth('upload reels')) return;
-                    setShowUploadModal(true);
-                  }}
-                  title="Upload Reel"
-                  aria-label="Upload Reel"
-                >
-                  <div className="reel-icon-circle" style={{ background: 'var(--accent-gradient)', color: '#ffffff' }}>
-                    <Plus size={20} />
-                  </div>
-                  <span className="reel-count-label">Upload</span>
-                </button>
-
                 {/* Like Button with Dumbbell Icon */}
                 <button 
                   className={`reel-action-btn ${isLikedByMe ? 'liked' : ''}`}
@@ -720,116 +658,6 @@ const ReelsPage = () => {
           <ChevronDown size={24} />
         </button>
       </div>
-
-      {/* Upload Reel Modal */}
-      {showUploadModal && (
-        <div 
-          className="modal-overlay" 
-          style={{ zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
-          onClick={() => setShowUploadModal(false)}
-        >
-          <div 
-            className="modal-content glass-panel" 
-            style={{ 
-              maxWidth: '480px', 
-              width: '92%', 
-              borderRadius: '20px', 
-              padding: '24px', 
-              background: 'var(--card-bg, #111827)',
-              boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
-              border: '1px solid rgba(255,255,255,0.12)'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Film size={22} color="#ec4899" />
-                <h3 style={{ margin: 0, color: '#fff', fontSize: '1.2rem', fontWeight: 700 }}>Upload Workout Reel</h3>
-              </div>
-              <button 
-                onClick={() => setShowUploadModal(false)} 
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
-                aria-label="Close modal"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleUploadReel} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>
-                  Select Video File (MP4, WebM, MOV) *
-                </label>
-                <input
-                  type="file"
-                  accept="video/*"
-                  required
-                  onChange={e => setUploadVideoFile(e.target.files?.[0] || null)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '12px', 
-                    borderRadius: '10px', 
-                    background: 'rgba(255,255,255,0.05)', 
-                    border: '1px solid rgba(255,255,255,0.15)', 
-                    color: '#fff',
-                    fontSize: '0.88rem'
-                  }}
-                />
-                {uploadVideoFile && (
-                  <span style={{ fontSize: '0.78rem', color: '#10b981', display: 'block', marginTop: '6px' }}>
-                    Selected: {uploadVideoFile.name} ({(uploadVideoFile.size / (1024 * 1024)).toFixed(1)} MB)
-                  </span>
-                )}
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>
-                  Reel Caption & Hashtags
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="E.g., Hit a new PR on squats today! 🏋️‍♂️ #legday #gains"
-                  value={uploadCaption}
-                  onChange={e => setUploadCaption(e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '12px', 
-                    borderRadius: '10px', 
-                    background: 'rgba(255,255,255,0.05)', 
-                    border: '1px solid rgba(255,255,255,0.15)', 
-                    color: '#fff', 
-                    resize: 'none',
-                    fontSize: '0.9rem'
-                  }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isUploading}
-                style={{
-                  padding: '14px',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
-                  marginTop: '6px',
-                  border: 'none',
-                  color: '#fff',
-                  cursor: isUploading ? 'not-allowed' : 'pointer',
-                  background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-                  boxShadow: '0 4px 15px rgba(236, 72, 153, 0.4)'
-                }}
-              >
-                {isUploading ? 'Uploading Video...' : 'Publish Reel to Feed'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

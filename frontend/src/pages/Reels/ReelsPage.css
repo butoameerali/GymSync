@@ -58,26 +58,6 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.reels-upload-header-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
-  border: none;
-  color: #fff;
-  padding: 7px 14px;
-  border-radius: 20px;
-  font-weight: 700;
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.35);
-}
-
-.reels-upload-header-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
-}
 
 /* Wrapper containing the Reel Card & Desktop Navigation Arrows */
 .reels-wrapper {

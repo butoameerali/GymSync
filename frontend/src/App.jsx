@@ -62,30 +62,30 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    // Check onboarding status
+    // Check onboarding status - only auto-prompt once on initial session if never dismissed or completed
     const userName = localStorage.getItem('gymsync_user_name');
     if (!isAuthPage && userName && userName !== 'Guest User') {
       const isCompleted = localStorage.getItem('gymsync_onboarding_completed') === 'true';
-      if (!isCompleted) {
-        const skipDate = localStorage.getItem('gymsync_onboarding_skip_date');
-        const today = new Date().toDateString();
-        if (skipDate !== today) {
-          setShowOnboarding(true);
-        }
+      const isDismissed = localStorage.getItem('gymsync_onboarding_dismissed') === 'true';
+      if (!isCompleted && !isDismissed) {
+        setShowOnboarding(true);
       }
     }
 
     const handleOpenWizard = () => setShowOnboarding(true);
     window.addEventListener('open-onboarding', handleOpenWizard);
     return () => window.removeEventListener('open-onboarding', handleOpenWizard);
-  }, [location.pathname, isAuthPage]);
+  }, []);
 
   const handleSkipOnboarding = () => {
-    localStorage.setItem('gymsync_onboarding_skip_date', new Date().toDateString());
+    localStorage.setItem('gymsync_onboarding_dismissed', 'true');
+    localStorage.setItem('gymsync_onboarding_completed', 'true');
     setShowOnboarding(false);
   };
 
   const handleCompleteOnboarding = () => {
+    localStorage.setItem('gymsync_onboarding_completed', 'true');
+    localStorage.setItem('gymsync_onboarding_dismissed', 'true');
     setShowOnboarding(false);
   };
 
