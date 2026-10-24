@@ -844,6 +844,21 @@
   transition: none !important;
 }
 
+/* Timeline Vertical Layout: Top Intro & Stats, Bottom Feed */
+.profile-timeline-vertical-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.profile-timeline-top-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
 /* Facebook-Style Profile Layout */
 .fb-profile-layout {
   display: grid;
@@ -1033,32 +1048,61 @@
 
 
 /* Responsive Profile Layout: 2-Column Desktop Grid & 2-Slide Mobile Carousel */
-.profile-page .container { width: min(100% - 40px, 1280px); max-width: 1280px; margin-inline: auto; padding-inline: 0; }
+.profile-page {
+  width: 100%;
+  height: 100%;
+}
 
-/* Desktop 2-Column Grid */
+.profile-page .container {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Desktop 2-Column Grid: Fixed Athlete Card on Left, Smoothly Scrolling Main Content on Right */
 .profile-desktop-grid {
   display: grid;
-  grid-template-columns: 380px minmax(0, 1fr);
-  gap: 32px;
-  align-items: start;
-  margin-top: 16px;
-  margin-bottom: 40px;
+  grid-template-columns: 390px minmax(0, 1fr);
+  gap: 28px;
+  align-items: stretch;
+  height: 100%;
   width: 100%;
+  margin: 0;
+  overflow: hidden;
 }
+
 .profile-desktop-card-col {
-  position: sticky;
-  top: 18px;
-  width: 100%;
+  width: 390px;
+  flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
+  padding-bottom: 24px;
 }
+.profile-desktop-card-col::-webkit-scrollbar {
+  display: none;
+}
+
 .profile-desktop-main-col {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
   min-width: 0;
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding-right: 14px;
+  padding-bottom: 80px;
+  box-sizing: border-box;
+  scrollbar-width: thin;
 }
 
 /* 3D Athlete Card Polish */

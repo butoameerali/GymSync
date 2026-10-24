@@ -85,11 +85,11 @@ const ProfileTimelineTab = ({
     }
   };
   return (
-    <div className="fb-profile-layout">
-      {/* Left Column: Intro, Stats, Photos */}
-      <div className="fb-profile-sidebar">
+    <div className="profile-timeline-vertical-layout">
+      {/* Top Container: Intro and Fitness Stats */}
+      <div className="profile-timeline-top-section">
         <div className="glass-panel fb-intro-card">
-          <h3 className="section-title" style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Intro</h3>
+          <h3 className="section-title" style={{ fontSize: '1.05rem', marginBottom: '10px' }}>Intro</h3>
           <p className="fb-bio-text">
             {bio.fitnessGoals || (userRole === 'GymTrainer' ? 'Certified Gym Trainer & Fitness Coach' : userRole === 'GymOwner' ? 'Gym Owner & Facility Partner' : isAdminUser ? 'GymSync Platform Administrator' : 'GymSync Community Member')}
           </p>
@@ -113,6 +113,7 @@ const ProfileTimelineTab = ({
           </div>
           {isTrainee && (
             <button
+              type="button"
               className="btn btn-outline btn-sm"
               style={{ width: '100%', marginTop: '14px' }}
               onClick={() => {
@@ -130,15 +131,27 @@ const ProfileTimelineTab = ({
           <div className="glass-panel fb-intro-card">
             <h4 className="section-title" style={{ fontSize: '1rem', marginBottom: '12px' }}>Fitness Stats</h4>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ color: 'var(--primary-accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>{stats.points}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Total Points</div>
+              <div style={{ background: 'var(--card-bg)', padding: '14px', borderRadius: '10px', textAlign: 'center' }}>
+                <div style={{ color: 'var(--primary-accent)', fontWeight: 'bold', fontSize: '1.3rem' }}>{stats.points}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Points</div>
               </div>
-              <div style={{ background: 'var(--card-bg)', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ color: '#f97316', fontWeight: 'bold', fontSize: '1.2rem' }}>{stats.streak}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Day Streak</div>
+              <div style={{ background: 'var(--card-bg)', padding: '14px', borderRadius: '10px', textAlign: 'center' }}>
+                <div style={{ color: '#f97316', fontWeight: 'bold', fontSize: '1.3rem' }}>{stats.streak}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Day Streak</div>
               </div>
             </div>
+
+            {/* Photos Preview */}
+            {photoPosts.length > 0 && (
+              <div style={{ marginTop: '14px', borderTop: '1px solid var(--card-border)', paddingTop: '10px' }}>
+                <h5 style={{ fontSize: '0.86rem', marginBottom: '8px', color: 'var(--text-secondary)' }}>Recent Photos</h5>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                  {photoPosts.slice(0, 4).map((p, idx) => (
+                    <img key={p._id || idx} src={p.mediaUrl} alt="Timeline photo" style={{ width: '100%', height: '60px', objectFit: 'cover', borderRadius: '6px' }} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -167,21 +180,9 @@ const ProfileTimelineTab = ({
             </div>
           </div>
         )}
-
-        {/* Photos Preview */}
-        {photoPosts.length > 0 && (
-          <div className="glass-panel fb-intro-card">
-            <h4 className="section-title" style={{ fontSize: '1rem', marginBottom: '12px' }}>Photos</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-              {photoPosts.map((p, idx) => (
-                <img key={p._id || idx} src={p.mediaUrl} alt="Timeline photo" style={{ width: '100%', height: '75px', objectFit: 'cover', borderRadius: '8px' }} />
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Right Column: Create Post Card + Interactive PostList */}
+      {/* Feed Section: Create Post Card + Interactive PostList */}
       <div className="fb-profile-feed">
         {/* Moderation Hold & Appeal Banner */}
         {moderatedPosts && moderatedPosts.length > 0 && (

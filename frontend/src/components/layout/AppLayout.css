@@ -70,6 +70,18 @@
   flex-direction: column;
 }
 
+/* Profile Desktop Native Layout: Locked outer column so middle card stays fixed and only right feed scrolls */
+.app-middle-column.profile-mode {
+  padding: 16px 24px 0 24px !important;
+  width: 80% !important;
+  max-width: none !important;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Right Column: 20% Suggestions */
 .app-right-column {
   width: 20%;
@@ -215,6 +227,9 @@
     padding: 0 !important;
     margin: 0 !important;
     box-sizing: border-box !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
   .app-right-column {
     display: none;
