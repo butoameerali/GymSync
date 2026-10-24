@@ -10,11 +10,17 @@ import {
   UserPlus, 
   UserCheck, 
   ExternalLink,
-  Share2,
   X
 } from 'lucide-react';
 import UserAvatar from '../../../components/common/UserAvatar';
 import { toast } from 'react-toastify';
+
+const isVideoMedia = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  if (url.startsWith('data:video/')) return true;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return Boolean(clean.match(/\.(mp4|webm|ogg|mov|m4v|mkv|3gp|flv|avi)$/i));
+};
 
 const PostCard = ({
   post,
@@ -126,7 +132,15 @@ const PostCard = ({
   };
 
   return (
-    <div className="post-card glass-panel" style={{ marginBottom: '20px', position: 'relative', transition: 'box-shadow 0.2s ease' }}>
+    <div 
+      className="post-card glass-panel" 
+      style={{ 
+        marginBottom: '20px', 
+        position: 'relative', 
+        transition: 'box-shadow 0.2s ease',
+        zIndex: showMenu ? 60 : 1 
+      }}
+    >
       {/* Post Header */}
       <div className="post-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -183,10 +197,10 @@ const PostCard = ({
                 background: 'var(--card-bg, #111827)',
                 border: '1px solid var(--card-border, rgba(255, 255, 255, 0.12))',
                 borderRadius: '12px',
-                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+                boxShadow: '0 14px 40px rgba(0, 0, 0, 0.75)',
                 padding: '6px',
-                minWidth: '180px',
-                zIndex: 100,
+                minWidth: '190px',
+                zIndex: 1000,
                 animation: 'fadeIn 0.15s ease'
               }}
               onClick={(e) => e.stopPropagation()}
@@ -369,18 +383,20 @@ const PostCard = ({
           }} 
           onClick={handleOpenPostDetail}
         >
-          {post.mediaUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+          {isVideoMedia(post.mediaUrl) ? (
             <video 
               src={post.mediaUrl} 
               controls 
-              style={{ width: '100%', maxHeight: '420px', borderRadius: '10px', display: 'block', objectFit: 'contain', background: '#000' }} 
+              playsInline
+              preload="metadata"
+              style={{ width: '100%', maxHeight: '460px', borderRadius: '10px', display: 'block', objectFit: 'contain', background: '#000' }} 
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
             <img
               src={post.mediaUrl}
               alt="Post media"
-              style={{ width: '100%', maxHeight: '420px', objectFit: 'cover', borderRadius: '10px', display: 'block' }}
+              style={{ width: '100%', maxHeight: '460px', objectFit: 'cover', borderRadius: '10px', display: 'block' }}
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.style.display = 'none';
@@ -416,15 +432,6 @@ const PostCard = ({
             <MessageCircle size={16} /> {comments.length}
           </button>
         </div>
-
-        <button
-          type="button"
-          onClick={handleCopyLink}
-          style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}
-          title="Share post link"
-        >
-          <Share2 size={15} />
-        </button>
       </div>
 
       {/* Comments & Replies Collapsible Section */}

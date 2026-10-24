@@ -88,17 +88,20 @@ const ReelsPage = () => {
 
   const isVideoUrl = (url) => {
     if (!url || typeof url !== 'string') return false;
+    if (url.startsWith('data:video/')) return true;
+    const clean = url.split('?')[0].split('#')[0].toLowerCase();
     return Boolean(
-      url.match(/\.(mp4|webm|ogg|mov|m4v|gif)(\?.*)?$/i) ||
-      url.startsWith('data:video') ||
+      clean.match(/\.(mp4|webm|ogg|mov|m4v|mkv|3gp|flv|avi|gif)$/i) ||
       url.includes('/videos/') ||
+      url.includes('/video/') ||
       url.includes('sample/')
     );
   };
 
   const isGifUrl = (url) => {
     if (!url || typeof url !== 'string') return false;
-    return Boolean(url.match(/\.gif(\?.*)?$/i));
+    const clean = url.split('?')[0].split('#')[0].toLowerCase();
+    return Boolean(clean.match(/\.gif$/i));
   };
 
   const fetchReels = async () => {
@@ -107,11 +110,12 @@ const ReelsPage = () => {
       const allPosts = await postService.getPosts();
       const videoPosts = (allPosts || []).filter(p => isVideoUrl(p.mediaUrl));
       
-      if (videoPosts.length > 0) {
-        setReels(videoPosts);
-      } else {
-        setReels(DEFAULT_DEMO_REELS);
-      }
+      // User videos uploaded in timeline/posts show up first in Reels, followed by demo reels
+      const userVideoIds = new Set(videoPosts.map(v => String(v._id || v.id)));
+      const filteredDemos = DEFAULT_DEMO_REELS.filter(d => !userVideoIds.has(String(d._id)));
+      const combined = [...videoPosts, ...filteredDemos];
+
+      setReels(combined.length > 0 ? combined : DEFAULT_DEMO_REELS);
     } catch (err) {
       console.warn('Reels fetch falling back to demo reels:', err);
       setReels(DEFAULT_DEMO_REELS);

@@ -82,13 +82,15 @@
   z-index: 1;
 }
 
-/* Main Display Video or GIF */
+/* Main Display Video or GIF - Cleanly fits 1:1, 16:9, and 9:16 aspect ratios */
 .reel-video-main {
   position: relative;
   z-index: 2;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   background: transparent;
 }
 
@@ -614,7 +616,7 @@
   }
 
   .reel-video-main {
-    object-fit: cover;
+    object-fit: contain;
   }
 
   .reel-mobile-upload-btn {

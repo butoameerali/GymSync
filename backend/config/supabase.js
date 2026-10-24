@@ -56,7 +56,15 @@ export const uploadToSupabaseStorage = async ({
   }
 
   try {
-    const ext = path.extname(originalName) || (mimeType.includes('png') ? '.png' : mimeType.includes('gif') ? '.gif' : mimeType.includes('mp4') ? '.mp4' : '.jpg');
+    const ext = path.extname(originalName) || (
+      mimeType.includes('png') ? '.png' :
+      mimeType.includes('gif') ? '.gif' :
+      mimeType.includes('mp4') ? '.mp4' :
+      mimeType.includes('quicktime') ? '.mov' :
+      mimeType.includes('webm') ? '.webm' :
+      mimeType.includes('video') ? '.mp4' :
+      '.jpg'
+    );
     const randomHex = crypto.randomBytes(6).toString('hex');
     const fileName = `${folder}/${Date.now()}_${randomHex}${ext}`;
 
