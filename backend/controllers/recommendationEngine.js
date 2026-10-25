@@ -230,9 +230,6 @@ export const generatePlanObject = (bio = {}, options = {}) => {
   const activeDaysInWeek = workoutDaysPerWeekMap[trainingDaysPerWeek] || workoutDaysPerWeekMap[3];
 
   const interactive_calendar = [];
-  const medicalWarningsSet = new Set([
-    'Always consult a physician before starting an intensive training or diet regimen.'
-  ]);
 
   // Session cache per phase to keep calendar generation instantaneous even for 52 weeks
   const sessionCache = {};
@@ -276,10 +273,6 @@ export const generatePlanObject = (bio = {}, options = {}) => {
     } else {
       const session = getCachedSession(phaseObj.key, workoutIndexInWeek, day);
 
-      if (session.medicalSafetyReview?.safetyWarnings) {
-        session.medicalSafetyReview.safetyWarnings.forEach(w => medicalWarningsSet.add(w));
-      }
-
       interactive_calendar.push({
         dayNumber: day,
         weekNumber: weekNum,
@@ -318,8 +311,7 @@ export const generatePlanObject = (bio = {}, options = {}) => {
     structuredDiet: null,
     daily_diet_plan: [],
     dietAudit: null,
-    dietSafetyNotice: 'Diet auto-generation is disabled for medical safety. Please choose a certified instructor diet plan from Programs or consult your trainer.',
-    medical_warnings: Array.from(medicalWarningsSet)
+    dietSafetyNotice: 'Diet auto-generation is disabled for medical safety. Please choose a certified instructor diet plan from Programs or consult your trainer.'
   };
 };
 

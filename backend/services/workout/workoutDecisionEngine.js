@@ -140,8 +140,8 @@ export const workoutDecisionEngine = {
     let allCandidates = exerciseRegistry.getAll();
     allCandidates = exerciseRegistry.filterByEquipment(allCandidates, equipmentAccess);
 
-    // 6. MEDICAL & JOINT SAFETY SCREENING (Zero Tolerance)
-    const { safeExercises, excludedExercises, safetyWarnings, requiresMedicalReferral } =
+    // 6. GENERAL EXERCISE SAFETY & COMPATIBILITY CHECK
+    const { safeExercises, excludedExercises, safetyWarnings } =
       exerciseSafetyValidator.filterSafeExercises(allCandidates, userProfile);
 
     // 7. TIME BUDGETING
@@ -419,8 +419,7 @@ export const workoutDecisionEngine = {
         safeExercisesCount: safeExercises.length,
         excludedCount: excludedExercises.length,
         excludedExercises,
-        safetyWarnings,
-        requiresMedicalReferral
+        safetyWarnings
       }
     };
   }

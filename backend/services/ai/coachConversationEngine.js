@@ -1338,20 +1338,19 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
         dayNumber: 1
       });
 
-      responseContent = `⚠️ **Medical Safety Notice: ${painArea.toUpperCase()} Protection**
+      responseContent = `⚠️ **Safety Notice: ${painArea.toUpperCase()} Comfort**
 
-I've noted that your **${painArea}** is uncomfortable today. As your coach, safety comes first:
-- I have **instantly removed** all exercises with high shear stress on your ${painArea}.
-- **Safe Alternative**: Recommended **${alternative.alternativeName}** (${alternative.clinicalRationale}).
-- **Updated Plan**: Generated a modified session focusing on pain-free movement patterns.
+If an exercise causes pain or discomfort in your **${painArea}**, stop the movement immediately and rest. If pain continues or worsens, please consult a physician before continuing exercise.
 
-> 🩺 *Clinical Note: If you experience sharp, shooting, or unexplained pain, stop immediately and seek medical evaluation from a physiotherapist.*`;
+For low-impact activity, you may try: **${alternative.alternativeName}**.
+
+> 💡 *Note: General fitness guidance only — not medical advice.*`;
 
       structuredAction.type = 'SAFETY_ALERT';
       structuredAction.workout = session;
       structuredAction.rationale = session.rationale;
-      structuredAction.safetyFlags = [`Excluded exercises stressing the ${painArea}`];
-      structuredAction.explanation = `Screened out exercises contraindicated for ${painArea}.`;
+      structuredAction.safetyFlags = [`Advised rest and medical evaluation if pain persists for ${painArea}`];
+      structuredAction.explanation = `Provided general safety guidance and lower-impact suggestion for ${painArea}.`;
       return { role: 'assistant', content: responseContent, structuredAction };
     }
 

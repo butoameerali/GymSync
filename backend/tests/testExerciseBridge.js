@@ -7,7 +7,9 @@ import mongoose from 'mongoose';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+process.env.NODE_ENV = 'test';
 
+import { getTestMongoUri } from './mongoTestHelper.js';
 import connectDB from '../config/db.js';
 import Exercise from '../models/Exercise.js';
 import exerciseRegistry, { syncDatabaseExercises } from '../services/workout/exerciseRegistry.js';

@@ -1,7 +1,6 @@
 /**
- * Medical & Joint Safety Screening Engine (Zero Tolerance)
- * Enforces hard medical and orthopedic exclusions, provides clinical explanations,
- * and handles triage for acute or unexplained pain.
+ * Exercise Safety & Adaptation Engine
+ * General fitness guidance helper and exercise compatibility adapter.
  */
 
 export const exerciseSafetyValidator = {
@@ -11,14 +10,13 @@ export const exerciseSafetyValidator = {
    *
    * @param {Array} exercises - Candidate exercises from registry
    * @param {Object} profile - User profile (user health data is no longer read)
-   * @returns {Object} { safeExercises, excludedExercises, safetyWarnings, requiresMedicalReferral }
+   * @returns {Object} { safeExercises, excludedExercises, safetyWarnings }
    */
   filterSafeExercises(exercises = [], profile = {}) {
     return {
       safeExercises: Array.isArray(exercises) ? [...exercises] : [],
       excludedExercises: [],
-      safetyWarnings: [],
-      requiresMedicalReferral: false
+      safetyWarnings: []
     };
   },
 
@@ -27,34 +25,29 @@ export const exerciseSafetyValidator = {
    */
   suggestSafeAlternative(blockedExerciseName, painArea) {
     const area = (painArea || '').toLowerCase();
-    const name = (blockedExerciseName || '').toLowerCase();
 
     if (area.includes('knee')) {
       return {
         alternativeName: 'Glute Bridges or Bodyweight Romanian Deadlifts',
-        pattern: 'hinge',
-        clinicalRationale: 'Shifts kinetic load away from the patellofemoral joint into the posterior chain (glutes and hamstrings).'
+        pattern: 'hinge'
       };
     }
     if (area.includes('shoulder')) {
       return {
         alternativeName: 'Neutral-Grip Dumbbell Floor Press or Face Pulls',
-        pattern: 'horizontal push / pull',
-        clinicalRationale: 'Neutral grip eliminates acromial impingement and floor stops hyperextension of the glenohumeral joint.'
+        pattern: 'horizontal push / pull'
       };
     }
     if (area.includes('lowerback') || area.includes('back')) {
       return {
         alternativeName: 'Chest-Supported Dumbbell Rows and Bird-Dogs',
-        pattern: 'horizontal pull / core',
-        clinicalRationale: 'Eliminates unsupported spinal shear while strengthening scapular retractors and multifidus core stabilization.'
+        pattern: 'horizontal pull / core'
       };
     }
 
     return {
       alternativeName: 'Bodyweight Isometric Hold',
-      pattern: 'activation',
-      clinicalRationale: 'Pain-free submaximal isometric muscle activation.'
+      pattern: 'activation'
     };
   }
 };

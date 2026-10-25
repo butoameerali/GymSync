@@ -13,6 +13,7 @@ import User from '../models/User.js';
 import PreMadePlan from '../models/PreMadePlan.js';
 import UserWorkoutProgram from '../models/UserWorkoutProgram.js';
 import { estimateExerciseCalories } from '../services/workout/exerciseRegistry.js';
+import { getTestMongoUri } from './mongoTestHelper.js';
 
 const TEST_PORT = 5126;
 const BASE_URL = `http://127.0.0.1:${TEST_PORT}`;
@@ -46,7 +47,7 @@ async function runPhase1Tests() {
     });
 
     if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGO_URI);
+      await mongoose.connect(getTestMongoUri());
     }
     console.log(`📡 MongoDB Connected: ${mongoose.connection.name}`);
 

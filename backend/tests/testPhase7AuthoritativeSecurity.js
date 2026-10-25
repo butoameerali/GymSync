@@ -18,6 +18,7 @@ import {
   sanitizeReps,
   sanitizeSourceAttribution
 } from '../controllers/aiController.js';
+import { getTestMongoUri } from './mongoTestHelper.js';
 
 const TEST_PORT = 5124;
 const BASE_URL = `http://127.0.0.1:${TEST_PORT}`;
@@ -51,7 +52,7 @@ async function runPhase7Tests() {
     });
 
     if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGO_URI);
+      await mongoose.connect(getTestMongoUri());
     }
     console.log(`📡 MongoDB Connected: ${mongoose.connection.name}`);
 

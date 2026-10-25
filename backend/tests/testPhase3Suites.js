@@ -6,6 +6,8 @@ import jwt from 'jsonwebtoken';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+process.env.NODE_ENV = 'test';
+import { getTestMongoUri } from './mongoTestHelper.js';
 import app from '../index.js';
 
 import User from '../models/User.js';
@@ -45,7 +47,7 @@ async function runPhase3Suites() {
     });
 
     if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGO_URI);
+      await mongoose.connect(getTestMongoUri());
     }
     console.log(`📡 MongoDB Connected: ${mongoose.connection.name}`);
 

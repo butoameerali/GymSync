@@ -83,8 +83,20 @@ const connectDB = async () => {
     return cached.conn;
   }
 
-  const rawMongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
-  if (!rawMongoUri) {
+  let rawMongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+
+  if (process.env.NODE_ENV === 'test') {
+    const testUri = process.env.MONGO_URI_TEST;
+    if (!testUri) {
+      console.error('❌ Test execution refused: MONGO_URI_TEST environment variable is not defined.');
+      throw new Error('MONGO_URI_TEST environment variable is not defined for test environment.');
+    }
+    if (testUri === rawMongoUri) {
+      console.error('❌ Test execution refused: MONGO_URI_TEST equals production MONGO_URI.');
+      throw new Error('Refusing to run tests against primary database: MONGO_URI_TEST must not equal MONGO_URI.');
+    }
+    rawMongoUri = testUri;
+  } else if (!rawMongoUri) {
     console.error('❌ MONGO_URI / MONGODB_URI environment variable is missing!');
     throw new Error('MONGO_URI or MONGODB_URI environment variable is not defined.');
   }

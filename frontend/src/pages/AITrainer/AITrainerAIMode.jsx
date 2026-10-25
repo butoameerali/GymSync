@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import {
   Bot,
   CheckCircle,
-  ShieldAlert,
   Lock,
   Moon,
   AlertTriangle,
@@ -1549,43 +1548,6 @@ const AITrainerAIMode = ({
                     setTimeout(() => window.location.reload(), 500);
                   }} 
                 />
-              )}
-              {/* ── MEDICAL SAFETY HARD FILTERS ─────────────────────────── */}
-              {aiPlan.medical_warnings && aiPlan.medical_warnings.length > 0 && (
-                <div
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid #ef4444',
-                    padding: '15px',
-                    borderRadius: '12px',
-                    marginBottom: '20px',
-                  }}
-                >
-                  <h3
-                    style={{
-                      color: '#ef4444',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <ShieldAlert size={20} /> Medical Safety Hard-Filters Active
-                  </h3>
-                  <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
-                    {aiPlan.medical_warnings.map((warn, i) => (
-                      <li
-                        key={i}
-                        style={{
-                          color: 'var(--text-secondary)',
-                          marginBottom: '5px',
-                          fontSize: '0.9rem',
-                        }}
-                      >
-                        {warn}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
               )}
 
               {/* ── 1. FULL-WIDTH INTERACTIVE WORKOUT SCHEDULE BAR ──────── */}

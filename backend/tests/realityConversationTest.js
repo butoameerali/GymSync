@@ -10,6 +10,9 @@ import { EVENT_TYPES } from '../services/workout/eventAwarenessEngine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+process.env.NODE_ENV = 'test';
+
+import { getTestMongoUri } from './mongoTestHelper.js';
 
 /**
  * Reality Test Suite for GymSync Conversational Adaptive Personal Trainer
@@ -87,7 +90,7 @@ async function runRealityTest(testName, testType, fn) {
 }
 
 async function runAllRealityTests() {
-  await mongoose.connect(process.env.MONGO_URI);
+  await mongoose.connect(getTestMongoUri());
   console.log('\n=============================================================');
   console.log('  STARTING REALITY TEST OF CONVERSATIONAL ADAPTIVE TRAINER  ');
   console.log('=============================================================\n');
