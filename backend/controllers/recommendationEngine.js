@@ -1,6 +1,4 @@
 import workoutDecisionEngine from '../services/workout/workoutDecisionEngine.js';
-import dietBuilder from '../services/nutrition/dietBuilder.js';
-import dietValidator from '../services/nutrition/dietValidator.js';
 import exerciseLibrary from '../models/Exercise.js';
 import sportProfileEngine from '../services/workout/sportProfileEngine.js';
 import { computeMissingBioFields } from '../services/ai/intentClassifier.js';
@@ -107,7 +105,7 @@ export const generatePlan = async (req, res) => {
           fitnessLevel: bio.fitnessLevel || existingPlan.fitnessLevel || 'Intermediate',
           workout: { interactive_calendar: mergeRes.mergedPlan.interactive_calendar },
           calendar: mergeRes.mergedPlan.interactive_calendar,
-          diet: mergeRes.mergedPlan.nutrition,
+          diet: null,
           isActive: true,
           goalGroupId: mergeRes.mergedPlan.goalGroupId,
           notes: mergeRes.summary
@@ -123,7 +121,7 @@ export const generatePlan = async (req, res) => {
         return res.status(200).json({
           ...newMergedPlanDoc.toObject(),
           interactive_calendar: newMergedPlanDoc.calendar,
-          nutrition: newMergedPlanDoc.diet,
+          nutrition: null,
           energyBurn: mergeRes.mergedPlan.energyBurn,
           coordinationRules: mergeRes.mergedPlan.coordinationRules,
           summary: mergeRes.summary,

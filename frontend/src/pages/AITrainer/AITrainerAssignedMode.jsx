@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dumbbell, Eye, Building2, ArrowRight, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import MedicalDisclaimer from '../../components/common/MedicalDisclaimer';
 
 /**
  * AITrainerAssignedMode
@@ -129,6 +130,7 @@ const AITrainerAssignedMode = ({ dbExercises = [], startExercise }) => {
           <p style={{ color: 'var(--text-secondary)', margin: '6px 0 0 0', fontSize: '0.88rem' }}>
             Workout routines prescribed directly by your instructor at {gymName}.
           </p>
+          <MedicalDisclaimer variant="banner" style={{ margin: '10px 0 0 0' }} />
         </div>
       </div>
 
@@ -176,6 +178,7 @@ const AITrainerAssignedMode = ({ dbExercises = [], startExercise }) => {
           </div>
         ))}
       </div>
+      <MedicalDisclaimer variant="footer" />
     </div>
   );
 };

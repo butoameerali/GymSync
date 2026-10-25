@@ -357,6 +357,22 @@ test('TEST 14: Natural language variations: everyday, rozana, 6 din, aaj all par
   assert.strictEqual(res6.duration, '1 Month', 'ek mahina must extract 1 Month');
 });
 
+// -------------------------------------------------------------------
+// TEST 15: Asking chat for a diet returns fixed refusal message and diet is null
+// -------------------------------------------------------------------
+test('TEST 15: Asking chat for a diet returns fixed refusal message and diet is null', () => {
+  const result = coachConversationEngine.processTurn({
+    message: 'Can you make me a diet plan? What should I eat?',
+    userContext: { fitnessLevel: 'Intermediate', equipmentAccess: 'Full Gym' },
+    history: []
+  });
+
+  const expectedMsg = "I can't create diet plans. You can pick a trainer-made diet plan or build your own from the food list in the Diet section.";
+  assert.strictEqual(result.content.trim(), expectedMsg, 'Must return the exact fixed refusal message');
+  assert.strictEqual(result.structuredAction.diet, null, 'Diet must be null');
+  assert.strictEqual(result.structuredAction.type, 'NUTRITION_NOTICE', 'Type must be NUTRITION_NOTICE');
+});
+
 console.log('\n====================================================');
 console.log(`  ALL ${passed} OF ${passed + failed} TESTS PASSED SUCCESSFULLY!  `);
 console.log('====================================================\n');
@@ -366,3 +382,4 @@ if (failed > 0) {
 } else {
   process.exit(0);
 }
+

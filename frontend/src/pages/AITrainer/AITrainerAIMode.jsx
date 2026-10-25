@@ -34,6 +34,7 @@ import { AchievementCard } from './AchievementCard';
 import { NextGoalPrompt } from './NextGoalPrompt';
 import PlanVsRealityCard from './PlanVsRealityCard';
 import { useNavigate } from 'react-router-dom';
+import MedicalDisclaimer from '../../components/common/MedicalDisclaimer';
 
 /**
  * AITrainerAIMode
@@ -222,7 +223,7 @@ const AITrainerAIMode = ({
               lineHeight: 1.6,
             }}
           >
-            To generate your personalized AI workout calendar and 100% natural nutrition plan,
+            To generate your personalized AI workout calendar,
             please complete your bio details in your Profile.
           </p>
           <button
@@ -343,6 +344,8 @@ const AITrainerAIMode = ({
               )}
             </div>
           </div>
+
+          <MedicalDisclaimer variant="banner" style={{ margin: '16px 0 20px 0' }} />
 
           {/* ── SECTION 1: YOUR WORKOUT PLANS (Buttons & Cards) ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -3078,6 +3081,8 @@ const AITrainerAIMode = ({
           }}
         />
       )}
+
+      <MedicalDisclaimer variant="footer" />
 
       {/* ── EXERCISE DETAILS & AI RATIONALE MODAL ───────────────────────── */}
       {activeExerciseDetailModal && typeof document !== 'undefined' && createPortal(

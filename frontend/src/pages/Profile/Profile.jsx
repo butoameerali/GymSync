@@ -14,9 +14,17 @@ import ProfileSettingsPanel from './ProfileSettingsPanel';
 import ProfileGigTab from './ProfileGigTab';
 import ProfileVerifyEmailModal from './ProfileVerifyEmailModal';
 import TodaysEnergyCard from './TodaysEnergyCard';
+import TrainerProfile from '../GymTrainer/TrainerProfile';
 
 const Profile = () => {
   const userRole = localStorage.getItem('gymsync_role') || 'User';
+  const normalizedRole = userRole.toLowerCase().replace(/[_\s]/g, '');
+
+  // Render isolated, dedicated Gym Trainer profile (no athlete/pokemon card or trainee metrics collision)
+  if (normalizedRole === 'gymtrainer') {
+    return <TrainerProfile />;
+  }
+
   const isTrainee = userRole === 'User' || userRole === 'Guest';
   const [activeTab, setActiveTab] = useState('posts');
   const [activeSettingSection, setActiveSettingSection] = useState('general');

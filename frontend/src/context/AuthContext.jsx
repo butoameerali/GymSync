@@ -146,6 +146,26 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const acceptDisclaimer = async (version = '1.0') => {
+    try {
+      const currentToken = token || localStorage.getItem('gymsync_token');
+      const { data } = await axios.post('/api/users/accept-disclaimer', { version }, {
+        headers: { Authorization: `Bearer ${currentToken}` }
+      });
+      const updatedUser = {
+        ...(user || {}),
+        disclaimerAcceptedAt: data.disclaimerAcceptedAt,
+        disclaimerVersion: data.disclaimerVersion
+      };
+      setUser(updatedUser);
+      localStorage.setItem('userInfo', JSON.stringify(updatedUser));
+      return { success: true, data };
+    } catch (err) {
+      console.error('acceptDisclaimer error:', err);
+      return { success: false, message: err.response?.data?.message || 'Failed to accept disclaimer' };
+    }
+  };
+
   const token = user?.token || localStorage.getItem('gymsync_token') || '';
   const userName = user?.name || '';
   const userRole = user?.role || 'User';
@@ -162,6 +182,7 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated,
       login,
       register,
+      acceptDisclaimer,
       logout,
       loading,
       getRoleRedirectPath

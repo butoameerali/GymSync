@@ -141,6 +141,35 @@ async function runPhase1Tests() {
     assert(unauthBio.status === 401, `Unauthenticated bio update rejected with HTTP 401 (got ${unauthBio.status})`);
 
     // =================================================================
+    // SECTION 1.1: MEDICAL & DIETARY DISCLAIMER ACCEPTANCE
+    // =================================================================
+    console.log('\n--- 1.1. Medical Disclaimer Acceptance ---');
+    const unauthDisc = await fetch(`${BASE_URL}/api/users/accept-disclaimer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version: '1.0' })
+    });
+    assert(unauthDisc.status === 401, `Unauthenticated accept-disclaimer rejected with HTTP 401 (got ${unauthDisc.status})`);
+
+    const authDisc = await fetch(`${BASE_URL}/api/users/accept-disclaimer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${aliceToken}`
+      },
+      body: JSON.stringify({ version: '1.0' })
+    });
+    assert(authDisc.status === 200, `POST /api/users/accept-disclaimer returned 200 OK (got ${authDisc.status})`);
+    const discJson = await authDisc.json();
+    assert(discJson.success === true, 'Response indicates success');
+    assert(discJson.disclaimerAcceptedAt !== null, 'disclaimerAcceptedAt returned in payload');
+    assert(discJson.disclaimerVersion === '1.0', 'disclaimerVersion matches requested version');
+
+    const aliceDbDisc = await User.findById(alice._id);
+    assert(aliceDbDisc.disclaimerAcceptedAt instanceof Date, 'disclaimerAcceptedAt persisted in MongoDB as Date');
+    assert(aliceDbDisc.disclaimerVersion === '1.0', 'disclaimerVersion persisted in MongoDB');
+
+    // =================================================================
     // SECTION 2: EXERCISE CALORIE PERSISTENCE & WORKOUT COMPLETION
     // =================================================================
     console.log('\n--- 2. Exercise Calorie Persistence & Session Completion ---');

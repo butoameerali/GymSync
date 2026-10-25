@@ -91,7 +91,9 @@ const userSchema = new mongoose.Schema({
     sessionDurationMins: { type: Number, default: 45 },
     foodPreferences: { type: String, default: '' }
   },
-  isOnboardingCompleted: { type: Boolean, default: false }
+  isOnboardingCompleted: { type: Boolean, default: false },
+  disclaimerAcceptedAt: { type: Date, default: null },
+  disclaimerVersion: { type: String, default: null }
 }, {
   timestamps: true
 });

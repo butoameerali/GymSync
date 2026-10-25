@@ -4,11 +4,12 @@ import { MessageCircle, X, Send, Bot, Building2, Trash2, Sparkles, ExternalLink,
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-toastify';
 import UserAvatar from '../common/UserAvatar';
+import MedicalDisclaimer from '../common/MedicalDisclaimer';
 import './GlobalChat.css';
 
 const SYSTEM_CONTACTS = [
   { id: 'ai', name: 'AI Workout Coach', role: 'Personal Coach', avatar: '🏋️', isSystem: true, isPremium: true, persona: 'workout_coach' },
-  { id: 'diet_ai', name: 'AI Nutritionist', role: 'Sports Nutritionist', avatar: '🥗', isSystem: true, isPremium: true, persona: 'nutritionist' }
+  { id: 'diet_ai', name: 'Nutrition Assistant', role: 'Diet Guidance', avatar: '🥗', isSystem: true, isPremium: true, persona: 'nutritionist' }
 ];
 
 const SYSTEM_IDENTIFIERS = new Set([
@@ -73,10 +74,10 @@ const GlobalChat = () => {
     if (contactId === 'diet_ai') {
       return {
         id: 'diet-ai-welcome',
-        text: `Hi **${userName || 'Athlete'}**! 👋 I'm your **AI Nutritionist**.\n\nI calculate your daily macros, optimize your meal plans, and provide smart food substitutions. What would you like to fuel today?`,
+        text: `Hi **${userName || 'Athlete'}**! 👋 I'm your **Nutrition Coach**.\n\nI can't create diet plans. You can pick a trainer-made diet plan or build your own from the food list in the Diet section.`,
         sender: 'other',
         timestamp: new Date().toISOString(),
-        suggestions: ['🥗 Today\'s Meals', '🌅 Tomorrow\'s Meals', '🍎 Swap a Food Item', '🎯 Check Daily Macros'],
+        suggestions: ['📋 Browse Trainer Diets', '🥗 Build My Own Diet', '⚡ Today\'s Workout'],
         structuredAction: { type: 'GREETING', persona: 'nutritionist' }
       };
     }
@@ -85,7 +86,7 @@ const GlobalChat = () => {
       text: `Hi **${userName || 'Athlete'}**! 👋 I'm your **AI Workout Coach**.\n\nReady to train? I can build your periodized workout routine, adapt today's exercises, or check your recovery.`,
       sender: 'other',
       timestamp: new Date().toISOString(),
-      suggestions: ['🏋️ Build Workout Plan', '⚡ Today\'s Workout', '🥗 Open AI Nutritionist', '📊 View Progress'],
+      suggestions: ['🏋️ Build Workout Plan', '⚡ Today\'s Workout', '📋 Browse Trainer Diets', '📊 View Progress'],
       structuredAction: { type: 'GREETING' }
     };
   };
@@ -1191,6 +1192,7 @@ const GlobalChat = () => {
               <input ref={inputRef} type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} />
               <button type="submit" className="send-btn"><Send size={18} /></button>
             </form>
+            <MedicalDisclaimer variant="chat" />
           </>
         )}
       </div>

@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import Modal from '../common/Modal';
 import useDebounce from '../../hooks/useDebounce';
 import useInfiniteScroll from '../../hooks/useInfiniteScroll';
+import MedicalDisclaimer from '../common/MedicalDisclaimer';
 
 // Memoized individual diet card
 const DietCard = memo(({ diet, onPreview, onAdopt }) => {
@@ -269,6 +270,7 @@ const DietCatalogue = ({ onDietAdopted }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <MedicalDisclaimer variant="banner" style={{ margin: '0 0 4px 0' }} />
       
       {/* ── 1. ACTIVE USER DIET SECTION ── */}
       {activeUserDiet ? (
@@ -572,6 +574,8 @@ const DietCatalogue = ({ onDietAdopted }) => {
           </div>
         </Modal>
       )}
+
+      <MedicalDisclaimer variant="footer" />
     </div>
   );
 };

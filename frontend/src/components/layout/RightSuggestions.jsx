@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, ShoppingBag, Star, Sparkles, MapPin, ArrowRight } from 'lucide-react';
+import { Building2, ShoppingBag, Star, Sparkles, MapPin, ArrowRight, UserCheck } from 'lucide-react';
 import { getSafeImageUrl } from '../../utils/imageUtils';
+import MedicalDisclaimer from '../common/MedicalDisclaimer';
 import './RightSuggestions.css';
 
 const RightSuggestions = () => {
+  const userRole = localStorage.getItem('gymsync_role') || '';
+  const normalizedRole = userRole.toLowerCase().replace(/[_\s]/g, '');
+  const isGymTrainer = normalizedRole === 'gymtrainer';
+  const isStaff = ['admin', 'superadmin', 'complaintmoderator', 'gymowner', 'fitnessinstructor', 'gymtrainer', 'storemanager'].includes(normalizedRole);
+  const trainerGymName = localStorage.getItem('gymsync_user_gym') || 'PowerHouse Gym';
+
   const [gym, setGym] = useState(null);
   const [product, setProduct] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
@@ -74,8 +81,36 @@ const RightSuggestions = () => {
         </>
       ) : (
         <>
-          {/* Dynamic Admin Suggestion Banner if exists */}
-          {suggestion && (
+          {/* Trainer Workspace Shortcut Card */}
+          {isGymTrainer && (
+            <div className="suggestion-card" style={{ border: '1px solid rgba(59, 130, 246, 0.35)', background: 'var(--card-bg)' }}>
+              <span className="suggestion-card-tag" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }}>
+                <UserCheck size={14} /> Trainer Workspace
+              </span>
+              <div className="suggestion-card-body" style={{ padding: '14px 16px' }}>
+                <h4 className="suggestion-card-title">{trainerGymName}</h4>
+                <span className="suggestion-card-meta">
+                  <Building2 size={13} /> Official Certified Staff
+                </span>
+                <span className="suggestion-card-meta" style={{ color: '#10b981', fontWeight: 600 }}>
+                  ● Active On-Duty
+                </span>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '8px 0 0 0', lineHeight: 1.4 }}>
+                  Assign workout routines and monitor client training progress.
+                </p>
+              </div>
+              <Link 
+                to="/gym-trainer" 
+                className="btn-primary suggestion-card-btn" 
+                style={{ margin: '0 16px 14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                Open Trainer Portal <ArrowRight size={14} />
+              </Link>
+            </div>
+          )}
+
+          {/* Consumer Only: Dynamic Admin Suggestion Banner */}
+          {!isStaff && suggestion && (
             <div className="community-pulse-card">
               <span className="suggestion-card-tag">
                 <Sparkles size={14} /> Spotlight
@@ -85,8 +120,8 @@ const RightSuggestions = () => {
             </div>
           )}
 
-          {/* Real Suggested Gym from DB */}
-          {gym && (
+          {/* Consumer Only: Real Suggested Gym from DB */}
+          {!isStaff && gym && (
             <div className="suggestion-card">
               <span className="suggestion-card-tag">
                 <Building2 size={14} /> Featured Gym
@@ -123,7 +158,7 @@ const RightSuggestions = () => {
             </div>
           )}
 
-          {/* Real Suggested Product from Store DB */}
+          {/* Real Suggested Product from Store DB (Shown to All Roles) */}
           {product && (
             <div className="suggestion-card">
               <span className="suggestion-card-tag">
@@ -133,7 +168,7 @@ const RightSuggestions = () => {
                 <img 
                   src={product.image} 
                   alt={product.name} 
-                  className="suggestion-card-image"
+                  className="suggestion-card-image" 
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
               ) : null}
@@ -154,15 +189,28 @@ const RightSuggestions = () => {
             </div>
           )}
 
-          {/* Fitness Community Tip */}
-          <div className="community-pulse-card">
-            <h4 className="community-pulse-title">
-              💡 Pro Fitness Tip
-            </h4>
-            <p className="community-pulse-text">
-              Consistency beats intensity. Log your daily workout reps and track your form with AI Trainer to prevent injury.
-            </p>
-          </div>
+          {/* Role-Specific Coaching / Fitness Tip */}
+          {isGymTrainer ? (
+            <div className="community-pulse-card">
+              <h4 className="community-pulse-title">
+                📋 Coaching Protocol
+              </h4>
+              <p className="community-pulse-text">
+                Track progressive overload and volume tolerance for your assigned trainees to prevent training burnout.
+              </p>
+            </div>
+          ) : (
+            <div className="community-pulse-card">
+              <h4 className="community-pulse-title">
+                💡 Pro Fitness Tip
+              </h4>
+              <p className="community-pulse-text">
+                Consistency beats intensity. Log your daily workout reps and track your form with AI Trainer to prevent injury.
+              </p>
+            </div>
+          )}
+
+          <MedicalDisclaimer variant="footer" style={{ padding: '12px 14px', fontSize: '0.74rem', marginTop: '16px' }} />
         </>
       )}
     </aside>

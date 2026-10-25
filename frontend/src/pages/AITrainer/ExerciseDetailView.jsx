@@ -1,6 +1,7 @@
 import React from 'react';
 import { Camera, CheckCircle, FileText, Video } from 'lucide-react';
 import AIDetectorContainer from '../../ai-detectors/AIDetectorContainer';
+import MedicalDisclaimer from '../../components/common/MedicalDisclaimer';
 
 /**
  * ExerciseDetailView
@@ -60,6 +61,7 @@ const ExerciseDetailView = ({
             <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
               Target: <strong>{totalSets} Sets × {targetReps} Reps</strong>
             </p>
+            <MedicalDisclaimer variant="banner" style={{ margin: '8px 0 0 0' }} />
           </div>
           <button className="btn btn-outline btn-sm" onClick={() => setCurrentExercise(null)}>
             ✕ Close
@@ -281,6 +283,7 @@ const ExerciseDetailView = ({
           <h2 style={{ fontSize: '1.6rem', color: 'var(--text-primary)', margin: 0 }}>
             {currentExercise.name}
           </h2>
+          <MedicalDisclaimer variant="banner" style={{ margin: '8px 0 6px 0' }} />
           <div style={{ display: 'flex', gap: '10px', marginTop: '8px', flexWrap: 'wrap' }}>
             <span
               className="category-badge"

@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import Modal from '../common/Modal';
 import useDebounce from '../../hooks/useDebounce';
 import useInfiniteScroll from '../../hooks/useInfiniteScroll';
+import MedicalDisclaimer from '../common/MedicalDisclaimer';
 
 // Memoized individual program card to prevent re-rendering entire grid on query changes
 const ProgramCard = memo(({ prog, onPreview, onApply, applyingId }) => {
@@ -260,6 +261,8 @@ const ProgramCatalogue = ({ onProgramApplied, onApplied }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <MedicalDisclaimer variant="banner" style={{ margin: '0 0 4px 0' }} />
+
       {/* Search and Filters Bar */}
       <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div className="search-bar" style={{ flex: 1, minWidth: '240px' }}>
@@ -435,6 +438,8 @@ const ProgramCatalogue = ({ onProgramApplied, onApplied }) => {
           </div>
         </Modal>
       )}
+
+      <MedicalDisclaimer variant="footer" />
     </div>
   );
 };

@@ -1139,3 +1139,30 @@ export const getUserBioController = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch user bio' });
   }
 };
+
+// @desc    Accept medical disclaimer
+// @route   POST /api/users/accept-disclaimer
+// @access  Private
+export const acceptDisclaimerController = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.disclaimerAcceptedAt = new Date();
+    user.disclaimerVersion = req.body.version || '1.0';
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Medical disclaimer accepted successfully',
+      disclaimerAcceptedAt: user.disclaimerAcceptedAt,
+      disclaimerVersion: user.disclaimerVersion
+    });
+  } catch (err) {
+    console.error('acceptDisclaimerController Error:', err);
+    res.status(500).json({ message: 'Failed to record disclaimer acceptance' });
+  }
+};
+

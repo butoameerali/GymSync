@@ -23,11 +23,15 @@ import {
   exportWorkoutHistoryPdfController,
   saveUserBioController,
   getUserBioController,
-  updateUserProfileController
+  updateUserProfileController,
+  acceptDisclaimerController
 } from '../controllers/userController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+router.route('/accept-disclaimer')
+  .post(protect, acceptDisclaimerController);
 
 router.route('/profile')
   .put(protect, updateUserProfileController);

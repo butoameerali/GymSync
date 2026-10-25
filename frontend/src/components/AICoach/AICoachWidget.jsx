@@ -4,17 +4,18 @@ import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import MedicalDisclaimer from '../common/MedicalDisclaimer';
 import './AICoachWidget.css';
 
 const QUICK_PROMPTS = [
   '🏋️ Build Workout Plan',
-  '🥗 Custom Diet',
   '⏱️ 20 Min Session',
   '🏋️ Dumbbells Only',
-  '🩺 Knee Pain',
   '🏏 Match Tomorrow',
   '🏃 5K Race Tomorrow',
-  '🎖️ Army Training Tomorrow'
+  '🎖️ Army Training Tomorrow',
+  '⚡ Quick Warm-up',
+  '📋 Browse Diets'
 ];
 
 const getContextSuggestions = (missingContext) => {
@@ -41,8 +42,8 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "Hi there! 👋 I'm your **GymSync AI Lead Coach & Sports Medicine Specialist**.\n\nI analyze your profile, sport, recovery, and medical safety to generate periodized workouts and deterministic macro diets. How can I help you today?",
-      suggestions: ['🏋️ Build Workout Plan', '🥗 Custom Diet Plan', '⚡ Quick 20-Min Workout', '🩺 Injury / Recovery Help']
+      content: "Hi there! 👋 I'm your **GymSync AI Workout Coach**.\n\nI can help you build adaptive workout sessions and guide your training. How can I help you today?",
+      suggestions: ['🏋️ Build Workout Plan', '⚡ Quick 20-Min Workout', '📋 Browse Trainer Diets']
     }
   ]);
   const [input, setInput] = useState('');
@@ -249,7 +250,7 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
               </div>
               <div>
                 <h3>GymSync AI Coach</h3>
-                <p>Sports Science & Medicine</p>
+                <p>Adaptive Workout Coach</p>
               </div>
             </div>
             <button className="ai-close-btn" onClick={() => setIsOpen(false)}>
@@ -483,7 +484,7 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
                         <div className="ai-card-header">
                           <div className="ai-card-title">
                             <Utensils size={15} color="#10b981" />
-                            <span>Prescribed Daily Nutrition</span>
+                            <span>Trainer-Curated Nutrition</span>
                           </div>
                           <span className="ai-card-badge green">
                             {msg.structuredAction.diet.targetCalories} kcal
@@ -516,9 +517,12 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
                           <button 
                             type="button" 
                             className="ai-btn-action secondary"
-                            onClick={() => handleSend("Can we adjust these calorie and macro targets?")}
+                            onClick={() => {
+                              setIsOpen(false);
+                              navigate('/diet-hub');
+                            }}
                           >
-                            <RefreshCw size={13} /> Adjust Targets
+                            <Utensils size={13} /> Browse Diets
                           </button>
                         </div>
                       </div>
@@ -589,7 +593,7 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
             <input 
               type="text" 
               className="ai-chat-input" 
-              placeholder="Ask coach, modify workout, or diet..." 
+              placeholder="Ask coach or modify workout..." 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
@@ -603,6 +607,7 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
               <Send size={18} />
             </button>
           </div>
+          <MedicalDisclaimer variant="chat" />
         </div>
       )}
     </div>

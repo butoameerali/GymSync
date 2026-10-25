@@ -7,6 +7,7 @@ import PostList from '../../features/social/components/PostList';
 import UserAvatar from '../../components/common/UserAvatar';
 import { rankFeedPosts } from '../../features/social/utils/feedRanking';
 import { postService } from '../../services/postService';
+import MedicalDisclaimer from '../../components/common/MedicalDisclaimer';
 import './Home.css';
 
 const Home = () => {
@@ -327,6 +328,8 @@ const Home = () => {
           </div>
         </Modal>
       )}
+
+      <MedicalDisclaimer variant="footer" />
     </div>
   );
 };

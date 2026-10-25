@@ -200,10 +200,55 @@ const AppSidebar = ({ isRail = false }) => {
               </Link>
             )}
 
-            <Link to="/explore" className={`sidebar-link hide-on-mobile ${isActive('/explore') ? 'active' : ''}`}>
-              <span className="sidebar-icon"><Compass size={22} /></span>
-              <span className="sidebar-label">Explore Gyms</span>
-            </Link>
+            {!isStaff && (
+              <Link to="/explore" className={`sidebar-link hide-on-mobile ${isActive('/explore') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><Compass size={22} /></span>
+                <span className="sidebar-label">Explore Gyms</span>
+              </Link>
+            )}
+
+            {/* Direct Staff Portal Access */}
+            {isGymTrainer && (
+              <Link to="/gym-trainer" className={`sidebar-link ${isActive('/gym-trainer') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><UserCheck size={22} /></span>
+                <span className="sidebar-label">Trainer Portal</span>
+              </Link>
+            )}
+
+            {isGymOwner && (
+              <Link to="/gym-owner" className={`sidebar-link ${isActive('/gym-owner') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><Building2 size={22} /></span>
+                <span className="sidebar-label">Owner Portal</span>
+              </Link>
+            )}
+
+            {isFitnessInstructor && (
+              <Link to="/fitness-instructor" className={`sidebar-link ${isActive('/fitness-instructor') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><Activity size={22} /></span>
+                <span className="sidebar-label">Instructor Portal</span>
+              </Link>
+            )}
+
+            {isStoreManager && (
+              <Link to="/store-manager" className={`sidebar-link ${isActive('/store-manager') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><ShoppingBag size={22} /></span>
+                <span className="sidebar-label">Store Manager</span>
+              </Link>
+            )}
+
+            {isAdmin && (
+              <Link to="/admin" className={`sidebar-link ${isActive('/admin') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><Shield size={22} /></span>
+                <span className="sidebar-label">Admin Portal</span>
+              </Link>
+            )}
+
+            {isModerator && (
+              <Link to="/moderator" className={`sidebar-link ${isActive('/moderator') ? 'active' : ''}`}>
+                <span className="sidebar-icon"><ShieldAlert size={22} /></span>
+                <span className="sidebar-label">Moderator Hub</span>
+              </Link>
+            )}
 
             <Link to="/store" className={`sidebar-link hide-on-mobile ${isActive('/store') ? 'active' : ''}`}>
               <span className="sidebar-icon"><ShoppingBag size={22} /></span>
@@ -414,6 +459,17 @@ const AppSidebar = ({ isRail = false }) => {
                     <span>View Profile</span>
                   </Link>
 
+                  {isGymTrainer && (
+                    <Link 
+                      to="/gym-trainer" 
+                      className="popover-item"
+                      onClick={() => setShowProfilePopover(false)}
+                    >
+                      <UserCheck size={18} color="#3b82f6" />
+                      <span>Trainer Portal</span>
+                    </Link>
+                  )}
+
                   <div className="popover-divider" />
 
                   <button 
@@ -477,20 +533,39 @@ const AppSidebar = ({ isRail = false }) => {
                 </div>
               </button>
 
-              {/* Explore Partner Gyms */}
-              <button 
-                type="button" 
-                className="mobile-menu-item"
-                onClick={() => handleMenuNavigate('/explore')}
-              >
-                <div className="mobile-menu-item-icon">
-                  <Compass size={20} color="#10b981" />
-                </div>
-                <div className="mobile-menu-item-info">
-                  <span className="mobile-menu-item-title">Explore Partner Gyms</span>
-                  <span className="mobile-menu-item-sub">Find locations & facilities near you</span>
-                </div>
-              </button>
+              {/* Explore Partner Gyms (Consumers only) */}
+              {!isStaff && (
+                <button 
+                  type="button" 
+                  className="mobile-menu-item"
+                  onClick={() => handleMenuNavigate('/explore')}
+                >
+                  <div className="mobile-menu-item-icon">
+                    <Compass size={20} color="#10b981" />
+                  </div>
+                  <div className="mobile-menu-item-info">
+                    <span className="mobile-menu-item-title">Explore Partner Gyms</span>
+                    <span className="mobile-menu-item-sub">Find locations & facilities near you</span>
+                  </div>
+                </button>
+              )}
+
+              {/* Trainer Portal (Mobile Staff) */}
+              {isGymTrainer && (
+                <button 
+                  type="button" 
+                  className="mobile-menu-item"
+                  onClick={() => handleMenuNavigate('/gym-trainer')}
+                >
+                  <div className="mobile-menu-item-icon">
+                    <UserCheck size={20} color="#3b82f6" />
+                  </div>
+                  <div className="mobile-menu-item-info">
+                    <span className="mobile-menu-item-title">Trainer Portal</span>
+                    <span className="mobile-menu-item-sub">Manage members & routines</span>
+                  </div>
+                </button>
+              )}
 
               {/* Store */}
               <button 

@@ -761,6 +761,22 @@ export const executeCoachPipeline = async ({
 
   structuredAction.sourceAttribution = sourceAttribution;
 
+  // DIET SAFETY: App never auto-generates a diet plan. Return fixed refusal message immediately.
+  if (decisionResult.content && decisionResult.content.startsWith("I can't create diet plans.")) {
+    return {
+      role: 'assistant',
+      content: decisionResult.content,
+      suggestions: decisionResult.suggestions || ['📋 Browse Trainer Diets', '🥗 Build My Own Diet', '⚡ Today\'s Workout'],
+      structuredAction: validateAndSanitizeStructuredAction(structuredAction),
+      meta: {
+        retrievalTimeMs,
+        decisionTimeMs,
+        qwenTimeMs: 0,
+        totalTimeMs: Date.now() - startTime
+      }
+    };
+  }
+
   // 4. OLLAMA AS BOSS (Local LLM is primary conversational coach orchestrator)
   const enableOllama = ollamaCoachService.isEnabled();
 

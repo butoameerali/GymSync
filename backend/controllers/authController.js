@@ -145,6 +145,8 @@ export const registerUser = async (req, res) => {
         role: user.role,
         isEmailVerified: false,
         requiresEmailVerification: true,
+        disclaimerAcceptedAt: user.disclaimerAcceptedAt || null,
+        disclaimerVersion: user.disclaimerVersion || null,
         message: 'Account created. Please enter the 6-digit code sent to your email to activate your account.',
         token,
       });
@@ -296,6 +298,8 @@ export const loginUser = async (req, res) => {
       email: user.email,
       role: user.role,
       isEmailVerified: user.isEmailVerified,
+      disclaimerAcceptedAt: user.disclaimerAcceptedAt || null,
+      disclaimerVersion: user.disclaimerVersion || null,
       token,
     });
   } catch (error) {
@@ -561,6 +565,8 @@ export const googleAuth = async (req, res) => {
         email: existing.email,
         role: existing.role,
         isEmailVerified: existing.isEmailVerified,
+        disclaimerAcceptedAt: existing.disclaimerAcceptedAt || null,
+        disclaimerVersion: existing.disclaimerVersion || null,
         token,
       });
     }
@@ -626,6 +632,8 @@ export const googleRegister = async (req, res) => {
       email: user.email,
       role: user.role,
       isEmailVerified: user.isEmailVerified,
+      disclaimerAcceptedAt: user.disclaimerAcceptedAt || null,
+      disclaimerVersion: user.disclaimerVersion || null,
       token,
     });
   } catch (error) {
@@ -655,7 +663,9 @@ export const getMe = async (req, res) => {
       profilePic: user.profilePic,
       isEmailVerified: user.isEmailVerified,
       isGoogleApproved: user.isGoogleApproved,
-      isBanned: user.isBanned
+      isBanned: user.isBanned,
+      disclaimerAcceptedAt: user.disclaimerAcceptedAt || null,
+      disclaimerVersion: user.disclaimerVersion || null
     });
   } catch (error) {
     console.error('getMe error:', error);
@@ -724,6 +734,8 @@ export const verifyLoginOtp = async (req, res) => {
       email: user.email,
       role: user.role,
       isEmailVerified: user.isEmailVerified,
+      disclaimerAcceptedAt: user.disclaimerAcceptedAt || null,
+      disclaimerVersion: user.disclaimerVersion || null,
       token,
     });
 

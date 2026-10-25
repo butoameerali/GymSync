@@ -1,7 +1,5 @@
 import intentClassifier, { INTENTS, computeMissingBioFields } from './intentClassifier.js';
 import workoutDecisionEngine from '../workout/workoutDecisionEngine.js';
-import dietBuilder from '../nutrition/dietBuilder.js';
-import dietValidator from '../nutrition/dietValidator.js';
 import exerciseSafetyValidator from '../safety/exerciseSafetyValidator.js';
 import exerciseRegistry from '../workout/exerciseRegistry.js';
 import eventAwarenessEngine, { EVENT_TYPES } from '../workout/eventAwarenessEngine.js';
@@ -322,12 +320,12 @@ I calculate your daily macros, optimize your meal plans, and provide smart food 
       if (/\btomorrow\b/i.test(raw) && /\b(?:meal|eat|food|diet)\b/i.test(raw)) {
         const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.currentDietPlan || userContext.activeSavedPlan?.diet || userContext.activeDietPlan || null;
         if (!activeDiet || (!activeDiet.meals && !activeDiet.foodItems)) {
-          responseContent = `🥗 **Nutrition Protocol Notice**\n\nYou do not have an active diet plan assigned. For safety and medical reasons, GymSync does not auto-generate unverified diets.\n\nYou can adopt a verified trainer diet template from the **Programs** catalogue or consult your fitness instructor.`;
-          const suggestions = ['📋 Browse Trainer Diets', '🏋️ Switch to Workout Coach', '⚡ Today\'s Workout'];
+          responseContent = `I can't create diet plans. You can pick a trainer-made diet plan or build your own from the food list in the Diet section.`;
+          const suggestions = ['📋 Browse Trainer Diets', '🥗 Build My Own Diet', '⚡ Today\'s Workout'];
           structuredAction.type = 'NUTRITION_NOTICE';
           structuredAction.diet = null;
           structuredAction.suggestions = suggestions;
-          structuredAction.explanation = 'No active diet assigned. Advised user to adopt a verified instructor plan.';
+          structuredAction.explanation = 'Diet creation disabled. Advised user to choose a trainer-made plan or build their own.';
           return { role: 'assistant', content: responseContent, suggestions, structuredAction };
         }
         const meals = activeDiet.meals || [];
@@ -337,7 +335,7 @@ I calculate your daily macros, optimize your meal plans, and provide smart food 
           ).join('\n\n') +
           `\n\n💧 **Target Hydration**: ${activeDiet.hydrationTargetLiters || 3} Liters\n💡 *Need to swap an ingredient? Just tell me what you don't have.*`;
         const suggestions = ['🍎 Swap a Food Item', '🥗 Today\'s Meals', '🏋️ Switch to Workout Coach'];
-        structuredAction.type = 'UPDATE_NUTRITION';
+        structuredAction.type = 'VIEW_DIET';
         structuredAction.diet = activeDiet;
         structuredAction.suggestions = suggestions;
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };
@@ -345,16 +343,26 @@ I calculate your daily macros, optimize your meal plans, and provide smart food 
 
       // 4. Food substitution (if food item mentioned or unavailable)
       const isFoodSub = intent === INTENTS.FOOD_SUBSTITUTION || /don't have|dont have|not available|replace|substitute|allergic|swap/i.test(raw);
-      if (!isFoodSub && (intent === INTENTS.GENERATE_DIET || intent === INTENTS.MODIFY_DIET || /\b(?:diet|meal|food|eat|macro|calories|protein)\b/i.test(raw))) {
+      if (!isFoodSub && (intent === INTENTS.GENERATE_DIET || intent === INTENTS.MODIFY_DIET || /\b(?:diet plan|create diet|generate diet|make (?:me )?a diet|give me (?:a )?diet|new diet|custom diet|plan my (?:diet|meals)|what should i eat)\b/i.test(raw))) {
+        responseContent = `I can't create diet plans. You can pick a trainer-made diet plan or build your own from the food list in the Diet section.`;
+        const suggestions = ['📋 Browse Trainer Diets', '🥗 Build My Own Diet', '⚡ Today\'s Workout'];
+        structuredAction.type = 'NUTRITION_NOTICE';
+        structuredAction.diet = null;
+        structuredAction.suggestions = suggestions;
+        structuredAction.explanation = 'Diet creation disabled. Advised user to choose a trainer-made plan or build their own.';
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
+
+      if (!isFoodSub && /\b(?:diet|meal|food|eat|macro|calories|protein)\b/i.test(raw)) {
         // Today's Meals / General Diet Plan / Macros
         const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.currentDietPlan || userContext.activeSavedPlan?.diet || userContext.activeDietPlan || null;
         if (!activeDiet || (!activeDiet.meals && !activeDiet.foodItems)) {
-          responseContent = `🥗 **Nutrition Protocol Notice**\n\nYou do not have an active diet plan assigned. For safety, allergy prevention, and accurate nutritional guidance, GymSync does not auto-generate unverified diets without certified review.\n\nPlease choose a verified diet plan crafted by certified instructors in the **Programs** catalogue or consult your coach.`;
-          const suggestions = ['📋 Browse Trainer Diets', '🏋️ Switch to Workout Coach', '⚡ Today\'s Workout'];
+          responseContent = `I can't create diet plans. You can pick a trainer-made diet plan or build your own from the food list in the Diet section.`;
+          const suggestions = ['📋 Browse Trainer Diets', '🥗 Build My Own Diet', '⚡ Today\'s Workout'];
           structuredAction.type = 'NUTRITION_NOTICE';
           structuredAction.diet = null;
           structuredAction.suggestions = suggestions;
-          structuredAction.explanation = 'No active diet assigned. Directing user to verified instructor diet plans.';
+          structuredAction.explanation = 'Diet creation disabled. Advised user to choose a trainer-made plan or build their own.';
           return { role: 'assistant', content: responseContent, suggestions, structuredAction };
         }
 
@@ -384,7 +392,7 @@ I calculate your daily macros, optimize your meal plans, and provide smart food 
         }
 
         const suggestions = ['🔄 Swap a Food Item', '🌅 Tomorrow\'s Meals', '🏋️ Switch to Workout Coach'];
-        structuredAction.type = 'UPDATE_NUTRITION';
+        structuredAction.type = 'VIEW_DIET';
         structuredAction.diet = activeDiet;
         structuredAction.suggestions = suggestions;
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };
@@ -398,12 +406,12 @@ I calculate your daily macros, optimize your meal plans, and provide smart food 
     if (isMatchingDietRequest) {
       const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.currentDietPlan || userContext.activeSavedPlan?.diet || userContext.activeDietPlan || null;
       if (!activeDiet || (!activeDiet.meals && !activeDiet.foodItems)) {
-        responseContent = `🥗 **Nutrition Protocol Notice**\n\nNo diet plan is currently linked to your workout program. Nutrition plans should be adopted from verified trainer templates or built from the food catalog.\n\nYou can explore verified trainer diet plans in **Programs** or consult your coach.`;
-        const suggestions = ['📋 Browse Trainer Diets', '⚡ Today\'s Workout', '🏋️ Switch to Workout Coach'];
+        responseContent = `I can't create diet plans. You can pick a trainer-made diet plan or build your own from the food list in the Diet section.`;
+        const suggestions = ['📋 Browse Trainer Diets', '🥗 Build My Own Diet', '⚡ Today\'s Workout'];
         structuredAction.type = 'NUTRITION_NOTICE';
         structuredAction.diet = null;
         structuredAction.suggestions = suggestions;
-        structuredAction.explanation = 'No linked diet plan found. Advised user to adopt an instructor plan.';
+        structuredAction.explanation = 'Diet creation disabled. Advised user to choose a trainer-made plan or build their own.';
         return { role: 'assistant', content: responseContent, suggestions, structuredAction };
       }
 
@@ -422,9 +430,9 @@ I calculate your daily macros, optimize your meal plans, and provide smart food 
         `- 💧 **Hydration**: **${activeDiet.hydrationTargetLiters || 3} Liters**\n\n` +
         `### 🍽️ Meal Structure:\n` +
         meals.map(m => `**${m.name || m.mealName}**: ${(m.foodItems || m.items || []).map(i => `${i.name || i.food} (${i.quantity ? `${i.quantity}${i.unit || 'g'}` : i.portion})`).join(', ')}`).join('\n') +
-        `\n\n💡 *To swap ingredients, adjust calories, or customize meals, tap below to chat with your **AI Nutritionist**!*`;
+        `\n\n💡 *To swap ingredients or explore other meal protocols, browse the Programs tab.*`;
 
-      const suggestions = ['🥗 Open AI Nutritionist', '🚀 Open in AI Trainer', '⚡ Today\'s Workout'];
+      const suggestions = ['📋 Browse Trainer Diets', '⚡ Today\'s Workout', '🏋️ Switch to Workout Coach'];
       structuredAction.type = 'VIEW_DIET';
       structuredAction.diet = activeDiet;
       structuredAction.suggestions = suggestions;
@@ -434,13 +442,12 @@ I calculate your daily macros, optimize your meal plans, and provide smart food 
 
     const isPureDietQuestion = (intent === INTENTS.GENERATE_DIET || intent === INTENTS.MODIFY_DIET || /\b(?:diet plan|meal plan|what should i eat|my macros|food replacement)\b/i.test(raw)) && !/\b(?:workout|exercise|routine|bench|pushup|sprint|squat)\b/i.test(raw);
     if (isPureDietQuestion) {
-      responseContent = `For meal planning, macro tracking, and food substitutions, your dedicated **AI Nutritionist** is ready to help! 🥗
-
-Tap below to switch to your AI Nutritionist, or ask me any training and workout questions.`;
-      const suggestions = ['🥗 Switch to AI Nutritionist', '🏋️ Build Workout Plan', '⚡ Today\'s Workout'];
-      structuredAction.type = 'SWITCH_TO_NUTRITIONIST';
+      responseContent = `I can't create diet plans. You can pick a trainer-made diet plan or build your own from the food list in the Diet section.`;
+      const suggestions = ['📋 Browse Trainer Diets', '🥗 Build My Own Diet', '⚡ Today\'s Workout'];
+      structuredAction.type = 'NUTRITION_NOTICE';
+      structuredAction.diet = null;
       structuredAction.suggestions = suggestions;
-      structuredAction.explanation = 'Referred pure diet query to AI Nutritionist.';
+      structuredAction.explanation = 'Diet creation disabled. Advised user to choose a trainer-made plan or build their own.';
       return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }
 
@@ -780,11 +787,10 @@ Everything is almost ready! We're building your **${durationInfo.label} ${intake
 - 🚀 **Start Date**: ${intakeState.startSchedule || 'Today'}
 - 📅 **Schedule**: ${finalDays} Days per Week
 - 🏋️ **Equipment**: ${finalEquip}
-- 🥗 **Target Daily Nutrition**: ${plan.structuredDiet?.actualTotals?.totalDailyCalories || 1850} kcal / day (Balanced Calorie Deficit)
 
-Your interactive periodized calendar and matching nutrition plan have been generated and saved to your **Workout Hub**!`;
+Your interactive periodized calendar has been generated and saved to your **Workout Hub**!`;
 
-      const suggestions = ['🚀 Start Day 1 Workout', '🥗 View Matching Diet', '📅 View Workout Hub Calendar'];
+      const suggestions = ['🚀 Start Day 1 Workout', '📅 View Workout Hub Calendar'];
       structuredAction = {
         type: 'PLAN_GENERATED',
         plan: {
@@ -798,7 +804,7 @@ Your interactive periodized calendar and matching nutrition plan have been gener
           createdAt: new Date().toISOString()
         },
         workout: plan.interactive_calendar.find(d => d.isWorkoutDay) || null,
-        diet: plan.structuredDiet,
+        diet: null,
         suggestions
       };
       return { role: 'assistant', content: responseContent, suggestions, structuredAction };
@@ -1732,42 +1738,13 @@ Click Apply to log this instead.`;
     // STEP I: NUTRITION & DIET GENERATION (Safety Protected)
     // =====================================================================
     if (intent === INTENTS.GENERATE_DIET || intent === INTENTS.MODIFY_DIET) {
-      const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.currentDietPlan || userContext.activeSavedPlan?.diet || userContext.activeDietPlan || null;
-      if (!activeDiet || (!activeDiet.meals && !activeDiet.foodItems)) {
-        responseContent = `🥗 **Nutrition Protocol Notice**\n\nFor your health and dietary safety, GymSync does not auto-generate unverified diets.\n\nTo ensure proper caloric balance, allergy safety, and micronutrient coverage, please adopt a verified diet template crafted by a certified fitness instructor from the **Programs** catalogue or consult your trainer directly.`;
-        const suggestions = ['📋 Browse Trainer Diets', '🏋️ Build Workout Plan', '⚡ Today\'s Workout'];
-        structuredAction.type = 'NUTRITION_NOTICE';
-        structuredAction.diet = null;
-        structuredAction.suggestions = suggestions;
-        structuredAction.explanation = 'Diet auto-generation disabled for safety. User directed to verified instructor diet plans.';
-        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
-      }
-
-      const meals = activeDiet.meals || [];
-      const cals = activeDiet.calories || activeDiet.actualTotals?.totalDailyCalories || 0;
-      const prot = activeDiet.protein || activeDiet.actualTotals?.totalProtein || 0;
-      const carbs = activeDiet.carbs || activeDiet.actualTotals?.totalCarbs || 0;
-      const fats = activeDiet.fat || activeDiet.actualTotals?.totalFat || 0;
-
-      responseContent = `🥗 **Your Active Nutrition Protocol (${activeDiet.title || activeDiet.goal || 'Active Plan'})**\n\n` +
-        (activeDiet.instructorName ? `*Prescribed by: ${activeDiet.instructorName}*\n\n` : '') +
-        `### 📊 Calculated Daily Targets\n` +
-        `- **Total Energy**: **${cals} kcal**\n` +
-        `- **Protein**: **${prot}g**\n` +
-        `- **Carbohydrates**: **${carbs}g**\n` +
-        `- **Healthy Fats**: **${fats}g**\n` +
-        `- **Hydration Target**: **${activeDiet.hydrationTargetLiters || 3} Liters**\n\n` +
-        `---\n\n` +
-        `### 🍽️ Prescribed Meals:\n` +
-        meals.map(m => `**${m.name || m.mealName}** *(${m.timing || ''})*\n` +
-          (m.foodItems || m.items || []).map(i => `• ${i.name || i.food} — **${i.quantity ? `${i.quantity}${i.unit || 'g'}` : i.portion}**`).join('\n')
-        ).join('\n\n') +
-        `\n\n💡 *To change your nutrition plan, browse other verified instructor diet templates in the Programs tab.*`;
-
-      structuredAction.type = 'VIEW_DIET';
-      structuredAction.diet = activeDiet;
-      structuredAction.explanation = 'Displayed active verified diet plan.';
-      return { role: 'assistant', content: responseContent, suggestions: ['📋 Browse Trainer Diets', '🏋️ Switch to Workout Coach'], structuredAction };
+      responseContent = `I can't create diet plans. You can pick a trainer-made diet plan or build your own from the food list in the Diet section.`;
+      const suggestions = ['📋 Browse Trainer Diets', '🥗 Build My Own Diet', '⚡ Today\'s Workout'];
+      structuredAction.type = 'NUTRITION_NOTICE';
+      structuredAction.diet = null;
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = 'Diet creation disabled. Advised user to choose a trainer-made plan or build their own.';
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }
 
     // =====================================================================

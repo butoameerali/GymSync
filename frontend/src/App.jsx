@@ -7,7 +7,8 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import AdminPortalRedirectNotice from './components/common/AdminPortalRedirectNotice';
-import { getRoleRedirectPath } from './context/AuthContext';
+import MedicalDisclaimerModal from './components/common/MedicalDisclaimerModal';
+import { getRoleRedirectPath, useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -107,7 +108,7 @@ function App() {
         {/* Public Consumer Gym Discovery & Store: accessible to guests & users, redirected for staff */}
         <Route path="/explore" element={<ConsumerRoute><ExploreGyms /></ConsumerRoute>} />
         <Route path="/gym/:id" element={<ConsumerRoute><GymDetails /></ConsumerRoute>} />
-        <Route path="/store" element={<ConsumerRoute><Store /></ConsumerRoute>} />
+        <Route path="/store" element={<Store />} />
         
         {/* Public Standalone Post Details View (Accessible without login; actions require login) */}
         <Route path="/post/:id" element={<PostDetailPage />} />
@@ -140,11 +141,23 @@ function App() {
         <Route path="/privacy" element={<LegalPage type="privacy" />} />
         <Route path="/terms" element={<LegalPage type="terms" />} />
         <Route path="/regulations" element={<LegalPage type="regulations" />} />
+        <Route path="/disclaimer" element={<LegalPage type="disclaimer" />} />
+        <Route path="/medical-disclaimer" element={<LegalPage type="disclaimer" />} />
+        <Route path="/legal" element={<LegalPage type="terms" />} />
         
         <Route path="/profile/:userName" element={<PublicProfile />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
+  );
+
+  const { user, isAuthenticated, acceptDisclaimer } = useAuth();
+  const needsDisclaimer = Boolean(
+    isAuthenticated &&
+    user &&
+    !user.disclaimerAcceptedAt &&
+    !isAuthPage &&
+    user.role !== 'guest'
   );
 
   return (
@@ -161,7 +174,10 @@ function App() {
           </AppLayout>
         )}
         <GlobalChat />
-        {showOnboarding && (
+        {needsDisclaimer && (
+          <MedicalDisclaimerModal onAccept={acceptDisclaimer} />
+        )}
+        {showOnboarding && !needsDisclaimer && (
           <OnboardingWizard 
             onComplete={handleCompleteOnboarding} 
             onSkip={handleSkipOnboarding} 
