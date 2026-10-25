@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { isSessionRevoked } from '../utils/sessionManager.js';
 
 // Protect routes - Strict JWT-based Authentication
 export const protect = async (req, res, next) => {
@@ -24,6 +25,12 @@ export const protect = async (req, res, next) => {
         return res.status(401).json({ message: 'Not authorized, user not found' });
       }
 
+      // Check if this session has been revoked
+      const revoked = await isSessionRevoked(user._id, token);
+      if (revoked) {
+        return res.status(401).json({ message: 'Session has been revoked or expired. Please log in again.' });
+      }
+
       if (user.isDeleted) {
         return res.status(401).json({ message: 'Not authorized, account is scheduled for deletion' });
       }
@@ -43,6 +50,7 @@ export const protect = async (req, res, next) => {
       }
 
       req.user = user;
+      req.token = token;
       return next();
     } catch (error) {
       console.error('JWT verification error:', error.message);
@@ -113,4 +121,33 @@ export const authorizeRoles = (...roles) => {
     next();
   };
 };
+
+// Require email verification before access
+export const requireEmailVerified = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Not authenticated' });
+  }
+  if (!req.user.isEmailVerified) {
+    return res.status(403).json({
+      code: 'EMAIL_VERIFICATION_REQUIRED',
+      message: 'Please verify your email address before accessing this protected resource.'
+    });
+  }
+  next();
+};
+
+// Only Admin and SuperAdmin have permission to review sensitive gym verification documents
+export const authorizeVerificationReviewer = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Not authenticated' });
+  }
+  const role = req.user.role || '';
+  if (!['SuperAdmin', 'Admin'].includes(role)) {
+    return res.status(403).json({
+      message: 'Access denied: You do not have permission to view sensitive gym verification documents.'
+    });
+  }
+  next();
+};
+
 

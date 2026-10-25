@@ -324,8 +324,8 @@ export const executeCoachPipeline = async ({
             const excludedNames = safetyCheck.excludedExercises.map(e => e.name).join(', ');
             return {
               role: 'assistant',
-              content: `⚠️ **Safety Guard Warning**: The requested modification includes **${excludedNames}**, which conflicts with your reported health limitations or joint pain (${(dbUser?.bioData?.jointPain || []).join(', ')}).\n\nFor your safety, this modification was not applied to your active schedule. Would you like a joint-friendly alternative?`,
-              suggestions: ['🔄 Propose Joint-Safe Alternative', '💬 Ask Coach About Form'],
+              content: `⚠️ **Safety Guard Warning**: The requested modification includes **${excludedNames}**.\n\nFor your safety, this modification was not applied to your active schedule. Would you like an alternative?`,
+              suggestions: ['🔄 Propose Alternative', '💬 Ask Coach About Form'],
               structuredAction: { type: 'SAFETY_REJECTED', safetyWarnings: safetyCheck.safetyWarnings }
             };
           }
@@ -394,7 +394,6 @@ export const executeCoachPipeline = async ({
       gymTrainerOptIn: bio.gymTrainerOptIn || false,
       weight: (typeof bio.weight === 'number' && bio.weight > 0) ? bio.weight : null,
       height: (typeof bio.height === 'number' && bio.height > 0) ? bio.height : null,
-      jointPain: Array.isArray(bio.jointPain) ? bio.jointPain : [],
       isGuest: false
     };
 
@@ -544,7 +543,6 @@ export const executeCoachPipeline = async ({
       equipmentAccess: (typeof userContext?.equipmentAccess === 'string' && userContext.equipmentAccess.trim()) ? userContext.equipmentAccess.trim().slice(0, 50) : 'Full Gym',
       weight: (typeof userContext?.weight === 'number' && userContext.weight > 0) ? userContext.weight : null,
       height: (typeof userContext?.height === 'number' && userContext.height > 0) ? userContext.height : null,
-      jointPain: Array.isArray(userContext?.jointPain) ? userContext.jointPain.slice(0, 5) : [],
       isGuest: true
     };
     authoritativeProgress = currentProgress || {};
@@ -833,7 +831,6 @@ Directive: Recommend this instructor nutrition plan adapted to the user.`;
 - Fitness Level: ${fitnessLevel}
 - Equipment: ${equipment}
 - Weight: ${weight ? `${weight} kg` : 'Not specified in profile'}
-- Reported joint pain/injuries: ${(authoritativeContext.jointPain || []).length ? authoritativeContext.jointPain.join(', ') : 'None reported'}
 - Current workout streak: ${authoritativeProgress.streak || 0} day(s)
 - Recovery state: ${authoritativeContext.recoveryFlag || 'Normal'}
 ${!weight ? `- NOTE: Athlete bodyweight is not specified in profile. Do not assume a fabricated weight; provide general coaching and ask for weight if they need precise calorie/macro targets.` : ''}

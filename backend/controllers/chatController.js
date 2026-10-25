@@ -398,7 +398,41 @@ export const sendMessage = async (req, res) => {
         isRead: true
       });
 
-      const replyText = `Hello! To file a complaint or request official support, please use the "Help & Complaints" portal from the top navigation bar (6-dot menu). You will be issued an official ticket and can track resolution in real time.`;
+      // Find existing open complaint or create a new one
+      let complaint = await Complaint.findOne({
+        reporterName: sender,
+        status: 'Pending'
+      });
+
+      if (!complaint) {
+        const ticketId = `TICKET-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        complaint = await Complaint.create({
+          complaintId: ticketId,
+          reporterName: sender,
+          reporterId: req.user?._id || new (await import('mongoose')).default.Types.ObjectId(),
+          reporterEmail: req.user?.email || '',
+          category: 'General Support',
+          reason: 'General Support Inquiry',
+          description: rawText,
+          status: 'Pending',
+          chatMessages: [{
+            senderName: sender,
+            role: req.user?.role || 'User',
+            text: rawText,
+            timestamp: new Date()
+          }]
+        });
+      } else {
+        complaint.chatMessages.push({
+          senderName: sender,
+          role: req.user?.role || 'User',
+          text: rawText,
+          timestamp: new Date()
+        });
+        await complaint.save();
+      }
+
+      const replyText = `Hello! Your support inquiry has been received under ticket #${complaint.complaintId}. You will be issued updates here or in the Help & Complaints portal.`;
 
       const supportReply = await Message.create({
         sender: 'Gym Support',
@@ -410,6 +444,7 @@ export const sendMessage = async (req, res) => {
 
       return res.status(201).json({
         ...userMessage.toObject(),
+        ticketId: complaint.complaintId,
         supportReply
       });
     }

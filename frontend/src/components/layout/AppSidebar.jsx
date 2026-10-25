@@ -32,7 +32,7 @@ import UserAvatar from '../common/UserAvatar';
 import ComplaintHubModal from '../common/ComplaintHubModal';
 import './AppSidebar.css';
 
-const AppSidebar = () => {
+const AppSidebar = ({ isRail = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
@@ -165,7 +165,7 @@ const AppSidebar = () => {
 
   return (
     <>
-      <aside className="app-sidebar">
+      <aside className={`app-sidebar ${isRail ? 'rail-mode' : ''}`}>
         {/* Top: Brand Logo & Navigation */}
         <div className="sidebar-top">
           <Link to="/home" className="sidebar-brand">

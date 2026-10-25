@@ -42,7 +42,7 @@ export const INTENTS = {
 };
 
 export function computeMissingBioFields(bio) {
-  const allBioKeys = ['height', 'weight', 'gender', 'jointPain', 'medicalConditions', 'injuries', 'limitations', 'foodPreferences', 'trainingDaysPerWeek', 'equipmentAccess'];
+  const allBioKeys = ['height', 'weight', 'gender', 'foodPreferences', 'trainingDaysPerWeek', 'equipmentAccess'];
   return getMissingFields({ bioData: bio }, allBioKeys);
 }
 

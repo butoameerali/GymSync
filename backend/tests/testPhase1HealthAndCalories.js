@@ -119,11 +119,10 @@ async function runPhase1Tests() {
     assert(bioRes.status === 200, `PUT /api/users/bio returned 200 OK (got ${bioRes.status})`);
     const bioData = await bioRes.json();
 
-    assert(Array.isArray(bioData.bioData?.jointPain) && bioData.bioData.jointPain.includes('Knee'), 'jointPain correctly persisted as string array');
-    assert(bioData.bioData?.jointPain.includes('Lower Back'), 'jointPain includes multiple selected items');
-    assert(Array.isArray(bioData.bioData?.injuries) && bioData.bioData.injuries.includes('Rotator Cuff'), 'injuries correctly persisted as string array');
-    assert(Array.isArray(bioData.bioData?.medicalConditions) && bioData.bioData.medicalConditions.includes('Mild Asthma'), 'medicalConditions correctly persisted');
-    assert(Array.isArray(bioData.bioData?.limitations) && bioData.bioData.limitations.includes('Avoid overhead lockouts'), 'limitations correctly persisted');
+    assert(bioData.bioData?.jointPain === undefined, 'jointPain is not stored in user bioData');
+    assert(bioData.bioData?.injuries === undefined, 'injuries is not stored in user bioData');
+    assert(bioData.bioData?.medicalConditions === undefined, 'medicalConditions is not stored in user bioData');
+    assert(bioData.bioData?.limitations === undefined, 'limitations is not stored in user bioData');
     assert(typeof bioData.bioData?.foodPreferences === 'string' && bioData.bioData.foodPreferences.includes('Halal'), 'foodPreferences correctly formatted and persisted');
     assert(bioData.bioData?.injectedDangerousField === undefined, 'Strict whitelist prevents arbitrary property injection into bioData');
 
@@ -136,7 +135,7 @@ async function runPhase1Tests() {
     const unauthBio = await fetch(`${BASE_URL}/api/users/bio`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jointPain: ['Knee'] })
+      body: JSON.stringify({ weight: 70 })
     });
     assert(unauthBio.status === 401, `Unauthenticated bio update rejected with HTTP 401 (got ${unauthBio.status})`);
 

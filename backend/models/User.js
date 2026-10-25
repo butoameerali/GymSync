@@ -57,6 +57,11 @@ const userSchema = new mongoose.Schema({
   resetPasswordExpires: { type: Date, default: null },
   twoFactorEnabled: { type: Boolean, default: false },
   twoFactorRequired: { type: Boolean, default: false },
+  otpPurpose: { type: String, enum: ['signup', 'login_2fa', 'reset_password', 'new_device', null], default: null },
+  organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null },
+  assignedBranch: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym', default: null },
+  invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  invitationStatus: { type: String, enum: ['Pending', 'Accepted', 'Revoked'], default: 'Accepted' },
   
   // Friend & Follow System
   friends: [{ type: String }],
@@ -84,10 +89,6 @@ const userSchema = new mongoose.Schema({
     sport: { type: String, default: '' },
     fitnessLevel: { type: String, default: 'Beginner' },
     sessionDurationMins: { type: Number, default: 45 },
-    medicalConditions: [{ type: String }],
-    jointPain: [{ type: String }],
-    injuries: [{ type: String }],
-    limitations: [{ type: String }],
     foodPreferences: { type: String, default: '' }
   },
   isOnboardingCompleted: { type: Boolean, default: false }

@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(8px);
   z-index: 100;
   display: flex;
@@ -14,13 +14,13 @@
 }
 
 .mini-coach-window {
-  background: var(--panel-bg, #1e293b);
-  border: 1px solid #3b82f6;
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
   border-radius: 16px;
   width: 100%;
   max-width: 500px;
   padding: 24px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
   max-height: 90vh;
@@ -41,18 +41,18 @@
 .mini-coach-header button {
   background: none;
   border: none;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 4px;
 }
 
 .mini-coach-header button:hover {
-  color: white;
+  color: var(--text-primary);
 }
 
 .mini-coach-progress {
   font-size: 0.75rem;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary);
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -61,7 +61,7 @@
 .mini-coach-window h3 {
   font-size: 1.3rem;
   margin-bottom: 20px;
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-primary);
 }
 
 .mini-coach-options {
@@ -72,9 +72,9 @@
 }
 
 .mini-coach-pill {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-primary, #f8fafc);
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
   padding: 10px 16px;
   border-radius: 20px;
   cursor: pointer;
@@ -85,14 +85,13 @@
 }
 
 .mini-coach-pill:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--card-border);
 }
 
 .mini-coach-pill.selected {
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(59, 130, 246, 0.15);
   border-color: #3b82f6;
-  color: #60a5fa;
+  color: #3b82f6;
   font-weight: 600;
 }
 
@@ -101,7 +100,7 @@
   justify-content: space-between;
   margin-top: auto;
   padding-top: 20px;
-  border-top: 1px solid var(--card-border, rgba(255,255,255,0.1));
+  border-top: 1px solid var(--card-border);
 }
 
 .mini-coach-nav button {
@@ -111,11 +110,11 @@
   cursor: pointer;
   border: none;
   background: transparent;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary);
 }
 
 .mini-coach-nav button:hover {
-  color: white;
+  color: var(--text-primary);
 }
 
 .mini-coach-nav .btn-primary {

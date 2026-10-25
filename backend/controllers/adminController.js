@@ -1297,3 +1297,136 @@ export const getDiscountCampaigns = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch discount campaigns' });
   }
 };
+
+// @desc    Create / invite a StoreManager account (Admin only)
+// @route   POST /api/admin/store-managers
+// @access  Private / SuperAdmin, Admin
+export const createStoreManager = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+    const { name, email, password } = req.body;
+    if (!name?.trim() || !email?.trim() || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(400).json({ message: 'A user with this email already exists' });
+    }
+
+    const storeManager = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      password,
+      role: 'StoreManager',
+      invitedBy: req.user._id,
+      isEmailVerified: true,
+      recoveryEmail: normalizedEmail
+    });
+
+    logAuditTrail(req.user.name, req.user.role, 'Created Store Manager Account', String(storeManager._id), `Email: ${normalizedEmail}`, req);
+
+    res.status(201).json({
+      message: 'Store Manager account successfully created and provisioned',
+      storeManager: {
+        _id: storeManager._id,
+        name: storeManager.name,
+        email: storeManager.email,
+        role: storeManager.role,
+        isEmailVerified: storeManager.isEmailVerified
+      }
+    });
+  } catch (error) {
+    console.error('createStoreManager error:', error);
+    res.status(500).json({ message: 'Failed to create Store Manager account' });
+  }
+};
+
+// @desc    Get all Store Managers
+// @route   GET /api/admin/store-managers
+// @access  Private / SuperAdmin, Admin
+export const getStoreManagers = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+    const managers = await User.find({ role: 'StoreManager' })
+      .select('-password')
+      .populate('invitedBy', 'name email role')
+      .sort({ createdAt: -1 });
+    res.json(managers);
+  } catch (error) {
+    console.error('getStoreManagers error:', error);
+    res.status(500).json({ message: 'Failed to fetch store managers' });
+  }
+};
+
+// @desc    Update a StoreManager account
+// @route   PUT /api/admin/store-managers/:id
+// @access  Private / SuperAdmin, Admin
+export const updateStoreManager = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+    const { id } = req.params;
+    const { name, accountStatus, password } = req.body;
+
+    const manager = await User.findOne({ _id: id, role: 'StoreManager' });
+    if (!manager) {
+      return res.status(404).json({ message: 'Store Manager not found' });
+    }
+
+    if (name?.trim()) manager.name = name.trim();
+    if (accountStatus && ['Active', 'Deactivated', 'Banned'].includes(accountStatus)) {
+      manager.accountStatus = accountStatus;
+      manager.isDeactivated = accountStatus === 'Deactivated';
+      manager.isBanned = accountStatus === 'Banned';
+    }
+    if (password && password.trim().length >= 8) {
+      manager.password = password.trim();
+    }
+
+    await manager.save();
+    logAuditTrail(req.user.name, req.user.role, 'Updated Store Manager Account', String(manager._id), `Status: ${manager.accountStatus}`, req);
+
+    res.json({
+      message: 'Store Manager updated successfully',
+      storeManager: {
+        _id: manager._id,
+        name: manager.name,
+        email: manager.email,
+        role: manager.role,
+        accountStatus: manager.accountStatus,
+        isEmailVerified: manager.isEmailVerified
+      }
+    });
+  } catch (error) {
+    console.error('updateStoreManager error:', error);
+    res.status(500).json({ message: 'Failed to update Store Manager account' });
+  }
+};
+
+// @desc    Delete / Revoke a StoreManager account
+// @route   DELETE /api/admin/store-managers/:id
+// @access  Private / SuperAdmin, Admin
+export const deleteStoreManager = async (req, res) => {
+  try {
+    if (!verifyAdminRole(req, res, ['SuperAdmin', 'Admin'])) return;
+    const { id } = req.params;
+
+    const manager = await User.findOne({ _id: id, role: 'StoreManager' });
+    if (!manager) {
+      return res.status(404).json({ message: 'Store Manager not found' });
+    }
+
+    await User.findByIdAndDelete(id);
+    logAuditTrail(req.user.name, req.user.role, 'Revoked Store Manager Account', String(id), `Email: ${manager.email}`, req);
+
+    res.json({ message: `Store Manager ${manager.name} (${manager.email}) access has been permanently revoked and deleted.` });
+  } catch (error) {
+    console.error('deleteStoreManager error:', error);
+    res.status(500).json({ message: 'Failed to delete Store Manager account' });
+  }
+};
+
+

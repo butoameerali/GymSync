@@ -29,6 +29,7 @@ export const getNavigationForRole = (role) => {
     case 'gymowner':
       return [
         { id: 'overview', label: 'Facility Dashboard', icon: 'Activity' },
+        { id: 'branches', label: 'My Gyms / Branches', icon: 'Building' },
         { id: 'facility', label: 'Gym Info & Settings', icon: 'Building' },
         { id: 'members', label: 'Member Roster', icon: 'Users' },
         { id: 'attendance', label: 'Attendance Check-In/Out', icon: 'Clock' },

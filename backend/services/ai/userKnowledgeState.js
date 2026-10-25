@@ -9,10 +9,6 @@ const REQUIRED_FIELD_REGISTRY = [
   { key: 'height', path: 'bioData.height', isFilled: v => v && v > 0 },
   { key: 'weight', path: 'bioData.weight', isFilled: v => v && v > 0 },
   { key: 'gender', path: 'bioData.gender', isFilled: v => !!v },
-  { key: 'jointPain', path: 'bioData.jointPain', isFilled: v => Array.isArray(v) && v.length > 0 },
-  { key: 'medicalConditions', path: 'bioData.medicalConditions', isFilled: v => Array.isArray(v) && v.length > 0 },
-  { key: 'injuries', path: 'bioData.injuries', isFilled: v => Array.isArray(v) && v.length > 0 },
-  { key: 'limitations', path: 'bioData.limitations', isFilled: v => Array.isArray(v) && v.length > 0 },
   { key: 'foodPreferences', path: 'bioData.foodPreferences', isFilled: v => typeof v === 'string' && v.trim() !== '' },
   { key: 'trainingDaysPerWeek', path: 'bioData.trainingDaysPerWeek', isFilled: v => v > 0 },
   { key: 'equipmentAccess', path: 'bioData.equipmentAccess', isFilled: v => !!v }

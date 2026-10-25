@@ -8,6 +8,7 @@ import DashboardShell from '../../components/layout/DashboardShell';
 import StatCard from '../../components/ui/StatCard';
 import EquipmentManager from './EquipmentManager';
 import OffersManager from './OffersManager';
+import BranchVerificationModal from './BranchVerificationModal';
 import { getSafeImageUrl } from '../../utils/imageUtils';
 import './GymOwnerDashboard.css';
 
@@ -55,11 +56,33 @@ const GymOwnerDashboard = () => {
   const [isDeletingGym, setIsDeletingGym] = useState(false);
   const [tourRequests, setTourRequests] = useState([]);
 
+  // Multi-Branch & Verification State
+  const [branches, setBranches] = useState([]);
+  const [organization, setOrganization] = useState(null);
+  const [showBranchModal, setShowBranchModal] = useState(false);
+  const [selectedBranchForModal, setSelectedBranchForModal] = useState(null);
+
   const ownerName = localStorage.getItem('gymsync_user_name') || 'Gym Owner';
 
   useEffect(() => {
     fetchDashboardData();
+    fetchBranches();
   }, []);
+
+  const fetchBranches = async () => {
+    try {
+      const res = await fetch('/api/gym-verification/branches', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBranches(Array.isArray(data.branches) ? data.branches : []);
+        setOrganization(data.organization || null);
+      }
+    } catch (e) {
+      console.error('Failed to fetch branches', e);
+    }
+  };
 
   const fetchTourRequests = async (gymId) => {
     if (!gymId) return;
@@ -424,6 +447,12 @@ const GymOwnerDashboard = () => {
               Overview
             </button>
             <button 
+              className={`tab-btn ${activeTab === 'branches' ? 'active' : ''}`}
+              onClick={() => setActiveTab('branches')}
+            >
+              <Building size={16} /> My Gyms / Branches ({branches.length})
+            </button>
+            <button 
               className={`tab-btn ${activeTab === 'attendance' ? 'active' : ''}`}
               onClick={() => setActiveTab('attendance')}
             >
@@ -577,6 +606,187 @@ const GymOwnerDashboard = () => {
                     </button>
                   </form>
                 </div>
+              </div>
+            )}
+
+            {/* MY GYMS / BRANCHES MULTI-LOCATION MANAGEMENT TAB */}
+            {activeTab === 'branches' && (
+              <div className="branches-container">
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '24px',
+                  flexWrap: 'wrap',
+                  gap: '16px'
+                }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.35rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Building size={24} color="#3b82f6" />
+                      {organization?.name ? `${organization.name} Organization` : 'My Multi-Branch Fitness Network'}
+                    </h3>
+                    <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                      Manage multiple facility locations, monitor branch verification stages, and submit compliance evidence.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setSelectedBranchForModal(null);
+                      setShowBranchModal(true);
+                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Plus size={18} /> Add New Branch
+                  </button>
+                </div>
+
+                {branches.length === 0 ? (
+                  <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', borderRadius: '16px' }}>
+                    <Building size={48} color="#64748b" style={{ marginBottom: '16px' }} />
+                    <h4 style={{ color: '#fff', marginBottom: '8px' }}>No Branches Configured</h4>
+                    <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 20px' }}>
+                      You haven't established any gym branches under your owner profile yet. Register your first location to initiate verified onboarding.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setSelectedBranchForModal(null);
+                        setShowBranchModal(true);
+                      }}
+                    >
+                      <Plus size={16} /> Add First Gym Branch
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
+                    {branches.map(b => {
+                      const status = b.approvalStatus || 'Draft';
+                      let statusBg = 'rgba(148, 163, 184, 0.15)';
+                      let statusColor = '#94a3b8';
+                      if (status === 'Approved') {
+                        statusBg = 'rgba(16, 185, 129, 0.15)';
+                        statusColor = '#10b981';
+                      } else if (status === 'Pending Review' || status === 'Under Review') {
+                        statusBg = 'rgba(59, 130, 246, 0.15)';
+                        statusColor = '#3b82f6';
+                      } else if (status === 'More Information Required') {
+                        statusBg = 'rgba(249, 115, 22, 0.15)';
+                        statusColor = '#f97316';
+                      } else if (status === 'Rejected') {
+                        statusBg = 'rgba(239, 68, 68, 0.15)';
+                        statusColor = '#ef4444';
+                      } else if (status === 'Suspended') {
+                        statusBg = 'rgba(220, 38, 38, 0.15)';
+                        statusColor = '#dc2626';
+                      }
+
+                      return (
+                        <div key={b._id} className="glass-panel" style={{
+                          padding: '24px',
+                          borderRadius: '16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          border: status === 'More Information Required' ? '1px solid rgba(249, 115, 22, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'
+                        }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                              <div>
+                                <h4 style={{ margin: 0, fontSize: '1.15rem', color: '#fff', fontWeight: 700 }}>
+                                  {b.branchName || b.name}
+                                </h4>
+                                <span style={{ fontSize: '0.8rem', color: '#3b82f6', fontWeight: 500 }}>
+                                  {b.gymType || 'Fitness Facility'}
+                                </span>
+                              </div>
+                              <span style={{
+                                background: statusBg,
+                                color: statusColor,
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                              }}>
+                                {status}
+                              </span>
+                            </div>
+
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '14px', lineHeight: '1.5' }}>
+                              📍 {b.address || b.location || 'Address pending'}, {b.city || ''} {b.country ? `• ${b.country}` : ''}
+                            </p>
+
+                            {b.verificationApplication?.referenceId && (
+                              <div style={{
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                fontSize: '0.78rem',
+                                color: '#94a3b8',
+                                marginBottom: '14px',
+                                display: 'flex',
+                                justifyContent: 'space-between'
+                              }}>
+                                <span>Ref: <strong>{b.verificationApplication.referenceId}</strong></span>
+                                <span>Docs: {b.verificationApplication.documents?.length || 0} attached</span>
+                              </div>
+                            )}
+
+                            {status === 'More Information Required' && b.verificationApplication?.missingRequirements?.length > 0 && (
+                              <div style={{
+                                background: 'rgba(249, 115, 22, 0.1)',
+                                border: '1px solid rgba(249, 115, 22, 0.3)',
+                                borderRadius: '8px',
+                                padding: '10px 12px',
+                                marginBottom: '14px',
+                                fontSize: '0.8rem',
+                                color: '#fdba74'
+                              }}>
+                                <strong>Action Required:</strong>
+                                <ul style={{ margin: '4px 0 0 0', paddingLeft: '18px' }}>
+                                  {b.verificationApplication.missingRequirements.map((req, i) => (
+                                    <li key={i}>{req}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedBranchForModal(b);
+                                setShowBranchModal(true);
+                              }}
+                              className="btn btn-outline btn-sm"
+                              style={{ flex: 1, fontSize: '0.82rem' }}
+                            >
+                              {status === 'Draft' || status === 'More Information Required' 
+                                ? 'Edit / Resubmit' 
+                                : 'View Application'}
+                            </button>
+                            {status === 'Approved' && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab('overview')}
+                                className="btn btn-primary btn-sm"
+                                style={{ fontSize: '0.82rem' }}
+                              >
+                                Manage
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1027,6 +1237,19 @@ const GymOwnerDashboard = () => {
         onConfirm={handleDeleteGym}
         onCancel={() => setShowDeleteGymModal(false)}
       />
+      {showBranchModal && (
+        <BranchVerificationModal
+          branch={selectedBranchForModal}
+          onClose={() => {
+            setShowBranchModal(false);
+            setSelectedBranchForModal(null);
+          }}
+          onBranchUpdated={() => {
+            fetchBranches();
+            fetchDashboardData();
+          }}
+        />
+      )}
     </DashboardShell>
   );
 };

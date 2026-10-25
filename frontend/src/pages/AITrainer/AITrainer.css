@@ -161,7 +161,7 @@
   flex-direction: column;
   gap: 15px;
   padding: 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .search-bar {
@@ -197,11 +197,13 @@
   color: var(--text-primary);
   white-space: nowrap;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .cat-pill.active {
-  background: var(--text-primary);
-  color: var(--bg-color);
+  background: var(--primary-accent);
+  color: #ffffff;
+  border-color: var(--primary-accent);
   font-weight: bold;
 }
 
@@ -293,9 +295,10 @@
 }
 
 .mode-btn.active {
-  background: var(--card-bg);
+  background: var(--card-bg-light);
   color: var(--text-primary);
   font-weight: bold;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 .camera-viewport {

@@ -231,9 +231,7 @@ export const generatePlanObject = (bio = {}, options = {}) => {
 
   const interactive_calendar = [];
   const medicalWarningsSet = new Set([
-    'Always consult a physician before starting an intensive training or diet regimen.',
-    ...(bio.jointPain || []).map(p => `Safety hard-filter active: exercises stressing the ${p} have been automatically screened out.`),
-    ...(bio.medicalConditions || []).map(m => `Strict medical contraindications applied for ${m}.`)
+    'Always consult a physician before starting an intensive training or diet regimen.'
   ]);
 
   // Session cache per phase to keep calendar generation instantaneous even for 52 weeks
@@ -297,27 +295,10 @@ export const generatePlanObject = (bio = {}, options = {}) => {
     }
   }
 
-  // 4. GENERATE MATHEMATICALLY VERIFIED NUTRITION PLAN
-  const structuredDiet = dietBuilder.generateDietPlan({
-    userProfile: { ...bio, mainGoalArea: effectiveGoal },
-    preferences: {
-      isVegetarian: String(bio.foodPreferences || '').toLowerCase().includes('veg')
-    }
-  });
-
-  const dietAudit = dietValidator.validateDiet(structuredDiet, bio);
-
-  const daily_diet_plan = structuredDiet.meals.map(m => ({
-    meal: m.mealName,
-    timing: m.timing,
-    food: m.items.map(i => `${i.food} (${i.portion})`).join(' + '),
-    calories: m.totalCalories,
-    protein: m.totalProtein,
-    carbs: m.totalCarbs,
-    fat: m.totalFat,
-    macros: `${m.totalCalories} kcal | ${m.totalProtein}g Protein | ${m.totalCarbs}g Carbs | ${m.totalFat}g Fat`,
-    supplement_rule: '100% Whole Food Natural (No Unsafe Pills/Injections)'
-  }));
+  // 4. DIET SAFETY: AI does not auto-generate unverified diets without trainer review
+  const structuredDiet = null;
+  const dietAudit = null;
+  const daily_diet_plan = [];
 
   return {
     intake_status: 'COMPLETE',
@@ -334,9 +315,10 @@ export const generatePlanObject = (bio = {}, options = {}) => {
       pullDay: pullSession.mainWorkout,
       legDay: legSession.mainWorkout
     },
-    structuredDiet,
-    daily_diet_plan,
-    dietAudit,
+    structuredDiet: null,
+    daily_diet_plan: [],
+    dietAudit: null,
+    dietSafetyNotice: 'Diet auto-generation is disabled for medical safety. Please choose a certified instructor diet plan from Programs or consult your trainer.',
     medical_warnings: Array.from(medicalWarningsSet)
   };
 };

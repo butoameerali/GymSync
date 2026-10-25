@@ -61,6 +61,14 @@ export const getGymById = async (req, res) => {
       return res.status(404).json({ message: 'Gym not found' });
     }
 
+    if (gym.approvalStatus !== 'Approved') {
+      const isOwner = req.user && ((gym.owner && String(gym.owner) === String(req.user._id)) || gym.ownerName === req.user.name);
+      const isAdmin = req.user && ['Admin', 'SuperAdmin'].includes(req.user.role);
+      if (!isOwner && !isAdmin) {
+        return res.status(404).json({ message: 'Gym not found or not currently publicly listed' });
+      }
+    }
+
     return res.json({
       _id: gym._id,
       id: gym._id,

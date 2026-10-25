@@ -6,16 +6,16 @@ const storage = multer.memoryStorage();
 
 export const MULTIPART_MEMORY_LIMIT = 6 * 1024 * 1024; // 6 MB hard cap
 
-// Check File Type & extensions
+// Check File Type & extensions (Images, Videos, and Official PDF documents)
 function checkFileType(file, cb) {
-  const filetypes = /jpeg|jpg|png|gif|webp|heic|mp4|mov|webm/;
+  const filetypes = /jpeg|jpg|png|gif|webp|heic|mp4|mov|webm|pdf/;
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = /image\/(jpeg|jpg|png|gif|webp|heic)|video\/(mp4|quicktime|webm)/.test(file.mimetype);
+  const mimetype = /image\/(jpeg|jpg|png|gif|webp|heic)|video\/(mp4|quicktime|webm)|application\/pdf/.test(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
   } else {
-    cb(new Error('Only Images (JPG, PNG, GIF, WEBP) and Videos (MP4, MOV, WEBM) are allowed!'));
+    cb(new Error('Only Images (JPG, PNG, GIF, WEBP), Videos (MP4, MOV, WEBM), and PDF documents are allowed!'));
   }
 }
 

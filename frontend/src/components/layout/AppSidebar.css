@@ -65,6 +65,9 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Navigation Links Group */
@@ -280,34 +283,95 @@
   text-transform: capitalize;
 }
 
-/* Tablet Rail View (768px - 1024px) */
-@media (max-width: 1024px) and (min-width: 769px) {
+/* Explicit Rail Mode (Dashboard Portals & Staff Management Workspaces) */
+.app-sidebar.rail-mode {
+  width: 72px !important;
+  min-width: 72px !important;
+  max-width: 72px !important;
+  padding: 14px 6px !important;
+  box-sizing: border-box !important;
+}
+
+.app-sidebar.rail-mode .sidebar-brand-title,
+.app-sidebar.rail-mode .sidebar-label,
+.app-sidebar.rail-mode .sidebar-profile-details,
+.app-sidebar.rail-mode .sidebar-profile-arrow {
+  display: none !important;
+}
+
+.app-sidebar.rail-mode .sidebar-brand {
+  justify-content: center !important;
+  padding: 6px 0 !important;
+  gap: 0 !important;
+}
+
+.app-sidebar.rail-mode .sidebar-link {
+  justify-content: center !important;
+  padding: 10px 0 !important;
+  gap: 0 !important;
+  width: 100% !important;
+}
+
+.app-sidebar.rail-mode .sidebar-profile-left {
+  justify-content: center !important;
+  gap: 0 !important;
+}
+
+.app-sidebar.rail-mode .sidebar-profile-btn {
+  justify-content: center !important;
+  padding: 6px 0 !important;
+  gap: 0 !important;
+  width: 100% !important;
+}
+
+.app-sidebar.rail-mode .sidebar-popover {
+  left: 74px !important;
+  bottom: 0 !important;
+  margin-left: 8px !important;
+  width: 220px !important;
+}
+
+/* Tablet Rail View (769px - 1200px) */
+@media (max-width: 1200px) and (min-width: 769px) {
   .app-sidebar {
-    padding: 12px 6px;
+    width: 72px !important;
+    min-width: 72px !important;
+    max-width: 72px !important;
+    padding: 14px 6px !important;
+    box-sizing: border-box !important;
   }
   .sidebar-brand-title,
   .sidebar-label,
   .sidebar-profile-details,
   .sidebar-profile-arrow {
-    display: none;
+    display: none !important;
   }
   .sidebar-brand {
-    justify-content: center;
-    padding: 6px 0;
+    justify-content: center !important;
+    padding: 6px 0 !important;
+    gap: 0 !important;
   }
   .sidebar-link {
-    justify-content: center;
-    padding: 10px;
+    justify-content: center !important;
+    padding: 10px 0 !important;
+    gap: 0 !important;
+    width: 100% !important;
+  }
+  .sidebar-profile-left {
+    justify-content: center !important;
+    gap: 0 !important;
   }
   .sidebar-profile-btn {
-    justify-content: center;
-    padding: 6px;
+    justify-content: center !important;
+    padding: 6px 0 !important;
+    gap: 0 !important;
+    width: 100% !important;
   }
   .sidebar-popover {
-    left: 100%;
-    bottom: 0;
-    margin-left: 8px;
-    width: 220px;
+    left: 74px !important;
+    bottom: 0 !important;
+    margin-left: 8px !important;
+    width: 220px !important;
   }
 }
 

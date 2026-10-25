@@ -7,6 +7,7 @@ import { getRoleRedirectPath } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { toast } from 'react-toastify';
 import LoginOTPStep from './LoginOTPStep';
+import SignupOTPStep from './SignupOTPStep';
 import './AuthPortal.css';
 
 // ------------------------------------------------------------------
@@ -197,6 +198,10 @@ const AuthPortal = () => {
   const [needs2FA, setNeeds2FA] = useState(false);
   const [twoFaData, setTwoFaData] = useState({ email: '', tempToken: '' });
 
+  // Signup Email Verification OTP State
+  const [needsSignupOtp, setNeedsSignupOtp] = useState(false);
+  const [signupEmail, setSignupEmail] = useState('');
+
   // Recycle Bin / Self-Restore State
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [restoreData, setRestoreData] = useState({ email: '', daysRemaining: 15, password: '' });
@@ -239,6 +244,13 @@ const AuthPortal = () => {
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const storeAndRedirect = (data) => {
+    const privilegedRoles = ['admin', 'superadmin', 'complaintmoderator', 'fitnessinstructor'];
+    const normalizedRole = (data.role || '').toLowerCase().replace(/[_\s]/g, '');
+    if (privilegedRoles.includes(normalizedRole)) {
+      setError('Invalid email or password');
+      return;
+    }
+
     localStorage.setItem('gymsync_token', data.token);
     localStorage.setItem('gymsync_role', data.role);
     localStorage.setItem('gymsync_user_name', data.name);
@@ -312,6 +324,13 @@ const AuthPortal = () => {
       if (data.requiresOtp) {
         setTwoFaData({ email: data.email, tempToken: data.tempToken });
         setNeeds2FA(true);
+        return;
+      }
+
+      if (data.requiresEmailVerification || (data.isEmailVerified === false && !isLogin)) {
+        setSignupEmail(data.email || formData.email);
+        setNeedsSignupOtp(true);
+        toast.info(data.message || 'Activation OTP sent to your email.');
         return;
       }
 
@@ -428,6 +447,12 @@ const AuthPortal = () => {
               tempToken={twoFaData.tempToken} 
               onVerify={storeAndRedirect} 
               onCancel={() => setNeeds2FA(false)} 
+            />
+          ) : needsSignupOtp ? (
+            <SignupOTPStep
+              email={signupEmail}
+              onVerify={storeAndRedirect}
+              onCancel={() => setNeedsSignupOtp(false)}
             />
           ) : (
             <div className="auth-card glass-panel">

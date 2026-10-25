@@ -162,7 +162,7 @@ test('TEST 7: "My weight is 100 kg and I want to lose it" gives plain language p
 
   assert.strictEqual(result.structuredAction.type, 'UPDATE_WORKOUT', 'Must create joint-friendly weight loss session');
   assert(result.structuredAction.workout, 'Workout must be present');
-  assert(result.structuredAction.diet, 'Diet must be present');
+  assert.strictEqual(result.structuredAction.diet, null, 'Diet auto-generation must be disabled for medical safety');
 
   // Verify plain portion language
   assert(result.content.includes('boiled eggs') || result.content.includes('daal') || result.content.includes('rotis'), 'Must include plain everyday portion terms');
@@ -242,10 +242,6 @@ test('TEST 10: Bio Respect: Never asks for height/weight/equipment if already pr
     mainGoalArea: 'Muscle Gain',
     planDuration: '4 weeks',
     trainingDaysPerWeek: 4,
-    jointPain: ['None'],
-    medicalConditions: ['None'],
-    injuries: ['None'],
-    limitations: ['None'],
     foodPreferences: 'None'
   };
 

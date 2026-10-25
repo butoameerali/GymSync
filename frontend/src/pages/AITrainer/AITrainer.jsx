@@ -403,10 +403,6 @@ const AITrainer = () => {
         height: bioData.height || 175,
         weight: bioData.weight || 72,
         gender: bioData.gender || 'male',
-        jointPain: bioData.jointPain || [],
-        medicalConditions: bioData.medicalConditions || [],
-        injuries: bioData.injuries || [],
-        limitations: bioData.limitations || [],
         foodPreferences: bioData.foodPreferences || ['none'],
         trainingDaysPerWeek: bioData.trainingDaysPerWeek || 3,
         equipmentAccess: bioData.equipmentAccess || 'Full Gym',
@@ -626,12 +622,17 @@ const AITrainer = () => {
     return { status, scheduledDate, isToday, isTomorrow, isPast, isFuture, isCompleted };
   };
 
-  const isExerciseCompletedInState = (dayNum, exIndex) => {
+  const isExerciseCompletedInState = (dayNum, exIndex, exName = null) => {
     if (!aiPlan) return false;
     // If the entire day is completed, all exercises are complete
     if ((workoutProgress.completedDays || []).includes(dayNum)) return true;
     return (workoutProgress.completedExercises || []).some(
-      e => (e.planId === aiPlan.planId || !e.planId) && e.dayNumber === dayNum && e.exerciseIndex === exIndex
+      e => (e.planId === aiPlan.planId || !e.planId) && 
+           e.dayNumber === dayNum && 
+           (
+             (exName && e.exerciseName && e.exerciseName.trim().toLowerCase() === exName.trim().toLowerCase()) ||
+             e.exerciseIndex === exIndex
+           )
     );
   };
 
@@ -1052,22 +1053,30 @@ const AITrainer = () => {
     toast.info(`🔄 Day ${dayNum} progress reset. Ready to train again!`);
   };
 
-  // Toggle Single Exercise Completion (Manual Check/Uncheck)
-  const toggleExerciseCompletion = async (dayNum, exIndex, exName) => {
+  // Toggle Single Exercise Completion (Manual Check/Uncheck or programmatic mark)
+  const toggleExerciseCompletion = async (dayNum, exIndex, exName, forceComplete = null) => {
     if (!aiPlan) return;
     const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
     const targetDay = (aiPlan.interactive_calendar || []).find(d => d.dayNumber === dayNum);
     const daySplit = targetDay
       ? (Array.isArray(targetDay.workoutSplit) ? targetDay.workoutSplit : (targetDay.exercises || targetDay.mainWorkout || []))
       : [];
+    const warmupList = targetDay?.warmup?.warmupExercises || targetDay?.warmup || [];
+    const totalMovementsCount = (Array.isArray(warmupList) ? warmupList.length : 0) + daySplit.length;
 
-    const isCurrentlyDone = isExerciseCompletedInState(dayNum, exIndex);
+    const isCurrentlyDone = isExerciseCompletedInState(dayNum, exIndex, exName);
+    const shouldMarkDone = forceComplete !== null ? forceComplete : !isCurrentlyDone;
+
+    if (shouldMarkDone && isCurrentlyDone && forceComplete) {
+      return; // Already completed, no need to duplicate
+    }
+
     let updatedCompletedExercises;
     let updatedCompletedDays = [...(workoutProgress.completedDays || [])];
 
-    if (isCurrentlyDone) {
+    if (!shouldMarkDone) {
       updatedCompletedExercises = (workoutProgress.completedExercises || []).filter(
-        e => !(e.planId === aiPlan.planId && e.dayNumber === dayNum && e.exerciseIndex === exIndex)
+        e => !(e.planId === aiPlan.planId && e.dayNumber === dayNum && ((exName && e.exerciseName && e.exerciseName.trim().toLowerCase() === exName.trim().toLowerCase()) || e.exerciseIndex === exIndex))
       );
       updatedCompletedDays = updatedCompletedDays.filter(d => d !== dayNum);
       toast.info(`🔄 ${exName || 'Movement'} marked incomplete.`);
@@ -1082,7 +1091,7 @@ const AITrainer = () => {
       };
       updatedCompletedExercises = [
         ...(workoutProgress.completedExercises || []).filter(
-          e => !(e.planId === aiPlan.planId && e.dayNumber === dayNum && e.exerciseIndex === exIndex)
+          e => !(e.planId === aiPlan.planId && e.dayNumber === dayNum && ((exName && e.exerciseName && e.exerciseName.trim().toLowerCase() === exName.trim().toLowerCase()) || e.exerciseIndex === exIndex))
         ),
         newRecord
       ];
@@ -1090,7 +1099,8 @@ const AITrainer = () => {
       const doneForThisDay = updatedCompletedExercises.filter(
         e => e.planId === aiPlan.planId && e.dayNumber === dayNum
       );
-      if (daySplit.length > 0 && doneForThisDay.length >= daySplit.length) {
+      const targetCount = totalMovementsCount > 0 ? totalMovementsCount : (daySplit.length || 1);
+      if (doneForThisDay.length >= targetCount) {
         if (!updatedCompletedDays.includes(dayNum)) {
           updatedCompletedDays.push(dayNum);
           toast.success(`🎉 All movements complete! Day ${dayNum} marked as completed! (+50 XP)`);

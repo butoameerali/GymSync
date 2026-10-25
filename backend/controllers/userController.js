@@ -1100,18 +1100,6 @@ export const saveUserBioController = async (req, res) => {
       sport: bio.sport || user.bioData?.sport || '',
       fitnessLevel: bio.fitnessLevel || user.bioData?.fitnessLevel || 'Beginner',
       sessionDurationMins: Number(bio.sessionDurationMins) || user.bioData?.sessionDurationMins || 45,
-      medicalConditions: Array.isArray(bio.medicalConditions) 
-        ? bio.medicalConditions.map(s => String(s).trim()).filter(Boolean)
-        : (typeof bio.medicalConditions === 'string' && bio.medicalConditions.trim() ? [bio.medicalConditions.trim()] : user.bioData?.medicalConditions || []),
-      jointPain: Array.isArray(bio.jointPain) 
-        ? bio.jointPain.map(s => String(s).trim()).filter(Boolean)
-        : user.bioData?.jointPain || [],
-      injuries: Array.isArray(bio.injuries) 
-        ? bio.injuries.map(s => String(s).trim()).filter(Boolean)
-        : user.bioData?.injuries || [],
-      limitations: Array.isArray(bio.limitations) 
-        ? bio.limitations.map(s => String(s).trim()).filter(Boolean)
-        : user.bioData?.limitations || [],
       foodPreferences: Array.isArray(bio.foodPreferences) 
         ? bio.foodPreferences.map(s => String(s).trim()).filter(Boolean).join(', ')
         : (bio.foodPreferences != null ? String(bio.foodPreferences).trim() : user.bioData?.foodPreferences || '')

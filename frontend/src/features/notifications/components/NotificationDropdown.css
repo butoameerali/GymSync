@@ -5,10 +5,10 @@
   margin-top: 12px;
   width: 380px;
   max-width: 90vw;
-  background: var(--card-bg, #121826);
-  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
   border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
   z-index: 1100;
   display: flex;
   flex-direction: column;
@@ -26,7 +26,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 18px;
-  border-bottom: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--card-border);
 }
 
 .notif-title-group {
@@ -39,7 +39,7 @@
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text-primary, #ffffff);
+  color: var(--text-primary);
 }
 
 .notif-count-badge {
@@ -54,7 +54,7 @@
 .btn-mark-all-read {
   background: transparent;
   border: none;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary);
   font-size: 0.8rem;
   font-weight: 500;
   display: flex;
@@ -67,7 +67,7 @@
 }
 
 .btn-mark-all-read:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--card-bg-light);
   color: #38bdf8;
 }
 
@@ -84,7 +84,7 @@
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary);
   gap: 8px;
 }
 
@@ -97,14 +97,14 @@
   align-items: flex-start;
   gap: 12px;
   padding: 12px 18px;
-  border-bottom: 1px solid var(--card-border, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--card-border);
   cursor: pointer;
   transition: background 0.15s ease;
   position: relative;
 }
 
 .notif-dropdown-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--card-bg-light);
 }
 
 .notif-dropdown-item.unread {
@@ -119,7 +119,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
   flex-shrink: 0;
   margin-top: 2px;
 }

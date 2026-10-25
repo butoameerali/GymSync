@@ -20,9 +20,33 @@ const gymSchema = new mongoose.Schema({
     notes: String
   }],
   trainerIncluded: { type: Boolean, default: false },
+  organization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: false,
+    index: true
+  },
+  branchName: { type: String, default: '' },
+  city: { type: String, default: '' },
+  country: { type: String, default: 'Pakistan' },
+  address: { type: String, default: '' },
+  coordinates: {
+    lat: { type: Number, default: null },
+    lng: { type: Number, default: null }
+  },
+  placeId: { type: String, default: '' },
+  googleMapsUrl: { type: String, default: '' },
+  gymType: { type: String, default: 'Commercial Gym' },
+  contactPhone: { type: String, default: '' },
+  contactEmail: { type: String, default: '' },
+  photos: [String],
+  verificationApplication: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'VerificationApplication'
+  },
   approvalStatus: { 
     type: String, 
-    enum: ['Approved', 'Pending', 'Rejected'], 
+    enum: ['Approved', 'Pending', 'Rejected', 'Draft', 'Pending Review', 'Under Review', 'More Information Required', 'Suspended'], 
     default: 'Approved' 
   },
   approvedBy: { type: String, default: '' },
@@ -43,5 +67,6 @@ const gymSchema = new mongoose.Schema({
 
 gymSchema.index({ owner: 1 });
 gymSchema.index({ name: 1 });
+gymSchema.index({ approvalStatus: 1 });
 
 export default mongoose.model('Gym', gymSchema);

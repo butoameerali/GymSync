@@ -318,7 +318,7 @@ export const workoutDecisionEngine = {
       const exerciseTimeSec = (sets * (repCount * secPerRep)) + ((sets - 1) * restSec) + 60;
       calculatedWorkSec += exerciseTimeSec;
 
-      const reasonForSelection = `Selected as ${ex.hierarchyRole} to train ${ex.movementPattern} for ${sessionObjective}. Matches ${equipmentAccess} equipment and cleared all medical safety screens.`;
+      const reasonForSelection = `Selected as ${ex.hierarchyRole} to train ${ex.movementPattern} for ${sessionObjective}. Matches ${equipmentAccess} equipment.`;
 
       return {
         exerciseId: ex.exerciseId,
@@ -333,7 +333,7 @@ export const workoutDecisionEngine = {
         difficulty: ex.difficulty,
         equipment: ex.equipment,
         equipmentCategory: ex.equipmentCategory || ex.equipment,
-        medicalSafety: `Cleared safety screen for ${userProfile.jointPain?.join(', ') || 'clear joints'}.`,
+        medicalSafety: 'General fitness guidance only — not medical advice.',
         progressionLevel: `${microcyclePhase.toUpperCase()} Phase`,
         fatigueCost: ex.fatigueCost,
         sportRelevance: ex.sportRelevance,
@@ -355,7 +355,6 @@ export const workoutDecisionEngine = {
       sessionType,
       targetMuscles: musclesInSession,
       sport: sportProfile,
-      jointPain: userProfile.jointPain || [],
       sessionDurationMins
     });
 
@@ -382,8 +381,7 @@ export const workoutDecisionEngine = {
         ...(trainedLegsYesterday ? ['Recent Heavy Leg Workload (Yesterday)'] : [])
       ],
       risks: [
-        ...(isPreEvent ? ['Risk of muscle soreness or fatigue compromising tomorrow\'s external physical performance'] : []),
-        ...(userProfile.jointPain?.length ? [`Risk of joint aggravation for ${userProfile.jointPain.join(', ')}`] : [])
+        ...(isPreEvent ? ['Risk of muscle soreness or fatigue compromising tomorrow\'s external physical performance'] : [])
       ],
       selectedExercises: finalExercises.map(e => e.name),
       rejectedExercises: decisionRejectedExercises,

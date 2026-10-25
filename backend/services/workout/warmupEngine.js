@@ -1,7 +1,7 @@
 /**
  * Reasoned Warm-Up & Cool-Down Engine
  * Dynamically constructs physiological preparation and post-workout recovery routines
- * tailored to target session anatomy, sport discipline, user injuries, and time budget.
+ * tailored to target session anatomy, sport discipline, and time budget.
  */
 
 export const warmupEngine = {
@@ -12,7 +12,6 @@ export const warmupEngine = {
    * @param {string} options.sessionType - 'upper' | 'lower' | 'full' | 'core_cardio'
    * @param {Array} options.targetMuscles - Muscle groups in main workout
    * @param {Object} options.sport - Sport profile object
-   * @param {Array} options.jointPain - Joint restrictions
    * @param {number} options.sessionDurationMins - Total workout time
    * @returns {Object} { warmupExercises, totalEstimatedMinutes, reasoning }
    */
@@ -20,7 +19,6 @@ export const warmupEngine = {
     sessionType = 'full',
     targetMuscles = [],
     sport = null,
-    jointPain = [],
     sessionDurationMins = 45
   } = {}) {
     const isShortSession = sessionDurationMins <= 30;
@@ -28,23 +26,13 @@ export const warmupEngine = {
     const sportName = sport?.sportName || 'General Fitness';
 
     // Phase 1: General Core Temperature & Systemic Blood Flow (60-90s)
-    if (!jointPain.includes('knees') && !jointPain.includes('ankles')) {
-      items.push({
-        name: 'Light Dynamic Jumping Jacks or High Knee March',
-        phase: '1. Temperature Elevation',
-        duration: isShortSession ? '60 sec' : '90 sec',
-        purpose: 'Elevate core body temperature, increase synovial joint fluid viscosity, and prime heart rate.',
-        repsOrDuration: '60-90 sec'
-      });
-    } else {
-      items.push({
-        name: 'Standing Arm Swings & Torso Rotations',
-        phase: '1. Temperature Elevation (Low Impact)',
-        duration: '60 sec',
-        purpose: 'Low-impact core temperature elevation avoiding knee/ankle impact.',
-        repsOrDuration: '60 sec'
-      });
-    }
+    items.push({
+      name: 'Light Dynamic Jumping Jacks or High Knee March',
+      phase: '1. Temperature Elevation',
+      duration: isShortSession ? '60 sec' : '90 sec',
+      purpose: 'Elevate core body temperature, increase synovial joint fluid viscosity, and prime heart rate.',
+      repsOrDuration: '60-90 sec'
+    });
 
     // Phase 2: Joint-Specific Dynamic Mobility
     const involvesUpper = sessionType === 'upper' || sessionType === 'full' || targetMuscles.some(m => ['Chest', 'Back', 'Shoulders'].includes(m));

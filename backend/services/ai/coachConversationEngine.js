@@ -261,10 +261,7 @@ export const coachConversationEngine = {
       ...userContext,
       weight: entities.weightMentioned || userContext.weight || userContext.weightKg || 70,
       equipmentAccess: entities.equipmentChange || userContext.equipmentAccess || 'Full Gym',
-      sessionDurationMins: entities.sessionDurationChange || userContext.sessionDurationMins || 45,
-      jointPain: entities.painArea
-        ? [...new Set([...(userContext.jointPain || []), entities.painArea])]
-        : (userContext.jointPain || [])
+      sessionDurationMins: entities.sessionDurationChange || userContext.sessionDurationMins || 45
     };
 
     // Detect ongoing external events
@@ -323,16 +320,22 @@ I calculate your daily macros, optimize your meal plans, and provide smart food 
 
       // 3. Tomorrow's Meals
       if (/\btomorrow\b/i.test(raw) && /\b(?:meal|eat|food|diet)\b/i.test(raw)) {
-        const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.activeSavedPlan?.diet || dietBuilder.generateDietPlan({ userProfile: effectiveProfile, preferences });
+        const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.currentDietPlan || userContext.activeSavedPlan?.diet || userContext.activeDietPlan || null;
+        if (!activeDiet || (!activeDiet.meals && !activeDiet.foodItems)) {
+          responseContent = `🥗 **Nutrition Protocol Notice**\n\nYou do not have an active diet plan assigned. For safety and medical reasons, GymSync does not auto-generate unverified diets.\n\nYou can adopt a verified trainer diet template from the **Programs** catalogue or consult your fitness instructor.`;
+          const suggestions = ['📋 Browse Trainer Diets', '🏋️ Switch to Workout Coach', '⚡ Today\'s Workout'];
+          structuredAction.type = 'NUTRITION_NOTICE';
+          structuredAction.diet = null;
+          structuredAction.suggestions = suggestions;
+          structuredAction.explanation = 'No active diet assigned. Advised user to adopt a verified instructor plan.';
+          return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+        }
         const meals = activeDiet.meals || [];
-        responseContent = `🌅 **Tomorrow's Fuel Protocol (${activeDiet.goalType || 'Performance'})**
-
-Stay consistent with your nutrition tomorrow to support workout recovery:
-
-${meals.map(m => `**${m.mealName}** *(${m.timing})*\n${m.items.map(i => `• ${i.food} — **${i.portion}**`).join('\n')}`).join('\n\n')}
-
-💧 **Target Hydration**: ${activeDiet.hydrationTargetLiters || 3} Liters
-💡 *Need to swap an ingredient? Just tell me what you don't have.*`;
+        responseContent = `🌅 **Tomorrow's Fuel Protocol (${activeDiet.title || activeDiet.goalType || activeDiet.goal || 'Performance'})**\n\nStay consistent with your nutrition tomorrow to support workout recovery:\n\n` +
+          meals.map(m => `**${m.name || m.mealName}** *(${m.timing || ''})*\n` +
+            (m.foodItems || m.items || []).map(i => `• ${i.name || i.food} — **${i.quantity ? `${i.quantity}${i.unit || 'g'}` : i.portion}**`).join('\n')
+          ).join('\n\n') +
+          `\n\n💧 **Target Hydration**: ${activeDiet.hydrationTargetLiters || 3} Liters\n💡 *Need to swap an ingredient? Just tell me what you don't have.*`;
         const suggestions = ['🍎 Swap a Food Item', '🥗 Today\'s Meals', '🏋️ Switch to Workout Coach'];
         structuredAction.type = 'UPDATE_NUTRITION';
         structuredAction.diet = activeDiet;
@@ -344,26 +347,41 @@ ${meals.map(m => `**${m.mealName}** *(${m.timing})*\n${m.items.map(i => `• ${i
       const isFoodSub = intent === INTENTS.FOOD_SUBSTITUTION || /don't have|dont have|not available|replace|substitute|allergic|swap/i.test(raw);
       if (!isFoodSub && (intent === INTENTS.GENERATE_DIET || intent === INTENTS.MODIFY_DIET || /\b(?:diet|meal|food|eat|macro|calories|protein)\b/i.test(raw))) {
         // Today's Meals / General Diet Plan / Macros
-        const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.activeSavedPlan?.diet || dietBuilder.generateDietPlan({ userProfile: effectiveProfile, preferences });
-        dietValidator.validateDiet(activeDiet, effectiveProfile);
+        const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.currentDietPlan || userContext.activeSavedPlan?.diet || userContext.activeDietPlan || null;
+        if (!activeDiet || (!activeDiet.meals && !activeDiet.foodItems)) {
+          responseContent = `🥗 **Nutrition Protocol Notice**\n\nYou do not have an active diet plan assigned. For safety, allergy prevention, and accurate nutritional guidance, GymSync does not auto-generate unverified diets without certified review.\n\nPlease choose a verified diet plan crafted by certified instructors in the **Programs** catalogue or consult your coach.`;
+          const suggestions = ['📋 Browse Trainer Diets', '🏋️ Switch to Workout Coach', '⚡ Today\'s Workout'];
+          structuredAction.type = 'NUTRITION_NOTICE';
+          structuredAction.diet = null;
+          structuredAction.suggestions = suggestions;
+          structuredAction.explanation = 'No active diet assigned. Directing user to verified instructor diet plans.';
+          return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+        }
 
-        responseContent = `🥗 **Your Daily Nutrition Protocol (${activeDiet.goalType || 'Active Plan'})**
+        const meals = activeDiet.meals || [];
+        const cals = activeDiet.calories || activeDiet.actualTotals?.totalDailyCalories || 0;
+        const prot = activeDiet.protein || activeDiet.actualTotals?.totalProtein || 0;
+        const carbs = activeDiet.carbs || activeDiet.actualTotals?.totalCarbs || 0;
+        const fats = activeDiet.fat || activeDiet.actualTotals?.totalFat || 0;
 
-### 📊 Target Daily Macros:
-- 🔥 **Energy**: **${activeDiet.actualTotals?.totalDailyCalories || 2000} kcal**
-- 🥩 **Protein**: **${activeDiet.actualTotals?.totalProtein || 140}g**
-- 🍚 **Carbohydrates**: **${activeDiet.actualTotals?.totalCarbs || 220}g**
-- 🥑 **Healthy Fats**: **${activeDiet.actualTotals?.totalFat || 60}g**
-- 💧 **Hydration**: **${activeDiet.hydrationTargetLiters || 3} Liters**
+        responseContent = `🥗 **Your Daily Nutrition Protocol (${activeDiet.title || activeDiet.goalType || activeDiet.goal || 'Active Plan'})**\n\n` +
+          (activeDiet.instructorName ? `*Prescribed by: ${activeDiet.instructorName}*\n\n` : '') +
+          `### 📊 Target Daily Macros:\n` +
+          `- 🔥 **Energy**: **${cals} kcal**\n` +
+          `- 🥩 **Protein**: **${prot}g**\n` +
+          `- 🍚 **Carbohydrates**: **${carbs}g**\n` +
+          `- 🥑 **Healthy Fats**: **${fats}g**\n` +
+          `- 💧 **Hydration**: **${activeDiet.hydrationTargetLiters || 3} Liters**\n\n` +
+          `---\n\n` +
+          `### 🍽️ Today's Meals:\n` +
+          meals.map(m => `**${m.name || m.mealName}** *(${m.timing || ''})*\n` +
+            (m.foodItems || m.items || []).map(i => `• ${i.name || i.food} — **${i.quantity ? `${i.quantity}${i.unit || 'g'}` : i.portion}**`).join('\n')
+          ).join('\n\n');
 
----
-
-### 🍽️ Today's Meals:
-${(activeDiet.meals || []).map(m => `**${m.mealName}** *(${m.timing})*\n${m.items.map(i => `• ${i.food} — **${i.portion}**`).join('\n')}`).join('\n\n')}
-
----
-🔄 **Smart Substitutions Available**:
-${(activeDiet.substitutionsGuide || []).slice(0, 3).map(s => `• *${s.original}* ➔ *${s.substitute}*`).join('\n')}`;
+        if (Array.isArray(activeDiet.substitutionsGuide) && activeDiet.substitutionsGuide.length > 0) {
+          responseContent += `\n\n---\n🔄 **Smart Substitutions Available**:\n` +
+            activeDiet.substitutionsGuide.slice(0, 3).map(s => `• *${s.original}* ➔ *${s.substitute}*`).join('\n');
+        }
 
         const suggestions = ['🔄 Swap a Food Item', '🌅 Tomorrow\'s Meals', '🏋️ Switch to Workout Coach'];
         structuredAction.type = 'UPDATE_NUTRITION';
@@ -378,20 +396,33 @@ ${(activeDiet.substitutionsGuide || []).slice(0, 3).map(s => `• *${s.original}
     // =====================================================================
     const isMatchingDietRequest = /view matching diet|matching diet/i.test(raw);
     if (isMatchingDietRequest) {
-      const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.activeSavedPlan?.diet || dietBuilder.generateDietPlan({ userProfile: effectiveProfile, preferences });
-      responseContent = `🥗 **Nutrition Protocol Aligned with Your Workout Plan**
+      const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.currentDietPlan || userContext.activeSavedPlan?.diet || userContext.activeDietPlan || null;
+      if (!activeDiet || (!activeDiet.meals && !activeDiet.foodItems)) {
+        responseContent = `🥗 **Nutrition Protocol Notice**\n\nNo diet plan is currently linked to your workout program. Nutrition plans should be adopted from verified trainer templates or built from the food catalog.\n\nYou can explore verified trainer diet plans in **Programs** or consult your coach.`;
+        const suggestions = ['📋 Browse Trainer Diets', '⚡ Today\'s Workout', '🏋️ Switch to Workout Coach'];
+        structuredAction.type = 'NUTRITION_NOTICE';
+        structuredAction.diet = null;
+        structuredAction.suggestions = suggestions;
+        structuredAction.explanation = 'No linked diet plan found. Advised user to adopt an instructor plan.';
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
 
-Here are the target daily macros calculated for your program:
-- 🔥 **Target Calories**: **${activeDiet.actualTotals?.totalDailyCalories || 2000} kcal/day**
-- 🥩 **Protein Target**: **${activeDiet.actualTotals?.totalProtein || 140}g** *(Muscle recovery)*
-- 🍚 **Carbs Target**: **${activeDiet.actualTotals?.totalCarbs || 220}g** *(Workout fuel)*
-- 🥑 **Fats Target**: **${activeDiet.actualTotals?.totalFat || 60}g** *(Hormone support)*
-- 💧 **Hydration**: **${activeDiet.hydrationTargetLiters || 3} Liters**
+      const meals = activeDiet.meals || [];
+      const cals = activeDiet.calories || activeDiet.actualTotals?.totalDailyCalories || 0;
+      const prot = activeDiet.protein || activeDiet.actualTotals?.totalProtein || 0;
+      const carbs = activeDiet.carbs || activeDiet.actualTotals?.totalCarbs || 0;
+      const fats = activeDiet.fat || activeDiet.actualTotals?.totalFat || 0;
 
-### 🍽️ Meal Structure:
-${(activeDiet.meals || []).map(m => `**${m.mealName}**: ${m.items.map(i => `${i.food} (${i.portion})`).join(', ')}`).join('\n')}
-
-💡 *To swap ingredients, adjust calories, or customize meals, tap below to chat with your **AI Nutritionist**!*`;
+      responseContent = `🥗 **Nutrition Protocol Aligned with Your Workout Plan**\n\n` +
+        `Here are the target daily macros calculated for your program:\n` +
+        `- 🔥 **Target Calories**: **${cals} kcal/day**\n` +
+        `- 🥩 **Protein Target**: **${prot}g** *(Muscle recovery)*\n` +
+        `- 🍚 **Carbs Target**: **${carbs}g** *(Workout fuel)*\n` +
+        `- 🥑 **Fats Target**: **${fats}g** *(Hormone support)*\n` +
+        `- 💧 **Hydration**: **${activeDiet.hydrationTargetLiters || 3} Liters**\n\n` +
+        `### 🍽️ Meal Structure:\n` +
+        meals.map(m => `**${m.name || m.mealName}**: ${(m.foodItems || m.items || []).map(i => `${i.name || i.food} (${i.quantity ? `${i.quantity}${i.unit || 'g'}` : i.portion})`).join(', ')}`).join('\n') +
+        `\n\n💡 *To swap ingredients, adjust calories, or customize meals, tap below to chat with your **AI Nutritionist**!*`;
 
       const suggestions = ['🥗 Open AI Nutritionist', '🚀 Open in AI Trainer', '⚡ Today\'s Workout'];
       structuredAction.type = 'VIEW_DIET';
@@ -1263,11 +1294,6 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
       }
       effectiveProfile.primaryGoal = 'Fat Loss & Healthy Weight Reduction';
 
-      const diet = dietBuilder.generateDietPlan({
-        userProfile: effectiveProfile,
-        preferences
-      });
-
       const session = workoutDecisionEngine.generateSession({
         recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
@@ -1286,11 +1312,11 @@ ${session.mainWorkout.map((ex, i) => `${i + 1}. **${ex.name}** — ${ex.sets} se
 
       const suggestions = isBodyweight
         ? ['🏋️ Start Bodyweight Workout', '📅 3-Day Home Split', '⚡ Quick 15-Min Burn']
-        : ['🏋️ Start Today\'s Workout', '📅 Build Full Plan', '🥗 View Matching Diet'];
+        : ['🏋️ Start Today\'s Workout', '📅 Build Full Plan', '📋 Browse Trainer Diets'];
 
       structuredAction.type = 'UPDATE_WORKOUT';
       structuredAction.workout = session;
-      structuredAction.diet = diet;
+      structuredAction.diet = null;
       structuredAction.suggestions = suggestions;
       structuredAction.rationale = session.rationale;
       structuredAction.explanation = `Formulated sustainable weight loss and ${isBodyweight ? 'zero-equipment bodyweight' : 'joint-friendly'} movement plan.`;
@@ -1704,41 +1730,45 @@ Click Apply to log this instead.`;
     }
 
     // =====================================================================
-    // STEP I: NUTRITION & DIET GENERATION
+    // STEP I: NUTRITION & DIET GENERATION (Safety Protected)
     // =====================================================================
     if (intent === INTENTS.GENERATE_DIET || intent === INTENTS.MODIFY_DIET) {
-      const diet = dietBuilder.generateDietPlan({
-        userProfile: effectiveProfile,
-        preferences: {
-          ...preferences,
-          isVegetarian: text.includes('veg') || text.includes('vegetarian') || preferences.isVegetarian
-        }
-      });
+      const activeDiet = currentPlan?.structuredDiet || currentPlan?.diet || userContext.currentDietPlan || userContext.activeSavedPlan?.diet || userContext.activeDietPlan || null;
+      if (!activeDiet || (!activeDiet.meals && !activeDiet.foodItems)) {
+        responseContent = `🥗 **Nutrition Protocol Notice**\n\nFor your health and dietary safety, GymSync does not auto-generate unverified diets.\n\nTo ensure proper caloric balance, allergy safety, and micronutrient coverage, please adopt a verified diet template crafted by a certified fitness instructor from the **Programs** catalogue or consult your trainer directly.`;
+        const suggestions = ['📋 Browse Trainer Diets', '🏋️ Build Workout Plan', '⚡ Today\'s Workout'];
+        structuredAction.type = 'NUTRITION_NOTICE';
+        structuredAction.diet = null;
+        structuredAction.suggestions = suggestions;
+        structuredAction.explanation = 'Diet auto-generation disabled for safety. User directed to verified instructor diet plans.';
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
 
-      const validation = dietValidator.validateDiet(diet, effectiveProfile);
+      const meals = activeDiet.meals || [];
+      const cals = activeDiet.calories || activeDiet.actualTotals?.totalDailyCalories || 0;
+      const prot = activeDiet.protein || activeDiet.actualTotals?.totalProtein || 0;
+      const carbs = activeDiet.carbs || activeDiet.actualTotals?.totalCarbs || 0;
+      const fats = activeDiet.fat || activeDiet.actualTotals?.totalFat || 0;
 
-      responseContent = `🥗 **Custom Sports Nutrition Plan (${diet.goalType})**
+      responseContent = `🥗 **Your Active Nutrition Protocol (${activeDiet.title || activeDiet.goal || 'Active Plan'})**\n\n` +
+        (activeDiet.instructorName ? `*Prescribed by: ${activeDiet.instructorName}*\n\n` : '') +
+        `### 📊 Calculated Daily Targets\n` +
+        `- **Total Energy**: **${cals} kcal**\n` +
+        `- **Protein**: **${prot}g**\n` +
+        `- **Carbohydrates**: **${carbs}g**\n` +
+        `- **Healthy Fats**: **${fats}g**\n` +
+        `- **Hydration Target**: **${activeDiet.hydrationTargetLiters || 3} Liters**\n\n` +
+        `---\n\n` +
+        `### 🍽️ Prescribed Meals:\n` +
+        meals.map(m => `**${m.name || m.mealName}** *(${m.timing || ''})*\n` +
+          (m.foodItems || m.items || []).map(i => `• ${i.name || i.food} — **${i.quantity ? `${i.quantity}${i.unit || 'g'}` : i.portion}**`).join('\n')
+        ).join('\n\n') +
+        `\n\n💡 *To change your nutrition plan, browse other verified instructor diet templates in the Programs tab.*`;
 
-### 📊 Calculated Daily Targets
-- **Total Energy**: **${diet.actualTotals.totalDailyCalories} kcal**
-- **Protein**: **${diet.actualTotals.totalProtein}g** *(For muscle repair and satiety)*
-- **Carbohydrates**: **${diet.actualTotals.totalCarbs}g** *(For daily energy and recovery)*
-- **Healthy Fats**: **${diet.actualTotals.totalFat}g** *(For hormone balance)*
-- **Hydration Target**: **${diet.hydrationTargetLiters} Liters**
-
----
-
-### 🍽️ Everyday Meal Plan with Simple Portions:
-${diet.meals.map(m => `**${m.mealName}** *(${m.timing})*\n${m.items.map(i => `• ${i.food} — **${i.portion}**`).join('\n')}`).join('\n\n')}
-
----
-🔄 **Easy Substitutions**:
-${diet.substitutionsGuide.map(s => `• *${s.original}* can be replaced with *${s.substitute}*`).join('\n')}`;
-
-      structuredAction.type = 'UPDATE_NUTRITION';
-      structuredAction.diet = diet;
-      structuredAction.explanation = `Calculated nutrition plan for ${diet.goalType} with verified macros.`;
-      return { role: 'assistant', content: responseContent, structuredAction };
+      structuredAction.type = 'VIEW_DIET';
+      structuredAction.diet = activeDiet;
+      structuredAction.explanation = 'Displayed active verified diet plan.';
+      return { role: 'assistant', content: responseContent, suggestions: ['📋 Browse Trainer Diets', '🏋️ Switch to Workout Coach'], structuredAction };
     }
 
     // =====================================================================
@@ -1771,7 +1801,7 @@ ${session.mainWorkout.map(m => `• **${m.name}** — ${m.sets} Sets × ${m.reps
 #### 3. Cool-Down & Recovery
 ${session.cooldown.cooldownExercises.map(c => `• **${c.name}** — ${c.duration} (${c.purpose})`).join('\n')}
 
-> 🩺 *Safety Verification: ${session.medicalSafetyReview?.safetyWarnings?.[0] || 'All exercises cleared zero-tolerance medical screen.'}*`;
+> 💡 *Note: ${session.medicalSafetyReview?.safetyWarnings?.[0] || 'General fitness guidance only — not medical advice.'}*`;
 
       const suggestions = ['🏋️ Apply Workout', '❓ Why this workout?', '🔄 Change Exercises', '🥗 Matching Diet'];
       structuredAction.type = 'UPDATE_WORKOUT';

@@ -427,13 +427,6 @@ export const findRelevantExercises = async ({
       conditions.push({ sportTags: new RegExp(escapeRegex(sport), 'i') });
     }
 
-    if (contraindications && contraindications.length > 0) {
-      // Exclude exercises contraindicated for user injuries/pain
-      conditions.push({
-        contraindications: { $nin: contraindications.map(c => new RegExp(escapeRegex(c), 'i')) }
-      });
-    }
-
     if (query && query.trim()) {
       const qRegex = new RegExp(escapeRegex(query.trim()), 'i');
       conditions.push({

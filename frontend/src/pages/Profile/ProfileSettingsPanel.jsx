@@ -17,7 +17,11 @@ import {
   AlertOctagon, 
   Mail, 
   Key,
-  X
+  X,
+  ShieldCheck,
+  Smartphone,
+  LogOut,
+  RefreshCw
 } from 'lucide-react';
 import { can } from '../../config/permissions';
 
@@ -70,8 +74,119 @@ const ProfileSettingsPanel = ({
   const [showNameSudoModal, setShowNameSudoModal] = useState(false);
   const [sudoPassword, setSudoPassword] = useState('');
 
+  // 2FA & Session Security States
+  const [sessions, setSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(userData?.twoFactorEnabled || false);
+  const [togglingTwoFactor, setTogglingTwoFactor] = useState(false);
+  const [revokingSessionId, setRevokingSessionId] = useState(null);
+  const [revokingOthers, setRevokingOthers] = useState(false);
+
   const isAdminRole = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(userRole);
   const isTrainee = userRole === 'User' || userRole === 'Guest';
+
+  useEffect(() => {
+    if (userData?.twoFactorEnabled !== undefined) {
+      setTwoFactorEnabled(userData.twoFactorEnabled);
+    }
+  }, [userData]);
+
+  useEffect(() => {
+    if (activeSettingSection === 'security') {
+      fetchSessions();
+    }
+  }, [activeSettingSection]);
+
+  const fetchSessions = async () => {
+    setLoadingSessions(true);
+    try {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch('/api/auth/sessions', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(Array.isArray(data.sessions) ? data.sessions : []);
+      }
+    } catch (err) {
+      console.error('Failed to load sessions', err);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const handleToggleTwoFactor = async () => {
+    const privilegedRoles = ['Admin', 'SuperAdmin', 'ComplaintModerator', 'FitnessInstructor'];
+    if (privilegedRoles.includes(userRole) && twoFactorEnabled) {
+      toast.warning('Two-factor authentication is strictly enforced for privileged staff.');
+      return;
+    }
+
+    setTogglingTwoFactor(true);
+    try {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch('/api/auth/two-factor', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ enabled: !twoFactorEnabled })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update 2FA setting');
+
+      setTwoFactorEnabled(data.twoFactorEnabled);
+      toast.success(data.message || `Two-factor authentication ${data.twoFactorEnabled ? 'enabled' : 'disabled'}.`);
+      if (onProfileUpdate) {
+        onProfileUpdate({ ...userData, twoFactorEnabled: data.twoFactorEnabled });
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setTogglingTwoFactor(false);
+    }
+  };
+
+  const handleRevokeSession = async (sessionId) => {
+    setRevokingSessionId(sessionId);
+    try {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch(`/api/auth/sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to revoke session');
+
+      toast.success('Session revoked successfully.');
+      setSessions(prev => prev.filter(s => s._id !== sessionId));
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setRevokingSessionId(null);
+    }
+  };
+
+  const handleRevokeAllOtherSessions = async () => {
+    setRevokingOthers(true);
+    try {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch('/api/auth/sessions/revoke-others', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to revoke other sessions');
+
+      toast.success(data.message || 'All other active sessions have been revoked.');
+      fetchSessions();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setRevokingOthers(false);
+    }
+  };
 
   useEffect(() => {
     if (userName) setFormName(userName);
@@ -515,45 +630,215 @@ const ProfileSettingsPanel = ({
         )}
 
         {activeSettingSection === 'security' && (
-          <div>
-            <h3 className="section-title" style={{ marginBottom: '16px' }}><Lock size={20} /> Change Password</h3>
-            <form onSubmit={handleChangePassword} style={{ display: 'grid', gap: '16px' }}>
-              <label>
-                Current Password
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password"
-                  className="input-field"
-                />
-              </label>
-              <label>
-                New Password
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password (min 6 characters)"
-                  className="input-field"
-                />
-              </label>
-              <label>
-                Confirm New Password
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                  className="input-field"
-                />
-              </label>
-              {passwordError && <p style={{ color: '#ef4444', margin: 0 }}>{passwordError}</p>}
-              {passwordMessage && <p style={{ color: '#10b981', margin: 0 }}>{passwordMessage}</p>}
-              <button type="submit" className="btn btn-primary" style={{ width: 'fit-content' }}>
-                Save New Password
-              </button>
-            </form>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            {/* TWO-FACTOR AUTHENTICATION (2FA) */}
+            <div style={{
+              background: 'var(--card-bg)',
+              padding: '24px',
+              borderRadius: '14px',
+              border: '1px solid rgba(255, 255, 255, 0.08)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                  <div style={{
+                    padding: '12px',
+                    borderRadius: '10px',
+                    background: twoFactorEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                    color: twoFactorEnabled ? '#10b981' : '#94a3b8'
+                  }}>
+                    <ShieldCheck size={24} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: 600 }}>Two-Factor Authentication (2FA)</h4>
+                      <span style={{
+                        background: twoFactorEnabled ? 'rgba(16, 185, 129, 0.2)' : 'rgba(148, 163, 184, 0.2)',
+                        color: twoFactorEnabled ? '#10b981' : '#94a3b8',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        textTransform: 'uppercase'
+                      }}>
+                        {twoFactorEnabled ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
+                    <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: '500px', lineHeight: '1.5' }}>
+                      Require a 6-digit cryptographic security code sent to your authenticated email upon every new sign-in attempt.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleToggleTwoFactor}
+                  disabled={togglingTwoFactor}
+                  className={twoFactorEnabled ? 'btn btn-outline' : 'btn btn-primary'}
+                  style={{ minWidth: '130px' }}
+                >
+                  {togglingTwoFactor ? 'Updating...' : (twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA')}
+                </button>
+              </div>
+            </div>
+
+            {/* CHANGE PASSWORD */}
+            <div style={{
+              background: 'var(--card-bg)',
+              padding: '24px',
+              borderRadius: '14px',
+              border: '1px solid rgba(255, 255, 255, 0.08)'
+            }}>
+              <h3 className="section-title" style={{ marginBottom: '16px', fontSize: '1.1rem' }}>
+                <Lock size={18} /> Change Account Password
+              </h3>
+              <form onSubmit={handleChangePassword} style={{ display: 'grid', gap: '16px', maxWidth: '500px' }}>
+                <label>
+                  Current Password
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                    className="input-field"
+                  />
+                </label>
+                <label>
+                  New Password
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password (min 6 characters)"
+                    className="input-field"
+                  />
+                </label>
+                <label>
+                  Confirm New Password
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="input-field"
+                  />
+                </label>
+                {passwordError && <p style={{ color: '#ef4444', margin: 0, fontSize: '0.85rem' }}>{passwordError}</p>}
+                {passwordMessage && <p style={{ color: '#10b981', margin: 0, fontSize: '0.85rem' }}>{passwordMessage}</p>}
+                <button type="submit" className="btn btn-primary" style={{ width: 'fit-content' }}>
+                  Update Password
+                </button>
+              </form>
+            </div>
+
+            {/* RECOGNIZED SESSIONS & ACTIVE DEVICES */}
+            <div style={{
+              background: 'var(--card-bg)',
+              padding: '24px',
+              borderRadius: '14px',
+              border: '1px solid rgba(255, 255, 255, 0.08)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <h3 className="section-title" style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Smartphone size={18} color="var(--primary-accent)" /> Recognized Devices &amp; Active Sessions
+                  </h3>
+                  <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                    Manage sessions that have accessed your account. Revoke suspicious or lost devices immediately.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={fetchSessions}
+                    disabled={loadingSessions}
+                    className="btn btn-outline btn-sm"
+                    title="Refresh Session List"
+                  >
+                    <RefreshCw size={14} className={loadingSessions ? 'spin' : ''} />
+                  </button>
+                  {sessions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleRevokeAllOtherSessions}
+                      disabled={revokingOthers}
+                      className="btn btn-outline btn-sm"
+                      style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                    >
+                      <LogOut size={14} /> {revokingOthers ? 'Revoking...' : 'Revoke All Other Devices'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {loadingSessions ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading active sessions...</p>
+              ) : sessions.length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No recognized sessions found.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {sessions.map(s => (
+                    <div
+                      key={s._id}
+                      style={{
+                        padding: '14px 16px',
+                        borderRadius: '10px',
+                        background: s.isCurrent ? 'rgba(59, 130, 246, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                        border: s.isCurrent ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.06)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <Smartphone size={20} color={s.isCurrent ? '#3b82f6' : '#94a3b8'} />
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#fff' }}>
+                              {s.deviceInfo || 'Web Browser'}
+                            </span>
+                            {s.isCurrent && (
+                              <span style={{
+                                background: 'rgba(59, 130, 246, 0.2)',
+                                color: '#3b82f6',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.72rem',
+                                fontWeight: 600
+                              }}>
+                                This Device
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            IP: {s.ip || '127.0.0.1'} • Last active: {new Date(s.lastActive).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {!s.isCurrent && (
+                        <button
+                          type="button"
+                          onClick={() => handleRevokeSession(s._id)}
+                          disabled={revokingSessionId === s._id}
+                          className="btn btn-outline btn-sm"
+                          style={{
+                            fontSize: '0.78rem',
+                            color: '#ef4444',
+                            borderColor: 'rgba(239, 68, 68, 0.3)',
+                            padding: '4px 10px'
+                          }}
+                        >
+                          {revokingSessionId === s._id ? 'Revoking...' : 'Revoke Access'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

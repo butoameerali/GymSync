@@ -11,14 +11,21 @@ export const getGymOwnerDashboard = async (req, res) => {
   const { ownerName } = req.params;
 
   try {
+    const isOwnerRole = req.user && (req.user.role === 'GymOwner' || req.user.role === 'gym_owner');
+    const isAdmin = req.user && ['Admin', 'SuperAdmin'].includes(req.user.role);
+
+    if (isOwnerRole && ownerName && ownerName !== req.user.name && !isAdmin) {
+      return res.status(403).json({ message: 'Access denied: You cannot view another gym owner\'s dashboard' });
+    }
+
     let gym = null;
     let todayAttendance = [];
     let activeMembersCount = 0;
 
     try {
-      if (req.user && (req.user.role === 'GymOwner' || req.user.role === 'gym_owner')) {
+      if (isOwnerRole) {
         if (req.user._id) {
-          gym = await Gym.findOne({ owner: req.user._id });
+          gym = await Gym.findOne({ $or: [{ owner: req.user._id }, { ownerName: req.user.name }] });
         }
       } else {
         gym = await Gym.findOne({ ownerName });
@@ -415,12 +422,31 @@ export const createGymTrainer = async (req, res) => {
       return res.status(400).json({ message: 'A user with this email already exists' });
     }
 
+    const gym = await Gym.findOne({ name: gymName });
+    if (!gym) {
+      return res.status(404).json({ message: 'Gym facility not found' });
+    }
+
+    const isAdmin = ['SuperAdmin', 'Admin'].includes(req.user.role);
+    const isOwner = (gym.owner && String(gym.owner) === String(req.user._id)) || (gym.ownerName === req.user.name);
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ message: 'You are not authorized to provision trainers for this gym' });
+    }
+
+    if (!isAdmin && gym.approvalStatus !== 'Approved') {
+      return res.status(403).json({ message: 'Trainers can only be provisioned for verified and approved gym facilities' });
+    }
+
     const trainer = await User.create({
       name,
       email,
       password,
       role: 'GymTrainer',
-      assignedGymName: gymName
+      assignedGymName: gym.name,
+      assignedBranch: gym._id,
+      organization: gym.organization,
+      invitedBy: req.user._id,
+      isEmailVerified: true
     });
 
     return res.status(201).json({

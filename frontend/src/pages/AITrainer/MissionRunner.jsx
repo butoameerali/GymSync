@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Target, Zap, Activity, CheckCircle, CameraOff, Play, 
   RotateCcw, Plus, SkipForward, ArrowRight, Video, Sparkles, 
@@ -7,16 +8,46 @@ import {
 import './MissionRunner.css';
 import AIDetectorContainer from '../../ai-detectors/AIDetectorContainer';
 
-export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }) => {
+export const MissionRunner = ({ 
+  dayTitle, 
+  exercises = [], 
+  initialExerciseIndex = 0,
+  completedExerciseIndices = [],
+  onExerciseComplete,
+  onComplete, 
+  onCancel 
+}) => {
   // Overall Workout Phases:
   // 'brief' -> 'active' -> 'rest' -> 'celebration'
   const [phase, setPhase] = useState('brief');
+
+  // Prevent background scrolling while MissionRunner overlay is active
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  const renderOverlay = (node) => {
+    if (typeof document !== 'undefined') {
+      return createPortal(node, document.body);
+    }
+    return node;
+  };
   
   // Exercise & Set Tracking State
-  const [currentExIndex, setCurrentExIndex] = useState(0);
+  const [currentExIndex, setCurrentExIndex] = useState(initialExerciseIndex || 0);
   const [currentSet, setCurrentSet] = useState(1);
   const [repsDone, setRepsDone] = useState(10);
   const [aiModeChoice, setAiModeChoice] = useState(null); // null | 'with_ai' | 'without_ai'
+
+  useEffect(() => {
+    if (typeof initialExerciseIndex === 'number' && initialExerciseIndex >= 0) {
+      setCurrentExIndex(initialExerciseIndex);
+    }
+  }, [initialExerciseIndex]);
   
   // Rest Timer State
   const [restCountdown, setRestCountdown] = useState(45);
@@ -128,14 +159,25 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
     const hasMoreSets = currentSet < totalSetsForCurrent;
     const hasMoreExercises = currentExIndex < totalExercises - 1;
 
-    if (hasMoreSets || hasMoreExercises) {
-      // Trigger Game-Style Rest Countdown
-      const restDuration = Number(currentEx.restTime) || (hasMoreSets ? 45 : 60);
+    if (hasMoreSets) {
+      // Trigger Game-Style Rest Countdown for next set of current movement
+      const restDuration = Number(currentEx.restTime) || (currentEx.isWarmup ? 15 : 45);
       setRestCountdown(restDuration);
       setPhase('rest');
     } else {
-      // All sets of all exercises completed!
-      setPhase('celebration');
+      // All sets of THIS exercise are finished! Save progress immediately!
+      if (onExerciseComplete) {
+        onExerciseComplete(currentExIndex, currentEx.name);
+      }
+
+      if (hasMoreExercises) {
+        const restDuration = Number(currentEx.restTime) || (currentEx.isWarmup ? 15 : 60);
+        setRestCountdown(restDuration);
+        setPhase('rest');
+      } else {
+        // All sets of all exercises completed!
+        setPhase('celebration');
+      }
     }
   };
 
@@ -204,7 +246,7 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
 
   // ── 1. BRIEF PHASE (Mission Overview) ──────────────────────────────────
   if (phase === 'brief') {
-    return (
+    return renderOverlay(
       <div className="mission-runner-overlay">
         <div className="mission-runner-content glass-panel">
           <button 
@@ -248,30 +290,70 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
 
           {/* Exercise Preview List */}
           <div className="mission-exercise-preview-list">
-            <p className="mission-preview-heading">SESSION MOVEMENTS</p>
+            <p className="mission-preview-heading">SESSION MOVEMENTS ({totalExercises})</p>
             {safeExercises.map((ex, idx) => {
               const hasAi = checkExerciseSupportsAI(ex);
+              const isAlreadyDone = completedExerciseIndices.includes(idx);
+              const isCurrent = idx === currentExIndex;
               return (
-                <div key={idx} className="mission-preview-card">
-                  <div className="mission-preview-number">{idx + 1}</div>
+                <div 
+                  key={idx} 
+                  className="mission-preview-card"
+                  style={{
+                    border: isCurrent && !isAlreadyDone ? '1px solid #3b82f6' : isAlreadyDone ? '1px solid rgba(16, 185, 129, 0.4)' : undefined,
+                    background: isCurrent && !isAlreadyDone ? 'rgba(59, 130, 246, 0.08)' : isAlreadyDone ? 'rgba(16, 185, 129, 0.05)' : undefined
+                  }}
+                >
+                  <div 
+                    className="mission-preview-number"
+                    style={{
+                      background: isAlreadyDone ? 'rgba(16, 185, 129, 0.15)' : ex.isWarmup ? 'rgba(245, 158, 11, 0.15)' : undefined,
+                      color: isAlreadyDone ? '#10b981' : ex.isWarmup ? '#f59e0b' : undefined
+                    }}
+                  >
+                    {isAlreadyDone ? '✓' : idx + 1}
+                  </div>
                   <div className="mission-preview-info">
-                    <span className="mission-preview-name">{ex.name || ex.exerciseName || ex.title || 'Exercise'}</span>
+                    <span 
+                      className="mission-preview-name"
+                      style={{ textDecoration: isAlreadyDone ? 'line-through' : 'none' }}
+                    >
+                      {ex.name || ex.exerciseName || ex.title || 'Exercise'}
+                    </span>
                     <span className="mission-preview-sub">
-                      {ex.sets || ex.defaultSets || 3} sets × {ex.reps || ex.defaultReps || 10} reps • {ex.targetMuscle || ex.muscle || 'Full Body'}
+                      {ex.isWarmup ? '🔥 Warm-Up • ' : ''}
+                      {ex.sets || ex.defaultSets || 1} set{Number(ex.sets || 1) > 1 ? 's' : ''} × {ex.reps || ex.defaultReps || '60s'} • {ex.targetMuscle || ex.target || ex.muscle || 'Full Body'}
                     </span>
                   </div>
-                  {hasAi && (
-                    <span className="mission-ai-tag">
-                      <Sparkles size={12} /> AI Available
-                    </span>
-                  )}
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    {isAlreadyDone && (
+                      <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700, background: 'rgba(16, 185, 129, 0.15)', padding: '2px 7px', borderRadius: '5px' }}>
+                        ✓ Done
+                      </span>
+                    )}
+                    {isCurrent && !isAlreadyDone && (
+                      <span style={{ fontSize: '0.72rem', color: '#3b82f6', fontWeight: 700, background: 'rgba(59, 130, 246, 0.15)', padding: '2px 7px', borderRadius: '5px' }}>
+                        👉 Start Here
+                      </span>
+                    )}
+                    {ex.isWarmup && (
+                      <span style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700, background: 'rgba(245, 158, 11, 0.15)', padding: '2px 7px', borderRadius: '5px' }}>
+                        Warm-Up
+                      </span>
+                    )}
+                    {hasAi && (
+                      <span className="mission-ai-tag">
+                        <Sparkles size={12} /> AI Available
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
 
           <button className="mission-btn mission-btn-start" onClick={handleStartWorkout}>
-            <Play size={20} /> START WORKOUT NOW
+            <Play size={20} /> {completedExerciseIndices.length > 0 ? `RESUME WORKOUT (Movement ${currentExIndex + 1})` : 'START WORKOUT NOW'}
           </button>
         </div>
       </div>
@@ -282,15 +364,15 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
   if (phase === 'active') {
     const progressPercent = Math.round(((currentExIndex) / totalExercises) * 100);
 
-    return (
-      <div className="mission-runner-overlay" style={{ padding: '10px' }}>
+    return renderOverlay(
+      <div className="mission-runner-overlay">
         <div className="mission-runner-content active-exercise-card glass-panel">
           
           {/* Top Header Bar */}
           <div className="mission-active-header">
             <div className="mission-header-info">
-              <span className="mission-step-counter">
-                EXERCISE {currentExIndex + 1} OF {totalExercises}
+              <span className="mission-step-counter" style={{ color: currentEx.isWarmup ? '#f59e0b' : '#3b82f6' }}>
+                {currentEx.isWarmup ? '🔥 WARM-UP' : 'MOVEMENT'} {currentExIndex + 1} OF {totalExercises}
               </span>
               <div className="mission-time-badge">
                 <Clock size={14} /> {formatTime(elapsedSecs)}
@@ -338,9 +420,15 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
               {currentEx.name || currentEx.exerciseName || currentEx.title || 'Exercise'}
             </h2>
             <div className="mission-active-tags">
-              <span className="mission-tag-badge">
-                <Dumbbell size={14} /> {currentEx.targetMuscle || currentEx.muscle || 'Target Muscle'}
-              </span>
+              {currentEx.isWarmup ? (
+                <span className="mission-tag-badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)' }}>
+                  <Flame size={14} /> Dynamic Warm-Up
+                </span>
+              ) : (
+                <span className="mission-tag-badge">
+                  <Dumbbell size={14} /> {currentEx.targetMuscle || currentEx.target || currentEx.muscle || 'Target Muscle'}
+                </span>
+              )}
               <span className="mission-tag-badge highlight">
                 Set {currentSet} of {totalSetsForCurrent}
               </span>
@@ -424,7 +512,7 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
             <div className="mission-manual-game-container">
               
               {/* Exercise Demo Animation / Illustration Placeholder */}
-              <div className="mission-manual-visual-card">
+              <div className={`mission-manual-visual-card ${currentEx.gifUrl ? 'has-gif' : 'no-gif'}`}>
                 {currentEx.gifUrl ? (
                   <img 
                     src={currentEx.gifUrl} 
@@ -433,8 +521,8 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
                   />
                 ) : (
                   <div className="mission-exercise-icon-placeholder">
-                    <Dumbbell size={52} color="#3b82f6" />
-                    <p>Focus on controlled movement & full range of motion</p>
+                    <Dumbbell size={20} color="#3b82f6" />
+                    <p>{currentEx.instructions && currentEx.instructions !== 'Follow AI targets' ? currentEx.instructions : 'Focus on controlled movement & full range of motion'}</p>
                   </div>
                 )}
               </div>
@@ -467,7 +555,7 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
                 </div>
 
                 <span className="mission-target-hint">
-                  Target for this set: <strong>{targetRepsForCurrent} reps</strong>
+                  Target for this set: <strong>{currentEx.isWarmup ? (currentEx.reps || currentEx.duration || '60 sec') : `${targetRepsForCurrent} reps`}</strong>
                 </span>
               </div>
 
@@ -477,7 +565,7 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
                   className="mission-btn mission-btn-start mission-btn-log"
                   onClick={() => handleCompleteSet('manual', repsDone)}
                 >
-                  <CheckCircle size={22} /> COMPLETE SET {currentSet}
+                  <CheckCircle size={22} /> {currentEx.isWarmup ? `COMPLETE WARM-UP SET ${currentSet}` : `COMPLETE SET ${currentSet}`}
                 </button>
 
                 <div className="mission-sub-actions">
@@ -512,7 +600,7 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
     const hasMoreSetsForCurrent = currentSet < totalSetsForCurrent;
     const nextExerciseObj = safeExercises[currentExIndex + 1];
 
-    return (
+    return renderOverlay(
       <div className="mission-runner-overlay">
         <div className="mission-runner-content mission-rest-card glass-panel">
           
@@ -567,7 +655,7 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
 
   // ── 4. CELEBRATION PHASE (Mission Complete) ───────────────────────────
   if (phase === 'celebration') {
-    return (
+    return renderOverlay(
       <div className="mission-runner-overlay">
         <div className="mission-runner-content mission-celebration glass-panel">
           
@@ -649,7 +737,7 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
                 <select
                   value={reportType}
                   onChange={e => setReportType(e.target.value)}
-                  style={{ width: '100%', background: 'rgba(15,23,42,0.8)', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '8px', marginBottom: '8px', fontSize: '0.85rem' }}
+                  style={{ width: '100%', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--card-border)', borderRadius: '8px', padding: '8px', marginBottom: '8px', fontSize: '0.85rem' }}
                 >
                   <option value="">Select reason…</option>
                   <option value="MinorIssue">Minor issue (display glitch or wrong rep count)</option>
@@ -661,7 +749,7 @@ export const MissionRunner = ({ dayTitle, exercises = [], onComplete, onCancel }
                   onChange={e => setReportDesc(e.target.value)}
                   placeholder="Additional details (optional)…"
                   rows={2}
-                  style={{ width: '100%', background: 'rgba(15,23,42,0.8)', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '8px', fontSize: '0.8rem', resize: 'none' }}
+                  style={{ width: '100%', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--card-border)', borderRadius: '8px', padding: '8px', fontSize: '0.8rem', resize: 'none' }}
                 />
                 <button 
                   className="btn btn-sm btn-secondary" 

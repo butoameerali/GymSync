@@ -7,6 +7,8 @@ import { protect } from '../middleware/authMiddleware.js';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
+import { createSession, getUserSessions, revokeSessionById, revokeAllOtherSessions } from '../utils/sessionManager.js';
+import { generateSecureOtp, hashToken } from '../utils/cryptoUtils.js';
 
 // Lazy Google OAuth client — instantiated only on first use, not at server startup
 // This prevents the google-auth-library from making network calls during MongoDB init
@@ -85,42 +87,66 @@ export const registerUser = async (req, res) => {
     const ALLOWED_SELF_ROLES = ['User', 'GymOwner'];
     const PRIVILEGED_ROLES = ['Admin', 'SuperAdmin', 'ComplaintModerator', 'FitnessInstructor', 'GymTrainer', 'StoreManager'];
 
-    let targetRole = role || 'User';
-    if (PRIVILEGED_ROLES.map(r => r.toLowerCase()).includes(targetRole.toLowerCase())) {
+    let rawRole = (role || 'User').toString().trim();
+    if (PRIVILEGED_ROLES.map(r => r.toLowerCase()).includes(rawRole.toLowerCase())) {
       return res.status(403).json({ message: 'Privileged staff and administrative roles cannot be self-registered.' });
     }
 
-    if (!ALLOWED_SELF_ROLES.map(r => r.toLowerCase()).includes(targetRole.toLowerCase())) {
-      targetRole = 'User';
-    }
+    const matchedAllowed = ALLOWED_SELF_ROLES.find(r => r.toLowerCase() === rawRole.toLowerCase());
+    const targetRole = matchedAllowed || 'User';
+
+    const otp = generateSecureOtp(6);
+    const hashedOtp = hashToken(otp);
 
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
       password,
       role: targetRole,
-      recoveryEmail: normalizedEmail
+      recoveryEmail: normalizedEmail,
+      isEmailVerified: false,
+      otpCode: hashedOtp,
+      otpExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      otpAttempts: 0,
+      otpPurpose: 'signup',
+      lastOtpSentAt: new Date()
     });
 
     if (user) {
-      // Send Gmail verification notification
+      // Send Signup Email Verification OTP
       try {
-        await Notification.create({
-          userId: user.name,
-          type: 'gmail_verification',
-          message: `Verify ${user.email} from your Profile settings to enable email recovery.`,
-          link: '/profile'
+        const transporter = createTransporter();
+        await transporter.sendMail({
+          from: `"GymSync" <${process.env.EMAIL_USER}>`,
+          to: user.email,
+          subject: 'GymSync — Email Verification Code',
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;background:#0f172a;color:#f8fafc;padding:40px;border-radius:16px;border:1px solid #1e293b;">
+              <h2 style="color:#3b82f6;margin-bottom:8px;">Welcome to GymSync!</h2>
+              <p style="color:#94a3b8;margin-bottom:24px;">Please enter the verification code below to activate your account.</p>
+              <div style="background:#1e293b;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px;">
+                <span style="font-size:2.5rem;font-weight:bold;color:#10b981;letter-spacing:8px;">${otp}</span>
+              </div>
+              <p style="color:#94a3b8;font-size:0.85rem;">This code expires in <strong style="color:#f59e0b;">5 minutes</strong>. Do not share it with anyone.</p>
+            </div>
+          `
         });
-      } catch (nErr) { console.error('Notif error:', nErr.message); }
+      } catch (e) {
+        console.warn('Signup verification email delivery note:', e.message);
+      }
+
+      const token = generateToken(user._id);
+      await createSession(user._id, token, req);
 
       res.status(201).json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        isEmailVerified: user.isEmailVerified,
-        isGoogleApproved: user.isGoogleApproved,
-        token: generateToken(user._id),
+        isEmailVerified: false,
+        requiresEmailVerification: true,
+        message: 'Account created. Please enter the 6-digit code sent to your email to activate your account.',
+        token,
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
@@ -227,6 +253,7 @@ export const loginUser = async (req, res) => {
     
     if (requires2FA) {
       const otp = crypto.randomInt(100000, 999999).toString();
+      console.log(`🔑 [2FA OTP] Generated login OTP code for ${user.email}: ${otp}`);
       try {
         const transporter = createTransporter();
         await transporter.sendMail({
@@ -260,13 +287,16 @@ export const loginUser = async (req, res) => {
     }
 
     await user.save();
+    const token = generateToken(user._id);
+    await createSession(user._id, token, req);
 
     res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      isEmailVerified: user.isEmailVerified,
+      token,
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -508,7 +538,12 @@ export const googleAuth = async (req, res) => {
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID
     });
-    const { email, name, picture, sub: googleId } = ticket.getPayload();
+    const payload = ticket.getPayload();
+    const { email, name, picture, email_verified, sub: googleId } = payload;
+
+    if (email_verified === false) {
+      return res.status(403).json({ message: 'Google account email is not verified by Google.' });
+    }
 
     // --- Existing user: log them in directly ---
     const existing = await User.findOne({ email });
@@ -518,12 +553,15 @@ export const googleAuth = async (req, res) => {
         existing.profilePic = picture;
         await existing.save();
       }
+      const token = generateToken(existing._id);
+      await createSession(existing._id, token, req);
       return res.json({
         _id: existing._id,
         name: existing.name,
         email: existing.email,
         role: existing.role,
-        token: generateToken(existing._id),
+        isEmailVerified: existing.isEmailVerified,
+        token,
       });
     }
 
@@ -575,15 +613,20 @@ export const googleRegister = async (req, res) => {
       email,
       password: randomPwd,
       role: backendRole,
+      isEmailVerified: true,
       profilePic: picture || ''
     });
+
+    const token = generateToken(user._id);
+    await createSession(user._id, token, req);
 
     res.status(201).json({
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      isEmailVerified: user.isEmailVerified,
+      token,
     });
   } catch (error) {
     if (error.code === 11000) {
@@ -672,12 +715,16 @@ export const verifyLoginOtp = async (req, res) => {
     user.lockUntil = null;
     await user.save();
 
+    const token = generateToken(user._id);
+    await createSession(user._id, token, req);
+
     res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      isEmailVerified: user.isEmailVerified,
+      token,
     });
 
   } catch (error) {
@@ -810,4 +857,217 @@ export const restoreSelfAccount = async (req, res) => {
     res.status(500).json({ message: 'Failed to restore account. Please try again later.' });
   }
 };
+
+// @desc    Verify signup email OTP and activate account
+// @route   POST /api/auth/verify-signup-otp
+// @access  Public
+export const verifySignupOtp = async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email?.trim() || !otp) {
+    return res.status(400).json({ message: 'Email and verification code are required' });
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user || !user.otpCode) {
+      return res.status(400).json({ message: 'No active verification code found for this account. Please request a new one.' });
+    }
+
+    if (user.otpExpiresAt && new Date(user.otpExpiresAt).getTime() <= Date.now()) {
+      user.otpCode = null;
+      user.otpExpiresAt = null;
+      user.otpAttempts = 0;
+      await user.save();
+      return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
+    }
+
+    const inputHash = hashToken(otp);
+
+    if (user.otpCode !== inputHash) {
+      user.otpAttempts = (user.otpAttempts || 0) + 1;
+      if (user.otpAttempts >= 3) {
+        user.otpCode = null;
+        user.otpExpiresAt = null;
+        user.otpAttempts = 0;
+        await user.save();
+        return res.status(429).json({
+          message: 'Too many incorrect attempts. This verification code has been invalidated. Please request a new one.'
+        });
+      }
+      await user.save();
+      const remaining = 3 - user.otpAttempts;
+      return res.status(400).json({
+        message: `Invalid verification code. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining.`,
+        attemptsRemaining: remaining
+      });
+    }
+
+    // Success - activate email
+    user.isEmailVerified = true;
+    user.otpCode = null;
+    user.otpExpiresAt = null;
+    user.otpAttempts = 0;
+    user.otpPurpose = null;
+    await user.save();
+
+    const token = generateToken(user._id);
+    await createSession(user._id, token, req);
+
+    res.json({
+      message: 'Email verified successfully! Your account is now active.',
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isEmailVerified: true,
+      token
+    });
+  } catch (error) {
+    console.error('verifySignupOtp error:', error);
+    res.status(500).json({ message: 'Failed to verify signup code' });
+  }
+};
+
+// @desc    Resend signup email OTP
+// @route   POST /api/auth/resend-signup-otp
+// @access  Public
+export const resendSignupOtp = async (req, res) => {
+  const { email } = req.body;
+  if (!email?.trim()) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({ message: 'This email is already verified. You can log in directly.' });
+    }
+
+    // 60-second cooldown
+    const COOLDOWN_MS = 60 * 1000;
+    if (user.lastOtpSentAt) {
+      const elapsed = Date.now() - new Date(user.lastOtpSentAt).getTime();
+      if (elapsed < COOLDOWN_MS) {
+        const waitSeconds = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+        return res.status(429).json({
+          message: `Please wait ${waitSeconds} second${waitSeconds > 1 ? 's' : ''} before requesting a new code.`,
+          secondsRemaining: waitSeconds
+        });
+      }
+    }
+
+    const otp = generateSecureOtp(6);
+    const hashedOtp = hashToken(otp);
+
+    user.otpCode = hashedOtp;
+    user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    user.otpAttempts = 0;
+    user.otpPurpose = 'signup';
+    user.lastOtpSentAt = new Date();
+    await user.save();
+
+    try {
+      const transporter = createTransporter();
+      await transporter.sendMail({
+        from: `"GymSync" <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: 'GymSync — Email Verification Code',
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;background:#0f172a;color:#f8fafc;padding:40px;border-radius:16px;border:1px solid #1e293b;">
+            <h2 style="color:#3b82f6;margin-bottom:8px;">GymSync Verification Code</h2>
+            <p style="color:#94a3b8;margin-bottom:24px;">Your new account verification code is below.</p>
+            <div style="background:#1e293b;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px;">
+              <span style="font-size:2.5rem;font-weight:bold;color:#10b981;letter-spacing:8px;">${otp}</span>
+            </div>
+            <p style="color:#94a3b8;font-size:0.85rem;">This code expires in <strong style="color:#f59e0b;">5 minutes</strong>.</p>
+          </div>
+        `
+      });
+    } catch (e) {
+      console.warn('Resend verification email error:', e.message);
+    }
+
+    res.json({ message: 'A new verification code has been sent to your email.' });
+  } catch (error) {
+    console.error('resendSignupOtp error:', error);
+    res.status(500).json({ message: 'Failed to resend verification code' });
+  }
+};
+
+// @desc    Get user's recognized active sessions
+// @route   GET /api/auth/sessions
+// @access  Private
+export const getMySessions = async (req, res) => {
+  try {
+    const sessions = await getUserSessions(req.user._id, req.token);
+    res.json({ sessions });
+  } catch (error) {
+    console.error('getMySessions error:', error);
+    res.status(500).json({ message: 'Failed to fetch sessions' });
+  }
+};
+
+// @desc    Revoke a specific device session
+// @route   DELETE /api/auth/sessions/:id
+// @access  Private
+export const revokeSession = async (req, res) => {
+  try {
+    const session = await revokeSessionById(req.params.id, req.user._id);
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+    res.json({ message: 'Session revoked successfully' });
+  } catch (error) {
+    console.error('revokeSession error:', error);
+    res.status(500).json({ message: 'Failed to revoke session' });
+  }
+};
+
+// @desc    Revoke all other sessions
+// @route   POST /api/auth/sessions/revoke-others
+// @access  Private
+export const revokeOtherSessions = async (req, res) => {
+  try {
+    await revokeAllOtherSessions(req.user._id, req.token);
+    res.json({ message: 'All other sessions have been revoked' });
+  } catch (error) {
+    console.error('revokeOtherSessions error:', error);
+    res.status(500).json({ message: 'Failed to revoke other sessions' });
+  }
+};
+
+// @desc    Toggle two-factor verification
+// @route   PUT /api/auth/two-factor
+// @access  Private
+export const updateTwoFactor = async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    const privilegedRoles = ['Admin', 'SuperAdmin'];
+
+    if (!enabled && privilegedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        message: 'Two-factor verification is mandatory for privileged administrative accounts and cannot be disabled.'
+      });
+    }
+
+    req.user.twoFactorEnabled = Boolean(enabled);
+    await req.user.save();
+
+    res.json({
+      message: `Two-factor verification ${req.user.twoFactorEnabled ? 'enabled' : 'disabled'} successfully`,
+      twoFactorEnabled: req.user.twoFactorEnabled
+    });
+  } catch (error) {
+    console.error('updateTwoFactor error:', error);
+    res.status(500).json({ message: 'Failed to update two-factor settings' });
+  }
+};
+
 

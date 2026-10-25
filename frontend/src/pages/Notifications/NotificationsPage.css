@@ -49,16 +49,16 @@
 
 .filter-tab-group {
   display: flex;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--card-bg-light);
   padding: 4px;
   border-radius: 10px;
-  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--card-border);
 }
 
 .filter-tab {
   background: transparent;
   border: none;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary);
   padding: 6px 14px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -74,9 +74,9 @@
 }
 
 .btn-page-mark-all {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
-  color: var(--text-primary, #e2e8f0);
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
   padding: 8px 14px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -142,7 +142,8 @@
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -169,13 +170,13 @@
   margin: 0 0 4px 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text-primary, #ffffff);
+  color: var(--text-primary);
 }
 
 .notif-card-message {
   margin: 0;
   font-size: 0.9rem;
-  color: var(--text-primary, #cbd5e1);
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
@@ -183,7 +184,7 @@
   display: block;
   margin-top: 6px;
   font-size: 0.78rem;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary);
 }
 
 .card-right-col {
@@ -193,7 +194,7 @@
 }
 
 .chevron-icon {
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary);
   transition: transform 0.2s ease;
 }
 
@@ -205,7 +206,7 @@
 .card-delete-btn {
   background: transparent;
   border: none;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary);
   padding: 6px;
   border-radius: 6px;
   cursor: pointer;
@@ -226,7 +227,7 @@
   text-align: center;
   padding: 60px 20px;
   border-radius: 16px;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary);
 }
 
 .empty-state-bell {
@@ -240,9 +241,9 @@
 }
 
 .btn-load-more {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
-  color: var(--text-primary, #ffffff);
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
   padding: 10px 24px;
   font-size: 0.9rem;
   font-weight: 600;

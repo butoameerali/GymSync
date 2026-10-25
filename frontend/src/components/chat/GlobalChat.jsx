@@ -923,46 +923,46 @@ const GlobalChat = () => {
 
                     {/* GREETING Action Card — Profile Snapshot & 4-Pill Action Row (Issue 10) */}
                     {activeContact.id === 'ai' && (msg.structuredAction?.type === 'GREETING' || (idx === 0 && msg.sender === 'other' && msg.text?.includes('Ready to train today'))) && (
-                      <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(30,41,59,0.95) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(99,102,241,0.3)', maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+                      <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'var(--panel-bg)', border: '1px solid var(--card-border)', maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#a5b4fc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#818cf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Zap size={14} color="#818cf8" /> Athlete Profile Snapshot
                           </span>
                           <span style={{ fontSize: '0.7rem', color: '#10b981', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>Active</span>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', background: 'var(--card-bg-light)', padding: '10px', borderRadius: '10px', border: '1px solid var(--card-border)' }}>
                           <div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Primary Goal</div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc' }}>{userContext?.primaryGoal || 'General Fitness'}</div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Primary Goal</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>{userContext?.primaryGoal || 'General Fitness'}</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fitness Level</div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc' }}>{userContext?.fitnessLevel || 'Beginner'}</div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fitness Level</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>{userContext?.fitnessLevel || 'Beginner'}</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Equipment</div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc' }}>{userContext?.equipmentAccess || 'Full Gym'}</div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Equipment</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>{userContext?.equipmentAccess || 'Full Gym'}</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Weight</div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc' }}>{userContext?.weight ? `${userContext.weight} kg` : 'Tracked in App'}</div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Weight</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>{userContext?.weight ? `${userContext.weight} kg` : 'Tracked in App'}</div>
                           </div>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginTop: '2px' }}>
                           <button type="button" onClick={() => handleSuggestionClick('🏋️ Generate Workout')}
-                            style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(59,130,246,0.18)', border: '1px solid rgba(59,130,246,0.4)', color: '#93c5fd', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
+                            style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(59,130,246,0.18)', border: '1px solid rgba(59,130,246,0.4)', color: '#3b82f6', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
                             <Dumbbell size={13} /> Generate Workout
                           </button>
                           <button type="button" onClick={() => handleSuggestionClick('🥗 Custom Diet')}
-                            style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.4)', color: '#6ee7b7', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
+                            style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
                             <Utensils size={13} /> Custom Diet
                           </button>
                           <button type="button" onClick={() => handleSuggestionClick('⚡ 20-Min Workout')}
-                            style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(245,158,11,0.18)', border: '1px solid rgba(245,158,11,0.4)', color: '#fcd34d', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
+                            style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(245,158,11,0.18)', border: '1px solid rgba(245,158,11,0.4)', color: '#f59e0b', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
                             <Zap size={13} /> 20-Min Workout
                           </button>
                           <button type="button" onClick={() => handleSuggestionClick('📊 View Progress')}
-                            style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(168,85,247,0.18)', border: '1px solid rgba(168,85,247,0.4)', color: '#d8b4fe', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
+                            style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(168,85,247,0.18)', border: '1px solid rgba(168,85,247,0.4)', color: '#a855f7', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
                             <TrendingUp size={13} /> View Progress
                           </button>
                         </div>
@@ -971,9 +971,9 @@ const GlobalChat = () => {
 
                     {/* MINI-COACH QUESTIONNAIRE INTERVIEW CARD (Issue 2) */}
                     {(activeContact.id === 'ai' || activeContact.id === 'diet_ai') && msg.structuredAction?.type === 'PLAN_QUESTIONNAIRE' && (
-                      <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(30,41,59,0.98) 0%, rgba(15,23,42,0.98) 100%)', border: '1px solid rgba(59,130,246,0.35)', maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'var(--panel-bg)', border: '1px solid var(--card-border)', maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Target size={15} color="#3b82f6" />
                             {msg.structuredAction.stepTitle || (
                               msg.structuredAction.step === 'goal' ? 'Mini-Coach • Step 1: Target Goal' :
@@ -984,7 +984,7 @@ const GlobalChat = () => {
                               'Mini-Coach • Program Calibration'
                             )}
                           </span>
-                          <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', background: 'var(--card-bg-light)', padding: '2px 8px', borderRadius: '10px' }}>
                             {msg.structuredAction.stepSubtitle || (
                               msg.structuredAction.step === 'goal' ? 'Step 1' :
                               msg.structuredAction.step === 'target_weight' ? 'Calibrate' :
@@ -1012,9 +1012,7 @@ const GlobalChat = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           {(msg.suggestions || []).map((sug, sIdx) => (
                             <button key={sIdx} type="button" onClick={() => handleSuggestionClick(sug)}
-                              style={{ padding: '9px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#f8fafc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.15s' }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.15)'; e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)'; }}
-                              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}>
+                              style={{ padding: '9px 14px', borderRadius: '10px', background: 'var(--card-bg-light)', border: '1px solid var(--card-border)', color: 'var(--text-primary)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.15s' }}>
                               <span>{sug}</span>
                               <CheckCircle2 size={13} color="#3b82f6" />
                             </button>
@@ -1025,13 +1023,13 @@ const GlobalChat = () => {
 
                     {/* MINI-COACH INTERVIEW CARD */}
                     {activeContact.id === 'ai' && msg.structuredAction?.type === 'mini_coach_interview' && msg.structuredAction.steps && (
-                      <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(30,41,59,0.98) 0%, rgba(15,23,42,0.98) 100%)', border: '1px solid rgba(59,130,246,0.35)', maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'var(--panel-bg)', border: '1px solid var(--card-border)', maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Target size={15} color="#3b82f6" />
                             Mini-Coach Profile Calibration
                           </span>
-                          <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', background: 'var(--card-bg-light)', padding: '2px 8px', borderRadius: '10px' }}>
                             {msg.structuredAction.steps.length} questions
                           </span>
                         </div>
@@ -1042,7 +1040,7 @@ const GlobalChat = () => {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                             {msg.structuredAction.steps[0].options.map((opt, oIdx) => (
                               <button key={oIdx} type="button" onClick={() => handleSuggestionClick(opt)}
-                                style={{ padding: '7px 12px', borderRadius: '14px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.35)', color: '#93c5fd', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                style={{ padding: '7px 12px', borderRadius: '14px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.35)', color: '#3b82f6', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                 {opt}
                               </button>
                             ))}
@@ -1058,37 +1056,37 @@ const GlobalChat = () => {
 
                     {/* PROGRESS_CARD (Issue 9) */}
                     {activeContact.id === 'ai' && msg.structuredAction?.type === 'PROGRESS_CARD' && msg.structuredAction.stats && (
-                      <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(30,41,59,0.95) 0%, rgba(15,23,42,0.95) 100%)', border: '1px solid rgba(168,85,247,0.35)', maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ margin: '8px 0', padding: '14px 16px', borderRadius: '14px', background: 'var(--panel-bg)', border: '1px solid var(--card-border)', maxWidth: '92%', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#c084fc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#a855f7', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <TrendingUp size={15} color="#a855f7" /> Plan vs Reality Progress
                           </span>
                           <span style={{ fontSize: '0.72rem', color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '2px 8px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
                             <Flame size={12} color="#f59e0b" /> {msg.structuredAction.stats.streak || 0} Day Streak
                           </span>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '10px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', background: 'var(--card-bg-light)', padding: '10px', borderRadius: '10px', border: '1px solid var(--card-border)' }}>
                           <div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>WORKOUTS COMPLETED</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>WORKOUTS COMPLETED</div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                               {msg.structuredAction.stats.completedSessions} / {msg.structuredAction.stats.totalSessions} ({msg.structuredAction.stats.progressPercent}%)
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>STEPS LOGGED TODAY</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>STEPS LOGGED TODAY</div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                               {(msg.structuredAction.stats.stepsToday || 0).toLocaleString()} steps
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>DAILY CALORIE BURN</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>DAILY CALORIE BURN</div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                               ~{msg.structuredAction.stats.caloriesBurnedToday || 0} kcal
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>ACTIVE GOAL</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#60a5fa' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>ACTIVE GOAL</div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#3b82f6' }}>
                               {msg.structuredAction.stats.goalTitle || 'Fitness'}
                             </div>
                           </div>

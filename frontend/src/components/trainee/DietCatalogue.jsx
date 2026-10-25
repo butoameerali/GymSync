@@ -52,7 +52,8 @@ const DietCard = memo(({ diet, onPreview, onAdopt }) => {
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
           gap: '6px',
-          background: 'rgba(255,255,255,0.03)',
+          background: 'var(--card-bg-light)',
+          border: '1px solid var(--card-border)',
           padding: '10px 8px',
           borderRadius: '10px',
           textAlign: 'center',
@@ -277,7 +278,7 @@ const DietCatalogue = ({ onDietAdopted }) => {
             padding: '24px',
             borderRadius: '20px',
             border: '1px solid #10b981',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.7) 100%)'
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, var(--card-bg-light) 100%)'
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
@@ -299,7 +300,7 @@ const DietCatalogue = ({ onDietAdopted }) => {
               >
                 <CheckCircle size={14} /> ACTIVE NUTRITIONAL PROTOCOL
               </span>
-              <h2 style={{ fontSize: '1.6rem', color: '#ffffff', margin: '0 0 6px 0' }}>
+              <h2 style={{ fontSize: '1.6rem', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
                 {activeUserDiet.title}
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
@@ -321,7 +322,8 @@ const DietCatalogue = ({ onDietAdopted }) => {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
             gap: '10px',
-            background: 'rgba(0, 0, 0, 0.25)',
+            background: 'var(--card-bg)',
+            border: '1px solid var(--card-border)',
             padding: '14px 16px',
             borderRadius: '14px',
             textAlign: 'center',
@@ -348,7 +350,7 @@ const DietCatalogue = ({ onDietAdopted }) => {
           {/* Meals Breakdown */}
           {Array.isArray(activeUserDiet.meals) && activeUserDiet.meals.length > 0 && (
             <div>
-              <h4 style={{ fontSize: '0.95rem', letterSpacing: '1px', color: '#cbd5e1', marginBottom: '12px' }}>
+              <h4 style={{ fontSize: '0.95rem', letterSpacing: '1px', color: 'var(--text-primary)', marginBottom: '12px' }}>
                 DAILY MEAL BREAKDOWN ({activeUserDiet.meals.length} MEALS)
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
@@ -356,21 +358,21 @@ const DietCatalogue = ({ onDietAdopted }) => {
                   <div 
                     key={mIdx}
                     style={{
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      background: 'var(--card-bg)',
+                      border: '1px solid var(--card-border)',
                       borderRadius: '12px',
                       padding: '12px 14px'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <strong style={{ color: '#ffffff', fontSize: '0.92rem' }}>{meal.name || `Meal ${mIdx + 1}`}</strong>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.92rem' }}>{meal.name || `Meal ${mIdx + 1}`}</strong>
                       <span style={{ color: '#10b981', fontSize: '0.8rem', fontWeight: 600 }}>{meal.calories ? `${meal.calories} kcal` : ''}</span>
                     </div>
                     {meal.description && (
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 6px 0' }}>{meal.description}</p>
                     )}
                     {Array.isArray(meal.items) && meal.items.length > 0 && (
-                      <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                         {meal.items.map(item => item.name || item).join(' • ')}
                       </div>
                     )}
@@ -534,7 +536,7 @@ const DietCatalogue = ({ onDietAdopted }) => {
               /* Meals Listing */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '380px', overflowY: 'auto' }}>
                 {(previewDiet.meals || []).map((meal, mIdx) => (
-                  <div key={mIdx} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--card-border)', borderRadius: '10px', padding: '14px' }}>
+                  <div key={mIdx} style={{ background: 'var(--card-bg-light)', border: '1px solid var(--card-border)', borderRadius: '10px', padding: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <strong style={{ fontSize: '0.95rem', color: '#10b981' }}>
                         {meal.mealType}: {meal.name}
@@ -544,7 +546,7 @@ const DietCatalogue = ({ onDietAdopted }) => {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {(meal.foodItems || []).map((food, fIdx) => (
-                        <div key={fIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: '6px' }}>
+                        <div key={fIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', background: 'var(--card-bg)', border: '1px solid var(--card-border)', padding: '6px 10px', borderRadius: '6px' }}>
                           <span>{food.name} ({food.quantity} {food.unit})</span>
                           <span style={{ color: 'var(--text-primary)' }}>{food.calories} kcal • {food.protein}g P</span>
                         </div>

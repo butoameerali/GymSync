@@ -6,6 +6,7 @@ import OnboardingWizard from './components/onboarding/OnboardingWizard';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import AdminPortalRedirectNotice from './components/common/AdminPortalRedirectNotice';
 import { getRoleRedirectPath } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 import { ToastContainer } from 'react-toastify';
@@ -127,13 +128,15 @@ function App() {
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/settings/:section" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         
-        {/* Role-Specific Management Panels */}
-        <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/moderator" element={<ProtectedRoute allowedRoles={['ComplaintModerator', 'Admin', 'SuperAdmin']}><ComplaintModeratorDashboard /></ProtectedRoute>} />
+        {/* Privileged Operational Management Redirects (Hosted on isolated Admin Portal port 5174) */}
+        <Route path="/admin" element={<AdminPortalRedirectNotice targetRole="Administrators" />} />
+        <Route path="/moderator" element={<AdminPortalRedirectNotice targetRole="Complaint Moderators" />} />
+        <Route path="/fitness-instructor" element={<AdminPortalRedirectNotice targetRole="Fitness Instructors" />} />
+
+        {/* Public Website Role-Specific Management Panels */}
         <Route path="/gym-owner" element={<ProtectedRoute allowedRoles={['GymOwner', 'gym_owner']}><GymOwnerDashboard /></ProtectedRoute>} />
-        <Route path="/fitness-instructor" element={<ProtectedRoute allowedRoles={['FitnessInstructor', 'Admin', 'SuperAdmin']}><FitnessInstructorDashboard /></ProtectedRoute>} />
         <Route path="/gym-trainer" element={<ProtectedRoute allowedRoles={['GymTrainer', 'GymOwner', 'gym_owner']}><GymTrainerDashboard /></ProtectedRoute>} />
-        <Route path="/store-manager" element={<ProtectedRoute allowedRoles={['StoreManager', 'Admin', 'SuperAdmin']}><StoreManagerDashboard /></ProtectedRoute>} />
+        <Route path="/store-manager" element={<ProtectedRoute allowedRoles={['StoreManager']}><StoreManagerDashboard /></ProtectedRoute>} />
         <Route path="/privacy" element={<LegalPage type="privacy" />} />
         <Route path="/terms" element={<LegalPage type="terms" />} />
         <Route path="/regulations" element={<LegalPage type="regulations" />} />

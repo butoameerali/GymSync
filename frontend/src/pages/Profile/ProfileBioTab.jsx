@@ -64,31 +64,7 @@ const ProfileBioTab = ({ bio = {} }) => {
             <p>{bio.weight ? `${bio.weight} ${bio.units === 'imperial' ? 'lbs' : 'kg'}` : 'Not Set'}</p>
           </div>
 
-          {/* Health, Medical & Dietary Facts */}
-          <div className="bio-stat-card">
-            <h4>Joint Pain / Discomfort</h4>
-            <p style={{ color: bio.jointPain?.length > 0 && !bio.jointPain.includes('None') ? '#f59e0b' : 'var(--text-primary)' }}>
-              {bio.jointPain?.length > 0 ? bio.jointPain.join(', ') : 'None Reported'}
-            </p>
-          </div>
-          <div className="bio-stat-card">
-            <h4>Past Injuries</h4>
-            <p style={{ color: bio.injuries?.length > 0 && !bio.injuries.includes('None') ? '#f59e0b' : 'var(--text-primary)' }}>
-              {bio.injuries?.length > 0 ? bio.injuries.join(', ') : 'None Reported'}
-            </p>
-          </div>
-          <div className="bio-stat-card">
-            <h4>Medical Conditions</h4>
-            <p style={{ color: bio.medicalConditions?.length > 0 && !bio.medicalConditions.includes('None') ? '#ef4444' : 'var(--text-primary)' }}>
-              {bio.medicalConditions?.length > 0 ? bio.medicalConditions.join(', ') : 'None Reported'}
-            </p>
-          </div>
-          <div className="bio-stat-card">
-            <h4>Physical Limitations</h4>
-            <p style={{ color: bio.limitations?.length > 0 && !bio.limitations.includes('None') ? '#f59e0b' : 'var(--text-primary)' }}>
-              {bio.limitations?.length > 0 ? bio.limitations.join(', ') : 'None Reported'}
-            </p>
-          </div>
+          {/* Dietary Facts */}
           <div className="bio-stat-card">
             <h4>Dietary Preferences</h4>
             <p style={{ color: '#10b981' }}>

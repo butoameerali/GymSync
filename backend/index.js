@@ -37,6 +37,7 @@ import activityRoutes from './routes/activityRoutes.js';
 import dietRoutes from './routes/dietRoutes.js';
 import completionReportRoutes from './routes/completionReportRoutes.js';
 import wellbeingRoutes from './routes/wellbeingRoutes.js';
+import gymVerificationRoutes from './routes/gymVerificationRoutes.js';
 
 const app = express();
 
@@ -72,8 +73,6 @@ app.use(cors({
       origin === 'http://localhost' ||
       origin.startsWith('http://127.0.0.1:') ||
       origin === 'http://127.0.0.1' ||
-      origin.endsWith('.netlify.app') ||
-      origin.endsWith('.vercel.app') ||
       allowedOrigins.includes(origin)
     ) {
       return callback(null, true);
@@ -125,6 +124,7 @@ app.use('/api/activity', activityRoutes);
 app.use('/api/diet', dietRoutes);
 app.use('/api/plans', completionReportRoutes);
 app.use('/api/wellbeing', wellbeingRoutes);
+app.use('/api/gym-verification', gymVerificationRoutes);
 
 app.get('/', (req, res) => {
   res.send('GymSync API is running...');

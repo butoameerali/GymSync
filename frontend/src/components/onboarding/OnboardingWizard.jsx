@@ -4,10 +4,6 @@ import { HealthChipSection } from "./OnboardingHelpers";
 import Body from 'react-muscle-highlighter';
 import './OnboardingWizard.css';
 
-const JOINT_PAIN_OPTIONS = ['Knee', 'Lower Back', 'Shoulder', 'Wrist', 'Ankle', 'Neck', 'Hip', 'None'];
-const INJURY_OPTIONS = ['Rotator Cuff', 'Herniated Disc', 'ACL/Meniscus', 'Tennis Elbow', 'Hamstring Tear', 'None'];
-const CONDITION_OPTIONS = ['Asthma', 'High Blood Pressure', 'Diabetes', 'Heart Condition', 'Arthritis', 'None'];
-const LIMITATION_OPTIONS = ['No Heavy Overhead Press', 'No Deep Squats', 'No High Impact', 'No Spinal Loading', 'None'];
 const DIETARY_OPTIONS = ['Halal only', 'Vegetarian', 'Vegan', 'High Protein', 'Lactose Intolerant', 'Gluten Free', 'No Beef', 'No Seafood', 'No Restrictions'];
 
 const OnboardingWizard = ({ onComplete, onSkip }) => {
@@ -28,10 +24,6 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
     height: 170,
     weight: 70,
     targetMuscles: [],
-    jointPain: [],
-    injuries: [],
-    medicalConditions: [],
-    limitations: [],
     foodPreferences: ''
   });
 
@@ -45,10 +37,6 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
           setData(prev => ({
             ...prev,
             ...parsed,
-            jointPain: Array.isArray(parsed.jointPain) ? parsed.jointPain : (prev.jointPain || []),
-            injuries: Array.isArray(parsed.injuries) ? parsed.injuries : (prev.injuries || []),
-            medicalConditions: Array.isArray(parsed.medicalConditions) ? parsed.medicalConditions : (prev.medicalConditions || []),
-            limitations: Array.isArray(parsed.limitations) ? parsed.limitations : (prev.limitations || []),
             foodPreferences: typeof parsed.foodPreferences === 'string' ? parsed.foodPreferences : (Array.isArray(parsed.foodPreferences) ? parsed.foodPreferences.join(', ') : '')
           }));
         }
@@ -63,20 +51,6 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
   const nextStep = () => { if (step < totalSteps) setStep(step + 1); };
   const prevStep = () => { if (step > 1) setStep(step - 1); };
 
-  const toggleArrayItem = (field, item) => {
-    setData(prev => {
-      const current = Array.isArray(prev[field]) ? prev[field] : [];
-      if (item === 'None') {
-        return { ...prev, [field]: current.includes('None') ? [] : ['None'] };
-      }
-      const filtered = current.filter(x => x !== 'None');
-      const updated = filtered.includes(item)
-        ? filtered.filter(x => x !== item)
-        : [...filtered, item];
-      return { ...prev, [field]: updated };
-    });
-  };
-
   const toggleFoodPreference = (pref) => {
     setData(prev => {
       const current = (prev.foodPreferences || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -88,17 +62,6 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
         ? filtered.filter(x => x !== pref)
         : [...filtered, pref];
       return { ...prev, foodPreferences: updated.join(', ') };
-    });
-  };
-
-  const addCustomItem = (field, item) => {
-    const val = item.trim();
-    if (!val) return;
-    setData(prev => {
-      const current = Array.isArray(prev[field]) ? prev[field] : [];
-      const filtered = current.filter(x => x !== 'None');
-      if (filtered.some(x => x.toLowerCase() === val.toLowerCase())) return prev;
-      return { ...prev, [field]: [...filtered, val] };
     });
   };
 
@@ -321,46 +284,10 @@ const OnboardingWizard = ({ onComplete, onSkip }) => {
         const currentDietList = (data.foodPreferences || '').split(',').map(s => s.trim()).filter(Boolean);
         return (
           <div className="wiz-step">
-            <h2>Health, Medical & Dietary Bio</h2>
-            <p className="wiz-subtitle">This helps ensure your AI exercises and nutritional guidance remain medically safe.</p>
+            <h2>Dietary Preferences</h2>
+            <p className="wiz-subtitle">Tell us about your dietary preferences and restrictions.</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <HealthChipSection
-                label="Joint Pain or Discomfort Areas"
-                options={JOINT_PAIN_OPTIONS}
-                selected={data.jointPain || []}
-                onToggle={area => toggleArrayItem('jointPain', area)}
-                onAddCustom={custom => addCustomItem('jointPain', custom)}
-                customPlaceholder="+ Add custom joint area (e.g. Elbow, Hip flexor)"
-              />
-
-              <HealthChipSection
-                label="Past Injuries"
-                options={INJURY_OPTIONS}
-                selected={data.injuries || []}
-                onToggle={inj => toggleArrayItem('injuries', inj)}
-                onAddCustom={custom => addCustomItem('injuries', custom)}
-                customPlaceholder="+ Add custom past injury (e.g. Meniscus repair)"
-              />
-
-              <HealthChipSection
-                label="Medical Conditions"
-                options={CONDITION_OPTIONS}
-                selected={data.medicalConditions || []}
-                onToggle={cond => toggleArrayItem('medicalConditions', cond)}
-                onAddCustom={custom => addCustomItem('medicalConditions', custom)}
-                customPlaceholder="+ Add custom medical condition (e.g. Mild scoliosis)"
-              />
-
-              <HealthChipSection
-                label="Physical Limitations"
-                options={LIMITATION_OPTIONS}
-                selected={data.limitations || []}
-                onToggle={lim => toggleArrayItem('limitations', lim)}
-                onAddCustom={custom => addCustomItem('limitations', custom)}
-                customPlaceholder="+ Add custom limitation (e.g. No jumping, No heavy deadlifts)"
-              />
-
               <HealthChipSection
                 label="Dietary Preferences & Restrictions"
                 options={DIETARY_OPTIONS}

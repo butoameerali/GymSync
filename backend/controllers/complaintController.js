@@ -137,13 +137,28 @@ export const updateComplaintStatus = async (req, res) => {
 
     await complaint.save();
 
-    // Notify user of complaint status change
+    // Notify user of complaint status change with clear, user-friendly language
     try {
       const Notification = (await import('../models/Notification.js')).default;
+      let notificationMsg = '';
+      const notePart = effectiveNote ? ` Note: ${effectiveNote}` : '';
+
+      if (complaint.status === 'In Progress') {
+        notificationMsg = `Your complaint #${complaint.complaintId} is now under review and being investigated.${notePart || ' Our administration team is actively reviewing your report.'}`;
+      } else if (complaint.status === 'Resolved') {
+        notificationMsg = `Your complaint #${complaint.complaintId} has been resolved.${notePart || ' The reported issue has been addressed.'}`;
+      } else if (complaint.status === 'Closed') {
+        notificationMsg = `Your complaint #${complaint.complaintId} has been closed.${notePart || ' Resolution completed.'}`;
+      } else if (complaint.status === 'Pending') {
+        notificationMsg = `Your complaint #${complaint.complaintId} is pending review.${notePart || ' We have received your report.'}`;
+      } else {
+        notificationMsg = `Update on complaint #${complaint.complaintId}: Status is now ${complaint.status}.${notePart}`;
+      }
+
       await Notification.create({
         userId: String(complaint.reporterId || complaint.reporterName),
         type: 'system',
-        message: `Your complaint #${complaint.complaintId} has been marked as "${complaint.status}". Note: ${effectiveNote || 'Status updated by administration.'}`
+        message: notificationMsg
       });
     } catch (nErr) {
       console.warn('Complaint notification warning:', nErr.message);

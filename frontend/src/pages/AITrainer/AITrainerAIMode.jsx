@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Bot,
   CheckCircle,
@@ -109,6 +110,7 @@ const AITrainerAIMode = ({
 }) => {
   const navigate = useNavigate();
   const [showMissionRunner, setShowMissionRunner] = useState(false);
+  const [missionRunnerInitialIndex, setMissionRunnerInitialIndex] = useState(0);
   const [swapModalInfo, setSwapModalInfo] = useState(null);
   const [completedGoalGroup, setCompletedGoalGroup] = useState(null); // Part 19
   const [showNextGoalPrompt, setShowNextGoalPrompt] = useState(false); // Part 20
@@ -245,7 +247,7 @@ const AITrainerAIMode = ({
               margin: '0 auto 20px auto',
             }}
           />
-          <h3 style={{ color: '#ffffff', marginBottom: '8px' }}>Designing Your AI Workout Plan...</h3>
+          <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>Designing Your AI Workout Plan...</h3>
           <p style={{ color: 'var(--text-secondary)' }}>
             Building progressive overload schedule &amp; matching exercises...
           </p>
@@ -283,7 +285,7 @@ const AITrainerAIMode = ({
                 <Bot size={32} />
               </div>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#ffffff', fontWeight: 800 }}>
+                <h2 style={{ margin: 0, fontSize: '1.6rem', color: 'var(--text-primary)', fontWeight: 800 }}>
                   My AI Workout Plans Hub
                 </h2>
                 <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
@@ -346,7 +348,7 @@ const AITrainerAIMode = ({
           {/* ── SECTION 1: YOUR WORKOUT PLANS (Buttons & Cards) ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Dumbbell size={20} color="#3b82f6" /> Your Workout Plans ({allWorkoutPlans.length})
               </h3>
             </div>
@@ -401,7 +403,7 @@ const AITrainerAIMode = ({
                           </div>
 
                           {/* Title */}
-                          <h4 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: '#ffffff', fontWeight: 700 }}>
+                          <h4 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: 'var(--text-primary)', fontWeight: 700 }}>
                             {plan.title}
                           </h4>
 
@@ -551,7 +553,7 @@ const AITrainerAIMode = ({
                         </div>
 
                         {/* Title */}
-                        <h4 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: '#ffffff', fontWeight: 700 }}>
+                        <h4 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: 'var(--text-primary)', fontWeight: 700 }}>
                           {planTitle}
                         </h4>
 
@@ -661,14 +663,14 @@ const AITrainerAIMode = ({
               /* No saved plans yet - render starter buttons */
               <div
                 style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px dashed rgba(255, 255, 255, 0.15)',
+                  background: 'var(--card-bg-light)',
+                  border: '1px dashed var(--card-border)',
                   borderRadius: '16px',
                   padding: '28px',
                   textAlign: 'center'
                 }}
               >
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '1.15rem', color: '#ffffff' }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '1.15rem', color: 'var(--text-primary)' }}>
                   No Active AI Workout Plans Yet
                 </h4>
                 <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
@@ -804,7 +806,7 @@ const AITrainerAIMode = ({
           {/* ── SECTION 2: CHOOSE HOW YOU WANT TO TRAIN (Options A & B) ── */}
           {allWorkoutPlans.length === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#ffffff' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
                 Choose How You Want to Train
               </h3>
 
@@ -847,7 +849,7 @@ const AITrainerAIMode = ({
                     <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981', letterSpacing: '1px', textTransform: 'uppercase' }}>
                       Option A • AI Assistance
                     </span>
-                    <h3 style={{ fontSize: '1.3rem', color: '#ffffff', margin: '6px 0 10px 0' }}>
+                    <h3 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', margin: '6px 0 10px 0' }}>
                       Build &amp; Adjust with AI Coach
                     </h3>
                     <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
@@ -919,7 +921,7 @@ const AITrainerAIMode = ({
                     <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#3b82f6', letterSpacing: '1px', textTransform: 'uppercase' }}>
                       Option B • Trainer Uploaded
                     </span>
-                    <h3 style={{ fontSize: '1.3rem', color: '#ffffff', margin: '6px 0 10px 0' }}>
+                    <h3 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', margin: '6px 0 10px 0' }}>
                       Fitness Trainer Programs
                     </h3>
                     <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
@@ -981,9 +983,9 @@ const AITrainerAIMode = ({
                   borderRadius: '10px',
                   fontWeight: 700,
                   fontSize: '0.9rem',
-                  color: '#ffffff',
-                  borderColor: 'rgba(255, 255, 255, 0.25)',
-                  background: 'rgba(255, 255, 255, 0.08)'
+                  color: 'var(--text-primary)',
+                  borderColor: 'var(--card-border)',
+                  background: 'var(--card-bg-light)'
                 }}
                 onClick={() => setSelectedPlanForView(null)}
               >
@@ -1166,7 +1168,7 @@ const AITrainerAIMode = ({
                     >
                       INSTRUCTOR PROGRAM (v{selectedPlanForView.programVersion || 1})
                     </span>
-                    <h2 style={{ margin: '0 0 4px 0', fontSize: '1.45rem', color: '#ffffff' }}>
+                    <h2 style={{ margin: '0 0 4px 0', fontSize: '1.45rem', color: 'var(--text-primary)' }}>
                       {selectedPlanForView.title}
                     </h2>
                     <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
@@ -1197,10 +1199,10 @@ const AITrainerAIMode = ({
                 return (
                   <div
                     style={{
-                      background: 'rgba(0,0,0,0.3)',
+                      background: 'var(--card-bg-light)',
                       borderRadius: '16px',
                       padding: '20px',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      border: '1px solid var(--card-border)',
                     }}
                   >
                     <div
@@ -1373,7 +1375,7 @@ const AITrainerAIMode = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                      <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Calendar size={18} color="#10b981" /> Program Schedule &amp; Weeks
                       </h4>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -1389,9 +1391,9 @@ const AITrainerAIMode = ({
                                 borderRadius: '8px',
                                 fontSize: '0.8rem',
                                 fontWeight: isSel ? 700 : 500,
-                                background: isSel ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.05)',
+                                background: isSel ? 'rgba(16, 185, 129, 0.2)' : 'var(--card-bg-light)',
                                 color: isSel ? '#10b981' : 'var(--text-secondary)',
-                                border: isSel ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                                border: isSel ? '1px solid #10b981' : '1px solid var(--card-border)',
                                 cursor: 'pointer'
                               }}
                             >
@@ -1408,7 +1410,7 @@ const AITrainerAIMode = ({
                       if (!selWk) return null;
                       return (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <div style={{ fontSize: '0.88rem', color: '#94a3b8', marginBottom: '4px' }}>
+                          <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                             <strong>Week {selWk.weekNumber} Focus:</strong> {selWk.focus || 'Strength & Conditioning Progression'}
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
@@ -1420,8 +1422,8 @@ const AITrainerAIMode = ({
                                 <div
                                   key={day.dayNumber}
                                   style={{
-                                    background: isCompleted ? 'rgba(16, 185, 129, 0.06)' : 'rgba(255,255,255,0.03)',
-                                    border: isCompleted ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255,255,255,0.08)',
+                                    background: isCompleted ? 'rgba(16, 185, 129, 0.06)' : 'var(--card-bg-light)',
+                                    border: isCompleted ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--card-border)',
                                     borderRadius: '12px',
                                     padding: '14px',
                                     display: 'flex',
@@ -1432,7 +1434,7 @@ const AITrainerAIMode = ({
                                 >
                                   <div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
+                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                                         Day {day.dayNumber}
                                       </span>
                                       <span
@@ -1629,7 +1631,7 @@ const AITrainerAIMode = ({
                               margin: 0,
                               fontSize: '1.2rem',
                               fontWeight: 800,
-                              color: '#f8fafc',
+                              color: 'var(--text-primary)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '8px',
@@ -1651,9 +1653,9 @@ const AITrainerAIMode = ({
                             style={{
                               padding: '6px 14px',
                               borderRadius: '8px',
-                              background: activeWeek <= 1 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)',
-                              border: '1px solid rgba(255,255,255,0.12)',
-                              color: activeWeek <= 1 ? '#64748b' : '#f8fafc',
+                              background: activeWeek <= 1 ? 'transparent' : 'var(--card-bg-light)',
+                              border: '1px solid var(--card-border)',
+                              color: activeWeek <= 1 ? 'var(--text-secondary)' : 'var(--text-primary)',
                               cursor: activeWeek <= 1 ? 'not-allowed' : 'pointer',
                               fontSize: '0.8rem',
                               fontWeight: 600,
@@ -1673,9 +1675,9 @@ const AITrainerAIMode = ({
                             style={{
                               padding: '6px 14px',
                               borderRadius: '8px',
-                              background: activeWeek >= totalWeeks ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)',
-                              border: '1px solid rgba(255,255,255,0.12)',
-                              color: activeWeek >= totalWeeks ? '#64748b' : '#f8fafc',
+                              background: activeWeek >= totalWeeks ? 'transparent' : 'var(--card-bg-light)',
+                              border: '1px solid var(--card-border)',
+                              color: activeWeek >= totalWeeks ? 'var(--text-secondary)' : 'var(--text-primary)',
                               cursor: activeWeek >= totalWeeks ? 'not-allowed' : 'pointer',
                               fontSize: '0.8rem',
                               fontWeight: 600,
@@ -1882,6 +1884,43 @@ const AITrainerAIMode = ({
                   : (currentDay.exercises || currentDay.mainWorkout || []);
                 const isRest = !currentDay.isWorkoutDay || status === 'REST';
 
+                // Normalize Warm-Up Movements so they are included as full exercises
+                const warmupExercises = (currentDay.warmup?.warmupExercises || []).map((w, wi) => ({
+                  name: w.name,
+                  duration: w.duration || w.reps || '60 sec',
+                  sets: 1,
+                  reps: w.duration || w.reps || '60s',
+                  isWarmup: true,
+                  category: 'Warm-Up',
+                  target: 'Full-Body Mobility & Dynamic Warmup',
+                  instructions: w.instructions || 'Perform with fluid, controlled movement through full range of motion.',
+                  purpose: w.purpose || 'Prepares joints and nervous system for loading.',
+                  restTime: 15,
+                  rpe: 'RPE 4-5'
+                }));
+
+                const mainExercises = daySplit.map(ex => ({
+                  ...ex,
+                  isWarmup: false,
+                  category: ex.category || 'AI Custom',
+                  instructions: ex.instructions || 'Follow AI targets',
+                  points: ex.points || 1
+                }));
+
+                const allSessionExercises = [...warmupExercises, ...mainExercises];
+
+                const isMovementCompleted = (idx, ex) => {
+                  return isExerciseCompletedInState(currentDay.dayNumber, idx, ex?.name);
+                };
+
+                const completedIndices = allSessionExercises
+                  .map((ex, idx) => (isMovementCompleted(idx, ex) ? idx : null))
+                  .filter(idx => idx !== null);
+                const firstUncompletedIndex = allSessionExercises.findIndex((ex, idx) => !isMovementCompleted(idx, ex));
+                const resumeIndex = firstUncompletedIndex >= 0 ? firstUncompletedIndex : 0;
+                const isAnyCompleted = completedIndices.length > 0;
+                const canPerform = !isRest && !isCompleted && (status === 'AVAILABLE' || isToday);
+
                 return (
                   <div
                     className="day-details-panel glass-panel"
@@ -1997,6 +2036,7 @@ const AITrainerAIMode = ({
                               type="button"
                               onClick={() => {
                                 setActiveWorkoutDay(currentDay.dayNumber);
+                                setMissionRunnerInitialIndex(0);
                                 setShowMissionRunner(true);
                               }}
                               style={{
@@ -2021,48 +2061,93 @@ const AITrainerAIMode = ({
 
                         {!isRest && !isCompleted && (
                           <>
-                            <button
-                              type="button"
-                              onClick={() => completeDayManually && completeDayManually(currentDay.dayNumber)}
-                              style={{
-                                padding: '7px 14px',
-                                borderRadius: '8px',
-                                background: 'rgba(16, 185, 129, 0.12)',
-                                border: '1px solid #10b981',
-                                color: '#10b981',
-                                fontSize: '0.82rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                              }}
-                            >
-                              ✓ Mark Done
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveWorkoutDay(currentDay.dayNumber);
-                                setShowMissionRunner(true);
-                              }}
-                              style={{
-                                padding: '8px 18px',
-                                borderRadius: '8px',
-                                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                                border: 'none',
-                                color: '#ffffff',
-                                fontSize: '0.85rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
-                              }}
-                            >
-                              <Play size={15} fill="#ffffff" /> Start Workout
-                            </button>
+                            {status === 'MISSED' ? (
+                              <div
+                                style={{
+                                  padding: '7px 14px',
+                                  borderRadius: '8px',
+                                  background: 'rgba(239, 68, 68, 0.12)',
+                                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                                  color: '#f87171',
+                                  fontSize: '0.82rem',
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                }}
+                                title="This past workout session was missed and can no longer be started."
+                              >
+                                <AlertCircle size={15} /> Day Missed (Past Schedule Locked)
+                              </div>
+                            ) : (status === 'LOCKED' || (!isToday && status !== 'AVAILABLE')) ? (
+                              <div
+                                style={{
+                                  padding: '7px 14px',
+                                  borderRadius: '8px',
+                                  background: 'rgba(148, 163, 184, 0.12)',
+                                  border: '1px solid rgba(148, 163, 184, 0.3)',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '0.82rem',
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                }}
+                                title="Future workouts cannot be started ahead of schedule."
+                              >
+                                <Lock size={14} /> Locked • Future Session ({scheduledDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })})
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => completeDayManually && completeDayManually(currentDay.dayNumber)}
+                                  style={{
+                                    padding: '7px 14px',
+                                    borderRadius: '8px',
+                                    background: 'rgba(16, 185, 129, 0.12)',
+                                    border: '1px solid #10b981',
+                                    color: '#10b981',
+                                    fontSize: '0.82rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                  }}
+                                >
+                                  ✓ {isAnyCompleted ? 'Mark All Done' : 'Mark Done'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveWorkoutDay(currentDay.dayNumber);
+                                    setMissionRunnerInitialIndex(resumeIndex);
+                                    setShowMissionRunner(true);
+                                  }}
+                                  style={{
+                                    padding: '8px 18px',
+                                    borderRadius: '8px',
+                                    background: isAnyCompleted 
+                                      ? 'linear-gradient(135deg, #10b981, #059669)' 
+                                      : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                    border: 'none',
+                                    color: '#ffffff',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    boxShadow: isAnyCompleted 
+                                      ? '0 4px 14px rgba(16, 185, 129, 0.35)' 
+                                      : '0 4px 14px rgba(59, 130, 246, 0.35)',
+                                  }}
+                                >
+                                  <Play size={15} fill="#ffffff" /> {isAnyCompleted ? `Resume Workout (${completedIndices.length}/${allSessionExercises.length} Done)` : 'Start Workout'}
+                                </button>
+                              </>
+                            )}
                           </>
                         )}
 
@@ -2073,9 +2158,9 @@ const AITrainerAIMode = ({
                             style={{
                               padding: '7px 14px',
                               borderRadius: '8px',
-                              background: 'rgba(255,255,255,0.08)',
-                              border: '1px solid rgba(255,255,255,0.2)',
-                              color: '#f8fafc',
+                              background: 'var(--card-bg-light)',
+                              border: '1px solid var(--card-border)',
+                              color: 'var(--text-primary)',
                               fontSize: '0.82rem',
                               fontWeight: 700,
                               cursor: 'pointer',
@@ -2121,71 +2206,16 @@ const AITrainerAIMode = ({
                       </div>
                     )}
 
-                    {/* Reasoned Warm-Up (Compact Pills with Info Modal Trigger) */}
-                    {currentDay.warmup?.warmupExercises?.length > 0 && (
-                      <div
-                        style={{
-                          background: 'rgba(245, 158, 11, 0.05)',
-                          border: '1px solid rgba(245, 158, 11, 0.2)',
-                          padding: '7px 12px',
-                          borderRadius: '8px',
-                          marginBottom: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                          gap: '8px',
-                          fontSize: '0.8rem',
-                        }}
-                      >
-                        <span style={{ color: '#f59e0b', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <Flame size={13} /> Warm-Up ({currentDay.warmup.totalEstimatedMinutes || 5}m):
-                        </span>
-                        {currentDay.warmup.warmupExercises.map((w, wi) => (
-                          <button
-                            key={wi}
-                            type="button"
-                            onClick={() => setActiveExerciseDetailModal({
-                              name: w.name,
-                              target: 'Full-Body Mobility & Dynamic Warmup',
-                              equipment: 'Bodyweight / Band',
-                              sets: 1,
-                              reps: w.duration || w.reps || '30-45s',
-                              rpe: 'RPE 4-5',
-                              rest: '0-20s',
-                              purpose: w.purpose || w.instructions || 'Prepares joints and nervous system for loading.',
-                              instructions: w.instructions || 'Perform with fluid, controlled movement through full range of motion.',
-                            })}
-                            style={{
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              background: 'rgba(255, 255, 255, 0.04)',
-                              border: '1px solid rgba(255, 255, 255, 0.08)',
-                              color: '#e2e8f0',
-                              cursor: 'pointer',
-                              fontSize: '0.76rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                            title="Click to view technique"
-                          >
-                            {w.name} {w.duration || w.reps ? `(${w.duration || w.reps})` : ''}
-                            <Info size={11} color="#f59e0b" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Main Resistance Work */}
+                    {/* ── SESSION SYLLABUS: WARM-UP + MAIN MOVEMENTS ── */}
                     {isRest ? (
                       <div
                         style={{
                           textAlign: 'center',
                           padding: '24px 16px',
-                          background: 'rgba(255,255,255,0.02)',
+                          background: 'var(--card-bg-light)',
                           color: 'var(--text-secondary)',
                           borderRadius: '10px',
-                          border: '1px dashed rgba(255,255,255,0.1)',
+                          border: '1px dashed var(--card-border)',
                         }}
                       >
                         <Moon size={32} color="#60a5fa" style={{ marginBottom: '6px' }} />
@@ -2198,242 +2228,539 @@ const AITrainerAIMode = ({
                       </div>
                     ) : (
                       <div>
+                        {/* Session Overview Bar with Warmup + Resistance Breakdown */}
                         <div
                           style={{
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
-                            marginBottom: '10px',
+                            marginBottom: '14px',
+                            background: 'var(--card-bg-light)',
+                            border: '1px solid var(--card-border)',
+                            borderRadius: '10px',
+                            padding: '10px 14px',
+                            flexWrap: 'wrap',
+                            gap: '8px'
                           }}
                         >
-                          <h4
-                            style={{
-                              margin: 0,
-                              fontSize: '0.96rem',
-                              fontWeight: 800,
-                              color: '#38bdf8',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                            }}
-                          >
-                            🏋️ Main Movements ({daySplit.length})
-                          </h4>
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                            ⏱️ Est. {currentDay.timeBudget?.totalEstimatedMinutes || 45} Mins
-                          </span>
+                          <div>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                              ⚡ Today's Movements ({allSessionExercises.length} Total)
+                            </span>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                              ({warmupExercises.length} Warm-Up + {mainExercises.length} Main Resistance)
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: completedIndices.length === allSessionExercises.length && allSessionExercises.length > 0 ? '#10b981' : '#3b82f6' }}>
+                              {completedIndices.length} / {allSessionExercises.length} Completed
+                            </span>
+                            <div style={{ width: '80px', height: '6px', background: 'var(--card-border)', borderRadius: '10px', overflow: 'hidden' }}>
+                              <div 
+                                style={{ 
+                                  height: '100%', 
+                                  width: `${allSessionExercises.length > 0 ? Math.round((completedIndices.length / allSessionExercises.length) * 100) : 0}%`,
+                                  background: completedIndices.length === allSessionExercises.length ? '#10b981' : 'linear-gradient(90deg, #3b82f6, #10b981)',
+                                  borderRadius: '10px',
+                                  transition: 'width 0.3s ease'
+                                }} 
+                              />
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Compact Single-Row Exercise Items */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                          {daySplit.map((ex, idx) => {
-                            const targetEx = {
-                              ...ex,
-                              category: ex.category || 'AI Custom',
-                              instructions: ex.instructions || 'Follow AI targets',
-                              points: ex.points || 1,
-                            };
-                            const isExDone = isExerciseCompletedInState(currentDay.dayNumber, idx);
-
-                            return (
-                              <div
-                                key={idx}
-                                className="ai-exercise-row"
+                        {/* ── PHASE 1: WARM-UP & MOBILITY MOVEMENTS ── */}
+                        {warmupExercises.length > 0 && (
+                          <div style={{ marginBottom: '18px' }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '8px',
+                              }}
+                            >
+                              <h4
                                 style={{
+                                  margin: 0,
+                                  fontSize: '0.92rem',
+                                  fontWeight: 800,
+                                  color: '#f59e0b',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  padding: '8px 12px',
-                                  borderRadius: '9px',
-                                  background: isExDone ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-                                  border: isExDone ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.08)',
-                                  gap: '10px',
-                                  flexWrap: 'wrap',
-                                  transition: 'all 0.15s ease',
+                                  gap: '6px',
                                 }}
                               >
-                                {/* Left: Index + Name + Tag */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '180px', flex: 1 }}>
+                                <Flame size={15} /> Phase 1: Warm-Up &amp; Mobility ({warmupExercises.length})
+                              </h4>
+                              <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                                ⏱️ Est. {currentDay.warmup?.totalEstimatedMinutes || 6} Mins
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                              {warmupExercises.map((w, wi) => {
+                                const overallIdx = wi;
+                                const isDone = isMovementCompleted(overallIdx, w);
+                                return (
                                   <div
+                                    key={`warmup-${wi}`}
+                                    className="ai-exercise-row"
                                     style={{
-                                      width: '22px',
-                                      height: '22px',
-                                      borderRadius: '50%',
-                                      border: `2px solid ${isExDone ? '#10b981' : '#3b82f6'}`,
-                                      background: isExDone ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
                                       display: 'flex',
                                       alignItems: 'center',
-                                      justifyContent: 'center',
-                                      flexShrink: 0,
+                                      justifyContent: 'space-between',
+                                      padding: '8px 12px',
+                                      borderRadius: '9px',
+                                      background: isDone ? 'rgba(16, 185, 129, 0.08)' : 'var(--card-bg-light)',
+                                      border: isDone ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--card-border)',
+                                      gap: '10px',
+                                      flexWrap: 'wrap',
+                                      transition: 'all 0.15s ease',
                                     }}
                                   >
-                                    {isExDone ? (
-                                      <Check size={13} color="#10b981" strokeWidth={3} />
-                                    ) : (
-                                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#60a5fa' }}>{idx + 1}</span>
-                                    )}
-                                  </div>
+                                    {/* Left: Index + Name + Warm-Up Tag */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '180px', flex: 1 }}>
+                                      <div
+                                        style={{
+                                          width: '22px',
+                                          height: '22px',
+                                          borderRadius: '50%',
+                                          border: `2px solid ${isDone ? '#10b981' : '#f59e0b'}`,
+                                          background: isDone ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {isDone ? (
+                                          <Check size={13} color="#10b981" strokeWidth={3} />
+                                        ) : (
+                                          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f59e0b' }}>{wi + 1}</span>
+                                        )}
+                                      </div>
 
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                    <span
-                                      style={{
-                                        fontSize: '0.9rem',
-                                        fontWeight: 700,
-                                        color: isExDone ? '#10b981' : '#f8fafc',
-                                        textDecoration: isExDone ? 'line-through' : 'none',
-                                      }}
-                                    >
-                                      {ex.name}
-                                    </span>
-                                    {ex.target && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        <span
+                                          style={{
+                                            fontSize: '0.9rem',
+                                            fontWeight: 700,
+                                            color: isDone ? '#10b981' : 'var(--text-primary)',
+                                            textDecoration: isDone ? 'line-through' : 'none',
+                                          }}
+                                        >
+                                          {w.name}
+                                        </span>
+                                        <span
+                                          style={{
+                                            fontSize: '0.66rem',
+                                            background: 'rgba(245, 158, 11, 0.18)',
+                                            color: '#f59e0b',
+                                            padding: '1px 6px',
+                                            borderRadius: '4px',
+                                            fontWeight: 700,
+                                          }}
+                                        >
+                                          Warm-Up
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Center: Sets x Duration */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                      <span style={{ fontSize: '0.84rem', fontWeight: 700, color: isDone ? '#10b981' : '#f59e0b' }}>
+                                        1 × {w.reps}
+                                      </span>
                                       <span
                                         style={{
                                           fontSize: '0.68rem',
-                                          padding: '1px 6px',
+                                          padding: '2px 6px',
                                           borderRadius: '4px',
-                                          background: 'rgba(255, 255, 255, 0.06)',
-                                          color: 'var(--text-secondary)',
+                                          background: 'rgba(245, 158, 11, 0.12)',
+                                          color: '#f59e0b',
+                                          fontWeight: 600,
                                         }}
                                       >
-                                        {ex.target}
+                                        RPE 4-5
                                       </span>
-                                    )}
-                                    {(ex.isAiTrackable || ex.aiDetection?.enabled) && (
-                                      <span
-                                        style={{
-                                          fontSize: '0.66rem',
-                                          background: 'rgba(16, 185, 129, 0.18)',
-                                          color: '#10b981',
-                                          padding: '1px 5px',
-                                          borderRadius: '4px',
-                                          fontWeight: 700,
-                                        }}
-                                      >
-                                        AI Vision
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
+                                    </div>
 
-                                {/* Center: Sets x Reps & Intensity */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                                  <span style={{ fontSize: '0.84rem', fontWeight: 700, color: isExDone ? '#10b981' : '#60a5fa' }}>
-                                    {ex.sets} × {ex.reps}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: '0.68rem',
-                                      padding: '2px 6px',
-                                      borderRadius: '4px',
-                                      background: 'rgba(245, 158, 11, 0.15)',
-                                      color: '#f59e0b',
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    {ex.rpe || 'RPE 7-8'}
-                                  </span>
-                                </div>
-
-                                {/* Right: Info (i) Button + Actions */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveExerciseDetailModal({ ...targetEx, ...ex, aiWorkoutIndex: idx });
-                                    }}
-                                    style={{
-                                      background: 'rgba(255, 255, 255, 0.06)',
-                                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                                      color: '#cbd5e1',
-                                      borderRadius: '6px',
-                                      padding: '4px 8px',
-                                      fontSize: '0.72rem',
-                                      fontWeight: 600,
-                                      cursor: 'pointer',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                    }}
-                                    title="View Technique & AI Rationale"
-                                  >
-                                    <Info size={12} color="#38bdf8" /> Info
-                                  </button>
-
-                                  {isExDone ? (
-                                    <>
-                                      <span
-                                        style={{
-                                          fontSize: '0.72rem',
-                                          fontWeight: 700,
-                                          color: '#10b981',
-                                          background: 'rgba(16, 185, 129, 0.15)',
-                                          padding: '3px 8px',
-                                          borderRadius: '6px',
-                                        }}
-                                      >
-                                        ✓ Done
-                                      </span>
+                                    {/* Right: Info + Actions */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                                       <button
                                         type="button"
-                                        onClick={() => toggleExerciseCompletion && toggleExerciseCompletion(currentDay.dayNumber, idx, ex.name)}
-                                        style={{
-                                          background: 'transparent',
-                                          border: '1px solid rgba(239, 68, 68, 0.35)',
-                                          color: '#f87171',
-                                          fontSize: '0.72rem',
-                                          padding: '3px 8px',
-                                          borderRadius: '6px',
-                                          cursor: 'pointer',
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveExerciseDetailModal({
+                                            name: w.name,
+                                            target: 'Full-Body Mobility & Dynamic Warmup',
+                                            equipment: 'Bodyweight / Mobility',
+                                            sets: 1,
+                                            reps: w.reps,
+                                            rpe: 'RPE 4-5',
+                                            rest: '15s',
+                                            purpose: w.purpose || 'Prepares joints and nervous system for loading.',
+                                            instructions: w.instructions || 'Perform with fluid, controlled movement through full range of motion.',
+                                          });
                                         }}
-                                        title="Mark Incomplete"
-                                      >
-                                        🔄 Undo
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleExerciseCompletion && toggleExerciseCompletion(currentDay.dayNumber, idx, ex.name)}
                                         style={{
-                                          background: 'rgba(16, 185, 129, 0.12)',
-                                          border: '1px solid #10b981',
-                                          color: '#10b981',
-                                          fontSize: '0.72rem',
-                                          fontWeight: 700,
-                                          padding: '4px 9px',
+                                          background: 'var(--card-bg-light)',
+                                          border: '1px solid var(--card-border)',
+                                          color: 'var(--text-primary)',
                                           borderRadius: '6px',
-                                          cursor: 'pointer',
-                                        }}
-                                      >
-                                        ✓ Mark Done
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => startExercise({ ...targetEx, ...ex, aiWorkoutIndex: idx })}
-                                        style={{
-                                          background: '#3b82f6',
-                                          border: 'none',
-                                          color: '#ffffff',
+                                          padding: '4px 8px',
                                           fontSize: '0.72rem',
-                                          fontWeight: 700,
-                                          padding: '4px 10px',
-                                          borderRadius: '6px',
+                                          fontWeight: 600,
                                           cursor: 'pointer',
                                           display: 'inline-flex',
                                           alignItems: 'center',
                                           gap: '4px',
                                         }}
+                                        title="View Technique"
                                       >
-                                        <Play size={10} fill="#ffffff" /> Start
+                                        <Info size={12} color="#f59e0b" /> Info
                                       </button>
-                                    </>
-                                  )}
+
+                                      {canPerform ? (
+                                        isDone ? (
+                                          <>
+                                            <span
+                                              style={{
+                                                fontSize: '0.72rem',
+                                                fontWeight: 700,
+                                                color: '#10b981',
+                                                background: 'rgba(16, 185, 129, 0.15)',
+                                                padding: '3px 8px',
+                                                borderRadius: '6px',
+                                              }}
+                                            >
+                                              ✓ Done
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => toggleExerciseCompletion && toggleExerciseCompletion(currentDay.dayNumber, overallIdx, w.name)}
+                                              style={{
+                                                background: 'transparent',
+                                                border: '1px solid rgba(239, 68, 68, 0.35)',
+                                                color: '#f87171',
+                                                fontSize: '0.72rem',
+                                                padding: '3px 8px',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                              }}
+                                              title="Mark Incomplete"
+                                            >
+                                              🔄 Undo
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() => toggleExerciseCompletion && toggleExerciseCompletion(currentDay.dayNumber, overallIdx, w.name)}
+                                              style={{
+                                                background: 'rgba(16, 185, 129, 0.12)',
+                                                border: '1px solid #10b981',
+                                                color: '#10b981',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 700,
+                                                padding: '4px 9px',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                              }}
+                                            >
+                                              ✓ Mark Done
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setActiveWorkoutDay(currentDay.dayNumber);
+                                                setMissionRunnerInitialIndex(overallIdx);
+                                                setShowMissionRunner(true);
+                                              }}
+                                              style={{
+                                                background: '#f59e0b',
+                                                border: 'none',
+                                                color: '#ffffff',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 700,
+                                                padding: '4px 10px',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                              }}
+                                            >
+                                              <Play size={10} fill="#ffffff" /> Start
+                                            </button>
+                                          </>
+                                        )
+                                      ) : (
+                                        <span style={{ fontSize: '0.72rem', color: status === 'MISSED' ? '#f87171' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                                          {status === 'MISSED' ? '🔴 Missed' : <><Lock size={11} /> Locked</>}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ── PHASE 2: MAIN RESISTANCE MOVEMENTS ── */}
+                        <div>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '10px',
+                            }}
+                          >
+                            <h4
+                              style={{
+                                margin: 0,
+                                fontSize: '0.94rem',
+                                fontWeight: 800,
+                                color: '#38bdf8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                              }}
+                            >
+                              🏋️ Phase 2: Main Movements ({mainExercises.length})
+                            </h4>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                              ⏱️ Est. {currentDay.timeBudget?.totalEstimatedMinutes || 35} Mins
+                            </span>
+                          </div>
+
+                          {/* Compact Single-Row Exercise Items */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                            {mainExercises.map((ex, idx) => {
+                              const overallIdx = warmupExercises.length + idx;
+                              const targetEx = {
+                                ...ex,
+                                category: ex.category || 'AI Custom',
+                                instructions: ex.instructions || 'Follow AI targets',
+                                points: ex.points || 1,
+                              };
+                              const isExDone = isMovementCompleted(overallIdx, ex);
+
+                              return (
+                                <div
+                                  key={`main-${idx}`}
+                                  className="ai-exercise-row"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '8px 12px',
+                                    borderRadius: '9px',
+                                    background: isExDone ? 'rgba(16, 185, 129, 0.08)' : 'var(--card-bg-light)',
+                                    border: isExDone ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--card-border)',
+                                    gap: '10px',
+                                    flexWrap: 'wrap',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                >
+                                  {/* Left: Index + Name + Tag */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '180px', flex: 1 }}>
+                                    <div
+                                      style={{
+                                        width: '22px',
+                                        height: '22px',
+                                        borderRadius: '50%',
+                                        border: `2px solid ${isExDone ? '#10b981' : '#3b82f6'}`,
+                                        background: isExDone ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {isExDone ? (
+                                        <Check size={13} color="#10b981" strokeWidth={3} />
+                                      ) : (
+                                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#3b82f6' }}>{overallIdx + 1}</span>
+                                      )}
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                      <span
+                                        style={{
+                                          fontSize: '0.9rem',
+                                          fontWeight: 700,
+                                          color: isExDone ? '#10b981' : 'var(--text-primary)',
+                                          textDecoration: isExDone ? 'line-through' : 'none',
+                                        }}
+                                      >
+                                        {ex.name}
+                                      </span>
+                                      {ex.target && (
+                                        <span
+                                          style={{
+                                            fontSize: '0.68rem',
+                                            padding: '1px 6px',
+                                            borderRadius: '4px',
+                                            background: 'var(--card-bg)',
+                                            border: '1px solid var(--card-border)',
+                                            color: 'var(--text-secondary)',
+                                          }}
+                                        >
+                                          {ex.target}
+                                        </span>
+                                      )}
+                                      {(ex.isAiTrackable || ex.aiDetection?.enabled) && (
+                                        <span
+                                          style={{
+                                            fontSize: '0.66rem',
+                                            background: 'rgba(16, 185, 129, 0.18)',
+                                            color: '#10b981',
+                                            padding: '1px 5px',
+                                            borderRadius: '4px',
+                                            fontWeight: 700,
+                                          }}
+                                        >
+                                          AI Vision
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Center: Sets x Reps & Intensity */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                    <span style={{ fontSize: '0.84rem', fontWeight: 700, color: isExDone ? '#10b981' : '#60a5fa' }}>
+                                      {ex.sets} × {ex.reps}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: '0.68rem',
+                                        padding: '2px 6px',
+                                        borderRadius: '4px',
+                                        background: 'rgba(245, 158, 11, 0.15)',
+                                        color: '#f59e0b',
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      {ex.rpe || 'RPE 7-8'}
+                                    </span>
+                                  </div>
+
+                                  {/* Right: Info (i) Button + Actions */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveExerciseDetailModal({ ...targetEx, ...ex, aiWorkoutIndex: idx });
+                                      }}
+                                      style={{
+                                        background: 'var(--card-bg-light)',
+                                        border: '1px solid var(--card-border)',
+                                        color: 'var(--text-primary)',
+                                        borderRadius: '6px',
+                                        padding: '4px 8px',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                      }}
+                                      title="View Technique & AI Rationale"
+                                    >
+                                      <Info size={12} color="#38bdf8" /> Info
+                                    </button>
+
+                                    {canPerform ? (
+                                      isExDone ? (
+                                        <>
+                                          <span
+                                            style={{
+                                              fontSize: '0.72rem',
+                                              fontWeight: 700,
+                                              color: '#10b981',
+                                              background: 'rgba(16, 185, 129, 0.15)',
+                                              padding: '3px 8px',
+                                              borderRadius: '6px',
+                                            }}
+                                          >
+                                            ✓ Done
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleExerciseCompletion && toggleExerciseCompletion(currentDay.dayNumber, overallIdx, ex.name)}
+                                            style={{
+                                              background: 'transparent',
+                                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                                              color: '#f87171',
+                                              fontSize: '0.72rem',
+                                              padding: '3px 8px',
+                                              borderRadius: '6px',
+                                              cursor: 'pointer',
+                                            }}
+                                            title="Mark Incomplete"
+                                          >
+                                            🔄 Undo
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleExerciseCompletion && toggleExerciseCompletion(currentDay.dayNumber, overallIdx, ex.name)}
+                                            style={{
+                                              background: 'rgba(16, 185, 129, 0.12)',
+                                              border: '1px solid #10b981',
+                                              color: '#10b981',
+                                              fontSize: '0.72rem',
+                                              fontWeight: 700,
+                                              padding: '4px 9px',
+                                              borderRadius: '6px',
+                                              cursor: 'pointer',
+                                            }}
+                                          >
+                                            ✓ Mark Done
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setActiveWorkoutDay(currentDay.dayNumber);
+                                              setMissionRunnerInitialIndex(overallIdx);
+                                              setShowMissionRunner(true);
+                                            }}
+                                            style={{
+                                              background: '#3b82f6',
+                                              border: 'none',
+                                              color: '#ffffff',
+                                              fontSize: '0.72rem',
+                                              fontWeight: 700,
+                                              padding: '4px 10px',
+                                              borderRadius: '6px',
+                                              cursor: 'pointer',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '4px',
+                                            }}
+                                          >
+                                            <Play size={10} fill="#ffffff" /> Start
+                                          </button>
+                                        </>
+                                      )
+                                    ) : (
+                                      <span style={{ fontSize: '0.72rem', color: status === 'MISSED' ? '#f87171' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                                        {status === 'MISSED' ? '🔴 Missed' : <><Lock size={11} /> Locked</>}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -2475,9 +2802,9 @@ const AITrainerAIMode = ({
                             style={{
                               padding: '2px 8px',
                               borderRadius: '6px',
-                              background: 'rgba(255, 255, 255, 0.04)',
-                              border: '1px solid rgba(255, 255, 255, 0.08)',
-                              color: '#e2e8f0',
+                              background: 'var(--card-bg-light)',
+                              border: '1px solid var(--card-border)',
+                              color: 'var(--text-primary)',
                               cursor: 'pointer',
                               fontSize: '0.76rem',
                               display: 'inline-flex',
@@ -2501,7 +2828,7 @@ const AITrainerAIMode = ({
       )}
 
       {/* ── SAVED AI PLANS MODAL ─────────────────────────────────────────── */}
-      {showSavedPlansModal && (
+      {showSavedPlansModal && typeof document !== 'undefined' && createPortal(
         <div
           className="modal-backdrop"
           style={{
@@ -2511,8 +2838,8 @@ const AITrainerAIMode = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px',
+            zIndex: 10050,
+            padding: '16px',
           }}
           onClick={() => setShowSavedPlansModal(false)}
         >
@@ -2526,7 +2853,9 @@ const AITrainerAIMode = ({
               background: 'var(--panel-bg, #0f172a)',
               borderRadius: '16px',
               border: '1px solid var(--card-border, rgba(255, 255, 255, 0.1))',
-              padding: '24px',
+              padding: '20px',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
+              position: 'relative',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -2660,7 +2989,8 @@ const AITrainerAIMode = ({
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── GAMIFIED MISSION RUNNER OVERLAY ─────────────────────────────────── */}
@@ -2682,11 +3012,59 @@ const AITrainerAIMode = ({
               const dayObj = wkObj?.days?.find(d => d.dayNumber === cDay) || wkObj?.days?.[0];
               return dayObj?.exercises || [];
             }
-            return selectedCalendarDay?.workoutSplit || [];
+            const curDay = selectedCalendarDay ||
+              (aiPlan?.interactive_calendar || []).find(d => getDayScheduleInfo(d).isToday) ||
+              (aiPlan?.interactive_calendar || [])[0];
+            
+            const wList = (curDay?.warmup?.warmupExercises || []).map(w => ({
+              name: w.name,
+              duration: w.duration || w.reps || '60 sec',
+              sets: 1,
+              reps: w.duration || w.reps || '60s',
+              isWarmup: true,
+              category: 'Warm-Up',
+              target: 'Full-Body Mobility & Dynamic Warmup',
+              instructions: w.instructions || 'Perform with fluid, controlled movement through full range of motion.',
+              purpose: w.purpose || 'Prepares joints and nervous system for loading.',
+              restTime: 15,
+              rpe: 'RPE 4-5'
+            }));
+            const mList = (Array.isArray(curDay?.workoutSplit)
+              ? curDay.workoutSplit
+              : (curDay?.exercises || curDay?.mainWorkout || [])).map(ex => ({ ...ex, isWarmup: false }));
+
+            return [...wList, ...mList];
           })()}
+          initialExerciseIndex={missionRunnerInitialIndex}
+          completedExerciseIndices={(() => {
+            const curDay = selectedCalendarDay ||
+              (aiPlan?.interactive_calendar || []).find(d => getDayScheduleInfo(d).isToday) ||
+              (aiPlan?.interactive_calendar || [])[0];
+            if (!curDay) return [];
+            const wList = (curDay?.warmup?.warmupExercises || []).map(w => ({ name: w.name, isWarmup: true }));
+            const mList = Array.isArray(curDay?.workoutSplit) ? curDay.workoutSplit : (curDay?.exercises || curDay?.mainWorkout || []);
+            const all = [...wList, ...mList];
+            return all
+              .map((ex, idx) => (isExerciseCompletedInState(curDay.dayNumber, idx, ex.name) ? idx : null))
+              .filter(i => i !== null);
+          })()}
+          onExerciseComplete={(exIdx, exName) => {
+            const curDay = selectedCalendarDay ||
+              (aiPlan?.interactive_calendar || []).find(d => getDayScheduleInfo(d).isToday) ||
+              (aiPlan?.interactive_calendar || [])[0];
+            if (curDay && toggleExerciseCompletion) {
+              toggleExerciseCompletion(curDay.dayNumber, exIdx, exName, true);
+            }
+          }}
           onCancel={() => setShowMissionRunner(false)}
           onComplete={() => {
             setShowMissionRunner(false);
+            const curDay = selectedCalendarDay ||
+              (aiPlan?.interactive_calendar || []).find(d => getDayScheduleInfo(d).isToday) ||
+              (aiPlan?.interactive_calendar || [])[0];
+            if (curDay && completeDayManually) {
+              completeDayManually(curDay.dayNumber);
+            }
             const prog = selectedPlanForView?.rawProgram || (selectedPlanForView?.isInstructorProgram ? selectedPlanForView : activeUserProgram);
             if (prog && handleLogProgramSession) {
               handleLogProgramSession(
@@ -2740,50 +3118,52 @@ const AITrainerAIMode = ({
       )}
 
       {/* ── EXERCISE DETAILS & AI RATIONALE MODAL ───────────────────────── */}
-      {activeExerciseDetailModal && (
+      {activeExerciseDetailModal && typeof document !== 'undefined' && createPortal(
         <div
           className="modal-backdrop"
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.78)',
-            backdropFilter: 'blur(5px)',
+            background: 'rgba(0, 0, 0, 0.72)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px',
+            zIndex: 10050,
+            padding: '12px',
           }}
           onClick={() => setActiveExerciseDetailModal(null)}
         >
           <div
             className="glass-panel"
             style={{
-              maxWidth: '520px',
+              maxWidth: '460px',
               width: '100%',
               background: 'var(--panel-bg, #0f172a)',
-              borderRadius: '16px',
+              borderRadius: '14px',
               border: '1px solid var(--card-border, rgba(255, 255, 255, 0.12))',
-              padding: '24px',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+              padding: '16px 18px',
+              boxShadow: '0 20px 48px rgba(0,0,0,0.5)',
               position: 'relative',
+              boxSizing: 'border-box',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', gap: '10px' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.25 }}>
                   {activeExerciseDetailModal.name}
                 </h3>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
                   {activeExerciseDetailModal.target && (
-                    <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.72rem', padding: '2px 7px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.18)', color: '#38bdf8', fontWeight: 600 }}>
                       Target: {activeExerciseDetailModal.target}
                     </span>
                   )}
                   {activeExerciseDetailModal.equipment && (
-                    <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-secondary)' }}>
+                    <span style={{ fontSize: '0.72rem', padding: '2px 7px', borderRadius: '4px', background: 'var(--card-bg-light)', color: 'var(--text-secondary)' }}>
                       {activeExerciseDetailModal.equipment}
                     </span>
                   )}
@@ -2793,19 +3173,21 @@ const AITrainerAIMode = ({
                 type="button"
                 onClick={() => setActiveExerciseDetailModal(null)}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
+                  background: 'var(--card-bg-light)',
                   border: 'none',
-                  borderRadius: '8px',
-                  width: '32px',
-                  height: '32px',
-                  color: '#cbd5e1',
+                  borderRadius: '6px',
+                  width: '28px',
+                  height: '28px',
+                  color: 'var(--text-secondary)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexShrink: 0,
                 }}
+                aria-label="Close"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
 
@@ -2814,29 +3196,29 @@ const AITrainerAIMode = ({
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '10px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                padding: '12px',
-                borderRadius: '10px',
-                marginBottom: '16px',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
+                gap: '8px',
+                background: 'var(--card-bg-light)',
+                padding: '8px 10px',
+                borderRadius: '8px',
+                marginBottom: '10px',
+                border: '1px solid var(--card-border)',
               }}
             >
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Sets × Reps</div>
-                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#3b82f6' }}>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>Sets × Reps</div>
+                <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#3b82f6' }}>
                   {activeExerciseDetailModal.sets || 3} × {activeExerciseDetailModal.reps || 10}
                 </div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Intensity</div>
-                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f59e0b' }}>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>Intensity</div>
+                <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f59e0b' }}>
                   {activeExerciseDetailModal.rpe || 'RPE 7-8'}
                 </div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Rest Period</div>
-                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981' }}>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>Rest Period</div>
+                <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#10b981' }}>
                   {activeExerciseDetailModal.rest || '60-90s'}
                 </div>
               </div>
@@ -2847,33 +3229,33 @@ const AITrainerAIMode = ({
               style={{
                 background: 'rgba(59, 130, 246, 0.06)',
                 border: '1px solid rgba(59, 130, 246, 0.2)',
-                padding: '12px 14px',
-                borderRadius: '10px',
-                marginBottom: '14px',
+                padding: '8px 10px',
+                borderRadius: '8px',
+                marginBottom: '10px',
               }}
             >
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#60a5fa', fontWeight: 700, marginBottom: '4px' }}>
+              <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.4px', color: '#60a5fa', fontWeight: 700, marginBottom: '3px' }}>
                 💡 Why AI Coach Selected This
               </div>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                 {activeExerciseDetailModal.purpose || activeExerciseDetailModal.reasonForSelection || 'Selected to optimize strength, muscular hypertrophy, and movement quality.'}
               </p>
             </div>
 
             {/* Instructions / Form Guide */}
             {activeExerciseDetailModal.instructions && activeExerciseDetailModal.instructions !== 'Follow AI targets' && (
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '6px' }}>
+              <div style={{ marginBottom: '10px', background: 'var(--card-bg-light)', border: '1px solid var(--card-border)', padding: '8px 10px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '3px' }}>
                   📋 Form & Execution Guide
                 </div>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                   {activeExerciseDetailModal.instructions}
                 </p>
               </div>
             )}
 
             {/* Modal Bottom Actions */}
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', paddingTop: '8px', borderTop: '1px solid var(--card-border)' }}>
               {handleCoachAction && (
                 <button
                   type="button"
@@ -2883,12 +3265,12 @@ const AITrainerAIMode = ({
                     handleCoachAction('Replace this exercise', ex);
                   }}
                   style={{
-                    padding: '8px 14px',
-                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    borderRadius: '7px',
                     background: 'rgba(245, 158, 11, 0.12)',
                     border: '1px solid #f59e0b',
                     color: '#f59e0b',
-                    fontSize: '0.82rem',
+                    fontSize: '0.8rem',
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}
@@ -2905,25 +3287,26 @@ const AITrainerAIMode = ({
                     startExercise(ex);
                   }}
                   style={{
-                    padding: '8px 18px',
-                    borderRadius: '8px',
+                    padding: '6px 14px',
+                    borderRadius: '7px',
                     background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
                     border: 'none',
                     color: '#ffffff',
-                    fontSize: '0.84rem',
+                    fontSize: '0.8rem',
                     fontWeight: 800,
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
+                    gap: '5px',
                   }}
                 >
-                  <Play size={14} fill="#ffffff" /> Start Movement
+                  <Play size={13} fill="#ffffff" /> Start Movement
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

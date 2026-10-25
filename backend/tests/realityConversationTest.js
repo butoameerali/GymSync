@@ -1,8 +1,15 @@
 import assert from 'assert';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
 import { handleChat } from '../controllers/aiController.js';
 import dietBuilder from '../services/nutrition/dietBuilder.js';
 import dietValidator from '../services/nutrition/dietValidator.js';
 import { EVENT_TYPES } from '../services/workout/eventAwarenessEngine.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 /**
  * Reality Test Suite for GymSync Conversational Adaptive Personal Trainer
@@ -80,6 +87,7 @@ async function runRealityTest(testName, testType, fn) {
 }
 
 async function runAllRealityTests() {
+  await mongoose.connect(process.env.MONGO_URI);
   console.log('\n=============================================================');
   console.log('  STARTING REALITY TEST OF CONVERSATIONAL ADAPTIVE TRAINER  ');
   console.log('=============================================================\n');
@@ -93,8 +101,7 @@ async function runAllRealityTests() {
     fitnessLevel: 'Intermediate',
     equipmentAccess: 'Full Gym',
     sessionDurationMins: 45,
-    trainingDaysPerWeek: 4,
-    jointPain: []
+    trainingDaysPerWeek: 4
   };
 
   // -------------------------------------------------------------------------
@@ -627,6 +634,8 @@ async function runAllRealityTests() {
   console.log('\n=============================================================');
   console.log(`  REALITY TEST SUMMARY: ${passedTests} PASSED, ${failedTests} FAILED  `);
   console.log('=============================================================\n');
+
+  await mongoose.disconnect();
 
   if (failedTests > 0) {
     process.exit(1);

@@ -106,18 +106,18 @@ export const AchievementCard = ({ goalGroup, onDismiss }) => {
         {/* Share flow */}
         {showShareFlow ? (
           <div style={{ textAlign: 'left', marginBottom: '16px' }}>
-            <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '8px' }}>Edit your post before sharing:</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '8px' }}>Edit your post before sharing:</p>
             <textarea
               value={draftCaption}
               onChange={e => setDraftCaption(e.target.value)}
               rows={6}
-              style={{ width: '100%', background: 'rgba(15,23,42,0.8)', color: 'white', border: '1px solid #334155', borderRadius: '10px', padding: '12px', fontSize: '0.85rem', resize: 'vertical', boxSizing: 'border-box' }}
+              style={{ width: '100%', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--card-border)', borderRadius: '10px', padding: '12px', fontSize: '0.85rem', resize: 'vertical', boxSizing: 'border-box' }}
             />
             <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
               <button onClick={handlePublish} disabled={publishing} className="btn btn-primary" style={{ flex: 1 }}>
                 {publishing ? 'Publishing…' : '📤 Publish Post'}
               </button>
-              <button onClick={() => setShowShareFlow(false)} style={{ flex: 1, background: 'transparent', border: '1px solid #334155', color: '#94a3b8', borderRadius: '8px', padding: '10px', cursor: 'pointer' }}>
+              <button onClick={() => setShowShareFlow(false)} style={{ flex: 1, background: 'transparent', border: '1px solid var(--card-border)', color: 'var(--text-secondary)', borderRadius: '8px', padding: '10px', cursor: 'pointer' }}>
                 Cancel
               </button>
             </div>

@@ -10,64 +10,176 @@
 .dashboard-shell-mobile-bar {
   display: none;
   padding: 12px 16px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--card-border);
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--sidebar-border);
+  align-items: center;
+  justify-content: space-between;
 }
 
 .mobile-toggle-btn {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: transparent;
+  background: var(--card-bg-light);
   border: 1px solid var(--card-border);
   color: var(--text-primary);
   padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.mobile-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-bar-icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .dashboard-shell-layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
 }
 
 .dashboard-shell-sidebar {
   width: 260px;
-  background: var(--panel-bg, rgba(15, 23, 42, 0.6));
+  background: var(--sidebar-bg);
   backdrop-filter: blur(12px);
-  border-right: 1px solid var(--card-border);
-  padding: 24px 16px;
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid var(--sidebar-border);
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   flex-shrink: 0;
   transition: transform 0.3s ease;
+  box-sizing: border-box;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
 }
 
 .sidebar-header {
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portal-brand-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+}
+
+.portal-brand-link:hover {
+  transform: scale(1.02);
+}
+
+.portal-brand-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  flex-shrink: 0;
+}
+
+.portal-brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.portal-brand-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .sidebar-role-badge {
   display: inline-block;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--primary-accent);
   background: rgba(59, 130, 246, 0.1);
   border: 1px solid rgba(59, 130, 246, 0.2);
-  padding: 4px 10px;
-  border-radius: 20px;
-  margin-bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.sidebar-user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+}
+
+.sidebar-user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #10b981;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-user-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .sidebar-user-name {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.88rem;
+  font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
 }
 
 .sidebar-nav {
@@ -93,7 +205,7 @@
 }
 
 .sidebar-nav-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--card-bg-light);
   color: var(--text-primary);
 }
 
@@ -109,9 +221,49 @@
   align-items: center;
 }
 
+.sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.sidebar-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.sidebar-footer-btn:hover {
+  background: var(--card-bg-light);
+  color: var(--text-primary);
+  border-color: var(--card-border);
+}
+
+.sidebar-footer-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
 .dashboard-shell-content {
   flex: 1;
-  padding: 24px;
+  min-width: 0;
+  padding: 24px 28px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -136,7 +288,25 @@
   color: var(--text-secondary);
 }
 
+/* Mobile backdrop when drawer opens */
+.dashboard-shell-backdrop {
+  display: none;
+}
+
 @media (max-width: 768px) {
+  .dashboard-shell-backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1050;
+  }
+
   .dashboard-shell-mobile-bar {
     display: block;
   }
@@ -147,13 +317,14 @@
 
   .dashboard-shell-sidebar {
     position: fixed;
-    top: 80px;
+    top: 60px;
     left: 0;
-    bottom: 0;
-    z-index: 100;
+    bottom: 60px;
+    z-index: 1060;
     transform: translateX(-100%);
     width: 280px;
-    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+    background: var(--sidebar-bg);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.3);
   }
 
   .dashboard-shell-sidebar.open {

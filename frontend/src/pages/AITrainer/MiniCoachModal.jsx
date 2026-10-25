@@ -1,33 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import './MiniCoachModal.css';
-import { HealthChipSection } from '../../components/onboarding/OnboardingHelpers';
-
-const JOINT_PAIN_OPTIONS = ['Knee', 'Lower Back', 'Shoulder', 'Wrist', 'Ankle', 'Neck', 'Hip', 'None'];
-const INJURY_OPTIONS = ['Rotator Cuff', 'Herniated Disc', 'ACL/Meniscus', 'Tennis Elbow', 'Hamstring Tear', 'None'];
-const CONDITION_OPTIONS = ['Asthma', 'High Blood Pressure', 'Diabetes', 'Heart Condition', 'Arthritis', 'None'];
-const LIMITATION_OPTIONS = ['No Heavy Overhead Press', 'No Deep Squats', 'No High Impact', 'No Spinal Loading', 'None'];
-const DIETARY_OPTIONS = ['Halal only', 'Vegetarian', 'Vegan', 'High Protein', 'Lactose Intolerant', 'Gluten Free', 'No Beef', 'No Seafood', 'No Restrictions'];
 
 const MissingBioMiniForm = ({ fields, formData, onChange }) => {
-  const toggleArrayItem = (field, item) => {
-    const current = Array.isArray(formData[field]) ? formData[field] : [];
-    if (item === 'None' || item === 'No Restrictions') {
-      onChange(field, current.includes(item) ? [] : [item]);
-      return;
-    }
-    const filtered = current.filter(x => x !== 'None' && x !== 'No Restrictions');
-    onChange(field, filtered.includes(item) ? filtered.filter(x => x !== item) : [...filtered, item]);
-  };
-
-  const addCustomItem = (field, item) => {
-    const current = Array.isArray(formData[field]) ? formData[field] : [];
-    const filtered = current.filter(x => x !== 'None' && x !== 'No Restrictions');
-    if (!filtered.includes(item)) {
-      onChange(field, [...filtered, item]);
-    }
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {fields.includes('height') && (
@@ -52,18 +27,6 @@ const MissingBioMiniForm = ({ fields, formData, onChange }) => {
             <option value="Other">Other</option>
           </select>
         </div>
-      )}
-      {fields.includes('jointPain') && (
-        <HealthChipSection label="Joint Pain or Discomfort" options={JOINT_PAIN_OPTIONS} selected={formData.jointPain || []} onToggle={val => toggleArrayItem('jointPain', val)} onAddCustom={val => addCustomItem('jointPain', val)} />
-      )}
-      {fields.includes('injuries') && (
-        <HealthChipSection label="Past Injuries" options={INJURY_OPTIONS} selected={formData.injuries || []} onToggle={val => toggleArrayItem('injuries', val)} onAddCustom={val => addCustomItem('injuries', val)} />
-      )}
-      {fields.includes('medicalConditions') && (
-        <HealthChipSection label="Medical Conditions" options={CONDITION_OPTIONS} selected={formData.medicalConditions || []} onToggle={val => toggleArrayItem('medicalConditions', val)} onAddCustom={val => addCustomItem('medicalConditions', val)} />
-      )}
-      {fields.includes('limitations') && (
-        <HealthChipSection label="Physical Limitations" options={LIMITATION_OPTIONS} selected={formData.limitations || []} onToggle={val => toggleArrayItem('limitations', val)} onAddCustom={val => addCustomItem('limitations', val)} />
       )}
       {fields.includes('foodPreferences') && (
         <div>

@@ -2,6 +2,7 @@
 
 :root {
   --bg-color: #0b0d14;
+  --bg-primary: #0b0d14;
   --bg-secondary: #151821;
   --text-primary: #ffffff;
   --text-secondary: #94a3b8;
@@ -25,18 +26,19 @@
 }
 
 body.light-mode {
-  --bg-color: #f1f5f9;
+  --bg-color: #f8fafc;
+  --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --text-primary: #0f172a;
-  --text-secondary: #475569;
+  --text-secondary: #64748b;
   --primary-accent: #2563eb;
   --secondary-accent: #7c3aed;
   --accent-gradient: linear-gradient(135deg, #2563eb, #7c3aed);
-  --glass-bg: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 0.92);
   --glass-border: #e2e8f0;
   --card-bg: #ffffff;
   --card-border: #e2e8f0;
-  --card-bg-light: #f8fafc;
+  --card-bg-light: #f1f5f9;
   --panel-bg: #ffffff;
   --sidebar-bg: #ffffff;
   --sidebar-border: #e2e8f0;
@@ -151,25 +153,26 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-outline {
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid var(--card-border);
   color: var(--text-primary);
 }
 
 .btn-outline:hover:not(:disabled) {
-  border-color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--primary-accent);
+  background: var(--card-bg-light);
+  color: var(--primary-accent);
 }
 
 .btn-glass {
-  background: rgba(255,255,255,0.05);
+  background: var(--glass-bg);
   backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   color: var(--text-primary);
 }
 
 .btn-glass:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255,255,255,0.2);
+  background: var(--card-bg-light);
+  border-color: var(--card-border);
 }
 
 button:focus, .btn:focus,
@@ -270,8 +273,24 @@ button:active, .btn:active {
 }
 
 /* Interactive Component & Field Feedback */
-input, select, textarea {
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--input-border);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+select option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 input:focus, select:focus, textarea:focus {
@@ -300,5 +319,51 @@ iframe[src*="netlify"] {
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+}
+
+/* Light Mode Component Refinements */
+body.light-mode .glass-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-sm);
+}
+
+body.light-mode .search-bar {
+  background: var(--bg-secondary);
+  border: 1px solid var(--input-border);
+}
+
+body.light-mode .exercise-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+}
+
+body.light-mode .modal-content {
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+}
+
+/* Universal Modal Overlay Styles */
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 10050 !important;
+  padding: 16px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
 }
 

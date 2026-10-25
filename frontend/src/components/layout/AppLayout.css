@@ -12,6 +12,16 @@
   position: relative;
 }
 
+/* Standalone Management Portal Full-Page Container (Zero duplicate sidebars) */
+.app-portal-layout {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+}
+
 /* Left Column: 20% Sidebar */
 .app-left-column {
   width: 20%;
@@ -22,6 +32,14 @@
   position: sticky;
   top: 0;
   align-self: flex-start;
+}
+
+/* Dedicated Rail Mode Column for Dashboard Portals */
+.app-left-column.rail-column {
+  width: 72px !important;
+  min-width: 72px !important;
+  max-width: 72px !important;
+  flex-shrink: 0 !important;
 }
 
 /* Middle Column: 60% Content */
@@ -39,6 +57,17 @@
   width: 80%;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+/* Dashboard Portal Management Mode (Zero outer padding for seamless docking with secondary portal sidebar) */
+.app-middle-column.dashboard-mode {
+  padding: 0 !important;
+  width: calc(100% - 72px) !important;
+  max-width: none !important;
+  margin: 0 !important;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Reels Specialized Centered Mode */
@@ -169,8 +198,11 @@
     min-width: 72px;
   }
   .app-middle-column {
-    width: calc(100% - 72px - 260px);
+    width: calc(100% - 72px);
     padding: 20px;
+  }
+  .app-middle-column:has(~ .app-right-column) {
+    width: calc(100% - 72px - 260px);
   }
   .app-right-column {
     width: 260px;

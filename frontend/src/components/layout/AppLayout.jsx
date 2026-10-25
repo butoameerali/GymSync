@@ -21,6 +21,25 @@ const AppLayout = ({ children }) => {
   const isReelsPage = currentPath === '/reels' || currentPath.startsWith('/reels/');
   const isMessagesPage = currentPath === '/messages' || currentPath.startsWith('/messages/') || currentPath === '/chat' || currentPath.startsWith('/chat/');
   const isProfilePage = currentPath === '/profile' || currentPath.startsWith('/profile/');
+  
+  // Dedicated management portal dashboards (which render their own secondary navigation via DashboardShell)
+  const isDashboardPortal = [
+    '/gym-trainer', 
+    '/gym-owner', 
+    '/store-manager', 
+    '/fitness-instructor', 
+    '/moderator',
+    '/dashboard'
+  ].some(p => currentPath === p || currentPath.startsWith(`${p}/`));
+
+  // If on a dedicated management portal, render full standalone layout without AppSidebar or 3-column shell
+  if (isDashboardPortal) {
+    return (
+      <div className="app-portal-layout">
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className={`app-3col-layout ${isReelsPage ? 'reels-page-active' : ''}`}>
@@ -45,7 +64,7 @@ const AppLayout = ({ children }) => {
       </div>
 
       {/* Middle Content Column */}
-      <main className={`app-middle-column ${isReelsPage ? 'reels-mode' : isMessagesPage ? 'messages-mode' : isProfilePage ? 'profile-mode' : (!hasRightSidebar ? 'full-width' : '')}`}>
+      <main className={`app-middle-column ${isReelsPage ? 'reels-mode' : isMessagesPage ? 'messages-mode' : isProfilePage ? 'profile-mode' : isDashboardPortal ? 'dashboard-mode' : (!hasRightSidebar ? 'full-width' : '')}`}>
         {children}
       </main>
 

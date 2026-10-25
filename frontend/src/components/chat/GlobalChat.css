@@ -10,7 +10,7 @@
   height: 60px;
   border-radius: 50%;
   background: var(--accent-gradient);
-  color: var(--text-primary);
+  color: #ffffff;
   border: none;
   display: flex;
   align-items: center;
@@ -48,7 +48,7 @@
   right: 0;
   width: 350px;
   height: 500px;
-  background: rgba(15, 17, 26, 0.95);
+  background: var(--panel-bg);
   border: 1px solid var(--card-border);
   border-radius: 16px;
   display: flex;
@@ -58,7 +58,7 @@
   opacity: 0;
   pointer-events: none;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
   overflow: hidden;
 }
 
@@ -145,14 +145,16 @@
 
 .chat-bubble.incoming {
   align-self: flex-start;
-  background: var(--card-border);
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
   border-bottom-left-radius: 4px;
 }
 
 .chat-bubble.outgoing {
   align-self: flex-end;
   background: var(--primary-accent);
-  color: var(--text-primary);
+  color: #ffffff;
   border-bottom-right-radius: 4px;
 }
 
@@ -166,7 +168,7 @@
 
 .chat-footer input {
   flex: 1;
-  background: var(--card-bg);
+  background: var(--input-bg);
   border: 1px solid var(--card-border);
   padding: 10px 14px;
   border-radius: 20px;
@@ -185,7 +187,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  color: var(--text-primary);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;

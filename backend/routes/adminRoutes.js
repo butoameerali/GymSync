@@ -27,7 +27,11 @@ import {
   createDiscountCampaign,
   getDiscountCampaigns,
   restoreUserByAdmin,
-  permanentlyPurgeUserByAdmin
+  permanentlyPurgeUserByAdmin,
+  createStoreManager,
+  getStoreManagers,
+  updateStoreManager,
+  deleteStoreManager
 } from '../controllers/adminController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -80,4 +84,11 @@ router.get('/audit-logs', authorizeRoles('SuperAdmin'), getAuditLogs);
 router.post('/discount-campaigns', authorizeRoles('SuperAdmin', 'Admin'), createDiscountCampaign);
 router.get('/discount-campaigns', authorizeRoles('SuperAdmin', 'Admin'), getDiscountCampaigns);
 
+// Store Manager Provisioning & Lifecycle (Admin-only invitation/creation/edit/delete)
+router.post('/store-managers', authorizeRoles('SuperAdmin', 'Admin'), createStoreManager);
+router.get('/store-managers', authorizeRoles('SuperAdmin', 'Admin'), getStoreManagers);
+router.put('/store-managers/:id', authorizeRoles('SuperAdmin', 'Admin'), updateStoreManager);
+router.delete('/store-managers/:id', authorizeRoles('SuperAdmin', 'Admin'), deleteStoreManager);
+
 export default router;
+

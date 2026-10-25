@@ -68,7 +68,7 @@ const ExerciseDetailView = ({
 
         <div
           style={{
-            background: 'rgba(255,255,255,0.03)',
+            background: 'var(--card-bg-light)',
             padding: '32px 24px',
             borderRadius: '16px',
             border: '1px solid var(--card-border)',
@@ -149,7 +149,8 @@ const ExerciseDetailView = ({
                   width: '52px',
                   height: '52px',
                   borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.08)',
+                  background: 'var(--card-bg-light)',
+                  border: '1px solid var(--card-border)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -221,7 +222,7 @@ const ExerciseDetailView = ({
                     ? 'rgba(16, 185, 129, 0.2)'
                     : isCurrent
                     ? 'rgba(59, 130, 246, 0.25)'
-                    : 'rgba(255,255,255,0.05)',
+                    : 'var(--card-bg-light)',
                   color: isDone ? '#10b981' : isCurrent ? '#60a5fa' : 'var(--text-secondary)',
                   border: isCurrent ? '1px solid #3b82f6' : '1px solid transparent',
                 }}
@@ -442,7 +443,7 @@ const ExerciseDetailView = ({
             fontSize: '1rem',
             lineHeight: 1.6,
             color: 'var(--text-primary)',
-            background: 'rgba(255, 255, 255, 0.03)',
+            background: 'var(--card-bg-light)',
             padding: '16px',
             borderRadius: '10px',
             border: '1px solid var(--card-border)',
@@ -465,7 +466,7 @@ const ExerciseDetailView = ({
         >
           <div
             style={{
-              background: 'rgba(0,0,0,0.3)',
+              background: 'var(--card-bg-light)',
               padding: '12px',
               borderRadius: '8px',
               border: '1px solid var(--card-border)',
@@ -482,7 +483,7 @@ const ExerciseDetailView = ({
           </div>
           <div
             style={{
-              background: 'rgba(0,0,0,0.3)',
+              background: 'var(--card-bg-light)',
               padding: '12px',
               borderRadius: '8px',
               border: '1px solid var(--card-border)',
@@ -497,7 +498,7 @@ const ExerciseDetailView = ({
           </div>
           <div
             style={{
-              background: 'rgba(0,0,0,0.3)',
+              background: 'var(--card-bg-light)',
               padding: '12px',
               borderRadius: '8px',
               border: '1px solid var(--card-border)',
@@ -519,7 +520,7 @@ const ExerciseDetailView = ({
           <div
             style={{
               marginTop: '24px',
-              background: 'rgba(0,0,0,0.25)',
+              background: 'var(--card-bg-light)',
               padding: '20px',
               borderRadius: '12px',
               border: '1px solid var(--card-border)',
@@ -564,7 +565,7 @@ const ExerciseDetailView = ({
                         ? 'rgba(16, 185, 129, 0.2)'
                         : isCurrent
                         ? 'rgba(59, 130, 246, 0.2)'
-                        : 'rgba(255,255,255,0.03)',
+                        : 'var(--card-bg-light)',
                       color: isDone ? '#10b981' : isCurrent ? '#60a5fa' : 'var(--text-secondary)',
                       border: isCurrent
                         ? '1px solid #3b82f6'
@@ -603,7 +604,7 @@ const ExerciseDetailView = ({
                     fontWeight: 'bold',
                     width: '100px',
                     textAlign: 'center',
-                    background: 'rgba(0,0,0,0.4)',
+                    background: 'var(--input-bg)',
                     color: '#10b981',
                     border: '2px solid #10b981',
                     padding: '6px',
