@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { 
   MapPin, Star, ArrowLeft, CheckCircle, Calendar, Clock, Phone, 
   FileText, Dumbbell, ShieldCheck, Eye, Copy, Check, Users, UserCheck, 
   Sparkles, Activity, Navigation, Tag, Search, Wrench, AlertCircle, Info, Zap,
-  CreditCard, Banknote
+  CreditCard, Banknote, Edit3, Building2, Settings
 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
+import EditFacilityModal from '../GymOwner/EditFacilityModal';
 import { toast } from 'react-toastify';
 import { getSafeImageUrl } from '../../utils/imageUtils';
 import './GymDetails.css';
@@ -60,9 +61,27 @@ const GymDetails = () => {
   // Photo enlargement
   const [previewPhoto, setPreviewPhoto] = useState(null);
 
+  // Owner Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editInitialSection, setEditInitialSection] = useState('info');
+
+  const handleOpenEdit = (section = 'info') => {
+    setEditInitialSection(section);
+    setIsEditModalOpen(true);
+  };
+
   const userRole = localStorage.getItem('gymsync_role') || 'guest';
   const isGuest = userRole === 'guest';
   const userName = localStorage.getItem('gymsync_user_name');
+
+  const isOwner = Boolean(
+    !isGuest && gym && (
+      (userName && gym.ownerName && gym.ownerName.toLowerCase() === userName.toLowerCase()) ||
+      (currentUser && gym.owner && String(gym.owner) === String(currentUser._id)) ||
+      (userRole.toLowerCase().replace(/[_\s]/g, '') === 'gymowner' && gym.ownerName === userName) ||
+      ['admin', 'superadmin'].includes(userRole.toLowerCase())
+    )
+  );
 
   useEffect(() => {
     const loadGym = async () => {
@@ -159,40 +178,23 @@ const GymDetails = () => {
   const bannerImage = getSafeImageUrl(gym?.equipmentImages?.[0], 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop');
   const membershipAmount = Number(gym?.monthlyFee || 0);
 
-  if (loading) {
-    return (
-      <div className="container" style={{ paddingTop: '150px', textAlign: 'center' }}>
-        <h2>Loading gym details...</h2>
-      </div>
-    );
-  }
-
-  if (fetchError || !gym) {
-    return (
-      <div className="container" style={{ paddingTop: '150px', textAlign: 'center' }}>
-        <h2>Unable to load gym details</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>{fetchError || 'Please try again later.'}</p>
-      </div>
-    );
-  }
-
   const actualPhotos = [
-    ...(Array.isArray(gym.equipmentImages) ? gym.equipmentImages : []),
-    ...(Array.isArray(gym.photos) ? gym.photos : [])
+    ...(Array.isArray(gym?.equipmentImages) ? gym.equipmentImages : []),
+    ...(Array.isArray(gym?.photos) ? gym.photos : [])
   ].filter(Boolean);
 
   // Fee and Pricing Calculations (Guaranteed safe defaults)
-  const admissionFee = Number(gym.admissionFee || 0);
-  const monthlyFee = Number(gym.monthlyFee || 0);
-  const securityDeposit = Number(gym.securityDeposit || 0);
-  const isRefundable = gym.securityDepositRefundable !== false;
-  const offersYearlyPlan = Boolean(gym.offersYearlyPlan || (Number(gym.yearlyDiscountPercent) > 0));
-  const yearlyDiscountPercent = offersYearlyPlan ? Math.min(50, Math.max(0, Number(gym.yearlyDiscountPercent || 0))) : 0;
+  const admissionFee = Number(gym?.admissionFee || 0);
+  const monthlyFee = Number(gym?.monthlyFee || 0);
+  const securityDeposit = Number(gym?.securityDeposit || 0);
+  const isRefundable = gym?.securityDepositRefundable !== false;
+  const offersYearlyPlan = Boolean(gym?.offersYearlyPlan || (Number(gym?.yearlyDiscountPercent) > 0));
+  const yearlyDiscountPercent = offersYearlyPlan ? Math.min(50, Math.max(0, Number(gym?.yearlyDiscountPercent || 0))) : 0;
   const baseYearly = monthlyFee * 12;
   const yearlyPrice = Math.round(baseYearly * (1 - yearlyDiscountPercent / 100));
 
-  const trainerPolicy = gym.trainerPolicy || {};
-  const guidanceTrainerAvailable = Boolean(trainerPolicy.guidanceTrainer ?? gym.trainerIncluded);
+  const trainerPolicy = gym?.trainerPolicy || {};
+  const guidanceTrainerAvailable = Boolean(trainerPolicy.guidanceTrainer ?? gym?.trainerIncluded);
   const personalTrainerAvailable = Boolean(trainerPolicy.personalTrainer);
   const personalTrainerFee = Number(trainerPolicy.personalTrainerMonthlyFee || 0);
 
@@ -217,6 +219,62 @@ const GymDetails = () => {
   const effectivePlanPrice = activePlan === 'Yearly' ? yearlyPrice : monthlyFee;
   const rawFirstTimeTotal = admissionFee + securityDeposit + effectivePlanPrice;
   const netPayableTotal = Math.max(0, rawFirstTimeTotal - appliedDiscount);
+
+  // Equipment calculation & grouping
+  const rawEquipment = useMemo(() => {
+    if (Array.isArray(gym?.equipmentStatus) && gym.equipmentStatus.length > 0) {
+      return gym.equipmentStatus.map((item, idx) => ({
+        id: item._id || idx,
+        name: item.name || 'Unnamed Machine',
+        category: item.category || 'Other',
+        status: item.status || 'Available',
+        quantity: Math.max(1, Number(item.quantity) || 1),
+        notes: item.notes || ''
+      }));
+    }
+    if (Array.isArray(gym?.equipmentList) && gym.equipmentList.length > 0) {
+      return gym.equipmentList.map((item, idx) => ({
+        id: idx,
+        name: typeof item === 'string' ? item : (item.name || 'Equipment'),
+        category: 'Other',
+        status: 'Available',
+        quantity: 1,
+        notes: ''
+      }));
+    }
+    return [];
+  }, [gym]);
+
+  const totalEquipmentPieces = useMemo(() => {
+    return rawEquipment.reduce((acc, eq) => acc + (eq.quantity || 1), 0);
+  }, [rawEquipment]);
+
+  const maintenanceCount = useMemo(() => {
+    return rawEquipment.filter(eq => eq.status === 'Maintenance' || eq.status === 'Under Maintenance').length;
+  }, [rawEquipment]);
+
+  const filteredEquipment = useMemo(() => {
+    const q = machineSearch.trim().toLowerCase();
+    if (!q) return rawEquipment;
+    return rawEquipment.filter(eq => 
+      eq.name.toLowerCase().includes(q) || 
+      (eq.notes && eq.notes.toLowerCase().includes(q)) ||
+      (eq.category && eq.category.toLowerCase().includes(q))
+    );
+  }, [rawEquipment, machineSearch]);
+
+  const groupedEquipment = useMemo(() => {
+    const categoriesOrder = ['Cardio', 'Strength Machine', 'Free Weights', 'Functional', 'Other'];
+    const groups = {};
+    for (const cat of categoriesOrder) {
+      groups[cat] = [];
+    }
+    filteredEquipment.forEach(eq => {
+      const cat = categoriesOrder.includes(eq.category) ? eq.category : 'Other';
+      groups[cat].push(eq);
+    });
+    return groups;
+  }, [filteredEquipment]);
 
   const handleApplyCoupon = () => {
     const cleanCode = joinCouponCode.trim();
@@ -262,8 +320,8 @@ const GymDetails = () => {
       const token = localStorage.getItem('gymsync_token') || '';
       const payload = {
         paymentId: `PAY-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
-        gymId: gym._id,
-        gymName: gym.name,
+        gymId: gym?._id,
+        gymName: gym?.name,
         paymentType: 'GymMembership',
         paymentMethod: joinPaymentMethod === 'Online' ? 'Easypaisa' : joinPaymentMethod,
         amount: netPayableTotal,
@@ -300,7 +358,7 @@ const GymDetails = () => {
       });
 
       if (joinPaymentMethod === 'Card') {
-        toast.success(`🎉 Membership activated! Welcome to ${gym.name}.`);
+        toast.success(`🎉 Membership activated! Welcome to ${gym?.name}.`);
       } else if (joinPaymentMethod === 'Cash') {
         toast.success('🎟️ Cash Pass reserved! Bring your pass code to gym reception to pay.');
       } else {
@@ -313,62 +371,6 @@ const GymDetails = () => {
     }
   };
 
-  // Equipment calculation & grouping
-  const rawEquipment = useMemo(() => {
-    if (Array.isArray(gym.equipmentStatus) && gym.equipmentStatus.length > 0) {
-      return gym.equipmentStatus.map((item, idx) => ({
-        id: item._id || idx,
-        name: item.name || 'Unnamed Machine',
-        category: item.category || 'Other',
-        status: item.status || 'Available',
-        quantity: Math.max(1, Number(item.quantity) || 1),
-        notes: item.notes || ''
-      }));
-    }
-    if (Array.isArray(gym.equipmentList) && gym.equipmentList.length > 0) {
-      return gym.equipmentList.map((item, idx) => ({
-        id: idx,
-        name: typeof item === 'string' ? item : (item.name || 'Equipment'),
-        category: 'Other',
-        status: 'Available',
-        quantity: 1,
-        notes: ''
-      }));
-    }
-    return [];
-  }, [gym]);
-
-  const totalEquipmentPieces = useMemo(() => {
-    return rawEquipment.reduce((acc, eq) => acc + (eq.quantity || 1), 0);
-  }, [rawEquipment]);
-
-  const maintenanceCount = useMemo(() => {
-    return rawEquipment.filter(eq => eq.status === 'Maintenance' || eq.status === 'Under Maintenance').length;
-  }, [rawEquipment]);
-
-  const filteredEquipment = useMemo(() => {
-    const q = machineSearch.trim().toLowerCase();
-    if (!q) return rawEquipment;
-    return rawEquipment.filter(eq => 
-      eq.name.toLowerCase().includes(q) || 
-      (eq.notes && eq.notes.toLowerCase().includes(q)) ||
-      (eq.category && eq.category.toLowerCase().includes(q))
-    );
-  }, [rawEquipment, machineSearch]);
-
-  const groupedEquipment = useMemo(() => {
-    const categoriesOrder = ['Cardio', 'Strength Machine', 'Free Weights', 'Functional', 'Other'];
-    const groups = {};
-    for (const cat of categoriesOrder) {
-      groups[cat] = [];
-    }
-    filteredEquipment.forEach(eq => {
-      const cat = categoriesOrder.includes(eq.category) ? eq.category : 'Other';
-      groups[cat].push(eq);
-    });
-    return groups;
-  }, [filteredEquipment]);
-
   const handleCopyCoupon = (code) => {
     if (!code) return;
     navigator.clipboard.writeText(code);
@@ -376,6 +378,23 @@ const GymDetails = () => {
     toast.success(`Coupon code ${code} copied to clipboard!`);
     setTimeout(() => setCopiedCoupon(''), 3000);
   };
+
+  if (loading) {
+    return (
+      <div className="container" style={{ paddingTop: '150px', textAlign: 'center' }}>
+        <h2>Loading gym details...</h2>
+      </div>
+    );
+  }
+
+  if (fetchError || !gym) {
+    return (
+      <div className="container" style={{ paddingTop: '150px', textAlign: 'center' }}>
+        <h2>Unable to load gym details</h2>
+        <p style={{ color: 'var(--text-secondary)' }}>{fetchError || 'Please try again later.'}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="gym-details-page">
@@ -435,9 +454,44 @@ const GymDetails = () => {
         </div>
       </div>
 
+      {isOwner && (
+        <div className="container" style={{ marginTop: '20px', marginBottom: '-10px' }}>
+          <div className="gym-owner-mode-bar">
+            <div className="gym-owner-mode-info">
+              <span className="gym-owner-badge">👑 Owner View</span>
+              <p>You own this facility. You are previewing your gym's public profile as members see it.</p>
+            </div>
+            <div className="gym-owner-mode-actions">
+              <button 
+                type="button" 
+                className="btn-owner-edit"
+                onClick={() => handleOpenEdit('info')}
+              >
+                <Edit3 size={15} /> Edit Facility Profile
+              </button>
+              <Link to="/gym-owner" className="btn-owner-portal-link">
+                <Settings size={15} /> Open Owner Portal
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="container content-grid">
         <div className="main-info glass-panel">
-          <h3>About This Gym</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h3 style={{ margin: 0 }}>About This Gym</h3>
+            {isOwner && (
+              <button 
+                type="button" 
+                className="section-edit-btn" 
+                onClick={() => handleOpenEdit('info')}
+                title="Edit Gym Description"
+              >
+                <Edit3 size={12} /> Edit Bio
+              </button>
+            )}
+          </div>
           <p>{gym.description || 'No detailed description provided by gym management.'}</p>
 
           {/* Daily Training Tip / Management Announcement */}
@@ -466,9 +520,21 @@ const GymDetails = () => {
 
           {/* Fees & Charges Card */}
           <div style={{ marginTop: '28px' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 16px' }}>
-              <Tag size={20} color="var(--primary-accent)" /> Fees & Membership Pricing
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 16px' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <Tag size={20} color="var(--primary-accent)" /> Fees &amp; Membership Pricing
+              </h3>
+              {isOwner && (
+                <button 
+                  type="button" 
+                  className="section-edit-btn" 
+                  onClick={() => handleOpenEdit('pricing')}
+                  title="Edit Membership Fees"
+                >
+                  <Edit3 size={12} /> Edit Pricing
+                </button>
+              )}
+            </div>
             
             {gym.timings?.weekday && (
               <div style={{
@@ -480,12 +546,25 @@ const GymDetails = () => {
                 fontSize: '0.86rem',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'space-between',
                 gap: '8px'
               }}>
-                <Clock size={16} color="var(--primary-accent)" />
-                <span>
-                  <strong>Facility Hours:</strong> {gym.timings.weekday}{gym.timings.weekend ? ` (Weekend: ${gym.timings.weekend})` : ''}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Clock size={16} color="var(--primary-accent)" />
+                  <span>
+                    <strong>Facility Hours:</strong> {gym.timings.weekday}{gym.timings.weekend ? ` (Weekend: ${gym.timings.weekend})` : ''}
+                  </span>
+                </div>
+                {isOwner && (
+                  <button 
+                    type="button" 
+                    className="section-edit-btn" 
+                    onClick={() => handleOpenEdit('timings')}
+                    title="Edit Facility Hours"
+                  >
+                    <Edit3 size={12} /> Edit Hours
+                  </button>
+                )}
               </div>
             )}
 
@@ -790,9 +869,21 @@ const GymDetails = () => {
           </div>
 
           {/* Photo Gallery */}
-          <h3 style={{ marginTop: '36px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Eye size={20} color="var(--primary-accent)" /> Facility Photo Gallery
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '36px', marginBottom: '8px' }}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Eye size={20} color="var(--primary-accent)" /> Facility Photo Gallery
+            </h3>
+            {isOwner && (
+              <button 
+                type="button" 
+                className="section-edit-btn" 
+                onClick={() => handleOpenEdit('photos')}
+                title="Edit Cover Photo"
+              >
+                <Edit3 size={12} /> Edit Photos
+              </button>
+            )}
+          </div>
           {actualPhotos.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginTop: '14px' }}>
               {actualPhotos.map((imgUrl, i) => (
@@ -811,10 +902,22 @@ const GymDetails = () => {
             </div>
           )}
 
-          {/* Facilities */}
-          {Array.isArray(gym.facilities) && gym.facilities.length > 0 && (
-            <>
-              <h3 style={{ marginTop: '36px' }}>Amenities & Facilities</h3>
+          {/* Facilities & Amenities */}
+          <div style={{ marginTop: '36px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0 }}>Amenities &amp; Facilities</h3>
+              {isOwner && (
+                <button 
+                  type="button" 
+                  className="section-edit-btn" 
+                  onClick={() => handleOpenEdit('amenities')}
+                  title="Edit Amenities"
+                >
+                  <Edit3 size={12} /> Edit Amenities
+                </button>
+              )}
+            </div>
+            {Array.isArray(gym.facilities) && gym.facilities.length > 0 ? (
               <div className="facilities-grid">
                 {gym.facilities.map((fac, idx) => (
                   <div key={idx} className="facility-item">
@@ -822,8 +925,12 @@ const GymDetails = () => {
                   </div>
                 ))}
               </div>
-            </>
-          )}
+            ) : (
+              <div style={{ padding: '16px', background: 'var(--card-bg, rgba(255,255,255,0.02))', borderRadius: '10px', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                {isOwner ? 'No amenities listed yet. Click "Edit Amenities" to add amenities to your public profile.' : 'No amenities listed.'}
+              </div>
+            )}
+          </div>
 
           {/* Detailed Equipment Breakdown */}
           <div style={{ marginTop: '36px' }}>
@@ -1003,128 +1110,175 @@ const GymDetails = () => {
         </div>
 
         {/* Membership Rate & Tour Booking Sidebar */}
-        <div className="booking-card glass-panel">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <h3 style={{ margin: 0 }}>Membership Rate</h3>
-            <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 600 }}>
-              On-Site Registration
-            </span>
-          </div>
-
-          {/* Plan Selector (Dropdown only when Yearly is offered) */}
-          {offersYearlyPlan ? (
-            <div style={{ marginTop: '12px', marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                Select Membership Plan
-              </label>
-              <select
-                className="search-input"
-                value={selectedPlan}
-                onChange={(e) => setSelectedPlan(e.target.value)}
-                style={{ width: '100%', cursor: 'pointer', padding: '8px 12px' }}
-              >
-                <option value="Monthly">Monthly Pass</option>
-                <option value="Yearly">
-                  {yearlyDiscountPercent > 0 ? `Yearly Pass (Save ${yearlyDiscountPercent}%)` : 'Yearly Pass'}
-                </option>
-              </select>
+        {isOwner ? (
+          <div className="booking-card glass-panel" style={{ border: '2px solid rgba(139, 92, 246, 0.4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span className="gym-owner-badge">👑 Your Facility</span>
+              <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>Active Online</span>
             </div>
-          ) : (
-            <div style={{ marginTop: '12px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Monthly Membership Plan
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.25rem', color: 'var(--text-primary)' }}>{gym.name}</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
+              You own and manage this facility. All updates you make are live for gym members immediately.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', padding: '8px 12px', background: 'var(--card-bg-light)', borderRadius: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Monthly Pass</span>
+                <strong style={{ color: '#10b981' }}>{formatRs(monthlyFee)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', padding: '8px 12px', background: 'var(--card-bg-light)', borderRadius: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Admission Fee</span>
+                <strong>{admissionFee > 0 ? formatRs(admissionFee) : 'Free'}</strong>
+              </div>
+              {offersYearlyPlan && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', padding: '8px 12px', background: 'var(--card-bg-light)', borderRadius: '8px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Yearly Discount</span>
+                  <strong style={{ color: '#3b82f6' }}>{yearlyDiscountPercent}% OFF ({formatRs(yearlyPrice)})</strong>
+                </div>
+              )}
+            </div>
+
+            <button 
+              type="button" 
+              className="btn btn-primary w-100" 
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', marginBottom: '10px' }}
+              onClick={() => handleOpenEdit('info')}
+            >
+              <Edit3 size={16} /> Edit Facility Profile
+            </button>
+
+            <Link 
+              to="/gym-owner" 
+              className="btn btn-outline w-100" 
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px' }}
+            >
+              <Building2 size={16} /> Open Owner Dashboard
+            </Link>
+          </div>
+        ) : (
+          <div className="booking-card glass-panel">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <h3 style={{ margin: 0 }}>Membership Rate</h3>
+              <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 600 }}>
+                On-Site Registration
               </span>
             </div>
-          )}
 
-          <div className="price-tag">
-            <span className="currency">Rs.</span>
-            <span className="amount">
-              {activePlan === 'Yearly' 
-                ? Math.round(yearlyPrice).toLocaleString('en-US') 
-                : Math.round(monthlyFee).toLocaleString('en-US')}
-            </span>
-            <span className="period">{activePlan === 'Yearly' ? '/year' : '/month'}</span>
-          </div>
+            {/* Plan Selector (Dropdown only when Yearly is offered) */}
+            {offersYearlyPlan ? (
+              <div style={{ marginTop: '12px', marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Select Membership Plan
+                </label>
+                <select
+                  className="search-input"
+                  value={selectedPlan}
+                  onChange={(e) => setSelectedPlan(e.target.value)}
+                  style={{ width: '100%', cursor: 'pointer', padding: '8px 12px' }}
+                >
+                  <option value="Monthly">Monthly Pass</option>
+                  <option value="Yearly">
+                    {yearlyDiscountPercent > 0 ? `Yearly Pass (Save ${yearlyDiscountPercent}%)` : 'Yearly Pass'}
+                  </option>
+                </select>
+              </div>
+            ) : (
+              <div style={{ marginTop: '12px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Monthly Membership Plan
+                </span>
+              </div>
+            )}
 
-          {activePlan === 'Yearly' && yearlyDiscountPercent > 0 && (
-            <p style={{ fontSize: '0.8rem', color: '#10b981', margin: '4px 0 10px', fontWeight: 600 }}>
-              Save {yearlyDiscountPercent}% (Regular {formatRs(baseYearly)})
+            <div className="price-tag">
+              <span className="currency">Rs.</span>
+              <span className="amount">
+                {activePlan === 'Yearly' 
+                  ? Math.round(yearlyPrice).toLocaleString('en-US') 
+                  : Math.round(monthlyFee).toLocaleString('en-US')}
+              </span>
+              <span className="period">{activePlan === 'Yearly' ? '/year' : '/month'}</span>
+            </div>
+
+            {activePlan === 'Yearly' && yearlyDiscountPercent > 0 && (
+              <p style={{ fontSize: '0.8rem', color: '#10b981', margin: '4px 0 10px', fontWeight: 600 }}>
+                Save {yearlyDiscountPercent}% (Regular {formatRs(baseYearly)})
+              </p>
+            )}
+
+            {/* Fee Breakdown List */}
+            <div style={{ margin: '14px 0', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: '10px 0', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.84rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>One-time Admission Fee:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  {admissionFee > 0 ? formatRs(admissionFee) : 'Free'}
+                </strong>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Security Deposit:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  {securityDeposit > 0 ? `${formatRs(securityDeposit)} (${isRefundable ? 'Refundable' : 'Non-refundable'})` : 'No deposit'}
+                </strong>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Estimated First Payment:</span>
+                <strong style={{ color: '#10b981', fontSize: '0.95rem' }}>
+                  {selectedPlan === 'Yearly' ? formatRs(firstTimeYearlyEstimate) : formatRs(firstTimeMonthlyEstimate)}
+                </strong>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '12px', borderRadius: '8px', marginTop: '12px', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <span style={{ color: 'var(--primary-accent)', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
+                ⚡ 3 Flexible Payment Options
+              </span>
+              Pay via Card, Online Mobile Transfer (TID), or reserve a Cash Pass to pay at the gym reception desk!
+            </div>
+
+            <button 
+              type="button"
+              className="btn btn-primary w-100 mt-20" 
+              onClick={() => {
+                setJoinSuccessData(null);
+                setIsJoinModalOpen(true);
+              }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', fontSize: '1rem', fontWeight: 700 }}
+            >
+              <CreditCard size={18} /> Join Gym & Get Pass
+            </button>
+
+            <button 
+              type="button"
+              className="btn btn-outline w-100 mt-10" 
+              onClick={handleOpenTourModal}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px' }}
+            >
+              <Calendar size={16} /> Book Free In-Person Tour
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-outline w-100 mt-10"
+              onClick={() => {
+                if (gym.googleMapsUrl) {
+                  window.open(gym.googleMapsUrl, '_blank', 'noopener,noreferrer');
+                } else {
+                  const query = encodeURIComponent(`${gym.name} ${gym.address || gym.location || ''}`);
+                  window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank', 'noopener,noreferrer');
+                }
+              }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            >
+              <Navigation size={16} /> Get Directions in Maps
+            </button>
+
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '14px' }}>
+              Walkthrough the facility, test the equipment, and meet on-site coaches before signing up!
             </p>
-          )}
-
-          {/* Fee Breakdown List */}
-          <div style={{ margin: '14px 0', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: '10px 0', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.84rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>One-time Admission Fee:</span>
-              <strong style={{ color: 'var(--text-primary)' }}>
-                {admissionFee > 0 ? formatRs(admissionFee) : 'Free'}
-              </strong>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Security Deposit:</span>
-              <strong style={{ color: 'var(--text-primary)' }}>
-                {securityDeposit > 0 ? `${formatRs(securityDeposit)} (${isRefundable ? 'Refundable' : 'Non-refundable'})` : 'No deposit'}
-              </strong>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Estimated First Payment:</span>
-              <strong style={{ color: '#10b981', fontSize: '0.95rem' }}>
-                {selectedPlan === 'Yearly' ? formatRs(firstTimeYearlyEstimate) : formatRs(firstTimeMonthlyEstimate)}
-              </strong>
-            </div>
           </div>
-
-          <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '12px', borderRadius: '8px', marginTop: '12px', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            <span style={{ color: 'var(--primary-accent)', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
-              ⚡ 3 Flexible Payment Options
-            </span>
-            Pay via Card, Online Mobile Transfer (TID), or reserve a Cash Pass to pay at the gym reception desk!
-          </div>
-
-          <button 
-            type="button"
-            className="btn btn-primary w-100 mt-20" 
-            onClick={() => {
-              setJoinSuccessData(null);
-              setIsJoinModalOpen(true);
-            }}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', fontSize: '1rem', fontWeight: 700 }}
-          >
-            <CreditCard size={18} /> Join Gym & Get Pass
-          </button>
-
-          <button 
-            type="button"
-            className="btn btn-outline w-100 mt-10" 
-            onClick={handleOpenTourModal}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px' }}
-          >
-            <Calendar size={16} /> Book Free In-Person Tour
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-outline w-100 mt-10"
-            onClick={() => {
-              if (gym.googleMapsUrl) {
-                window.open(gym.googleMapsUrl, '_blank', 'noopener,noreferrer');
-              } else {
-                const query = encodeURIComponent(`${gym.name} ${gym.address || gym.location || ''}`);
-                window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank', 'noopener,noreferrer');
-              }
-            }}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-          >
-            <Navigation size={16} /> Get Directions in Maps
-          </button>
-
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '14px' }}>
-            Walkthrough the facility, test the equipment, and meet on-site coaches before signing up!
-          </p>
-        </div>
+        )}
       </div>
 
       {/* Book Tour Modal */}
@@ -1699,9 +1853,16 @@ const GymDetails = () => {
         )}
       </Modal>
 
-
-
-
+      {/* Edit Facility Profile Modal for Gym Owner */}
+      <EditFacilityModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        gym={gym}
+        initialSection={editInitialSection}
+        onSaved={(updatedGym) => {
+          setGym(prev => ({ ...prev, ...updatedGym }));
+        }}
+      />
     </div>
   );
 };

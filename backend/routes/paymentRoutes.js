@@ -5,6 +5,7 @@ import {
   updatePaymentConfig,
   getPendingPayments,
   approvePayment,
+  rejectPayment,
   createPaymentIntent,
   trackPaymentByCode
 } from '../controllers/paymentController.js';
@@ -20,5 +21,6 @@ router.post('/create-intent', protect, createPaymentIntent);
 router.put('/config/:method', protect, authorizeRoles('SuperAdmin', 'Admin'), updatePaymentConfig);
 router.get('/pending', protect, authorizeRoles('SuperAdmin', 'Admin'), getPendingPayments);
 router.put('/:id/approve', protect, authorizeRoles('SuperAdmin', 'Admin'), approvePayment);
+router.put('/:id/reject', protect, authorizeRoles('SuperAdmin', 'Admin'), rejectPayment);
 
 export default router;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, FileText, Dumbbell, Activity, UserCheck, Trash2, Lock, Sparkles, CreditCard, ShieldCheck, Eye, Banknote, RefreshCw, AlertCircle } from 'lucide-react';
+import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, FileText, Dumbbell, Activity, UserCheck, Trash2, Lock, Sparkles, CreditCard, ShieldCheck, Eye, Banknote, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react';
 import { toast } from 'react-toastify';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
@@ -9,6 +9,7 @@ import StatCard from '../../components/ui/StatCard';
 import EquipmentManager from './EquipmentManager';
 import OffersManager from './OffersManager';
 import BranchVerificationModal from './BranchVerificationModal';
+import BranchApplicationViewModal from './BranchApplicationViewModal';
 import AnnualFeeModal from './AnnualFeeModal';
 import { getSafeImageUrl } from '../../utils/imageUtils';
 import './GymOwnerDashboard.css';
@@ -91,6 +92,7 @@ const GymOwnerDashboard = () => {
   const [organization, setOrganization] = useState(null);
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [selectedBranchForModal, setSelectedBranchForModal] = useState(null);
+  const [viewingApplicationBranch, setViewingApplicationBranch] = useState(null);
   const [branchToDelete, setBranchToDelete] = useState(null);
   const [isDeletingBranch, setIsDeletingBranch] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -273,10 +275,13 @@ const GymOwnerDashboard = () => {
     }
   };
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (targetGymId = null) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/gym-owner/dashboard/${ownerName}`, {
+      const url = targetGymId 
+        ? `/api/gym-owner/dashboard/${ownerName}?gymId=${targetGymId}` 
+        : `/api/gym-owner/dashboard/${ownerName}`;
+      const res = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
         }
@@ -613,7 +618,7 @@ const GymOwnerDashboard = () => {
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <div className="overview-container">
-                {branches.some(b => b.approvalStatus === 'Approved' && (!b.subscriptionPaid || !b.isOnline)) && (
+                {branches.some(b => b.approvalStatus === 'Approved' && (!b.subscriptionPaid || !b.isOnline) && b.listingStatus !== 'Pending Verification') && (
                   <div style={{
                     background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%)',
                     border: '1px solid rgba(59, 130, 246, 0.4)',
@@ -907,8 +912,26 @@ const GymOwnerDashboard = () => {
                                     </span>
                                   </div>
                                   <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                                    Fee Paid (Rs. {b.annualSubscriptionFee || 5000}/yr)
+                                    Fee Paid (Rs. {b.annualSubscriptionFee || 20}/yr)
                                   </span>
+                                </div>
+                              ) : b.listingStatus === 'Pending Verification' ? (
+                                <div style={{
+                                  background: 'rgba(245, 158, 11, 0.1)',
+                                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                                  borderRadius: '10px',
+                                  padding: '12px 14px',
+                                  marginBottom: '12px'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <span style={{ fontSize: '0.95rem' }}>⏳</span>
+                                    <strong style={{ fontSize: '0.85rem', color: '#f59e0b' }}>
+                                      Payment Verification in Progress
+                                    </strong>
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                    Your annual fee payment receipt ({b.subscriptionPaymentMethod || 'Online Transfer'}) has been submitted and is currently being verified by GymSync administration. Your facility will go <strong>Live & Online</strong> automatically once verified.
+                                  </p>
                                 </div>
                               ) : (
                                 <div style={{
@@ -925,7 +948,7 @@ const GymOwnerDashboard = () => {
                                     </strong>
                                   </div>
                                   <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                    Pay the <strong>Rs. {Number(b.annualSubscriptionFee || 5000).toLocaleString('en-US')}/year</strong> partner fee to take your facility live on Explore Gyms.
+                                    Pay the <strong>Rs. {Number(b.annualSubscriptionFee || 20).toLocaleString('en-US')}/year</strong> partner fee to take your facility live on Explore Gyms.
                                   </p>
                                   <button
                                     type="button"
@@ -936,7 +959,7 @@ const GymOwnerDashboard = () => {
                                       setShowPaymentModal(true);
                                     }}
                                   >
-                                    <CreditCard size={15} /> Pay Rs. {b.annualSubscriptionFee || 5000} & Activate Online
+                                    <CreditCard size={15} /> Pay Rs. {b.annualSubscriptionFee || 20} & Activate Online
                                   </button>
                                 </div>
                               )
@@ -947,8 +970,12 @@ const GymOwnerDashboard = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                setSelectedBranchForModal(b);
-                                setShowBranchModal(true);
+                                if (status === 'Draft' || status === 'More Information Required') {
+                                  setSelectedBranchForModal(b);
+                                  setShowBranchModal(true);
+                                } else {
+                                  setViewingApplicationBranch(b);
+                                }
                               }}
                               className="btn btn-outline btn-sm"
                               style={{ flex: 1, minWidth: '130px', fontSize: '0.82rem' }}
@@ -961,11 +988,16 @@ const GymOwnerDashboard = () => {
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => setActiveTab('overview')}
+                                  onClick={() => {
+                                    fetchDashboardData(b._id);
+                                    setActiveTab('settings');
+                                    setIsEditingGym(false);
+                                  }}
                                   className="btn btn-primary btn-sm"
                                   style={{ fontSize: '0.82rem' }}
+                                  title="Manage facility details, operational pricing, equipment, and trainers"
                                 >
-                                  Manage
+                                  Manage Facility
                                 </button>
                                 {(b.subscriptionPaid || b.isOnline) && (
                                   <button
@@ -975,7 +1007,7 @@ const GymOwnerDashboard = () => {
                                     style={{ fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                     title="View public gym profile on Explore Gyms"
                                   >
-                                    <Eye size={13} /> View Public
+                                    <ExternalLink size={13} /> View Public
                                   </button>
                                 )}
                               </>
@@ -1546,6 +1578,43 @@ const GymOwnerDashboard = () => {
                   )}
                 </div>
 
+                {/* Branch Switcher for multiple facility locations */}
+                {branches && branches.length > 1 && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 14px',
+                    background: 'var(--card-bg-light, rgba(255,255,255,0.03))',
+                    border: '1px solid var(--border-color, rgba(255,255,255,0.08))',
+                    borderRadius: '10px',
+                    marginBottom: '20px',
+                    flexWrap: 'wrap'
+                  }}>
+                    <Building size={16} color="#3b82f6" />
+                    <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Managing Facility:</span>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {branches.map(br => {
+                        const isCurrent = dashboardData?.gym?._id === br._id;
+                        return (
+                          <button
+                            key={br._id}
+                            type="button"
+                            onClick={() => {
+                              fetchDashboardData(br._id);
+                              setIsEditingGym(false);
+                            }}
+                            className={`btn btn-sm ${isCurrent ? 'btn-primary' : 'btn-outline'}`}
+                            style={{ fontSize: '0.8rem', padding: '4px 10px' }}
+                          >
+                            {br.branchName || br.name} {isCurrent ? '✓' : ''}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {dashboardData?.gym?._id && dashboardData.gym._id !== 'gym_demo_id' && !isEditingGym ? (
                   <div className="gym-gig-display">
                     {dashboardData.gym.equipmentImages?.[0] && (
@@ -2066,6 +2135,17 @@ const GymOwnerDashboard = () => {
           onBranchUpdated={() => {
             fetchBranches();
             fetchDashboardData();
+          }}
+        />
+      )}
+      {viewingApplicationBranch && (
+        <BranchApplicationViewModal
+          branch={viewingApplicationBranch}
+          onClose={() => setViewingApplicationBranch(null)}
+          onManageBranch={(branch) => {
+            fetchDashboardData(branch._id);
+            setActiveTab('settings');
+            setIsEditingGym(false);
           }}
         />
       )}

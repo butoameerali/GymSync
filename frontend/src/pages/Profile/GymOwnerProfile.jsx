@@ -4,13 +4,14 @@ import {
   Building2, ShieldCheck, Users, Dumbbell, MapPin, Phone, Mail, 
   Settings, Camera, ArrowRight, Send, Image as ImageIcon, CheckCircle2, 
   Clock, AlertCircle, Sparkles, PlusCircle, ExternalLink, ShieldAlert,
-  Award, RefreshCw
+  Award, RefreshCw, User, Eye, Edit3
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import UserAvatar from '../../components/common/UserAvatar';
 import ImageCropper from '../../components/layout/ImageCropper';
 import PostList from '../../features/social/components/PostList';
 import ProfileVerifyEmailModal from './ProfileVerifyEmailModal';
+import EditFacilityModal from '../GymOwner/EditFacilityModal';
 import { postService } from '../../services/postService';
 import './GymOwnerProfile.css';
 
@@ -39,14 +40,14 @@ const GymOwnerProfile = () => {
   const [isPublishingPost, setIsPublishingPost] = useState(false);
   const postFileInputRef = useRef(null);
 
-  // Business Contact Details
-  const [contactInfo, setContactInfo] = useState({
-    businessEmail: '',
+  // Personal Profile Details
+  const [profileDetails, setProfileDetails] = useState({
+    name: ownerName,
     phone: '',
     city: '',
-    organizationName: ''
+    bio: ''
   });
-  const [isSavingContact, setIsSavingContact] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Security / Password State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -63,6 +64,24 @@ const GymOwnerProfile = () => {
   const [otpInput, setOtpInput] = useState('');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  // Facility Editing Modal State
+  const [editingGym, setEditingGym] = useState(null);
+  const [isEditFacilityModalOpen, setIsEditFacilityModalOpen] = useState(false);
+  const [editFacilitySection, setEditFacilitySection] = useState('info');
+
+  const handleOpenEditFacility = (gymToEdit, section = 'info') => {
+    setEditingGym(gymToEdit);
+    setEditFacilitySection(section);
+    setIsEditFacilityModalOpen(true);
+  };
+
+  const handleFacilitySaved = (updated) => {
+    setBranches(prev => prev.map(b => (b._id === updated._id || b.id === updated._id ? { ...b, ...updated } : b)));
+    if (gymDetails && (gymDetails._id === updated._id || gymDetails.id === updated._id)) {
+      setGymDetails(prev => ({ ...prev, ...updated }));
+    }
+  };
 
   const getHeaders = () => ({
     'Content-Type': 'application/json',
@@ -82,13 +101,12 @@ const GymOwnerProfile = () => {
           setProfilePic(u.profilePic);
           localStorage.setItem(`gymsync_${userKey}_pic`, u.profilePic);
         }
-        setContactInfo(prev => ({
-          ...prev,
-          businessEmail: u.email || '',
+        setProfileDetails({
+          name: u.name || ownerName,
           phone: u.phone || u.bioData?.phone || '',
-          city: u.bioData?.location || '',
-          organizationName: u.organizationName || u.bioData?.organizationName || ''
-        }));
+          city: u.city || u.location || u.bioData?.location || '',
+          bio: u.bio || ''
+        });
         setVerifyEmailInput(u.email || '');
       }
 
@@ -271,27 +289,35 @@ const GymOwnerProfile = () => {
     }
   };
 
-  // Save Contact Info
-  const handleSaveContact = async (e) => {
+  // Save Personal Profile Details
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setIsSavingContact(true);
+    setIsSavingProfile(true);
     try {
       const res = await fetch(`/api/users/profile`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
-          phone: contactInfo.phone,
-          location: contactInfo.city,
-          organizationName: contactInfo.organizationName
+          phone: profileDetails.phone,
+          city: profileDetails.city,
+          location: profileDetails.city,
+          bio: profileDetails.bio
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to save business contact details.');
-      toast.success('Business contact details updated.');
+      if (!res.ok) throw new Error(data.message || 'Failed to save profile details.');
+      setUserData(prev => ({
+        ...(prev || {}),
+        phone: profileDetails.phone,
+        city: profileDetails.city,
+        location: profileDetails.city,
+        bio: profileDetails.bio
+      }));
+      toast.success('Personal profile details updated.');
     } catch (err) {
-      toast.error(err.message || 'Error saving contact details');
+      toast.error(err.message || 'Error saving profile details');
     } finally {
-      setIsSavingContact(false);
+      setIsSavingProfile(false);
     }
   };
 
@@ -308,7 +334,7 @@ const GymOwnerProfile = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to send OTP');
-      toast.success(data.message || '6-digit OTP sent to your business email.');
+      toast.success(data.message || '6-digit OTP sent to your email.');
       setOtpStep(2);
     } catch (err) {
       toast.error(err.message);
@@ -330,8 +356,7 @@ const GymOwnerProfile = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'OTP Verification failed');
       setUserData(prev => ({ ...(prev || {}), email: verifyEmailInput.trim(), isEmailVerified: true }));
-      setContactInfo(prev => ({ ...prev, businessEmail: verifyEmailInput.trim() }));
-      toast.success('Official business email verified!');
+      toast.success('Account email verified successfully!');
       setIsVerifyModalOpen(false);
       setOtpStep(1);
       setOtpInput('');
@@ -346,7 +371,7 @@ const GymOwnerProfile = () => {
   const activeBranches = branches.length > 0 ? branches : (gymDetails ? [gymDetails] : []);
   const verifiedCount = activeBranches.filter(b => b.verificationStatus === 'Approved').length;
   const isVerifiedPartner = verifiedCount > 0;
-  const primaryOrgName = contactInfo.organizationName || activeBranches[0]?.name || gymDetails?.name || 'GymSync Partner Network';
+  const primaryOrgName = activeBranches[0]?.name || gymDetails?.name || 'GymSync Partner Network';
   const totalMembers = dashboardData.members.length;
   const totalTrainers = dashboardData.trainers.length;
 
@@ -426,26 +451,47 @@ const GymOwnerProfile = () => {
                       {userData.isEmailVerified && <CheckCircle2 size={12} color="#10b981" title="Verified" />}
                     </span>
                   )}
-                  {contactInfo.phone && (
+                  {profileDetails.phone && (
                     <span className="contact-chip">
-                      <Phone size={13} /> {contactInfo.phone}
+                      <Phone size={13} /> {profileDetails.phone}
                     </span>
                   )}
-                  {contactInfo.city && (
+                  {profileDetails.city && (
                     <span className="contact-chip">
-                      <MapPin size={13} /> {contactInfo.city}
+                      <MapPin size={13} /> {profileDetails.city}
                     </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Quick Action Button to Management Portal */}
-            <div className="gymowner-hero-actions">
-              <Link to="/gym-owner" className="btn btn-primary gymowner-panel-cta">
-                <Building2 size={18} />
-                <span>Open Gym Management Panel</span>
-                <ArrowRight size={16} />
+            {/* Quick Action Buttons to Management Portal & Public Profile */}
+            <div className="gymowner-hero-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {activeBranches[0] && (
+                <Link 
+                  to={`/gym/${activeBranches[0]._id || activeBranches[0].id}`} 
+                  className="btn btn-outline btn-sm gymowner-panel-cta"
+                  style={{ gap: '6px' }}
+                >
+                  <Eye size={15} />
+                  <span>View Public Profile</span>
+                </Link>
+              )}
+              {activeBranches[0] && (
+                <button 
+                  type="button"
+                  className="btn btn-primary btn-sm gymowner-panel-cta"
+                  style={{ gap: '6px' }}
+                  onClick={() => handleOpenEditFacility(activeBranches[0], 'info')}
+                >
+                  <Edit3 size={15} />
+                  <span>Edit Gym Profile</span>
+                </button>
+              )}
+              <Link to="/gym-owner" className="btn btn-outline btn-sm gymowner-panel-cta" style={{ gap: '6px' }}>
+                <Building2 size={15} />
+                <span>Gym Panel</span>
+                <ArrowRight size={14} />
               </Link>
             </div>
           </div>
@@ -519,7 +565,7 @@ const GymOwnerProfile = () => {
             onClick={() => setActiveTab('settings')}
           >
             <Settings size={17} />
-            <span>Business Settings &amp; Security</span>
+            <span>Account &amp; Security</span>
           </button>
         </div>
 
@@ -577,11 +623,11 @@ const GymOwnerProfile = () => {
                         <div className="branch-pricing-pills">
                           <div className="pricing-pill">
                             <span className="price-lbl">Monthly Pass</span>
-                            <span className="price-val">${branch.monthlyFee || 0}</span>
+                            <span className="price-val">Rs. {Number(branch.monthlyFee || 0).toLocaleString()}</span>
                           </div>
                           <div className="pricing-pill">
                             <span className="price-lbl">Admission Fee</span>
-                            <span className="price-val">${branch.admissionFee || 0}</span>
+                            <span className="price-val">Rs. {Number(branch.admissionFee || 0).toLocaleString()}</span>
                           </div>
                         </div>
 
@@ -600,9 +646,31 @@ const GymOwnerProfile = () => {
                         )}
                       </div>
 
-                      <div className="branch-card-footer">
-                        <Link to="/gym-owner" className="btn btn-outline btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
-                          <Building2 size={15} /> Manage in Gym Panel
+                      <div className="branch-card-footer" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
+                        <Link 
+                          to={`/gym/${branch._id || branch.id}`} 
+                          className="btn btn-outline btn-sm" 
+                          style={{ justifyContent: 'center', fontSize: '0.8rem', padding: '6px 8px' }}
+                          title="View live public profile page as members see it"
+                        >
+                          <Eye size={13} /> View Live
+                        </Link>
+                        <button 
+                          type="button" 
+                          className="btn btn-primary btn-sm" 
+                          style={{ justifyContent: 'center', fontSize: '0.8rem', padding: '6px 8px' }}
+                          onClick={() => handleOpenEditFacility(branch, 'info')}
+                          title="Edit this gym branch profile"
+                        >
+                          <Edit3 size={13} /> Edit Profile
+                        </button>
+                        <Link 
+                          to="/gym-owner" 
+                          className="btn btn-outline btn-sm" 
+                          style={{ justifyContent: 'center', fontSize: '0.8rem', padding: '6px 8px' }}
+                          title="Manage gym operations in panel"
+                        >
+                          <Building2 size={13} /> Gym Panel
                         </Link>
                       </div>
                     </div>
@@ -700,50 +768,65 @@ const GymOwnerProfile = () => {
           </div>
         )}
 
-        {/* ─── Tab 3: Business Settings & Security ────────────────────────── */}
+        {/* ─── Tab 3: Account & Security ────────────────────────── */}
         {activeTab === 'settings' && (
           <div className="gymowner-tab-content">
             <div className="gymowner-settings-grid">
               
-              {/* Business Contact Form */}
+              {/* Personal Account Details Form */}
               <div className="gymowner-card">
                 <div className="card-header">
-                  <Building2 size={18} color="var(--primary-accent)" />
-                  <h3>Business Details</h3>
+                  <User size={18} color="var(--primary-accent)" />
+                  <div>
+                    <h3 style={{ margin: 0 }}>Personal Account Details</h3>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Your personal contact and account profile information</p>
+                  </div>
                 </div>
-                <form onSubmit={handleSaveContact} className="gymowner-form">
+                <form onSubmit={handleSaveProfile} className="gymowner-form">
                   <div className="form-group">
-                    <label>Gym Organization / Brand Name</label>
+                    <label>Account Name</label>
                     <input
                       type="text"
-                      value={contactInfo.organizationName}
-                      onChange={(e) => setContactInfo({ ...contactInfo, organizationName: e.target.value })}
-                      placeholder="e.g. IronCore Fitness Network"
+                      value={profileDetails.name}
+                      disabled
+                      style={{ opacity: 0.7, cursor: 'not-allowed' }}
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Business Contact Phone</label>
+                    <label>Personal Contact Phone</label>
                     <input
                       type="tel"
-                      value={contactInfo.phone}
-                      onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
-                      placeholder="+1 (555) 000-0000"
+                      value={profileDetails.phone}
+                      onChange={(e) => setProfileDetails({ ...profileDetails, phone: e.target.value })}
+                      placeholder="0300-1234567"
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Headquarters / Primary City</label>
+                    <label>City / Location</label>
                     <input
                       type="text"
-                      value={contactInfo.city}
-                      onChange={(e) => setContactInfo({ ...contactInfo, city: e.target.value })}
-                      placeholder="e.g. New York, NY"
+                      value={profileDetails.city}
+                      onChange={(e) => setProfileDetails({ ...profileDetails, city: e.target.value })}
+                      placeholder="e.g. Karachi, Lahore, Islamabad"
                     />
                   </div>
 
-                  <button type="submit" disabled={isSavingContact} className="btn btn-primary btn-sm">
-                    {isSavingContact ? 'Saving...' : 'Save Business Details'}
+                  <div className="form-group">
+                    <label>Personal Bio</label>
+                    <textarea
+                      rows={2}
+                      className="composer-textarea"
+                      style={{ marginBottom: 0 }}
+                      value={profileDetails.bio}
+                      onChange={(e) => setProfileDetails({ ...profileDetails, bio: e.target.value })}
+                      placeholder="A short bio about yourself..."
+                    />
+                  </div>
+
+                  <button type="submit" disabled={isSavingProfile} className="btn btn-primary btn-sm">
+                    {isSavingProfile ? 'Saving...' : 'Save Profile Details'}
                   </button>
                 </form>
               </div>
@@ -752,11 +835,14 @@ const GymOwnerProfile = () => {
               <div className="gymowner-card">
                 <div className="card-header">
                   <ShieldCheck size={18} color="#10b981" />
-                  <h3>Email &amp; Partner Verification</h3>
+                  <div>
+                    <h3 style={{ margin: 0 }}>Email &amp; Account Verification</h3>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Registered account email status</p>
+                  </div>
                 </div>
                 <div className="email-status-box">
                   <p>
-                    Official Email: <strong>{userData?.email || 'No email registered'}</strong>
+                    Account Email: <strong>{userData?.email || 'No email registered'}</strong>
                   </p>
                   {userData?.isEmailVerified ? (
                     <div className="verified-status-tag success">
@@ -776,17 +862,17 @@ const GymOwnerProfile = () => {
                       setIsVerifyModalOpen(true);
                     }}
                   >
-                    {userData?.isEmailVerified ? 'Re-verify Business Email' : 'Verify Email with OTP'}
+                    {userData?.isEmailVerified ? 'Re-verify Account Email' : 'Verify Email with OTP'}
                   </button>
                 </div>
 
                 <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--card-border)' }}>
-                  <h4 style={{ fontSize: '0.9rem', marginBottom: '8px', color: 'var(--text-secondary)' }}>Verification Status</h4>
+                  <h4 style={{ fontSize: '0.9rem', marginBottom: '8px', color: 'var(--text-secondary)' }}>Gym Facility &amp; Verification Hub</h4>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                    Branch verification requires government business registration and ownership proof documents reviewed by compliance.
+                    Need to update your Gym Brand Name, Branches, Operating Timings, Amenities, or Government Verification documents? These are managed in the Gym Owner Portal.
                   </p>
-                  <Link to="/gym-owner" className="btn btn-outline btn-sm" style={{ marginTop: '12px' }}>
-                    <ShieldCheck size={14} /> View Verification Center
+                  <Link to="/gym-owner" className="btn btn-outline btn-sm" style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Building2 size={14} /> Open Gym Owner Portal
                   </Link>
                 </div>
               </div>
@@ -867,6 +953,20 @@ const GymOwnerProfile = () => {
         handleSendEmailOtp={handleSendEmailOtp}
         handleVerifyEmailOtp={handleVerifyEmailOtp}
       />
+
+      {/* Edit Facility Profile Modal */}
+      {editingGym && (
+        <EditFacilityModal
+          isOpen={isEditFacilityModalOpen}
+          onClose={() => {
+            setIsEditFacilityModalOpen(false);
+            setEditingGym(null);
+          }}
+          gym={editingGym}
+          initialSection={editFacilitySection}
+          onSaved={handleFacilitySaved}
+        />
+      )}
     </div>
   );
 };

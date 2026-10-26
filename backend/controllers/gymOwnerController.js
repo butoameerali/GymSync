@@ -12,6 +12,7 @@ import Notification from '../models/Notification.js';
 // @access  Private / GymOwner, Admin
 export const getGymOwnerDashboard = async (req, res) => {
   const { ownerName } = req.params;
+  const { gymId } = req.query;
 
   try {
     const isOwnerRole = req.user && (req.user.role === 'GymOwner' || req.user.role === 'gym_owner');
@@ -27,11 +28,19 @@ export const getGymOwnerDashboard = async (req, res) => {
 
     try {
       if (isOwnerRole) {
-        if (req.user._id) {
+        if (gymId && mongoose.Types.ObjectId.isValid(gymId)) {
+          gym = await Gym.findOne({ _id: gymId, $or: [{ owner: req.user._id }, { ownerName: req.user.name }] });
+        }
+        if (!gym && req.user._id) {
           gym = await Gym.findOne({ $or: [{ owner: req.user._id }, { ownerName: req.user.name }] });
         }
       } else {
-        gym = await Gym.findOne({ ownerName });
+        if (gymId && mongoose.Types.ObjectId.isValid(gymId)) {
+          gym = await Gym.findOne({ _id: gymId, ownerName });
+        }
+        if (!gym) {
+          gym = await Gym.findOne({ ownerName });
+        }
       }
       
       if (gym) {
@@ -195,12 +204,15 @@ export const updateGymProfile = async (req, res) => {
         }
 
         if (typeof bankDetails !== 'undefined') gym.bankDetails = bankDetails;
-        if (description) gym.description = description;
+        if (typeof description !== 'undefined') gym.description = description;
         if (Array.isArray(facilities)) gym.facilities = facilities;
         if (Array.isArray(equipmentImages)) gym.equipmentImages = equipmentImages;
         if (Array.isArray(equipmentList)) gym.equipmentList = equipmentList;
         if (timings) gym.timings = timings;
         if (typeof tipPayload !== 'undefined') gym.todayTrainingTip = tipPayload;
+        if (typeof req.body.contactPhone !== 'undefined') gym.contactPhone = req.body.contactPhone;
+        if (typeof req.body.contactEmail !== 'undefined') gym.contactEmail = req.body.contactEmail;
+        if (Array.isArray(req.body.photos)) gym.photos = req.body.photos;
         await gym.save();
         return res.json(gym);
       }
@@ -658,7 +670,14 @@ export const updateTourRequestStatus = async (req, res) => {
 export const payAnnualGymFee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { paymentMethod = 'Card', transactionRef = '' } = req.body;
+    const { 
+      paymentMethod = 'Card', 
+      transactionRef = '',
+      cardholderName = '',
+      cardNumber = '',
+      expiryDate = '',
+      cvc = ''
+    } = req.body;
 
     const gym = await Gym.findById(id);
     if (!gym) {
@@ -694,72 +713,165 @@ export const payAnnualGymFee = async (req, res) => {
     const expiresAt = new Date(now);
     expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
-    gym.annualSubscriptionFee = feeAmount;
-    gym.subscriptionPaid = true;
-    gym.subscriptionPaidAt = now;
-    gym.subscriptionExpiresAt = expiresAt;
-    gym.subscriptionPaymentMethod = paymentMethod;
-    gym.isOnline = true;
-    gym.listingStatus = 'Online';
+    const isCard = paymentMethod === 'Card' || paymentMethod === 'Stripe';
 
-    await gym.save();
-
-    // Create Payment record
-    const paymentId = `FEE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const effectiveMethod = ['Stripe', 'Easypaisa', 'JazzCash', 'Card', 'BankTransfer', 'Online'].includes(paymentMethod) 
-      ? paymentMethod 
-      : 'Card';
-
-    await Payment.create({
-      paymentId,
-      userId: req.user._id,
-      userName: req.user.name,
-      gymId: gym._id,
-      gymName: gym.name,
-      paymentType: 'AnnualGymListingFee',
-      paymentMethod: effectiveMethod,
-      amount: feeAmount,
-      commission15Percent: 0,
-      status: 'Completed',
-      transactionRef: transactionRef || `REF-${paymentId}`,
-      methodDetails: `Annual Partner Listing Fee (Rs. ${feeAmount}/year)`,
-      approvedBy: 'GymSync Automated Billing'
-    });
-
-    // Notify owner
-    try {
-      await Notification.create({
-        userId: String(req.user._id),
-        recipientId: req.user._id,
-        senderId: req.user._id,
-        sender: 'GymSync Billing',
-        type: 'system',
-        title: 'Gym Facility is Now Online! 🟢',
-        message: `Your annual partner fee of Rs. ${feeAmount} for "${gym.name}" has been confirmed. Your facility is now LIVE and visible to trainees on Explore Gyms!`,
-        link: `/gym/${gym._id}`,
-        relatedId: String(gym._id),
-        isRead: false
-      });
-    } catch (nErr) {
-      console.warn('Failed to send notification for annual fee payment:', nErr.message);
-    }
-
-    return res.json({
-      success: true,
-      message: `Annual partner listing fee of Rs. ${feeAmount} confirmed! "${gym.name}" is now online and publicly visible.`,
-      gym: {
-        _id: gym._id,
-        name: gym.name,
-        branchName: gym.branchName || gym.name,
-        approvalStatus: gym.approvalStatus,
-        annualSubscriptionFee: gym.annualSubscriptionFee,
-        subscriptionPaid: gym.subscriptionPaid,
-        subscriptionPaidAt: gym.subscriptionPaidAt,
-        subscriptionExpiresAt: gym.subscriptionExpiresAt,
-        isOnline: gym.isOnline,
-        listingStatus: gym.listingStatus
+    if (isCard) {
+      // Validate Stripe Card details
+      if (!cardholderName || !cardholderName.trim()) {
+        return res.status(400).json({ message: 'Cardholder Name is required for Card payment.' });
       }
-    });
+      const cleanCard = (cardNumber || '').replace(/[\s-]/g, '');
+      if (cleanCard.length < 15 || !/^\d+$/.test(cleanCard)) {
+        return res.status(400).json({ message: 'Valid 16-digit card number is required.' });
+      }
+      if (!expiryDate || !/^\d{2}\s*\/\s*\d{2}$/.test(expiryDate.trim())) {
+        return res.status(400).json({ message: 'Valid expiration date (MM/YY) is required.' });
+      }
+      if (!cvc || !/^\d{3,4}$/.test(cvc.trim())) {
+        return res.status(400).json({ message: 'Valid 3 or 4-digit CVC security code is required.' });
+      }
+
+      // Card / Stripe: Instant activation
+      gym.annualSubscriptionFee = feeAmount;
+      gym.subscriptionPaid = true;
+      gym.subscriptionPaidAt = now;
+      gym.subscriptionExpiresAt = expiresAt;
+      gym.subscriptionPaymentMethod = 'Card';
+      gym.isOnline = true;
+      gym.listingStatus = 'Online';
+      await gym.save();
+
+      const paymentId = `FEE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const maskedCard = `•••• •••• •••• ${cleanCard.slice(-4)}`;
+
+      await Payment.create({
+        paymentId,
+        userId: req.user._id,
+        userName: req.user.name,
+        customerEmail: req.user.email,
+        cardholderName: cardholderName.trim(),
+        gymId: gym._id,
+        gymName: gym.name,
+        paymentType: 'AnnualGymListingFee',
+        paymentMethod: 'Card',
+        amount: feeAmount,
+        commission15Percent: 0,
+        status: 'Completed',
+        transactionRef: transactionRef || `STRIPE-${paymentId}`,
+        methodDetails: `Stripe Card (${maskedCard}) - Cardholder: ${cardholderName.trim()}`,
+        approvedBy: 'Stripe Gateway'
+      });
+
+      try {
+        await Notification.create({
+          userId: String(req.user._id),
+          recipientId: req.user._id,
+          senderId: req.user._id,
+          sender: 'GymSync Billing',
+          type: 'system',
+          title: 'Gym Facility is Now Online! 🟢',
+          message: `Your annual partner fee of Rs. ${feeAmount} for "${gym.name}" has been confirmed via Stripe Card. Your facility is now LIVE and visible to trainees on Explore Gyms!`,
+          link: `/gym/${gym._id}`,
+          relatedId: String(gym._id),
+          isRead: false
+        });
+      } catch (nErr) {
+        console.warn('Failed to send notification for annual fee card payment:', nErr.message);
+      }
+
+      return res.json({
+        success: true,
+        isPendingApproval: false,
+        message: `Annual partner listing fee of Rs. ${feeAmount} confirmed via Card! "${gym.name}" is now online and publicly visible.`,
+        gym: {
+          _id: gym._id,
+          name: gym.name,
+          branchName: gym.branchName || gym.name,
+          approvalStatus: gym.approvalStatus,
+          annualSubscriptionFee: gym.annualSubscriptionFee,
+          subscriptionPaid: true,
+          subscriptionPaidAt: gym.subscriptionPaidAt,
+          subscriptionExpiresAt: gym.subscriptionExpiresAt,
+          subscriptionPaymentMethod: 'Card',
+          isOnline: true,
+          listingStatus: 'Online'
+        }
+      });
+    } else {
+      // Manual payment method: Easypaisa / JazzCash / BankTransfer
+      // MUST NOT go live automatically! Requires Admin manual verification.
+      if (!transactionRef || !transactionRef.trim()) {
+        return res.status(400).json({ 
+          message: `Transaction ID (TID) / receipt reference is required for ${paymentMethod} payment.` 
+        });
+      }
+
+      const effectiveTid = transactionRef.trim();
+
+      gym.annualSubscriptionFee = feeAmount;
+      gym.subscriptionPaid = false;
+      gym.subscriptionPaidAt = null;
+      gym.subscriptionExpiresAt = null;
+      gym.subscriptionPaymentMethod = paymentMethod;
+      gym.isOnline = false;
+      gym.listingStatus = 'Pending Verification';
+      await gym.save();
+
+      const paymentId = `FEE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      await Payment.create({
+        paymentId,
+        userId: req.user._id,
+        userName: req.user.name,
+        customerEmail: req.user.email,
+        gymId: gym._id,
+        gymName: gym.name,
+        paymentType: 'AnnualGymListingFee',
+        paymentMethod,
+        amount: feeAmount,
+        commission15Percent: 0,
+        status: 'PendingApproval',
+        transactionRef: effectiveTid,
+        methodDetails: `Annual Partner Listing Fee (Rs. ${feeAmount}/year) via ${paymentMethod} (TID: ${effectiveTid}) - Awaiting Admin Verification`,
+        approvedBy: ''
+      });
+
+      try {
+        await Notification.create({
+          userId: String(req.user._id),
+          recipientId: req.user._id,
+          senderId: req.user._id,
+          sender: 'GymSync Billing',
+          type: 'system',
+          title: 'Payment Awaiting Admin Verification ⏳',
+          message: `Your payment receipt of Rs. ${feeAmount} for "${gym.name}" (via ${paymentMethod}, TID: ${effectiveTid}) has been submitted. Administration will verify your transaction before taking your facility online.`,
+          link: '/gym-owner',
+          relatedId: String(gym._id),
+          isRead: false
+        });
+      } catch (nErr) {
+        console.warn('Failed to send notification for annual fee manual payment:', nErr.message);
+      }
+
+      return res.json({
+        success: true,
+        isPendingApproval: true,
+        message: `Payment receipt submitted successfully! Admin will verify your transaction (TID: ${effectiveTid}) before publishing your facility online.`,
+        gym: {
+          _id: gym._id,
+          name: gym.name,
+          branchName: gym.branchName || gym.name,
+          approvalStatus: gym.approvalStatus,
+          annualSubscriptionFee: gym.annualSubscriptionFee,
+          subscriptionPaid: false,
+          subscriptionPaidAt: null,
+          subscriptionExpiresAt: null,
+          subscriptionPaymentMethod: paymentMethod,
+          isOnline: false,
+          listingStatus: 'Pending Verification'
+        }
+      });
+    }
   } catch (error) {
     console.error('payAnnualGymFee error:', error);
     return res.status(500).json({ message: 'Failed to process annual partner fee' });

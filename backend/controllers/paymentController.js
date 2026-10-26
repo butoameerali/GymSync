@@ -444,10 +444,94 @@ export const approvePayment = async (req, res) => {
       );
     }
 
+    if (payment.paymentType === 'AnnualGymListingFee') {
+      const targetGym = await Gym.findById(payment.gymId);
+      if (targetGym) {
+        const now = new Date();
+        const expiresAt = new Date(now);
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+        targetGym.subscriptionPaid = true;
+        targetGym.subscriptionPaidAt = now;
+        targetGym.subscriptionExpiresAt = expiresAt;
+        targetGym.isOnline = true;
+        targetGym.listingStatus = 'Online';
+        await targetGym.save();
+
+        try {
+          await Notification.create({
+            userId: String(payment.userId || targetGym.owner),
+            recipientId: payment.userId || targetGym.owner,
+            senderId: req.user._id,
+            sender: 'GymSync Admin Billing',
+            type: 'system',
+            title: 'Gym Facility is Now Online! 🟢',
+            message: `Your annual partner fee of Rs. ${payment.amount} for "${targetGym.name}" has been verified and approved by Admin. Your facility is now LIVE and visible to trainees on Explore Gyms!`,
+            link: `/gym/${targetGym._id}`,
+            relatedId: String(targetGym._id),
+            isRead: false
+          });
+        } catch (nErr) {
+          console.warn('Failed to notify owner of annual fee approval:', nErr.message);
+        }
+      }
+    }
+
     return res.json({ message: 'Payment approved', payment });
   } catch (error) {
     console.error('approvePayment error:', error.message);
     return res.status(500).json({ message: 'Unable to approve payment' });
+  }
+};
+
+export const rejectPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason = '' } = req.body || {};
+
+    const payment = await Payment.findById(id);
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment record not found' });
+    }
+
+    payment.status = 'Rejected';
+    payment.approvedBy = req.user?.name || 'Admin';
+    if (reason) {
+      payment.methodDetails = `${payment.methodDetails || ''} [Rejected: ${reason}]`.trim();
+    }
+    await payment.save();
+
+    if (payment.paymentType === 'AnnualGymListingFee') {
+      const targetGym = await Gym.findById(payment.gymId);
+      if (targetGym) {
+        targetGym.subscriptionPaid = false;
+        targetGym.isOnline = false;
+        targetGym.listingStatus = 'Pending Payment';
+        await targetGym.save();
+
+        try {
+          await Notification.create({
+            userId: String(payment.userId || targetGym.owner),
+            recipientId: payment.userId || targetGym.owner,
+            senderId: req.user._id,
+            sender: 'GymSync Admin Billing',
+            type: 'system',
+            title: 'Annual Partner Fee Payment Rejected ❌',
+            message: `Your payment of Rs. ${payment.amount} for "${targetGym.name}" was rejected by Admin.${reason ? ` Reason: ${reason}` : ' Please submit a valid TID or payment receipt.'}`,
+            link: '/gym-owner',
+            relatedId: String(targetGym._id),
+            isRead: false
+          });
+        } catch (nErr) {
+          console.warn('Failed to notify owner of payment rejection:', nErr.message);
+        }
+      }
+    }
+
+    return res.json({ message: 'Payment rejected', payment });
+  } catch (error) {
+    console.error('rejectPayment error:', error.message);
+    return res.status(500).json({ message: 'Unable to reject payment' });
   }
 };
 

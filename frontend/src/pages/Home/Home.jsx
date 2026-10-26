@@ -15,6 +15,7 @@ const Home = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [newPost, setNewPost] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isPosting, setIsPosting] = useState(false);
   const [globalUsers, setGlobalUsers] = useState({});
   const fileInputRef = useRef(null);
   
@@ -79,23 +80,30 @@ const Home = () => {
       toast.error("Guests cannot post. Please log in.");
       return;
     }
-    if (!newPost.trim() && !selectedFile) return;
+    if (!newPost.trim() && !selectedFile) {
+      toast.warning("Please enter some text or select a photo/video before publishing.");
+      return;
+    }
 
     const formData = new FormData();
-    formData.append('content', newPost);
+    formData.append('content', newPost.trim());
     if (selectedFile) {
       formData.append('media', selectedFile);
     }
 
+    setIsPosting(true);
     try {
       const createdPost = await postService.createPost(formData);
       createdPost.author = { name: userName, role: userRole };
-      setPosts([createdPost, ...posts]);
+      setPosts(prev => [createdPost, ...prev]);
       setNewPost('');
       setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = null;
       toast.success("Post published to Timeline!");
     } catch (err) {
       toast.error(err.message || "Error creating post");
+    } finally {
+      setIsPosting(false);
     }
   };
 
@@ -245,8 +253,8 @@ const Home = () => {
                     <Video size={18} /> Video
                   </button>
                 </div>
-                <button className="btn-glow btn-sm" onClick={handleCreatePost}>
-                  <Send size={16} /> Post
+                <button className="btn-glow btn-sm" onClick={handleCreatePost} disabled={isPosting}>
+                  <Send size={16} /> {isPosting ? 'Posting...' : 'Post'}
                 </button>
               </div>
             </div>

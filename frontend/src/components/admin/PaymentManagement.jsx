@@ -102,6 +102,32 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
     }
   };
 
+  const handleRejectPayment = async (paymentId) => {
+    const reason = window.prompt('Enter reason for rejection (optional):', 'Invalid transaction reference or unconfirmed receipt');
+    if (reason === null) return;
+
+    try {
+      const res = await fetch(`/api/payments/${paymentId}/reject`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        },
+        body: JSON.stringify({ reason: reason.trim() })
+      });
+      if (res.ok) {
+        toast.info('Payment rejected.');
+        fetchPaymentData();
+        if (onRefresh) onRefresh();
+      } else {
+        const d = await res.json();
+        toast.error(d.message || 'Payment rejection failed');
+      }
+    } catch (err) {
+      toast.error('Payment rejection failed');
+    }
+  };
+
   const handlePromptSudoSave = (e) => {
     e.preventDefault();
     if (!configNumber.trim()) {
@@ -234,20 +260,28 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Member</th>
+                  <th>Payer &amp; Account</th>
+                  <th>Category / Facility</th>
                   <th>Method</th>
                   <th>Amount</th>
-                  <th>Reference / Screenshot</th>
+                  <th>Reference / TID</th>
                   <th>Status</th>
-                  <th>Action</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {pendingPayments.map(p => (
                   <tr key={p._id}>
-                    <td><strong>{p.userName}</strong></td>
+                    <td>
+                      <strong>{p.userName}</strong>
+                      {p.customerEmail && <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>{p.customerEmail}</div>}
+                    </td>
+                    <td>
+                      <div><strong>{p.paymentType === 'AnnualGymListingFee' ? 'Annual Listing Fee' : p.paymentType}</strong></div>
+                      {p.gymName && <div style={{ fontSize: '0.76rem', color: 'var(--primary-accent)' }}>Gym: {p.gymName}</div>}
+                    </td>
                     <td>{p.paymentMethod}</td>
-                    <td><strong>${p.amount}</strong></td>
+                    <td><strong>Rs. {p.amount}</strong></td>
                     <td>
                       {p.screenshotUrl ? (
                         <a href={p.screenshotUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-accent)' }}>
@@ -259,12 +293,31 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
                     </td>
                     <td><span className="status-pill pending">{p.status}</span></td>
                     <td>
-                      <button 
-                        className="btn btn-sm btn-primary"
-                        onClick={() => handleApprovePayment(p._id)}
-                      >
-                        <CheckCircle size={14} /> Verify & Approve
-                      </button>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <button 
+                          className="btn btn-sm btn-primary"
+                          onClick={() => handleApprovePayment(p._id)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          title="Verify receipt and approve"
+                        >
+                          <CheckCircle size={14} /> Verify &amp; Approve
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline"
+                          onClick={() => handleRejectPayment(p._id)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            color: '#ef4444',
+                            borderColor: 'rgba(239, 68, 68, 0.35)',
+                            background: 'rgba(239, 68, 68, 0.06)'
+                          }}
+                          title="Reject invalid transaction"
+                        >
+                          <XCircle size={14} /> Reject
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

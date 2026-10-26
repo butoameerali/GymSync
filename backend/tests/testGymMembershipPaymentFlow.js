@@ -65,6 +65,16 @@ async function runTests() {
     });
     const traineeToken = jwt.sign({ id: trainee._id, role: trainee.role }, jwtSecret, { expiresIn: '1h' });
 
+    // 3. Create Test Admin for Payment Verifications
+    const admin = await User.create({
+      name: `Admin_${testSuffix}`,
+      email: `admin_${testSuffix}@gymsync.test`,
+      password: 'Password123!',
+      role: 'Admin',
+      isEmailVerified: true
+    });
+    const adminToken = jwt.sign({ id: admin._id, role: admin.role }, jwtSecret, { expiresIn: '1h' });
+
     console.log('--- 1. GYM OWNER ANNUAL LISTING FEE & GO ONLINE ---');
     // Gym is currently offline / pending payment -> should NOT be visible on public listing
     const publicList1Res = await fetch(`${BASE_URL}/api/gyms`);
@@ -73,7 +83,7 @@ async function runTests() {
     assert(isPublicBefore === false, 'Offline/Unpaid approved gym is strictly hidden from public Explore Gyms');
     console.log('  ✅ PASS: Unpaid gym is not visible on Explore Gyms');
 
-    // Gym owner pays annual fee with Online transfer TID
+    // 1A. Gym owner submits annual fee receipt with Easypaisa TID -> must be PendingApproval, NOT online yet!
     const ownerPayRes = await fetch(`${BASE_URL}/api/gym-owner/gym/${gym._id}/pay-annual-fee`, {
       method: 'POST',
       headers: {
@@ -87,16 +97,90 @@ async function runTests() {
     });
     assert(ownerPayRes.status === 200, 'Owner annual fee payment endpoint responds with 200');
     const ownerPayData = await ownerPayRes.json();
-    assert(ownerPayData.gym.isOnline === true, 'Gym is marked isOnline: true upon annual fee payment');
-    assert(ownerPayData.gym.subscriptionPaid === true, 'Gym is marked subscriptionPaid: true upon payment');
-    console.log('  ✅ PASS: Owner annual listing fee confirms gym to isOnline: true');
+    assert(ownerPayData.isPendingApproval === true, 'Easypaisa payment is flagged isPendingApproval: true');
+    assert(ownerPayData.gym.isOnline === false, 'Gym is NOT online yet before Admin verification');
+    assert(ownerPayData.gym.subscriptionPaid === false, 'Gym is NOT marked paid yet before Admin verification');
+    console.log('  ✅ PASS: Easypaisa payment enters PendingApproval and does NOT go online before Admin check');
+
+    // 1B. Admin fetches pending payments and verifies the transaction
+    const pendingRes = await fetch(`${BASE_URL}/api/payments/pending`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert(pendingRes.status === 200, 'Admin fetches pending payments with 200');
+    const pendingList = await pendingRes.json();
+    const pendingRecord = pendingList.find(p => p.transactionRef === `TID-ANNUAL-${testSuffix}`);
+    assert(Boolean(pendingRecord), 'Admin sees pending Easypaisa annual fee payment');
+
+    // Admin approves payment
+    const approveRes = await fetch(`${BASE_URL}/api/payments/${pendingRecord._id}/approve`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    assert(approveRes.status === 200, 'Admin approves payment with 200');
+    const updatedGym = await Gym.findById(gym._id);
+    assert(updatedGym.isOnline === true, 'Gym is marked isOnline: true upon Admin verification');
+    assert(updatedGym.subscriptionPaid === true, 'Gym is marked subscriptionPaid: true upon Admin verification');
+    console.log('  ✅ PASS: Admin payment verification confirms gym to isOnline: true');
 
     // Now gym must be visible in Explore Gyms
     const publicList2Res = await fetch(`${BASE_URL}/api/gyms`);
     const publicList2 = await publicList2Res.json();
     const isPublicAfter = publicList2.some(g => String(g._id) === String(gym._id));
     assert(isPublicAfter === true, 'Approved & Paid gym is now visible on Explore Gyms');
-    console.log('  ✅ PASS: Gym is now live on Explore Gyms');
+    console.log('  ✅ PASS: Gym is now live on Explore Gyms after Admin approval');
+
+    // 1C. Test Card / Stripe instant payment flow & validation on Branch 2
+    const gym2 = await Gym.create({
+      name: `Card Branch ${testSuffix}`,
+      owner: owner._id,
+      ownerName: owner.name,
+      location: 'DHA Phase 5, Karachi',
+      approvalStatus: 'Approved',
+      isOnline: false,
+      subscriptionPaid: false,
+      listingStatus: 'Pending Payment',
+      monthlyFee: 5000,
+      annualSubscriptionFee: 20
+    });
+
+    // Invalid card (missing cardholderName) -> rejected with 400
+    const invalidCardRes = await fetch(`${BASE_URL}/api/gym-owner/gym/${gym2._id}/pay-annual-fee`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ownerToken}`
+      },
+      body: JSON.stringify({
+        paymentMethod: 'Card',
+        cardNumber: '4242 4242 4242 4242',
+        expiryDate: '12/28',
+        cvc: '123'
+      })
+    });
+    assert(invalidCardRes.status === 400, 'Card payment without cardholderName returns 400');
+    console.log('  ✅ PASS: Card payment rejects missing cardholderName with 400');
+
+    // Valid card checkout -> instant activation
+    const validCardRes = await fetch(`${BASE_URL}/api/gym-owner/gym/${gym2._id}/pay-annual-fee`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ownerToken}`
+      },
+      body: JSON.stringify({
+        paymentMethod: 'Card',
+        cardholderName: 'Ameer Ali',
+        cardNumber: '4242 4242 4242 4242',
+        expiryDate: '12/28',
+        cvc: '123'
+      })
+    });
+    assert(validCardRes.status === 200, 'Valid card checkout responds with 200');
+    const validCardData = await validCardRes.json();
+    assert(validCardData.isPendingApproval === false, 'Card checkout activates instantly without pending approval');
+    assert(validCardData.gym.isOnline === true, 'Card checkout immediately sets gym to isOnline: true');
+    assert(validCardData.gym.subscriptionPaid === true, 'Card checkout immediately sets gym to subscriptionPaid: true');
+    console.log('  ✅ PASS: Card checkout instantly activates facility online with valid details');
 
     console.log('\n--- 2. TRAINEE CARD PAYMENT (INSTANT ACTIVATION) ---');
     const cardPayRes = await fetch(`${BASE_URL}/api/payments`, {
@@ -248,9 +332,9 @@ async function runTests() {
     console.log('  ✅ PASS: Owner members directory lists all enrolled members accurately');
 
     // Clean up
-    await Gym.deleteMany({ _id: gym._id });
-    await User.deleteMany({ _id: { $in: [owner._id, trainee._id, trainee2._id, trainee3._id] } });
-    await Payment.deleteMany({ gymName: gym.name });
+    await Gym.deleteMany({ _id: { $in: [gym._id, gym2._id] } });
+    await User.deleteMany({ _id: { $in: [owner._id, trainee._id, trainee2._id, trainee3._id, admin._id] } });
+    await Payment.deleteMany({ gymName: { $in: [gym.name, gym2.name] } });
 
     console.log('\n======================================================================');
     console.log('🎉 ALL MEMBERSHIP PAYMENT & OWNER VERIFICATION TESTS PASSED!');

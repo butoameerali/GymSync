@@ -24,6 +24,15 @@
   padding-bottom: 40px;
 }
 
+.hero-overlay h1 {
+  color: #ffffff !important;
+  font-size: 2.3rem;
+  font-weight: 800;
+  margin: 6px 0 10px 0;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.65);
+  letter-spacing: -0.02em;
+}
+
 .back-btn {
   display: flex;
   align-items: center;

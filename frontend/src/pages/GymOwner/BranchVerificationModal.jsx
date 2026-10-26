@@ -7,27 +7,20 @@ import {
   Upload, 
   AlertCircle, 
   Eye, 
-  ArrowRight, 
-  ArrowLeft, 
   X, 
   ShieldCheck,
   Check,
+  ExternalLink, 
+  FileText, 
+  Trash2, 
+  Lock,
   Compass,
-  ExternalLink,
-  Plus,
-  Search,
-  Navigation,
-  FileText,
-  Trash2,
-  Lock
+  Phone,
+  Mail,
+  FileCheck
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import './BranchVerificationModal.css';
-
-const REQUIRED_DOC_TYPES = [
-  { key: 'BUSINESS_REGISTRATION', label: '1. Business Registration / Commercial License / NTN * (Required)', desc: 'Official company registration certificate or NTN tax document' },
-  { key: 'OWNER_CNIC_FRONT', label: '2. Owner CNIC / National ID / Passport * (Required)', desc: 'Valid government-issued photo identification' }
-];
 
 const GYM_TYPES = [
   'Unisex Fitness Center',
@@ -40,34 +33,26 @@ const GYM_TYPES = [
   'Boutique Yoga & Pilates Studio'
 ];
 
-const POPULAR_FACILITY_SUGGESTIONS = [
-  'Cardio Zone',
-  'Free Weights Area',
-  'CrossFit Rig',
-  'Sauna & Steam Bath',
-  'Showers & Lockers',
-  'Personal Training',
-  'Air Conditioning',
-  'Female Section / Ladies Hours',
-  'Car Parking',
-  'Juice & Protein Bar',
-  'Wi-Fi',
-  '24/7 Access',
-  'Olympic Lifting Platform',
-  'Boxing / Combat Ring',
-  'Yoga & Aerobics Studio'
+const PAKISTANI_CITIES = [
+  'Karachi',
+  'Lahore',
+  'Islamabad',
+  'Rawalpindi',
+  'Faisalabad',
+  'Peshawar',
+  'Multan',
+  'Quetta',
+  'Sialkot',
+  'Gujranwala',
+  'Hyderabad',
+  'Abbottabad',
+  'Bahawalpur',
+  'Sargodha',
+  'Sukkur'
 ];
 
 /**
- * Parses user input to extract latitude and longitude.
- * Supports:
- * - Direct coordinates ("24.8607, 67.0011")
- * - Google Maps URL with /@lat,lng
- * - Google Maps URL with ?q=lat,lng or ?ll=lat,lng or query=lat,lng
- * - Google Maps embed with !3dlat!4dlng
- */
-/**
- * Extract Google Maps URL from pasted text (e.g. from mobile share sheet)
+ * Extract Google Maps URL from pasted text
  */
 function extractGoogleMapsUrl(input) {
   if (!input || typeof input !== 'string') return null;
@@ -89,7 +74,7 @@ function parseLocationInput(input) {
   if (!input || typeof input !== 'string') return null;
   const str = input.trim();
 
-  // Pattern 1: Raw numbers with decimals "24.8607, 67.0011" or standard pair
+  // Pattern 1: Raw numbers with decimals "24.8607, 67.0011"
   const rawDecimalMatch = str.match(/(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/);
   if (rawDecimalMatch) {
     const lat = parseFloat(rawDecimalMatch[1]);
@@ -99,16 +84,7 @@ function parseLocationInput(input) {
     }
   }
 
-  const rawStrictMatch = str.match(/^(-?\d{1,2}(?:\.\d+)?)[,\s]+(-?\d{1,3}(?:\.\d+)?)$/);
-  if (rawStrictMatch) {
-    const lat = parseFloat(rawStrictMatch[1]);
-    const lng = parseFloat(rawStrictMatch[2]);
-    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-      return { lat, lng };
-    }
-  }
-
-  // Pattern 2: Standard Google Maps /place/@lat,lng
+  // Pattern 2: Google Maps /@lat,lng
   const atMatch = str.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/);
   if (atMatch) {
     const lat = parseFloat(atMatch[1]);
@@ -118,11 +94,11 @@ function parseLocationInput(input) {
     }
   }
 
-  // Pattern 3: URL params ?q=lat,lng or ?ll=lat,lng or ?query=lat,lng or destination=lat,lng
-  const paramMatch = str.match(/[?&](?:q|ll|query|destination)=(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/);
-  if (paramMatch) {
-    const lat = parseFloat(paramMatch[1]);
-    const lng = parseFloat(paramMatch[2]);
+  // Pattern 3: Google Maps ?q=lat,lng or query=lat,lng
+  const queryMatch = str.match(/[?&](?:q|query|ll)=(-?\d{1,2}\.\d+)[,%20]+(-?\d{1,3}\.\d+)/i);
+  if (queryMatch) {
+    const lat = parseFloat(queryMatch[1]);
+    const lng = parseFloat(queryMatch[2]);
     if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
       return { lat, lng };
     }
@@ -142,56 +118,41 @@ function parseLocationInput(input) {
 }
 
 export default function BranchVerificationModal({ branch, onClose, onBranchUpdated }) {
-  const [step, setStep] = useState(1);
   const [branchId, setBranchId] = useState(branch?._id || null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [selectedDocType, setSelectedDocType] = useState(REQUIRED_DOC_TYPES[0].key);
-  const [docNumber, setDocNumber] = useState('');
-  const [docFile, setDocFile] = useState(null);
-  const [documents, setDocuments] = useState([]);
-  const [_appData, setAppData] = useState(null);
-  const fileInputRef = useRef(null);
-  const [deletingDocId, setDeletingDocId] = useState(null);
 
-  // Dynamic facilities input
-  const [customFacility, setCustomFacility] = useState('');
+  // Document Upload States
+  const [uploadingSlot, setUploadingSlot] = useState(null); // 'BUSINESS_REGISTRATION' | 'OWNER_CNIC_FRONT' | null
+  const [busRegRef, setBusRegRef] = useState('');
+  const [busRegFile, setBusRegFile] = useState(null);
+  const [cnicRef, setCnicRef] = useState('');
+  const [cnicFile, setCnicFile] = useState(null);
+  const busRegInputRef = useRef(null);
+  const cnicInputRef = useRef(null);
+  const [documents, setDocuments] = useState([]);
+  const [deletingDocId, setDeletingDocId] = useState(null);
 
   // Location helpers
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [resolvingLocation, setResolvingLocation] = useState(false);
-  const [locationSearchQuery, setLocationSearchQuery] = useState('');
-  const [showManualCoords, setShowManualCoords] = useState(false);
+  const [mapsInputText, setMapsInputText] = useState('');
 
-  // Step 1: Gym / Branch Profile
+  // Section 1: Facility Identity & Physical Location
   const [profile, setProfile] = useState({
     branchName: branch?.branchName || branch?.name || '',
     gymType: branch?.gymType || 'Unisex Fitness Center',
     address: branch?.address || branch?.location || '',
-    city: branch?.city || '',
+    city: branch?.city || 'Karachi',
     country: branch?.country || 'Pakistan',
     lat: branch?.coordinates?.lat || '',
     lng: branch?.coordinates?.lng || '',
     googleMapsUrl: branch?.googleMapsUrl || '',
     contactPhone: branch?.contactPhone || branch?.phone || '',
-    contactEmail: branch?.contactEmail || '',
-    weekdayTimings: branch?.timings?.weekday || '06:00 AM - 10:00 PM',
-    weekendTimings: branch?.timings?.weekend || '08:00 AM - 08:00 PM',
-    facilities: Array.isArray(branch?.facilities) ? branch.facilities : [],
-    monthlyFee: branch?.monthlyFee ?? 5000,
-    admissionFee: branch?.admissionFee ?? 1000,
-    securityDeposit: branch?.securityDeposit ?? 0,
-    securityDepositRefundable: branch?.securityDepositRefundable ?? true,
-    offersYearlyPlan: Boolean(branch?.offersYearlyPlan || (Number(branch?.yearlyDiscountPercent) > 0)),
-    yearlyDiscountPercent: branch?.yearlyDiscountPercent ?? 0,
-    guidanceTrainer: Boolean(branch?.trainerPolicy?.guidanceTrainer),
-    personalTrainer: Boolean(branch?.trainerPolicy?.personalTrainer),
-    personalTrainerMonthlyFee: branch?.trainerPolicy?.personalTrainerMonthlyFee ?? 0,
-    trainerNotes: branch?.trainerPolicy?.notes || ''
+    contactEmail: branch?.contactEmail || ''
   });
 
-  // Step 2: Applicant Details
+  // Section 2: Authorized Applicant & Legal Owner Details
   const [applicant, setApplicant] = useState({
     legalOwnerName: '',
     cnicOrPassport: '',
@@ -200,51 +161,61 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
     email: ''
   });
 
-  // Step 4: Consent Declarations
-  const [consentCheck, setConsentCheck] = useState(false);
+  // Section 3: Statement of Purpose
+  const [statementOfPurpose, setStatementOfPurpose] = useState('');
+
+  // Legal Declarations
   const [truthDeclaration, setTruthDeclaration] = useState(false);
+  const [consentCheck, setConsentCheck] = useState(false);
 
   const token = localStorage.getItem('gymsync_token') || '';
 
   // Load existing application if branch has one
   useEffect(() => {
-    if (branch?.verificationApplication) {
-      if (typeof branch.verificationApplication === 'object') {
-        const va = branch.verificationApplication;
-        setAppData(va);
-        if (va.applicant) {
-          setApplicant(prev => ({
-            ...prev,
-            legalOwnerName: va.applicant.legalOwnerName || '',
-            cnicOrPassport: va.applicant.cnicOrPassport || '',
-            applicantRole: va.applicant.applicantRole || 'Owner',
-            phone: va.applicant.phone || '',
-            email: va.applicant.email || ''
-          }));
-        }
-        if (Array.isArray(va.documents)) {
-          setDocuments(va.documents);
-        }
+    if (branch?.verificationApplication && typeof branch.verificationApplication === 'object') {
+      const va = branch.verificationApplication;
+      if (va.applicantDetails) {
+        setApplicant({
+          legalOwnerName: va.applicantDetails.legalName || branch.ownerName || '',
+          cnicOrPassport: va.applicantDetails.cnicOrPassport || '',
+          applicantRole: va.applicantDetails.relationship || 'Owner',
+          phone: va.applicantDetails.phone || branch.contactPhone || '',
+          email: va.applicantDetails.email || branch.contactEmail || ''
+        });
       }
+      if (va.statementOfPurpose) {
+        setStatementOfPurpose(va.statementOfPurpose);
+      }
+      if (Array.isArray(va.documents)) {
+        setDocuments(va.documents);
+      }
+    } else {
+      const savedName = localStorage.getItem('gymsync_user_name') || '';
+      const savedEmail = localStorage.getItem('gymsync_user_email') || '';
+      setApplicant(prev => ({
+        ...prev,
+        legalOwnerName: prev.legalOwnerName || branch?.ownerName || savedName,
+        email: prev.email || branch?.contactEmail || savedEmail
+      }));
     }
   }, [branch]);
 
-  // Document requirement inspection: only 2 core docs required (BusinessRegistration and CNIC)
-  const hasBusinessReg = documents.some(d => 
+  // Document requirement inspection: 2 core docs required
+  const businessRegDoc = documents.find(d => 
     d.documentType === 'BusinessRegistration' || 
     d.documentType === 'BUSINESS_REGISTRATION' ||
     (d.documentLabel && d.documentLabel.toLowerCase().includes('business'))
   );
-  const hasCnic = documents.some(d => 
+  const cnicDoc = documents.find(d => 
     d.documentType === 'CNIC' || 
     d.documentType === 'OWNER_CNIC_FRONT' ||
     (d.documentLabel && (d.documentLabel.toLowerCase().includes('cnic') || d.documentLabel.toLowerCase().includes('owner')))
   );
-  const requiredCount = (hasBusinessReg ? 1 : 0) + (hasCnic ? 1 : 0);
+  const hasBusinessReg = Boolean(businessRegDoc);
+  const hasCnic = Boolean(cnicDoc);
   const isRequirementsMet = hasBusinessReg && hasCnic;
-  const isLocked = ['Approved', 'Pending Review', 'Under Review', 'More Information Required'].includes(branch?.approvalStatus);
 
-  // Geolocation detection handler
+  // Detect GPS
   const handleDetectCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast.error('Geolocation is not supported by your browser.');
@@ -260,12 +231,12 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
         let detectedCity = '';
         try {
           const revRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
-            headers: { 'User-Agent': 'GymSync-University-Project' }
+            headers: { 'User-Agent': 'GymSync-Application' }
           });
           const revData = await revRes.json();
           if (revData && revData.address) {
-            detectedCity = revData.address.city || revData.address.town || revData.address.county || revData.address.state || '';
-            const road = revData.address.road || revData.address.suburb || revData.address.neighbourhood || '';
+            detectedCity = revData.address.city || revData.address.town || revData.address.county || '';
+            const road = revData.address.road || revData.address.suburb || '';
             detectedAddress = road ? `${road}, ${detectedCity || 'Pakistan'}` : revData.display_name?.split(',').slice(0, 3).join(', ');
           }
         } catch (e) {
@@ -276,18 +247,18 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
           ...prev,
           lat,
           lng,
-          address: detectedAddress || prev.address || `GPS Location (${lat}, ${lng})`,
+          address: prev.address || detectedAddress || `GPS (${lat}, ${lng})`,
           city: prev.city || detectedCity || 'Karachi',
           googleMapsUrl: `https://www.google.com/maps?q=${lat},${lng}`
         }));
+        setMapsInputText(`https://www.google.com/maps?q=${lat},${lng}`);
         setDetectingLocation(false);
         toast.success(`📍 GPS Location fixed: ${lat}, ${lng}`);
       },
       (err) => {
         setDetectingLocation(false);
-        console.warn('Geolocation error:', err);
         if (err.code === 1) {
-          toast.warning('Location permission was denied. Try pasting your Google Maps link.');
+          toast.warning('Location permission was denied. Please paste your Google Maps link.');
         } else {
           toast.error('Unable to fetch device GPS. Please paste your Google Maps link.');
         }
@@ -296,427 +267,181 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
     );
   };
 
-  // Find Pin automatically from Street Address + City
-  const handleLocateFromAddress = async () => {
-    if (!profile.address && !profile.city) {
-      toast.warning('Please enter Address or City first.');
-      return;
-    }
-    setResolvingLocation(true);
-    try {
-      const res = await fetch('/api/gym-verification/resolve-location', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          address: profile.address,
-          city: profile.city,
-          country: profile.country
-        })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'Could not find coordinates for this address.');
-      }
-      setProfile(prev => ({
-        ...prev,
-        lat: data.lat,
-        lng: data.lng,
-        googleMapsUrl: prev.googleMapsUrl || data.googleMapsUrl || `https://www.google.com/maps?q=${data.lat},${data.lng}`
-      }));
-      toast.success(`📍 Address pinned & fixed on map: ${data.lat}, ${data.lng}`);
-    } catch (err) {
-      toast.error(err.message || 'Could not locate address. Try pasting a Google Maps link.');
-    } finally {
-      setResolvingLocation(false);
-    }
-  };
-
-  // Resolve Google Maps URL (follows shortened links like maps.app.goo.gl)
-  const handleResolveUrl = async (urlToResolve) => {
-    const inputUrl = (urlToResolve || profile.googleMapsUrl || '').trim();
-    if (!inputUrl) {
-      toast.warning('Please enter or paste a Google Maps link first.');
+  // Resolve pasted Google Maps URL or coordinates
+  const handleFixMapsInput = async () => {
+    const raw = (mapsInputText || profile.googleMapsUrl || '').trim();
+    if (!raw) {
+      toast.warning('Please paste a Google Maps link or coordinates (lat, lng) first.');
       return;
     }
 
-    // Try client-side regex first
-    const parsed = parseLocationInput(inputUrl);
-    if (parsed) {
-      setProfile(prev => ({
-        ...prev,
-        googleMapsUrl: inputUrl,
-        lat: parsed.lat,
-        lng: parsed.lng
-      }));
-      toast.success(`📍 Coordinates found: ${parsed.lat}, ${parsed.lng}`);
-
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${parsed.lat}&lon=${parsed.lng}`, {
-        headers: { 'User-Agent': 'GymSync-University-Project' }
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data && data.address) {
-            const detectedCity = data.address.city || data.address.town || data.address.county || data.address.state || '';
-            const road = data.address.road || data.address.suburb || data.address.neighbourhood || '';
-            const cleanArea = road ? `${road}, ${detectedCity || 'Pakistan'}` : data.display_name?.split(',').slice(0, 3).join(', ');
-            setProfile(p => ({
-              ...p,
-              city: p.city || detectedCity,
-              address: cleanArea || p.address
-            }));
-          }
-        })
-        .catch(() => {});
-      return;
-    }
-
-    // Follow redirect via backend
-    setResolvingLocation(true);
-    try {
-      const res = await fetch('/api/gym-verification/resolve-location', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ url: inputUrl })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Could not resolve Google Maps URL');
-
-      let detectedCity = '';
-      if (data.resolvedAddress) {
-        const pkCities = ['Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Peshawar', 'Multan', 'Quetta', 'Sialkot', 'Gujranwala', 'Hyderabad', 'Abbottabad'];
-        for (const c of pkCities) {
-          if (data.resolvedAddress.toLowerCase().includes(c.toLowerCase())) {
-            detectedCity = c;
-            break;
-          }
-        }
-      }
-
-      setProfile(prev => ({
-        ...prev,
-        googleMapsUrl: data.googleMapsUrl || inputUrl,
-        lat: data.lat,
-        lng: data.lng,
-        address: data.resolvedAddress ? data.resolvedAddress.split(',').slice(0, 3).join(', ') : (prev.address || inputUrl),
-        city: prev.city || data.city || detectedCity || ''
-      }));
-      toast.success(`📍 Location fixed from Google Maps link: ${data.lat}, ${data.lng}`);
-    } catch (err) {
-      toast.error(err.message || 'Failed to resolve location link');
-    } finally {
-      setResolvingLocation(false);
-    }
-  };
-
-  // Search landmark / neighborhood
-  const handleSearchLocation = async () => {
-    if (!locationSearchQuery.trim()) return;
-    setResolvingLocation(true);
-    try {
-      const res = await fetch('/api/gym-verification/resolve-location', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          query: locationSearchQuery.trim(),
-          city: profile.city,
-          country: profile.country
-        })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Area not found.');
-      setProfile(prev => ({
-        ...prev,
-        lat: data.lat,
-        lng: data.lng,
-        googleMapsUrl: data.googleMapsUrl
-      }));
-      toast.success(`Found area: ${data.lat}, ${data.lng}`);
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setResolvingLocation(false);
-    }
-  };
-
-  // Unified Gym Location input change
-  const handleLocationInputChange = (value) => {
-    setProfile(prev => ({
-      ...prev,
-      address: value
-    }));
-
-    const trimmed = (value || '').trim();
-    if (!trimmed) return;
-
-    // Check if input directly contains coordinates
-    const parsed = parseLocationInput(trimmed);
+    // Try client-side parsing first
+    const parsed = parseLocationInput(raw);
     if (parsed) {
       setProfile(prev => ({
         ...prev,
         lat: parsed.lat,
         lng: parsed.lng,
-        googleMapsUrl: prev.googleMapsUrl || `https://www.google.com/maps?q=${parsed.lat},${parsed.lng}`
+        googleMapsUrl: raw.startsWith('http') ? raw : `https://www.google.com/maps?q=${parsed.lat},${parsed.lng}`
       }));
-      toast.success(`📍 Coordinates pinned: ${parsed.lat}, ${parsed.lng}`);
-
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${parsed.lat}&lon=${parsed.lng}`, {
-        headers: { 'User-Agent': 'GymSync-University-Project' }
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data && data.address) {
-            const detectedCity = data.address.city || data.address.town || data.address.county || data.address.state || '';
-            const road = data.address.road || data.address.suburb || data.address.neighbourhood || '';
-            const cleanArea = road ? `${road}, ${detectedCity || 'Pakistan'}` : data.display_name?.split(',').slice(0, 3).join(', ');
-            setProfile(p => ({
-              ...p,
-              city: p.city || detectedCity,
-              address: cleanArea || p.address
-            }));
-          }
-        })
-        .catch(() => {});
+      toast.success(`📍 Location coordinates fixed: ${parsed.lat}, ${parsed.lng}`);
       return;
     }
 
-    // Auto-detect pasted Google Maps URL (standalone, shortened, or from share text)
-    const detectedUrl = extractGoogleMapsUrl(trimmed);
-    if (detectedUrl) {
-      handleResolveUrl(detectedUrl);
-    }
-  };
-
-  // Dynamic Facilities Handlers
-  const handleAddFacility = (itemToAdd) => {
-    const name = (itemToAdd || customFacility).trim();
-    if (!name) return;
-    if (profile.facilities.some(f => f.toLowerCase() === name.toLowerCase())) {
-      toast.info(`"${name}" is already in your amenities list.`);
-      setCustomFacility('');
-      return;
-    }
-    setProfile(prev => ({
-      ...prev,
-      facilities: [...prev.facilities, name]
-    }));
-    setCustomFacility('');
-  };
-
-  const handleRemoveFacility = (nameToRemove) => {
-    setProfile(prev => ({
-      ...prev,
-      facilities: prev.facilities.filter(f => f !== nameToRemove)
-    }));
-  };
-
-  const validateStep1 = () => {
-    if (!profile.branchName || !profile.branchName.trim()) {
-      toast.error('Please enter your Branch / Gym Name to proceed.');
-      const el = document.getElementById('field-branch-name');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.focus();
-      }
-      return false;
-    }
-
-    const currentAddress = (profile.address || '').trim();
-    if (!currentAddress && !profile.lat) {
-      toast.error('Please enter your Gym Location / Address or paste Google Maps link.');
-      const el = document.getElementById('field-gym-address');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.focus();
-      }
-      return false;
-    }
-
-    if (!profile.city || !profile.city.trim()) {
-      toast.error('Please enter the City where your gym is located (e.g. Karachi, Lahore, Islamabad).');
-      const el = document.getElementById('field-city');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.focus();
-      }
-      return false;
-    }
-
-    if (!profile.monthlyFee || Number(profile.monthlyFee) <= 0) {
-      toast.error('Please enter a valid Monthly Membership Fee (Rs.) greater than 0.');
-      const el = document.getElementById('field-monthly-fee');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.focus();
-      }
-      return false;
-    }
-
-    return true;
-  };
-
-  const saveDraft = async (advancingToStep = null) => {
-    setSavingDraft(true);
+    // Server-side resolver for shortened links (maps.app.goo.gl)
+    setResolvingLocation(true);
     try {
-      const safeAddress = (profile.address && profile.address.trim()) || 
-        (profile.lat && profile.lng ? `Pinned Location (${profile.lat}, ${profile.lng})` : '') ||
-        (profile.city ? `${profile.city}, Pakistan` : (profile.branchName || 'Location Pending'));
-
-      const safeCity = (profile.city && profile.city.trim()) || 'Karachi';
-
-      const payload = {
-        branchId: branchId || undefined,
-        branchName: profile.branchName.trim(),
-        gymType: profile.gymType,
-        address: safeAddress,
-        city: safeCity,
-        country: profile.country || 'Pakistan',
-        coordinates: { lat: parseFloat(profile.lat) || 0, lng: parseFloat(profile.lng) || 0 },
-        googleMapsUrl: profile.googleMapsUrl,
-        contactPhone: profile.contactPhone,
-        contactEmail: profile.contactEmail,
-        timings: {
-          weekday: profile.weekdayTimings,
-          weekend: profile.weekendTimings
-        },
-        facilities: profile.facilities,
-        monthlyFee: Number(profile.monthlyFee) || 0,
-        admissionFee: Number(profile.admissionFee) || 0,
-        securityDeposit: Number(profile.securityDeposit) || 0,
-        securityDepositRefundable: Boolean(profile.securityDepositRefundable),
-        offersYearlyPlan: Boolean(profile.offersYearlyPlan),
-        yearlyDiscountPercent: profile.offersYearlyPlan ? Math.min(50, Math.max(0, Number(profile.yearlyDiscountPercent) || 0)) : 0,
-        trainerPolicy: {
-          guidanceTrainer: Boolean(profile.guidanceTrainer),
-          personalTrainer: Boolean(profile.personalTrainer),
-          personalTrainerMonthlyFee: Number(profile.personalTrainerMonthlyFee) || 0,
-          notes: String(profile.trainerNotes || '').slice(0, 300)
-        },
-        applicant
-      };
-
-      const res = await fetch('/api/gym-verification/branch/draft', {
+      const res = await fetch('/api/gym-verification/resolve-location', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ url: raw })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Could not resolve Google Maps URL');
+
+      setProfile(prev => ({
+        ...prev,
+        googleMapsUrl: data.googleMapsUrl || raw,
+        lat: data.lat,
+        lng: data.lng,
+        address: prev.address || (data.resolvedAddress ? data.resolvedAddress.split(',').slice(0, 3).join(', ') : ''),
+        city: prev.city || data.city || ''
+      }));
+      toast.success(`📍 Location resolved from Google Maps link: ${data.lat}, ${data.lng}`);
+    } catch (err) {
+      toast.error(err.message || 'Failed to resolve link. You can enter lat, lng directly.');
+    } finally {
+      setResolvingLocation(false);
+    }
+  };
+
+  // Save Draft Handler
+  const handleSaveDraft = async (silent = false) => {
+    if (!profile.branchName.trim()) {
+      if (!silent) toast.error('Please enter a Brand / Branch Name before saving draft.');
+      return null;
+    }
+
+    setSavingDraft(true);
+    try {
+      const payload = {
+        branchId,
+        branchName: profile.branchName.trim(),
+        gymType: profile.gymType,
+        address: profile.address.trim(),
+        city: profile.city.trim(),
+        country: profile.country,
+        coordinates: profile.lat && profile.lng ? { lat: Number(profile.lat), lng: Number(profile.lng) } : undefined,
+        googleMapsUrl: profile.googleMapsUrl,
+        contactPhone: profile.contactPhone,
+        contactEmail: profile.contactEmail,
+        statementOfPurpose: statementOfPurpose.trim(),
+        applicantDetails: {
+          legalName: applicant.legalOwnerName.trim() || undefined,
+          cnicOrPassport: applicant.cnicOrPassport.trim() || undefined,
+          relationship: applicant.applicantRole || 'Owner',
+          phone: applicant.phone.trim() || undefined,
+          email: applicant.email.trim() || undefined
+        }
+      };
+
+      const res = await fetch('/api/gym-verification/draft', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to save draft');
 
-      if (data.branch?._id) {
-        setBranchId(data.branch._id);
+      const savedBranchId = data.branch?._id || data.branch?.id;
+      if (savedBranchId && !branchId) {
+        setBranchId(savedBranchId);
       }
-      if (data.application) {
-        setAppData(data.application);
-      }
-      toast.success('Branch details saved.');
-      if (advancingToStep) {
-        setStep(advancingToStep);
-        const modalContainer = document.querySelector('.branch-verification-modal') || document.querySelector('.modal-body');
-        if (modalContainer) modalContainer.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+      if (!silent) toast.success('Application draft saved successfully!');
+      if (onBranchUpdated) onBranchUpdated();
+      return savedBranchId || branchId;
     } catch (err) {
-      toast.error(`Could not proceed: ${err.message}`);
+      if (!silent) toast.error(err.message || 'Error saving draft');
+      return null;
     } finally {
       setSavingDraft(false);
     }
   };
 
-  const validateStep2 = () => {
-    if (!applicant.legalOwnerName || !applicant.legalOwnerName.trim()) {
-      toast.error('Please enter the Legal Owner / Representative Name.');
-      return false;
-    }
-    if (!applicant.cnicOrPassport || !applicant.cnicOrPassport.trim()) {
-      toast.error('Please enter the CNIC or Passport number.');
-      return false;
-    }
-    return true;
-  };
-
-  const handleNextStep = () => {
-    if (step === 1) {
-      if (!validateStep1()) return;
-      saveDraft(2);
-    } else if (step === 2) {
-      if (!validateStep2()) return;
-      saveDraft(3);
-    } else {
-      setStep(4);
-      const modalContainer = document.querySelector('.branch-verification-modal') || document.querySelector('.modal-body');
-      if (modalContainer) modalContainer.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const handleUploadDocument = async (e) => {
-    e.preventDefault();
-    if (!branchId) {
-      toast.warning('Please complete and save Step 1 profile first.');
-      return;
-    }
-    if (!docFile) {
-      toast.error('Please select a file to upload.');
+  // Direct Document Uploader
+  const handleUploadDocumentSlot = async (docType, file, referenceNumber) => {
+    if (!file) {
+      toast.error('Please select a document file first.');
       return;
     }
 
-    setUploadingDoc(true);
+    // Auto-save draft first to ensure branchId exists
+    let targetBranchId = branchId;
+    if (!targetBranchId) {
+      if (!profile.branchName.trim()) {
+        toast.error('Please enter Brand / Branch Name before uploading documents.');
+        return;
+      }
+      targetBranchId = await handleSaveDraft(true);
+      if (!targetBranchId) {
+        toast.error('Could not initialize application draft for upload.');
+        return;
+      }
+    }
+
+    setUploadingSlot(docType);
     try {
       const formData = new FormData();
-      formData.append('documentType', selectedDocType);
-      const label = REQUIRED_DOC_TYPES.find(d => d.key === selectedDocType)?.label || selectedDocType;
-      formData.append('documentLabel', label);
-      formData.append('documentNumber', docNumber);
-      formData.append('file', docFile);
+      formData.append('file', file);
+      formData.append('branchId', targetBranchId);
+      formData.append('documentType', docType === 'BUSINESS_REGISTRATION' ? 'BusinessRegistration' : 'CNIC');
+      formData.append('documentLabel', docType === 'BUSINESS_REGISTRATION' ? 'Business Registration / Commercial License / NTN' : 'Owner CNIC / National ID / Passport');
+      if (referenceNumber) {
+        formData.append('referenceNumber', referenceNumber.trim());
+      }
 
-      const res = await fetch(`/api/gym-verification/branch/${branchId}/upload`, {
+      const res = await fetch('/api/gym-verification/upload-document', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         },
         body: formData
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to upload document');
+      if (!res.ok) throw new Error(data.message || 'Document upload failed');
 
-      toast.success('Document uploaded successfully!');
+      toast.success(docType === 'BUSINESS_REGISTRATION' ? 'Business Registration document uploaded & encrypted!' : 'Owner CNIC uploaded & encrypted!');
       if (data.application && Array.isArray(data.application.documents)) {
         setDocuments(data.application.documents);
-        setAppData(data.application);
       }
-      setDocFile(null);
-      setDocNumber('');
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      if (docType === 'BUSINESS_REGISTRATION') {
+        setBusRegFile(null);
+        if (busRegInputRef.current) busRegInputRef.current.value = '';
+      } else {
+        setCnicFile(null);
+        if (cnicInputRef.current) cnicInputRef.current.value = '';
       }
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || 'Upload failed');
     } finally {
-      setUploadingDoc(false);
+      setUploadingSlot(null);
     }
   };
 
+  // Delete Document
   const handleDeleteDoc = async (docId) => {
-    if (!window.confirm('Are you sure you want to remove this verification document?')) {
-      return;
-    }
+    if (!window.confirm('Are you sure you want to remove this verification document?')) return;
     setDeletingDocId(docId);
     try {
       const res = await fetch(`/api/gym-verification/branch/${branchId}/document/${docId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to remove document');
@@ -724,7 +449,6 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
       toast.success('Document removed successfully');
       if (data.application && Array.isArray(data.application.documents)) {
         setDocuments(data.application.documents);
-        setAppData(data.application);
       } else {
         setDocuments(prev => prev.filter(d => String(d._id) !== String(docId) && String(d.document?._id || d.document) !== String(docId)));
       }
@@ -735,45 +459,9 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
     }
   };
 
-  const handleSubmitApplication = async () => {
-    if (!consentCheck || !truthDeclaration) {
-      toast.error('Please accept all verification acknowledgments and declarations.');
-      return;
-    }
-    if (!branchId) {
-      toast.error('Branch identifier missing. Please save draft first.');
-      return;
-    }
-    if (!isRequirementsMet) {
-      toast.error('Please upload both Business Registration and Owner CNIC before submitting.');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const res = await fetch(`/api/gym-verification/branch/${branchId}/submit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || (data.missingRequirements ? data.missingRequirements.join(', ') : 'Submission failed'));
-      }
-
-      toast.success(data.message || 'Branch submitted for review successfully!');
-      if (onBranchUpdated) onBranchUpdated();
-      onClose();
-    } catch (err) {
-      toast.error(err.message || 'Failed to submit application');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
+  // Preview Encrypted Document
   const handlePreviewDoc = async (docId) => {
+    if (!docId) return;
     try {
       const res = await fetch(`/api/gym-verification/document/${docId}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -787,1001 +475,650 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
     }
   };
 
-  const handleDeleteThisBranch = async () => {
-    if (!branchId) return;
-    if (!window.confirm(`Are you sure you want to permanently delete this branch "${profile.branchName || 'Gym Branch'}" and all attached verification records?`)) {
+  // Submit Final Application
+  const handleSubmitApplication = async () => {
+    if (!profile.branchName.trim()) {
+      toast.error('Please enter Brand / Branch Name.');
       return;
     }
+    if (!profile.address.trim()) {
+      toast.error('Please enter Physical Street Address.');
+      return;
+    }
+    if (!profile.city.trim()) {
+      toast.error('Please select or enter City.');
+      return;
+    }
+    if (!applicant.legalOwnerName.trim()) {
+      toast.error('Please enter Legal Owner / Applicant Name.');
+      return;
+    }
+    if (!applicant.cnicOrPassport.trim()) {
+      toast.error('Please enter CNIC or Passport Number.');
+      return;
+    }
+    if (!statementOfPurpose.trim() || statementOfPurpose.trim().length < 15) {
+      toast.error('Please provide a brief Statement of Purpose / Reason for Opening (minimum 15 characters).');
+      return;
+    }
+    if (!hasBusinessReg) {
+      toast.error('Please upload Business Registration / NTN / Commercial License document.');
+      return;
+    }
+    if (!hasCnic) {
+      toast.error('Please upload Owner CNIC / Passport document.');
+      return;
+    }
+    if (!truthDeclaration || !consentCheck) {
+      toast.error('Please accept all verification acknowledgments and legal declarations.');
+      return;
+    }
+
+    // Auto-save any pending draft edits first
+    const savedBranchId = await handleSaveDraft(true);
+    const activeBranchId = savedBranchId || branchId;
+    if (!activeBranchId) {
+      toast.error('Branch identifier missing. Please save draft first.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const res = await fetch(`/api/gym-verification/branch/${branchId}`, {
-        method: 'DELETE',
+      const res = await fetch(`/api/gym-verification/branch/${activeBranchId}/submit`, {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         }
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to delete branch');
-      toast.success('Branch deleted successfully');
+      if (!res.ok) {
+        throw new Error(data.message || (data.missingRequirements ? data.missingRequirements.join(', ') : 'Submission failed'));
+      }
+
+      toast.success(data.message || 'Branch verification application submitted successfully! Status: Under Review.');
       if (onBranchUpdated) onBranchUpdated();
       onClose();
     } catch (err) {
-      toast.error(err.message || 'Failed to delete branch');
+      toast.error(err.message || 'Failed to submit application');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <div className="branch-modal-overlay">
-      <div className="branch-modal-container">
-        {/* Modal Header */}
+      <div className="branch-modal-container" style={{ maxHeight: '92vh', height: '90vh' }}>
+        {/* Header */}
         <div className="branch-modal-header">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.15)', borderRadius: '10px' }}>
-                <Building size={22} color="var(--primary-accent, #3b82f6)" />
-              </div>
-              <h2 className="branch-modal-title">
-                {branchId ? `Branch Verification: ${profile.branchName || 'Gym Branch'}` : 'New Branch Verification Application'}
-              </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="branch-header-icon-box">
+              <ShieldCheck size={22} color="#3b82f6" />
             </div>
-            <p className="branch-modal-subtitle">
-              Official Gym Branch Verification Application
-            </p>
+            <div>
+              <h2 className="branch-modal-title">Gym Verification &amp; Branch Registration</h2>
+              <p className="branch-modal-subtitle">
+                Official application form to verify your facility authenticity and ownership credentials.
+              </p>
+            </div>
           </div>
-          <button 
-            type="button" 
-            onClick={onClose}
-            className="branch-modal-close-btn"
-            title="Close modal"
-          >
-            <X size={22} />
+          <button type="button" onClick={onClose} className="branch-modal-close-btn" title="Close">
+            <X size={20} />
           </button>
         </div>
 
-        {/* Step Progress Stepper */}
-        <div className="branch-modal-stepper">
-          {[
-            { num: 1, label: 'Gym Profile', icon: Building },
-            { num: 2, label: 'Owner Details', icon: UserCheck },
-            { num: 3, label: 'Documents', icon: FileText },
-            { num: 4, label: 'Review & Submit', icon: CheckCircle }
-          ].map(s => {
-            const isActive = step === s.num;
-            const isCompleted = step > s.num;
-            return (
-              <button
-                key={s.num}
-                type="button"
-                onClick={() => {
-                  if (branchId || s.num === 1) setStep(s.num);
-                }}
-                disabled={!branchId && s.num > 1}
-                className={`stepper-btn ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
-                style={{ cursor: (branchId || s.num === 1) ? 'pointer' : 'not-allowed' }}
-              >
-                <div className="stepper-badge">
-                  {isCompleted ? <Check size={14} /> : s.num}
-                </div>
-                <span>{s.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Unified Scrollable Form Body */}
+        <div className="branch-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '26px' }}>
 
-        {/* Modal Body */}
-        <div className="branch-modal-body">
-          {/* STEP 1: GYM PROFILE */}
-          {step === 1 && (
-            <div>
-              <h3 className="branch-step-heading">Step 1: Gym &amp; Branch Information</h3>
-              <p className="branch-step-desc">
-                Specify physical premises address, pin location via Google Maps, amenities, and branch contact channels.
+          {/* SECTION 1: Facility Identity & Physical Location */}
+          <div style={{
+            background: 'var(--card-bg-light, rgba(255, 255, 255, 0.02))',
+            borderRadius: '14px',
+            border: '1px solid var(--card-border, rgba(255, 255, 255, 0.08))',
+            padding: '20px 22px'
+          }}>
+            <h3 className="branch-step-heading" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Building size={20} color="#3b82f6" />
+              1. Facility Identity &amp; Physical Location
+            </h3>
+            <p className="branch-step-desc">
+              Enter official gym brand name, location address, and contact details.
+            </p>
+
+            <div className="branch-grid-2col">
+              <div className="branch-form-group">
+                <label className="branch-form-label">Brand / Branch Name *</label>
+                <input
+                  type="text"
+                  className="branch-input"
+                  placeholder="e.g. Iron Gym Gulberg Branch"
+                  value={profile.branchName}
+                  onChange={e => setProfile({ ...profile, branchName: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="branch-form-group">
+                <label className="branch-form-label">Gym Facility Type *</label>
+                <select
+                  className="branch-select"
+                  value={profile.gymType}
+                  onChange={e => setProfile({ ...profile, gymType: e.target.value })}
+                >
+                  {GYM_TYPES.map(gt => (
+                    <option key={gt} value={gt}>{gt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="branch-grid-2col">
+              <div className="branch-form-group">
+                <label className="branch-form-label">Physical Street Address *</label>
+                <input
+                  type="text"
+                  className="branch-input"
+                  placeholder="e.g. Plot 45-C, Main Boulevard, Gulberg III"
+                  value={profile.address}
+                  onChange={e => setProfile({ ...profile, address: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="branch-form-group">
+                <label className="branch-form-label">City (Pakistan) *</label>
+                <select
+                  className="branch-select"
+                  value={profile.city}
+                  onChange={e => setProfile({ ...profile, city: e.target.value })}
+                >
+                  {PAKISTANI_CITIES.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Smart Location & Google Maps Resolver Box */}
+            <div className="location-smart-box">
+              <div className="location-box-header">
+                <div className="location-title">
+                  <MapPin size={17} color="#10b981" />
+                  <span>Google Maps Pin &amp; Coordinates</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDetectCurrentLocation}
+                  disabled={detectingLocation}
+                  className="location-detect-btn"
+                  title="Detect GPS from current device"
+                >
+                  <Compass size={14} />
+                  {detectingLocation ? 'Detecting GPS...' : '📍 Detect Current GPS'}
+                </button>
+              </div>
+
+              <p style={{ margin: '0 0 10px 0', fontSize: '0.82rem', color: 'var(--text-secondary, #94a3b8)' }}>
+                Paste your Google Maps link or coordinates (lat, lng) to fix your gym pin on member search:
               </p>
 
-              {isLocked && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '14px 16px',
-                  background: 'rgba(59, 130, 246, 0.08)',
-                  border: '1px solid rgba(59, 130, 246, 0.25)',
-                  borderRadius: '10px',
-                  marginBottom: '20px'
-                }}>
-                  <Lock size={20} color="#3b82f6" style={{ flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '0.9rem' }}>
-                      Branch Identity &amp; Location Locked ({branch.approvalStatus})
-                    </div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Gym Name and Location coordinates are verified/under review and cannot be altered to prevent fraudulent changes.
-                    </div>
-                  </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  className="branch-input"
+                  style={{ flex: 1, fontSize: '0.85rem' }}
+                  placeholder="Paste Google Maps URL (maps.app.goo.gl/...) or lat, lng (31.5204, 74.3587)"
+                  value={mapsInputText || profile.googleMapsUrl}
+                  onChange={e => {
+                    setMapsInputText(e.target.value);
+                    const parsed = parseLocationInput(e.target.value);
+                    if (parsed) {
+                      setProfile(p => ({ ...p, lat: parsed.lat, lng: parsed.lng, googleMapsUrl: e.target.value }));
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleFixMapsInput}
+                  disabled={resolvingLocation}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.82rem', whiteSpace: 'nowrap', padding: '0 16px' }}
+                >
+                  {resolvingLocation ? 'Resolving...' : 'Fix Location'}
+                </button>
+              </div>
+
+              {profile.lat && profile.lng && (
+                <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem', color: '#10b981' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CheckCircle size={14} /> Location Fixed: <strong>{profile.lat}, {profile.lng}</strong>
+                  </span>
+                  {profile.googleMapsUrl && (
+                    <a
+                      href={profile.googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#3b82f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <ExternalLink size={12} /> Test Google Maps Link
+                    </a>
+                  )}
                 </div>
               )}
+            </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">Branch / Gym Name *</label>
+            <div className="branch-grid-2col">
+              <div className="branch-form-group">
+                <label className="branch-form-label">Official Contact Phone</label>
+                <div style={{ position: 'relative' }}>
                   <input
-                    id="field-branch-name"
                     type="text"
-                    required
-                    disabled={isLocked}
-                    placeholder="e.g. Power Fitness DHA Phase 5"
-                    value={profile.branchName}
-                    onChange={e => setProfile({ ...profile, branchName: e.target.value })}
                     className="branch-input"
-                    style={isLocked ? { opacity: 0.7, cursor: 'not-allowed', background: 'rgba(255,255,255,0.02)' } : {}}
-                    title={isLocked ? 'Locked under verification' : ''}
-                  />
-                </div>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">Gym Classification *</label>
-                  <select
-                    value={profile.gymType}
-                    disabled={isLocked}
-                    onChange={e => setProfile({ ...profile, gymType: e.target.value })}
-                    className="branch-select"
-                    style={isLocked ? { opacity: 0.7, cursor: 'not-allowed', background: 'rgba(255,255,255,0.02)' } : {}}
-                  >
-                    {GYM_TYPES.map(gt => <option key={gt} value={gt}>{gt}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Unified Gym Location */}
-              <div className="location-smart-box">
-                <div className="location-box-header">
-                  <div className="location-title">
-                    <MapPin size={18} color="var(--primary-accent, #3b82f6)" />
-                    <span>Gym Location &amp; Address *</span>
-                  </div>
-                  {!isLocked && (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        onClick={handleDetectCurrentLocation}
-                        disabled={detectingLocation}
-                        className="location-detect-btn"
-                        title="Detect device GPS coordinates and auto-fill address"
-                      >
-                        <Compass size={15} className={detectingLocation ? 'animate-spin' : ''} />
-                        {detectingLocation ? 'Detecting GPS...' : '📍 Device GPS'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleLocateFromAddress}
-                        disabled={resolvingLocation || !profile.address}
-                        className="location-detect-btn"
-                        title="Pin this address or Google Maps URL on the map"
-                      >
-                        <Navigation size={15} className={resolvingLocation ? 'animate-spin' : ''} />
-                        {resolvingLocation ? 'Pinning...' : '📍 Pin on Map'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="branch-form-group" style={{ marginBottom: '12px' }}>
-                  <input
-                    id="field-gym-address"
-                    type="text"
-                    required
-                    disabled={isLocked}
-                    placeholder="Enter street address, area (e.g. Block H4 Fowler Lines, Lucky Star) or paste Google Maps URL"
-                    value={profile.address}
-                    onChange={e => handleLocationInputChange(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleLocateFromAddress();
-                      }
-                    }}
-                    className="branch-input"
-                    style={isLocked ? { opacity: 0.7, cursor: 'not-allowed', background: 'rgba(255,255,255,0.02)' } : {}}
-                  />
-                  <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    Paste a Google Maps link or enter your gym's official street address. Once pinned or pasted, your location will be permanently fixed.
-                  </p>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
-                  <div className="branch-form-group">
-                    <label className="branch-form-label">City *</label>
-                    <input
-                      id="field-city"
-                      type="text"
-                      required
-                      disabled={isLocked}
-                      placeholder="e.g. Karachi, Lahore, Islamabad"
-                      value={profile.city}
-                      onChange={e => setProfile({ ...profile, city: e.target.value })}
-                      className="branch-input"
-                      style={isLocked ? { opacity: 0.7, cursor: 'not-allowed', background: 'rgba(255,255,255,0.02)' } : {}}
-                    />
-                  </div>
-                  <div className="branch-form-group">
-                    <label className="branch-form-label">Country *</label>
-                    <input
-                      type="text"
-                      required
-                      disabled={isLocked}
-                      placeholder="e.g. Pakistan"
-                      value={profile.country}
-                      onChange={e => setProfile({ ...profile, country: e.target.value })}
-                      className="branch-input"
-                      style={isLocked ? { opacity: 0.7, cursor: 'not-allowed', background: 'rgba(255,255,255,0.02)' } : {}}
-                    />
-                  </div>
-                </div>
-
-                {/* Live Interactive Map Pin Preview */}
-                {profile.lat && profile.lng ? (
-                  <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #10b981', marginTop: '12px', background: 'rgba(16, 185, 129, 0.05)' }}>
-                    <div style={{
-                      padding: '10px 14px',
-                      background: 'rgba(16, 185, 129, 0.12)',
-                      borderBottom: '1px solid rgba(16, 185, 129, 0.2)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '8px',
-                      fontSize: '0.85rem'
-                    }}>
-                      <span style={{ color: '#10b981', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <CheckCircle size={15} /> Location Fixed on Map: {profile.lat}, {profile.lng}
-                      </span>
-                      <a
-                        href={profile.googleMapsUrl || `https://www.google.com/maps?q=${profile.lat},${profile.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: 'var(--primary-accent)', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'underline', fontWeight: 600, fontSize: '0.82rem' }}
-                      >
-                        Open in Google Maps <ExternalLink size={13} />
-                      </a>
-                    </div>
-                    <iframe
-                      title="Gym Location Preview Map"
-                      width="100%"
-                      height="200"
-                      style={{ border: 0, width: '100%', display: 'block' }}
-                      scrolling="no"
-                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(profile.lng)-0.007}%2C${Number(profile.lat)-0.005}%2C${Number(profile.lng)+0.007}%2C${Number(profile.lat)+0.005}&layer=mapnik&marker=${profile.lat}%2C${profile.lng}`}
-                    />
-                  </div>
-                ) : (
-                  <div style={{
-                    marginTop: '10px',
-                    padding: '12px 14px',
-                    border: '1px dashed var(--border-color)',
-                    borderRadius: '10px',
-                    fontSize: '0.82rem',
-                    color: 'var(--text-secondary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <Compass size={16} color="var(--primary-accent)" />
-                    <span>Paste a Google Maps link or click <strong>Device GPS</strong> / <strong>Pin on Map</strong> to fix location coordinates.</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Contact Channels */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">Branch Contact Phone</label>
-                  <input
-                    type="tel"
-                    placeholder="+92 300 1234567"
+                    placeholder="e.g. 0300-1234567"
                     value={profile.contactPhone}
                     onChange={e => setProfile({ ...profile, contactPhone: e.target.value })}
-                    className="branch-input"
                   />
+                  <Phone size={15} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
                 </div>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">Branch Public Email</label>
+              </div>
+
+              <div className="branch-form-group">
+                <label className="branch-form-label">Official Contact Email</label>
+                <div style={{ position: 'relative' }}>
                   <input
                     type="email"
-                    placeholder="branch@powerfitness.com"
+                    className="branch-input"
+                    placeholder="e.g. info@irongym.pk"
                     value={profile.contactEmail}
                     onChange={e => setProfile({ ...profile, contactEmail: e.target.value })}
-                    className="branch-input"
                   />
-                </div>
-              </div>
-
-              {/* Operating Hours */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">Weekday Timings</label>
-                  <input
-                    type="text"
-                    placeholder="06:00 AM - 10:00 PM"
-                    value={profile.weekdayTimings}
-                    onChange={e => setProfile({ ...profile, weekdayTimings: e.target.value })}
-                    className="branch-input"
-                  />
-                </div>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">Weekend Timings</label>
-                  <input
-                    type="text"
-                    placeholder="08:00 AM - 08:00 PM"
-                    value={profile.weekendTimings}
-                    onChange={e => setProfile({ ...profile, weekendTimings: e.target.value })}
-                    className="branch-input"
-                  />
-                </div>
-              </div>
-
-              {/* Facilities & Amenities: Dynamic User Input */}
-              <div className="facilities-container">
-                <label className="branch-form-label">
-                  Key Facilities &amp; Amenities (Add your gym's custom amenities)
-                </label>
-                <div className="facilities-input-row">
-                  <input
-                    type="text"
-                    placeholder="Type custom amenity (e.g. Steam Room, Olympic Lifting, Ladies Section)..."
-                    value={customFacility}
-                    onChange={e => setCustomFacility(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddFacility();
-                      }
-                    }}
-                    className="branch-input"
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleAddFacility()}
-                    className="facilities-add-btn"
-                  >
-                    <Plus size={16} /> Add Amenity
-                  </button>
-                </div>
-
-                {/* Active / Added Facilities List */}
-                <div className="facilities-tags-list">
-                  {profile.facilities.length === 0 ? (
-                    <span className="facility-empty-hint">
-                      No amenities added yet. Enter custom facilities above or choose from popular suggestions below.
-                    </span>
-                  ) : (
-                    profile.facilities.map(fac => (
-                      <span key={fac} className="facility-chip">
-                        {fac}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFacility(fac)}
-                          className="facility-chip-remove"
-                          title="Remove facility"
-                        >
-                          <X size={14} />
-                        </button>
-                      </span>
-                    ))
-                  )}
-                </div>
-
-                {/* Quick Suggestion Pills */}
-                <div>
-                  <div className="facility-suggestions-title">Quick-Add Suggestions (Click to add):</div>
-                  <div className="facility-suggestions-grid">
-                    {POPULAR_FACILITY_SUGGESTIONS.map(sug => {
-                      const alreadyAdded = profile.facilities.some(f => f.toLowerCase() === sug.toLowerCase());
-                      return (
-                        <button
-                          key={sug}
-                          type="button"
-                          onClick={() => !alreadyAdded && handleAddFacility(sug)}
-                          className={`suggestion-pill ${alreadyAdded ? 'added' : ''}`}
-                          disabled={alreadyAdded}
-                        >
-                          {alreadyAdded ? <Check size={12} /> : <Plus size={12} />}
-                          {sug}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Branch Pricing & Trainer Policies */}
-              <div style={{ marginTop: '24px', padding: '16px', background: 'var(--card-bg-light)', borderRadius: '12px', border: '1px solid var(--card-border)' }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                  Branch Membership Pricing & Policies
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div className="branch-form-group">
-                    <label className="branch-form-label">Monthly Membership Fee (Rs.) *</label>
-                    <input
-                      id="field-monthly-fee"
-                      type="number"
-                      min="0"
-                      placeholder="e.g. 5000"
-                      value={profile.monthlyFee}
-                      onChange={e => setProfile({ ...profile, monthlyFee: e.target.value })}
-                      className="branch-input"
-                    />
-                  </div>
-                  <div className="branch-form-group">
-                    <label className="branch-form-label">Admission / Registration Fee (Rs.)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="e.g. 1000"
-                      value={profile.admissionFee}
-                      onChange={e => setProfile({ ...profile, admissionFee: e.target.value })}
-                      className="branch-input"
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '12px' }}>
-                  <div className="branch-form-group">
-                    <label className="branch-form-label">Security Deposit (Rs.)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="e.g. 2000 (0 if none)"
-                      value={profile.securityDeposit}
-                      onChange={e => setProfile({ ...profile, securityDeposit: e.target.value })}
-                      className="branch-input"
-                    />
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', marginTop: '6px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={profile.securityDepositRefundable}
-                        onChange={e => setProfile({ ...profile, securityDepositRefundable: e.target.checked })}
-                      />
-                      <span>Deposit is Refundable on Cancellation</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Optional Yearly Plan Toggle */}
-                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(profile.offersYearlyPlan)}
-                      onChange={e => setProfile({ 
-                        ...profile, 
-                        offersYearlyPlan: e.target.checked,
-                        yearlyDiscountPercent: e.target.checked ? (profile.yearlyDiscountPercent || 0) : 0
-                      })}
-                    />
-                    <span>Offer Yearly Membership Package (Optional)</span>
-                  </label>
-                  <p style={{ margin: '4px 0 0 24px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    Gym memberships are monthly by default. Enable this only if your branch offers a 12-month advance package.
-                  </p>
-
-                  {profile.offersYearlyPlan && (
-                    <div style={{ marginTop: '12px', marginLeft: '24px', maxWidth: '340px' }}>
-                      <label className="branch-form-label">Yearly Package Discount (%)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="50"
-                        placeholder="e.g. 15 (0 for regular 12-month fee)"
-                        value={profile.yearlyDiscountPercent}
-                        onChange={e => setProfile({ ...profile, yearlyDiscountPercent: e.target.value })}
-                        className="branch-input"
-                      />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                        <span>Max 50% discount</span>
-                        {Number(profile.monthlyFee) > 0 && (
-                          <span style={{ color: '#10b981', fontWeight: 600 }}>
-                            Yearly Total: Rs. {Math.round(Number(profile.monthlyFee) * 12 * (1 - (Number(profile.yearlyDiscountPercent) || 0) / 100)).toLocaleString()}/yr
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Trainer Policy */}
-                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
-                  <label className="branch-form-label" style={{ marginBottom: '8px', display: 'block' }}>
-                    Trainer & Guidance Policy
-                  </label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={profile.guidanceTrainer}
-                        onChange={e => setProfile({ ...profile, guidanceTrainer: e.target.checked })}
-                      />
-                      <span>Floor Guide Trainer available (Free, general workout form guidance)</span>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={profile.personalTrainer}
-                        onChange={e => setProfile({ ...profile, personalTrainer: e.target.checked })}
-                      />
-                      <span>Dedicated 1-on-1 Personal Trainer available</span>
-                    </label>
-                  </div>
-
-                  {profile.personalTrainer && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '10px' }}>
-                      <div className="branch-form-group">
-                        <label className="branch-form-label">Personal Trainer Monthly Fee (Rs.)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="e.g. 3000"
-                          value={profile.personalTrainerMonthlyFee}
-                          onChange={e => setProfile({ ...profile, personalTrainerMonthlyFee: e.target.value })}
-                          className="branch-input"
-                        />
-                      </div>
-                      <div className="branch-form-group">
-                        <label className="branch-form-label">Trainer Notes (Optional, max 300 chars)</label>
-                        <input
-                          type="text"
-                          maxLength={300}
-                          placeholder="e.g. Certified coaches available 4pm to 10pm"
-                          value={profile.trainerNotes}
-                          onChange={e => setProfile({ ...profile, trainerNotes: e.target.value })}
-                          className="branch-input"
-                        />
-                      </div>
-                    </div>
-                  )}
+                  <Mail size={15} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* STEP 2: APPLICANT DETAILS */}
-          {step === 2 && (
-            <div>
-              <h3 className="branch-step-heading">Step 2: Authorized Applicant &amp; Owner Profile</h3>
-              <p className="branch-step-desc">
-                Capture authoritative legal representative details for compliance and audit trail records.
-              </p>
+          {/* SECTION 2: Authorized Applicant & Legal Owner Details */}
+          <div style={{
+            background: 'var(--card-bg-light, rgba(255, 255, 255, 0.02))',
+            borderRadius: '14px',
+            border: '1px solid var(--card-border, rgba(255, 255, 255, 0.08))',
+            padding: '20px 22px'
+          }}>
+            <h3 className="branch-step-heading" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <UserCheck size={20} color="#3b82f6" />
+              2. Authorized Applicant &amp; Legal Owner Profile
+            </h3>
+            <p className="branch-step-desc">
+              Legal credentials of the gym owner or authorized representative applying for verification.
+            </p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">Legal Owner / Representative Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Full Legal Name"
-                    value={applicant.legalOwnerName}
-                    onChange={e => setApplicant({ ...applicant, legalOwnerName: e.target.value })}
-                    className="branch-input"
-                  />
-                </div>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">CNIC / Passport Number *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="42101-1234567-1 or Passport No."
-                    value={applicant.cnicOrPassport}
-                    onChange={e => setApplicant({ ...applicant, cnicOrPassport: e.target.value })}
-                    className="branch-input"
-                  />
-                </div>
+            <div className="branch-grid-2col">
+              <div className="branch-form-group">
+                <label className="branch-form-label">Legal Owner / Applicant Name *</label>
+                <input
+                  type="text"
+                  className="branch-input"
+                  placeholder="e.g. Muhammad Ali Khan"
+                  value={applicant.legalOwnerName}
+                  onChange={e => setApplicant({ ...applicant, legalOwnerName: e.target.value })}
+                  required
+                />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">Authorized Role *</label>
-                  <select
-                    value={applicant.applicantRole}
-                    onChange={e => setApplicant({ ...applicant, applicantRole: e.target.value })}
-                    className="branch-select"
-                  >
-                    <option value="Owner">Primary Owner</option>
-                    <option value="Managing Partner">Managing Partner</option>
-                    <option value="Authorized Director">Authorized Director</option>
-                    <option value="General Manager">General Manager</option>
-                  </select>
-                </div>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">Direct Phone *</label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="+92 300 0000000"
-                    value={applicant.phone}
-                    onChange={e => setApplicant({ ...applicant, phone: e.target.value })}
-                    className="branch-input"
-                  />
-                </div>
-                <div className="branch-form-group">
-                  <label className="branch-form-label">Official Email *</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="owner@domain.com"
-                    value={applicant.email}
-                    onChange={e => setApplicant({ ...applicant, email: e.target.value })}
-                    className="branch-input"
-                  />
-                </div>
-              </div>
-
-              <div style={{
-                background: 'rgba(59, 130, 246, 0.08)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
-                borderRadius: '12px',
-                padding: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <ShieldCheck size={28} color="var(--primary-accent, #3b82f6)" style={{ flexShrink: 0 }} />
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                  <strong>Privileged Multi-Branch Verification:</strong> Once your organization and primary applicant credentials are verified, subsequent branches will benefit from streamlined owner validation.
-                </div>
+              <div className="branch-form-group">
+                <label className="branch-form-label">CNIC or Passport Number *</label>
+                <input
+                  type="text"
+                  className="branch-input"
+                  placeholder="e.g. 35201-1234567-1"
+                  value={applicant.cnicOrPassport}
+                  onChange={e => setApplicant({ ...applicant, cnicOrPassport: e.target.value })}
+                  required
+                />
               </div>
             </div>
-          )}
 
-          {/* STEP 3: DOCUMENTS UPLOAD */}
-          {step === 3 && (
-            <div>
-              <h3 className="branch-step-heading">Step 3: Upload Documents</h3>
-              <p className="branch-step-desc">
-                Upload your business registration document and owner identification to verify this branch. Only 2 documents are required.
-              </p>
-
-              {/* 2 Core Documents Status Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginBottom: '20px' }}>
-                {/* 1. Business Registration */}
-                <div style={{
-                  padding: '14px 16px',
-                  borderRadius: '12px',
-                  border: hasBusinessReg ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.35)',
-                  background: hasBusinessReg ? 'rgba(16, 185, 129, 0.06)' : 'rgba(239, 68, 68, 0.05)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {hasBusinessReg ? <CheckCircle size={22} color="#10b981" /> : <AlertCircle size={22} color="#ef4444" />}
-                    <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        1. Business Registration / NTN
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: hasBusinessReg ? '#10b981' : '#ef4444' }}>
-                        {hasBusinessReg ? 'Attached & Ready' : 'Required — Please upload below'}
-                      </div>
-                    </div>
-                  </div>
-                  {!hasBusinessReg ? (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDocType('BUSINESS_REGISTRATION')}
-                      className="btn btn-outline btn-sm"
-                      style={{ fontSize: '0.75rem', padding: '5px 10px' }}
-                    >
-                      Select Category
-                    </button>
-                  ) : (
-                    <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>Ready ✓</span>
-                  )}
-                </div>
-
-                {/* 2. Owner CNIC / Passport */}
-                <div style={{
-                  padding: '14px 16px',
-                  borderRadius: '12px',
-                  border: hasCnic ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.35)',
-                  background: hasCnic ? 'rgba(16, 185, 129, 0.06)' : 'rgba(239, 68, 68, 0.05)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {hasCnic ? <CheckCircle size={22} color="#10b981" /> : <AlertCircle size={22} color="#ef4444" />}
-                    <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        2. Owner CNIC / Passport
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: hasCnic ? '#10b981' : '#ef4444' }}>
-                        {hasCnic ? 'Attached & Ready' : 'Required — Please upload below'}
-                      </div>
-                    </div>
-                  </div>
-                  {!hasCnic ? (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDocType('OWNER_CNIC_FRONT')}
-                      className="btn btn-outline btn-sm"
-                      style={{ fontSize: '0.75rem', padding: '5px 10px' }}
-                    >
-                      Select Category
-                    </button>
-                  ) : (
-                    <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>Ready ✓</span>
-                  )}
-                </div>
+            <div className="branch-grid-2col">
+              <div className="branch-form-group">
+                <label className="branch-form-label">Designation / Role *</label>
+                <select
+                  className="branch-select"
+                  value={applicant.applicantRole}
+                  onChange={e => setApplicant({ ...applicant, applicantRole: e.target.value })}
+                >
+                  <option value="Owner">Owner / Sole Proprietor</option>
+                  <option value="Co-owner">Co-owner / Managing Partner</option>
+                  <option value="AuthorizedManager">Authorized Managing Director</option>
+                </select>
               </div>
 
-              {/* Upload Form */}
-              <form onSubmit={handleUploadDocument} className="upload-form-box">
-                <h4 style={{ margin: '0 0 14px 0', fontSize: '0.95rem', color: 'var(--primary-accent, #3b82f6)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Upload size={18} /> Upload Verification Document
-                </h4>
+              <div className="branch-form-group">
+                <label className="branch-form-label">Direct Mobile Number</label>
+                <input
+                  type="text"
+                  className="branch-input"
+                  placeholder="e.g. 0321-9876543"
+                  value={applicant.phone}
+                  onChange={e => setApplicant({ ...applicant, phone: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px', marginBottom: '14px' }}>
-                  <div className="branch-form-group" style={{ margin: 0 }}>
-                    <label className="branch-form-label">Document Category *</label>
-                    <select
-                      value={selectedDocType}
-                      onChange={e => setSelectedDocType(e.target.value)}
-                      className="branch-select"
-                    >
-                      {REQUIRED_DOC_TYPES.map(rd => (
-                        <option key={rd.key} value={rd.key}>{rd.label}</option>
-                      ))}
-                    </select>
+          {/* SECTION 3: Statement of Purpose / Reason for Opening */}
+          <div style={{
+            background: 'var(--card-bg-light, rgba(255, 255, 255, 0.02))',
+            borderRadius: '14px',
+            border: '1px solid var(--card-border, rgba(255, 255, 255, 0.08))',
+            padding: '20px 22px'
+          }}>
+            <h3 className="branch-step-heading" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <FileText size={20} color="#3b82f6" />
+              3. Statement of Purpose &amp; Reason for Opening *
+            </h3>
+            <p className="branch-step-desc">
+              Explain why you are opening/registering this gym facility (e.g. community health club, commercial expansion, dedicated female fitness section, etc.).
+            </p>
+
+            <div className="branch-form-group" style={{ marginBottom: 0 }}>
+              <textarea
+                className="branch-input"
+                rows={3}
+                style={{ resize: 'vertical', lineHeight: '1.5', fontSize: '0.88rem' }}
+                placeholder="Write your application statement here: e.g. We are opening this commercial fitness center in Gulberg to provide neighborhood residents with state-of-the-art strength training, certified guidance, and modern wellness facilities..."
+                value={statementOfPurpose}
+                onChange={e => setStatementOfPurpose(e.target.value)}
+                maxLength={600}
+                required
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.78rem', color: 'var(--text-secondary, #94a3b8)' }}>
+                <span>Minimum 15 characters required for administrative review.</span>
+                <span>{statementOfPurpose.length} / 600 characters</span>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 4: Required Verification Documents (2 Dedicated Slots) */}
+          <div style={{
+            background: 'var(--card-bg-light, rgba(255, 255, 255, 0.02))',
+            borderRadius: '14px',
+            border: '1px solid var(--card-border, rgba(255, 255, 255, 0.08))',
+            padding: '20px 22px'
+          }}>
+            <h3 className="branch-step-heading" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <FileCheck size={20} color="#3b82f6" />
+              4. Required Verification Documents (2 Document Slots)
+            </h3>
+            <p className="branch-step-desc">
+              All documents are encrypted with AES-256 before storage and only accessible to authorized compliance reviewers.
+            </p>
+
+            <div className="doc-slots-container">
+              {/* SLOT 1: Business Registration / NTN */}
+              <div className={`doc-slot-card ${hasBusinessReg ? 'uploaded' : 'pending'}`}>
+                <div className="doc-slot-header">
+                  <div className="doc-slot-title-area">
+                    <div className={`doc-slot-icon-badge ${hasBusinessReg ? 'success' : 'primary'}`}>
+                      {hasBusinessReg ? <CheckCircle size={22} /> : <Building size={20} />}
+                    </div>
+                    <div>
+                      <h4 className="doc-slot-title">Slot 1: Business Registration / NTN / Commercial License *</h4>
+                      <p className="doc-slot-subtitle">Official company registration certificate, FBR NTN document, or commercial lease agreement.</p>
+                    </div>
                   </div>
-                  <div className="branch-form-group" style={{ margin: 0 }}>
-                    <label className="branch-form-label">Document / Ref Number</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. NTN-982181 / CNIC #"
-                      value={docNumber}
-                      onChange={e => setDocNumber(e.target.value)}
-                      className="branch-input"
-                    />
-                  </div>
+                  <span className={`doc-badge ${hasBusinessReg ? 'doc-badge-success' : 'doc-badge-required'}`}>
+                    {hasBusinessReg ? 'Uploaded & Encrypted' : 'Required'}
+                  </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    required
-                    accept=".pdf,.png,.jpg,.jpeg"
-                    onChange={e => setDocFile(e.target.files[0] || null)}
-                    style={{ flex: 1, color: 'var(--text-secondary)', fontSize: '0.85rem' }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={uploadingDoc || !docFile}
-                    className="btn btn-primary"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Upload size={15} /> {uploadingDoc ? 'Uploading...' : 'Upload Document'}
-                  </button>
-                </div>
-              </form>
-
-              {/* Uploaded Documents List */}
-              <div>
-                <h4 style={{ fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '12px' }}>
-                  Uploaded Documents ({documents.length})
-                </h4>
-                {documents.length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', background: 'var(--card-bg-light)', borderRadius: '10px' }}>
-                    <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.85rem' }}>
-                      No documents uploaded yet. Please upload Business Registration and Owner CNIC above.
-                    </p>
+                {hasBusinessReg ? (
+                  <div className="doc-attached-box">
+                    <div className="doc-file-info-box">
+                      <FileText size={20} color="#10b981" />
+                      <div>
+                        <div className="doc-file-name">
+                          {businessRegDoc?.document?.originalFilename || businessRegDoc?.originalFilename || 'Business_Registration_Document.pdf'}
+                        </div>
+                        <div className="doc-file-subtext">Status: Verified &amp; Encrypted in Secure Storage</div>
+                      </div>
+                    </div>
+                    <div className="doc-action-buttons">
+                      <button
+                        type="button"
+                        onClick={() => handlePreviewDoc(businessRegDoc?.document?._id || businessRegDoc?.document || businessRegDoc?._id)}
+                        className="btn btn-outline btn-sm"
+                        style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Eye size={13} /> View File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDoc(businessRegDoc?._id || businessRegDoc?.document?._id)}
+                        disabled={deletingDocId === (businessRegDoc?._id || businessRegDoc?.document?._id)}
+                        className="btn-doc-remove"
+                        title="Delete and replace file"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {documents.map((d, idx) => {
-                      const docId = d.document?._id || d._id || d.document;
-                      const fileName = d.document?.originalFilename || d.originalFilename || d.originalFileName || 'Uploaded File';
-                      const label = d.documentLabel || (d.documentType === 'BusinessRegistration' ? '1. Business Registration / NTN' : d.documentType === 'CNIC' ? '2. Owner CNIC / Passport' : d.documentType);
-                      const isDeleting = deletingDocId === docId || deletingDocId === d._id;
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        className="branch-input"
+                        placeholder="Registration or NTN Certificate Number (Optional)"
+                        value={busRegRef}
+                        onChange={e => setBusRegRef(e.target.value)}
+                        style={{ flex: 1, minWidth: '220px', fontSize: '0.85rem' }}
+                      />
+                      <input
+                        type="file"
+                        ref={busRegInputRef}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={e => setBusRegFile(e.target.files[0] || null)}
+                        style={{ display: 'none' }}
+                        id="bus-reg-input"
+                      />
+                      <label
+                        htmlFor="bus-reg-input"
+                        className="btn btn-outline"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer' }}
+                      >
+                        <Upload size={14} /> {busRegFile ? busRegFile.name.slice(0, 18) + '...' : 'Choose File'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleUploadDocumentSlot('BUSINESS_REGISTRATION', busRegFile, busRegRef)}
+                        disabled={!busRegFile || uploadingSlot === 'BUSINESS_REGISTRATION'}
+                        className="btn btn-primary"
+                        style={{ fontSize: '0.85rem' }}
+                      >
+                        {uploadingSlot === 'BUSINESS_REGISTRATION' ? 'Encrypting & Uploading...' : 'Upload Slot 1'}
+                      </button>
+                    </div>
+                    {busRegFile && (
+                      <span style={{ fontSize: '0.78rem', color: '#10b981' }}>Selected: {busRegFile.name} ({(busRegFile.size / 1024).toFixed(0)} KB)</span>
+                    )}
+                  </div>
+                )}
+              </div>
 
-                      return (
-                        <div key={d._id || idx} className="uploaded-doc-row">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <CheckCircle size={18} color="#10b981" />
-                            <div>
-                              <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                                {label}
-                              </div>
-                              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                                File: {fileName}{d.documentNumber ? ` • Ref: ${d.documentNumber}` : ''}
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <button
-                              type="button"
-                              onClick={() => handlePreviewDoc(docId)}
-                              className="btn btn-outline btn-sm"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem' }}
-                            >
-                              <Eye size={14} /> View Document
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isDeleting}
-                              onClick={() => handleDeleteDoc(docId)}
-                              className="btn btn-outline btn-sm"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '0.78rem',
-                                color: '#ef4444',
-                                borderColor: 'rgba(239, 68, 68, 0.35)',
-                                background: 'rgba(239, 68, 68, 0.06)'
-                              }}
-                              title="Delete this uploaded document"
-                            >
-                              <Trash2 size={14} /> {isDeleting ? 'Removing...' : 'Remove'}
-                            </button>
-                          </div>
+              {/* SLOT 2: Owner CNIC / Passport */}
+              <div className={`doc-slot-card ${hasCnic ? 'uploaded' : 'pending'}`}>
+                <div className="doc-slot-header">
+                  <div className="doc-slot-title-area">
+                    <div className={`doc-slot-icon-badge ${hasCnic ? 'success' : 'primary'}`}>
+                      {hasCnic ? <CheckCircle size={22} /> : <UserCheck size={20} />}
+                    </div>
+                    <div>
+                      <h4 className="doc-slot-title">Slot 2: Owner CNIC / Passport / National ID *</h4>
+                      <p className="doc-slot-subtitle">Valid government photo identification of the authorized owner.</p>
+                    </div>
+                  </div>
+                  <span className={`doc-badge ${hasCnic ? 'doc-badge-success' : 'doc-badge-required'}`}>
+                    {hasCnic ? 'Uploaded & Encrypted' : 'Required'}
+                  </span>
+                </div>
+
+                {hasCnic ? (
+                  <div className="doc-attached-box">
+                    <div className="doc-file-info-box">
+                      <FileText size={20} color="#10b981" />
+                      <div>
+                        <div className="doc-file-name">
+                          {cnicDoc?.document?.originalFilename || cnicDoc?.originalFilename || 'Owner_CNIC_Identification.jpg'}
                         </div>
-                      );
-                    })}
+                        <div className="doc-file-subtext">Status: Verified &amp; Encrypted in Secure Storage</div>
+                      </div>
+                    </div>
+                    <div className="doc-action-buttons">
+                      <button
+                        type="button"
+                        onClick={() => handlePreviewDoc(cnicDoc?.document?._id || cnicDoc?.document || cnicDoc?._id)}
+                        className="btn btn-outline btn-sm"
+                        style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Eye size={13} /> View File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDoc(cnicDoc?._id || cnicDoc?.document?._id)}
+                        disabled={deletingDocId === (cnicDoc?._id || cnicDoc?.document?._id)}
+                        className="btn-doc-remove"
+                        title="Delete and replace file"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        className="branch-input"
+                        placeholder="Owner CNIC Number (e.g. 35201-1234567-1)"
+                        value={cnicRef}
+                        onChange={e => setCnicRef(e.target.value)}
+                        style={{ flex: 1, minWidth: '220px', fontSize: '0.85rem' }}
+                      />
+                      <input
+                        type="file"
+                        ref={cnicInputRef}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={e => setCnicFile(e.target.files[0] || null)}
+                        style={{ display: 'none' }}
+                        id="cnic-input"
+                      />
+                      <label
+                        htmlFor="cnic-input"
+                        className="btn btn-outline"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer' }}
+                      >
+                        <Upload size={14} /> {cnicFile ? cnicFile.name.slice(0, 18) + '...' : 'Choose File'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleUploadDocumentSlot('OWNER_CNIC_FRONT', cnicFile, cnicRef)}
+                        disabled={!cnicFile || uploadingSlot === 'OWNER_CNIC_FRONT'}
+                        className="btn btn-primary"
+                        style={{ fontSize: '0.85rem' }}
+                      >
+                        {uploadingSlot === 'OWNER_CNIC_FRONT' ? 'Encrypting & Uploading...' : 'Upload Slot 2'}
+                      </button>
+                    </div>
+                    {cnicFile && (
+                      <span style={{ fontSize: '0.78rem', color: '#10b981' }}>Selected: {cnicFile.name} ({(cnicFile.size / 1024).toFixed(0)} KB)</span>
+                    )}
                   </div>
                 )}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* STEP 4: REVIEW & SUBMIT */}
-          {step === 4 && (
-            <div>
-              <h3 className="branch-step-heading">Step 4: Final Review &amp; Submit</h3>
-              <p className="branch-step-desc">
-                Review application details, verify required document attachments, and submit for verification review.
-              </p>
+          {/* SECTION 5: Legal Consent Declarations */}
+          <div style={{
+            background: 'var(--card-bg-light, rgba(255, 255, 255, 0.02))',
+            borderRadius: '14px',
+            border: '1px solid var(--card-border, rgba(255, 255, 255, 0.08))',
+            padding: '18px 22px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary, #cbd5e1)' }}>
+              <input
+                type="checkbox"
+                checked={truthDeclaration}
+                onChange={e => setTruthDeclaration(e.target.checked)}
+                style={{ marginTop: '3px' }}
+              />
+              <span>I hereby declare that all submitted physical address data, location coordinates, ownership profile, and documents are genuine and accurate representations of active gym operations.</span>
+            </label>
 
-              {/* Summary Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div className="review-summary-card">
-                  <h4>Gym Profile Summary</h4>
-                  <div className="review-card-content">
-                    <div><strong>Branch:</strong> {profile.branchName || '-'}</div>
-                    <div><strong>Type:</strong> {profile.gymType}</div>
-                    <div><strong>Address:</strong> {profile.address}, {profile.city}, {profile.country}</div>
-                    <div><strong>Coordinates:</strong> {profile.lat && profile.lng ? `${profile.lat}, ${profile.lng}` : 'Pending pin'}</div>
-                    <div><strong>Phone:</strong> {profile.contactPhone || '-'}</div>
-                    <div><strong>Amenities ({profile.facilities.length}):</strong> {profile.facilities.join(', ') || 'None specified'}</div>
-                  </div>
-                </div>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary, #cbd5e1)' }}>
+              <input
+                type="checkbox"
+                checked={consentCheck}
+                onChange={e => setConsentCheck(e.target.checked)}
+                style={{ marginTop: '3px' }}
+              />
+              <span>I authorize GymSync compliance officers to inspect attached encrypted documentation and verify operational readiness before activating this facility on GymSync discovery.</span>
+            </label>
+          </div>
 
-                <div className="review-summary-card">
-                  <h4>Applicant &amp; Document Summary</h4>
-                  <div className="review-card-content">
-                    <div><strong>Representative:</strong> {applicant.legalOwnerName || '-'}</div>
-                    <div><strong>CNIC / Passport:</strong> {applicant.cnicOrPassport || '-'}</div>
-                    <div><strong>Role:</strong> {applicant.applicantRole}</div>
-                    <div><strong>Direct Phone:</strong> {applicant.phone || '-'}</div>
-                    <div><strong>Attached Documents:</strong> {documents.length} file(s)</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Mandatory Checklist Inspection: 2 Core Documents */}
-              <div style={{
-                background: isRequirementsMet ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                border: isRequirementsMet ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
-                padding: '16px',
-                borderRadius: '12px',
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  {isRequirementsMet ? <CheckCircle size={18} color="#10b981" /> : <AlertCircle size={18} color="#ef4444" />}
-                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: isRequirementsMet ? '#10b981' : '#ef4444' }}>
-                    Document Requirement Check: {requiredCount} / 2 Required Uploaded
-                  </span>
-                </div>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  {isRequirementsMet 
-                    ? 'Both mandatory documents (Business Registration and Owner CNIC) are attached. You can now submit your branch for review.'
-                    : `Missing: ${[!hasBusinessReg && 'Business Registration', !hasCnic && 'Owner CNIC'].filter(Boolean).join(' and ')}. Please upload in Step 3.`}
-                </p>
-              </div>
-
-              {/* Declarations & Consent */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                  <input
-                    type="checkbox"
-                    checked={truthDeclaration}
-                    onChange={e => setTruthDeclaration(e.target.checked)}
-                    style={{ marginTop: '3px' }}
-                  />
-                  <span>I declare under penalty of perjury that all submitted physical address data, coordinates, and ownership records are accurate, truthful, and representative of active gym operations.</span>
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                  <input
-                    type="checkbox"
-                    checked={consentCheck}
-                    onChange={e => setConsentCheck(e.target.checked)}
-                    style={{ marginTop: '3px' }}
-                  />
-                  <span>I authorize GymSync verification officers to inspect attached documentation and verify this branch before publishing publicly.</span>
-                </label>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="branch-modal-footer">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {step > 1 && (
-              <button
-                type="button"
-                onClick={() => setStep(step - 1)}
-                className="btn btn-outline"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <ArrowLeft size={16} /> Previous Step
-              </button>
-            )}
-            {branchId && (
-              <button
-                type="button"
-                onClick={handleDeleteThisBranch}
-                className="btn btn-outline"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  color: '#ef4444',
-                  borderColor: 'rgba(239, 68, 68, 0.35)',
-                  background: 'rgba(239, 68, 68, 0.05)'
-                }}
-                title="Delete this gym branch"
-              >
-                <Trash2 size={16} /> Delete Branch
-              </button>
-            )}
+        {/* Modal Sticky Footer */}
+        <div style={{
+          padding: '16px 28px',
+          borderTop: '1px solid var(--card-border, rgba(255, 255, 255, 0.08))',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: 'var(--panel-bg, #0f172a)',
+          flexShrink: 0
+        }}>
+          <div>
+            <span style={{ fontSize: '0.8rem', color: isRequirementsMet ? '#10b981' : '#f59e0b', fontWeight: 600 }}>
+              {isRequirementsMet ? '✓ Mandatory Documents Uploaded' : '⚠️ Both Document Slots Required for Submission'}
+            </span>
           </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
               type="button"
-              onClick={() => saveDraft()}
+              onClick={() => handleSaveDraft(false)}
               disabled={savingDraft || !profile.branchName}
               className="btn btn-outline"
+              style={{ fontSize: '0.85rem' }}
             >
               {savingDraft ? 'Saving Draft...' : 'Save Draft'}
             </button>
 
-            {step < 4 ? (
-              <button
-                type="button"
-                onClick={handleNextStep}
-                disabled={savingDraft}
-                className="btn btn-primary"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                {savingDraft ? 'Saving Draft...' : (
-                  <>Next Step <ArrowRight size={16} /></>
-                )}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSubmitApplication}
-                disabled={submitting || !consentCheck || !truthDeclaration || !isRequirementsMet}
-                className="btn btn-primary"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#10b981', borderColor: '#10b981' }}
-              >
-                <CheckCircle size={16} /> {submitting ? 'Submitting Application...' : 'Submit Branch for Review'}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleSubmitApplication}
+              disabled={submitting || !isRequirementsMet || !truthDeclaration || !consentCheck || !profile.branchName}
+              className="btn btn-primary"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.85rem',
+                background: isRequirementsMet && truthDeclaration && consentCheck ? '#10b981' : undefined,
+                borderColor: isRequirementsMet && truthDeclaration && consentCheck ? '#10b981' : undefined
+              }}
+            >
+              <CheckCircle size={16} />
+              {submitting ? 'Submitting Application...' : 'Submit Application for Verification'}
+            </button>
           </div>
         </div>
+
       </div>
     </div>
   );

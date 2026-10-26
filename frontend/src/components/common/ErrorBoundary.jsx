@@ -46,9 +46,27 @@ class ErrorBoundary extends React.Component {
         }}>
           <div className="glass-panel" style={{ padding: '40px', maxWidth: '500px', borderRadius: '16px' }}>
             <h2 style={{ marginBottom: '16px', color: '#ef4444' }}>Oops! Something went wrong</h2>
-            <p style={{ color: 'var(--text-secondary, #94a3b8)', marginBottom: '24px' }}>
+            <p style={{ color: 'var(--text-secondary, #94a3b8)', marginBottom: '20px' }}>
               An unexpected error occurred in this application module. Don't worry, your data is safe.
             </p>
+            {this.state.error && (
+              <div style={{
+                textAlign: 'left',
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                fontSize: '0.82rem',
+                fontFamily: 'monospace',
+                color: '#f87171',
+                wordBreak: 'break-word',
+                maxHeight: '160px',
+                overflowY: 'auto'
+              }}>
+                <strong>Error:</strong> {this.state.error.message || String(this.state.error)}
+              </div>
+            )}
             <button
               className="btn btn-primary"
               onClick={this.handleReload}

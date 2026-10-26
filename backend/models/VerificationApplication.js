@@ -29,6 +29,7 @@ const verificationApplicationSchema = new mongoose.Schema({
     legalName: { type: String, required: true },
     email: { type: String, required: true },
     phone: { type: String, default: '' },
+    cnicOrPassport: { type: String, default: '' },
     relationship: {
       type: String,
       enum: ['Owner', 'Co-owner', 'AuthorizedManager'],
@@ -40,6 +41,7 @@ const verificationApplicationSchema = new mongoose.Schema({
       default: 'Email'
     }
   },
+  statementOfPurpose: { type: String, default: '' },
   documents: [{
     documentType: {
       type: String,

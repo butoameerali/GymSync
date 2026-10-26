@@ -107,9 +107,9 @@ function App() {
         <Route path="/ai-trainer" element={<ProtectedRoute allowedRoles={['User']}><AITrainer /></ProtectedRoute>} />
         <Route path="/running" element={<ProtectedRoute allowedRoles={['User']}><RunningTracker /></ProtectedRoute>} />
         
-        {/* Public Consumer Gym Discovery & Store: accessible to guests & users, redirected for staff */}
-        <Route path="/explore" element={<ConsumerRoute><ExploreGyms /></ConsumerRoute>} />
-        <Route path="/gym/:id" element={<ConsumerRoute><GymDetails /></ConsumerRoute>} />
+        {/* Public Gym Discovery & Store: accessible to all users and owners for public profile inspection */}
+        <Route path="/explore" element={<ExploreGyms />} />
+        <Route path="/gym/:id" element={<GymDetails />} />
         <Route path="/store" element={<Store />} />
         
         {/* Public Standalone Post Details View (Accessible without login; actions require login) */}

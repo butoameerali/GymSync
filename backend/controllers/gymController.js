@@ -63,8 +63,8 @@ export const getGymById = async (req, res) => {
       return res.status(404).json({ message: 'Gym not found' });
     }
 
-    const isExplicitlyOffline = gym.isOnline === false && gym.subscriptionPaid === false;
-    if (gym.approvalStatus !== 'Approved' || isExplicitlyOffline) {
+    const isPubliclyLive = gym.approvalStatus === 'Approved' && gym.isOnline === true && gym.subscriptionPaid === true;
+    if (!isPubliclyLive) {
       const isOwner = req.user && ((gym.owner && String(gym.owner) === String(req.user._id)) || gym.ownerName === req.user.name);
       const isAdmin = req.user && ['Admin', 'SuperAdmin'].includes(req.user.role);
       if (!isOwner && !isAdmin) {
@@ -217,11 +217,8 @@ export const getGymsList = async (req, res) => {
   try {
     const gyms = await Gym.find({
       approvalStatus: 'Approved',
-      $or: [
-        { isOnline: true },
-        { subscriptionPaid: true },
-        { isOnline: { $exists: false } }
-      ]
+      isOnline: true,
+      subscriptionPaid: true
     }).sort({ createdAt: -1 });
 
     const now = new Date();

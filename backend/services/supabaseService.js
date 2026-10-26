@@ -62,11 +62,25 @@ export const fetchAllPosts = async () => {
 };
 
 export const insertPost = async ({ authorId, authorName, authorRole, content, mediaUrl }) => {
+  // Always save to MongoDB (authoritative primary store)
+  const post = new Post({
+    author: authorId,
+    authorName: authorName || 'User',
+    authorRole: authorRole || 'User',
+    content: content || '',
+    mediaUrl: mediaUrl || '',
+    likes: [],
+    comments: []
+  });
+  const savedPost = await post.save();
+
+  // Mirror to Supabase if configured
   if (isSupabaseConfigured() && supabase) {
     try {
-      const { data, error } = await supabase
+      await supabase
         .from('posts')
         .insert([{
+          mongo_id: String(savedPost._id),
           author_id: String(authorId),
           author_name: authorName || 'User',
           author_role: authorRole || 'User',
@@ -74,40 +88,13 @@ export const insertPost = async ({ authorId, authorName, authorRole, content, me
           media_url: mediaUrl || '',
           likes: [],
           comments: []
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return {
-        _id: data.id,
-        supabaseId: data.id,
-        author: data.author_id,
-        authorName: data.author_name,
-        authorRole: data.author_role,
-        content: data.content,
-        mediaUrl: data.media_url,
-        likes: data.likes || [],
-        comments: data.comments || [],
-        createdAt: data.created_at
-      };
+        }]);
     } catch (err) {
-      console.warn(`[Supabase insertPost Error]: ${err.message}. Saving to MongoDB.`);
+      console.warn(`[Supabase insertPost Mirror Warning]: ${err.message}`);
     }
   }
 
-  // MongoDB Fallback
-  const post = new Post({
-    author: authorId,
-    authorName,
-    authorRole,
-    content,
-    mediaUrl,
-    likes: [],
-    comments: []
-  });
-  return await post.save();
+  return savedPost;
 };
 
 export const updatePostLikes = async (postId, userName) => {

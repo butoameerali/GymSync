@@ -100,6 +100,7 @@ export const getOwnerBranches = async (req, res) => {
         subscriptionPaid: b.subscriptionPaid || false,
         subscriptionPaidAt: b.subscriptionPaidAt || null,
         subscriptionExpiresAt: b.subscriptionExpiresAt || null,
+        subscriptionPaymentMethod: b.subscriptionPaymentMethod || '',
         isOnline: b.isOnline || false,
         listingStatus: b.listingStatus || (b.approvalStatus === 'Approved' ? (b.subscriptionPaid ? 'Online' : 'Pending Payment') : (b.approvalStatus || 'Offline')),
         facilities: b.facilities || [],
@@ -144,7 +145,8 @@ export const saveBranchDraft = async (req, res) => {
       facilities,
       timings,
       photos,
-      applicantDetails
+      applicantDetails,
+      statementOfPurpose
     } = req.body;
 
     const org = await getOrCreateOwnerOrganization(req.user);
@@ -294,16 +296,22 @@ export const saveBranchDraft = async (req, res) => {
           legalName: applicantDetails?.legalName || req.user.name,
           email: applicantDetails?.email || req.user.email,
           phone: applicantDetails?.phone || req.user.phone || '',
+          cnicOrPassport: applicantDetails?.cnicOrPassport || '',
           relationship: applicantDetails?.relationship || 'Owner',
           preferredContactMethod: applicantDetails?.preferredContactMethod || 'Email'
         },
+        statementOfPurpose: statementOfPurpose ? String(statementOfPurpose).trim() : '',
         status: 'Draft'
       });
     } else {
+      if (statementOfPurpose !== undefined) {
+        application.statementOfPurpose = String(statementOfPurpose).trim();
+      }
       if (applicantDetails) {
         if (applicantDetails.legalName) application.applicantDetails.legalName = applicantDetails.legalName;
         if (applicantDetails.email) application.applicantDetails.email = applicantDetails.email;
         if (applicantDetails.phone) application.applicantDetails.phone = applicantDetails.phone;
+        if (applicantDetails.cnicOrPassport !== undefined) application.applicantDetails.cnicOrPassport = applicantDetails.cnicOrPassport;
         if (applicantDetails.relationship) application.applicantDetails.relationship = applicantDetails.relationship;
         if (applicantDetails.preferredContactMethod) application.applicantDetails.preferredContactMethod = applicantDetails.preferredContactMethod;
       }
@@ -333,6 +341,7 @@ export const saveBranchDraft = async (req, res) => {
         referenceId: application.referenceId,
         status: application.status,
         applicantDetails: application.applicantDetails,
+        statementOfPurpose: application.statementOfPurpose,
         documents: application.documents
       }
     });
