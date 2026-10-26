@@ -63,7 +63,8 @@ export const getGymById = async (req, res) => {
       return res.status(404).json({ message: 'Gym not found' });
     }
 
-    if (gym.approvalStatus !== 'Approved' || (!gym.isOnline && !gym.subscriptionPaid)) {
+    const isExplicitlyOffline = gym.isOnline === false && gym.subscriptionPaid === false;
+    if (gym.approvalStatus !== 'Approved' || isExplicitlyOffline) {
       const isOwner = req.user && ((gym.owner && String(gym.owner) === String(req.user._id)) || gym.ownerName === req.user.name);
       const isAdmin = req.user && ['Admin', 'SuperAdmin'].includes(req.user.role);
       if (!isOwner && !isAdmin) {
@@ -83,7 +84,7 @@ export const getGymById = async (req, res) => {
             { assignedBranch: gym._id }
           ]
         },
-        { name: 1, profilePic: 1, bio: 1, fitnessGoal: 1, bioData: 1 }
+        { name: 1, profilePic: 1, bio: 1, fitnessGoal: 1 }
       ).lean();
 
       trainers = rawTrainers.map(t => ({
@@ -91,9 +92,7 @@ export const getGymById = async (req, res) => {
         name: t.name,
         profilePic: t.profilePic || '',
         bio: t.bio || '',
-        fitnessGoal: t.fitnessGoal || '',
-        specialization: t.bioData?.mainGoalArea || t.fitnessGoal || 'Fitness Coach',
-        fitnessLevel: t.bioData?.fitnessLevel || 'Certified'
+        specialization: t.fitnessGoal || 'Gym Trainer'
       }));
     } catch (trainersErr) {
       console.error('Error fetching trainers for gym:', trainersErr);
@@ -178,6 +177,7 @@ export const getGymById = async (req, res) => {
       admissionFee: Number(gym.admissionFee) || 0,
       securityDeposit: Number.isFinite(gym.securityDeposit) ? gym.securityDeposit : 0,
       securityDepositRefundable: gym.securityDepositRefundable ?? true,
+      offersYearlyPlan: Boolean(gym.offersYearlyPlan || (Number(gym.yearlyDiscountPercent) > 0)),
       yearlyDiscountPercent: Number.isFinite(gym.yearlyDiscountPercent) ? gym.yearlyDiscountPercent : 0,
       trainerPolicy,
       trainerIncluded: Boolean(gym.trainerIncluded || trainerPolicy.guidanceTrainer || trainerPolicy.personalTrainer),
@@ -219,7 +219,8 @@ export const getGymsList = async (req, res) => {
       approvalStatus: 'Approved',
       $or: [
         { isOnline: true },
-        { subscriptionPaid: true }
+        { subscriptionPaid: true },
+        { isOnline: { $exists: false } }
       ]
     }).sort({ createdAt: -1 });
 
@@ -294,6 +295,7 @@ export const getGymsList = async (req, res) => {
         admissionFee: Number(g.admissionFee) || 0,
         securityDeposit: Number.isFinite(g.securityDeposit) ? g.securityDeposit : 0,
         securityDepositRefundable: g.securityDepositRefundable ?? true,
+        offersYearlyPlan: Boolean(g.offersYearlyPlan || (Number(g.yearlyDiscountPercent) > 0)),
         yearlyDiscountPercent: Number.isFinite(g.yearlyDiscountPercent) ? g.yearlyDiscountPercent : 0,
         trainerPolicy,
         trainerIncluded: Boolean(g.trainerIncluded || trainerPolicy.guidanceTrainer || trainerPolicy.personalTrainer),

@@ -9,7 +9,7 @@ const gymSchema = new mongoose.Schema({
   ownerName: { type: String, required: true },
   ownerEmail: { type: String, default: '' },
   name: { type: String, required: true },
-  location: { type: String, required: true },
+  location: { type: String, default: 'Location Pending' },
   description: { type: String, default: '' },
   facilities: [String],
   equipmentImages: [String],
@@ -70,6 +70,7 @@ const gymSchema = new mongoose.Schema({
   admissionFee: { type: Number, default: 0 },
   securityDeposit: { type: Number, default: 0, min: 0 },
   securityDepositRefundable: { type: Boolean, default: true },
+  offersYearlyPlan: { type: Boolean, default: false },
   yearlyDiscountPercent: { type: Number, default: 0, min: 0, max: 50 },
   bankDetails: { type: String, default: '' },
   equipmentList: [String],
@@ -85,7 +86,7 @@ const gymSchema = new mongoose.Schema({
   isOnline: { type: Boolean, default: false },
   listingStatus: { 
     type: String, 
-    enum: ['Offline', 'Pending Verification', 'Pending Payment', 'Online', 'Suspended'], 
+    enum: ['Offline', 'Pending Verification', 'Pending Payment', 'PendingPayment', 'Online', 'Suspended'], 
     default: 'Offline' 
   }
 }, { timestamps: true });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, FileText, Dumbbell, Activity, UserCheck, Trash2, Lock, Sparkles, CreditCard, ShieldCheck, Eye } from 'lucide-react';
+import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, FileText, Dumbbell, Activity, UserCheck, Trash2, Lock, Sparkles, CreditCard, ShieldCheck, Eye, Banknote, RefreshCw, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
@@ -65,6 +65,7 @@ const GymOwnerDashboard = () => {
     admissionFee: 0,
     securityDeposit: 0,
     securityDepositRefundable: true,
+    offersYearlyPlan: false,
     yearlyDiscountPercent: 0,
     guidanceTrainer: false,
     personalTrainer: false,
@@ -95,12 +96,108 @@ const GymOwnerDashboard = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [branchToPay, setBranchToPay] = useState(null);
 
+  // Member & Payment Management States
+  const [paymentsData, setPaymentsData] = useState({
+    pendingOnline: [],
+    pendingCash: [],
+    completed: [],
+    rejected: [],
+    stats: { totalCollected: 0, pendingOnlineCount: 0, pendingCashCount: 0, completedCount: 0 }
+  });
+  const [enrolledMembers, setEnrolledMembers] = useState([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [paymentActionLoading, setPaymentActionLoading] = useState(null);
+  const [membersSubTab, setMembersSubTab] = useState('online');
+
   const ownerName = localStorage.getItem('gymsync_user_name') || 'Gym Owner';
+
+  const fetchPaymentsAndMembers = async () => {
+    setLoadingPayments(true);
+    try {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const [paymentsRes, membersRes] = await Promise.all([
+        fetch('/api/gym-owner/payments', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/gym-owner/members', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
+      if (paymentsRes.ok) {
+        const pData = await paymentsRes.json();
+        setPaymentsData(pData);
+      }
+      if (membersRes.ok) {
+        const mData = await membersRes.json();
+        setEnrolledMembers(mData.members || []);
+      }
+    } catch (err) {
+      console.error('Failed to load payments or members:', err);
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
+  const handleConfirmPayment = async (paymentId, isCash = false) => {
+    setPaymentActionLoading(paymentId);
+    try {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch(`/api/gym-owner/payments/${paymentId}/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to confirm payment');
+      toast.success(data.message || (isCash ? 'Cash payment confirmed! Member activated.' : 'TID verified! Member activated.'));
+      fetchPaymentsAndMembers();
+      fetchDashboardData();
+    } catch (err) {
+      toast.error(err.message || 'Error confirming payment');
+    } finally {
+      setPaymentActionLoading(null);
+    }
+  };
+
+  const handleRejectPayment = async (paymentId) => {
+    const reason = window.prompt('Enter rejection reason (e.g. Invalid TID / Payment not received):', 'Transaction reference could not be verified in account statement');
+    if (!reason) return;
+
+    setPaymentActionLoading(paymentId);
+    try {
+      const token = localStorage.getItem('gymsync_token') || '';
+      const res = await fetch(`/api/gym-owner/payments/${paymentId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reason })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to reject payment');
+      toast.info('Payment rejected.');
+      fetchPaymentsAndMembers();
+    } catch (err) {
+      toast.error(err.message || 'Error rejecting payment');
+    } finally {
+      setPaymentActionLoading(null);
+    }
+  };
 
   useEffect(() => {
     fetchDashboardData();
     fetchBranches();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'members' || activeTab === 'overview') {
+      fetchPaymentsAndMembers();
+    }
+  }, [activeTab]);
 
   const fetchBranches = async () => {
     try {
@@ -195,6 +292,7 @@ const GymOwnerDashboard = () => {
             admissionFee: data.gym.admissionFee ?? 0,
             securityDeposit: data.gym.securityDeposit ?? 0,
             securityDepositRefundable: data.gym.securityDepositRefundable ?? true,
+            offersYearlyPlan: Boolean(data.gym.offersYearlyPlan || (Number(data.gym.yearlyDiscountPercent) > 0)),
             yearlyDiscountPercent: data.gym.yearlyDiscountPercent ?? 0,
             guidanceTrainer: Boolean(data.gym.trainerPolicy?.guidanceTrainer ?? (data.gym.trainerIncluded && !data.gym.trainerPolicy)),
             personalTrainer: Boolean(data.gym.trainerPolicy?.personalTrainer ?? false),
@@ -353,7 +451,8 @@ const GymOwnerDashboard = () => {
           admissionFee: Number(gymProfile.admissionFee) || 0,
           securityDeposit: Number(gymProfile.securityDeposit) || 0,
           securityDepositRefundable: Boolean(gymProfile.securityDepositRefundable),
-          yearlyDiscountPercent: Number(gymProfile.yearlyDiscountPercent) || 0,
+          offersYearlyPlan: Boolean(gymProfile.offersYearlyPlan),
+          yearlyDiscountPercent: gymProfile.offersYearlyPlan ? (Number(gymProfile.yearlyDiscountPercent) || 0) : 0,
           trainerPolicy: {
             guidanceTrainer: Boolean(gymProfile.guidanceTrainer),
             personalTrainer: Boolean(gymProfile.personalTrainer),
@@ -514,7 +613,7 @@ const GymOwnerDashboard = () => {
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <div className="overview-container">
-                {branches.some(b => b.approvalStatus === 'Approved' && !b.subscriptionPaid) && (
+                {branches.some(b => b.approvalStatus === 'Approved' && (!b.subscriptionPaid || !b.isOnline)) && (
                   <div style={{
                     background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%)',
                     border: '1px solid rgba(59, 130, 246, 0.4)',
@@ -536,7 +635,7 @@ const GymOwnerDashboard = () => {
                           🎉 Facility Verification Approved!
                         </h4>
                         <p style={{ margin: '3px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                          Pay the annual partner listing fee (${branches.find(b => b.approvalStatus === 'Approved' && !b.subscriptionPaid)?.annualSubscriptionFee || 20}/year) to take your gym live on Explore Gyms.
+                          Pay the annual partner listing fee (Rs. {Number(branches.find(b => b.approvalStatus === 'Approved' && (!b.subscriptionPaid || !b.isOnline))?.annualSubscriptionFee || 5000).toLocaleString('en-US')}/year) to take your gym live on Explore Gyms.
                         </p>
                       </div>
                     </div>
@@ -544,7 +643,7 @@ const GymOwnerDashboard = () => {
                       type="button"
                       className="btn btn-primary"
                       onClick={() => {
-                        const target = branches.find(b => b.approvalStatus === 'Approved' && !b.subscriptionPaid);
+                        const target = branches.find(b => b.approvalStatus === 'Approved' && (!b.subscriptionPaid || !b.isOnline));
                         if (target) {
                           setBranchToPay(target);
                           setShowPaymentModal(true);
@@ -790,7 +889,7 @@ const GymOwnerDashboard = () => {
 
                             {/* Verification Approved - Online vs Awaiting Payment State */}
                             {status === 'Approved' && (
-                              b.subscriptionPaid || b.isOnline ? (
+                              (b.subscriptionPaid && b.isOnline) ? (
                                 <div style={{
                                   background: 'rgba(16, 185, 129, 0.1)',
                                   border: '1px solid rgba(16, 185, 129, 0.3)',
@@ -808,7 +907,7 @@ const GymOwnerDashboard = () => {
                                     </span>
                                   </div>
                                   <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                                    Fee Paid (${b.annualSubscriptionFee || 20}/yr)
+                                    Fee Paid (Rs. {b.annualSubscriptionFee || 5000}/yr)
                                   </span>
                                 </div>
                               ) : (
@@ -826,7 +925,7 @@ const GymOwnerDashboard = () => {
                                     </strong>
                                   </div>
                                   <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                    Pay the <strong>${b.annualSubscriptionFee || 20}/year</strong> partner fee to take your facility live on Explore Gyms.
+                                    Pay the <strong>Rs. {Number(b.annualSubscriptionFee || 5000).toLocaleString('en-US')}/year</strong> partner fee to take your facility live on Explore Gyms.
                                   </p>
                                   <button
                                     type="button"
@@ -837,7 +936,7 @@ const GymOwnerDashboard = () => {
                                       setShowPaymentModal(true);
                                     }}
                                   >
-                                    <CreditCard size={15} /> Pay ${b.annualSubscriptionFee || 20} & Activate Online
+                                    <CreditCard size={15} /> Pay Rs. {b.annualSubscriptionFee || 5000} & Activate Online
                                   </button>
                                 </div>
                               )
@@ -903,6 +1002,410 @@ const GymOwnerDashboard = () => {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* MEMBERS & PAYMENTS VERIFICATION TAB */}
+            {activeTab === 'members' && (
+              <div className="members-payments-container">
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '22px',
+                  flexWrap: 'wrap',
+                  gap: '14px'
+                }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Users size={24} color="var(--primary-accent)" />
+                      Members & Payment Verifications
+                    </h3>
+                    <p style={{ margin: '4px 0 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                      Verify trainee transfer TIDs, confirm front-desk cash pass payments, and manage active memberships.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={fetchPaymentsAndMembers}
+                    disabled={loadingPayments}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <RefreshCw size={14} className={loadingPayments ? 'spin' : ''} /> Refresh List
+                  </button>
+                </div>
+
+                {/* Stat Metrics */}
+                <div className="stats-grid" style={{ marginBottom: '24px' }}>
+                  <div className="stat-card glass-panel" style={{ cursor: 'pointer', border: membersSubTab === 'online' ? '1px solid var(--primary-accent)' : undefined }} onClick={() => setMembersSubTab('online')}>
+                    <div className="stat-icon blue"><CreditCard size={22} /></div>
+                    <div>
+                      <span className="stat-label">Pending Online (TID)</span>
+                      <h3 className="stat-value" style={{ color: paymentsData.stats?.pendingOnlineCount > 0 ? '#38bdf8' : 'inherit' }}>
+                        {paymentsData.stats?.pendingOnlineCount || 0}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="stat-card glass-panel" style={{ cursor: 'pointer', border: membersSubTab === 'cash' ? '1px solid #10b981' : undefined }} onClick={() => setMembersSubTab('cash')}>
+                    <div className="stat-icon green"><Banknote size={22} /></div>
+                    <div>
+                      <span className="stat-label">Pending Cash Passes</span>
+                      <h3 className="stat-value" style={{ color: paymentsData.stats?.pendingCashCount > 0 ? '#10b981' : 'inherit' }}>
+                        {paymentsData.stats?.pendingCashCount || 0}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="stat-card glass-panel" style={{ cursor: 'pointer', border: membersSubTab === 'directory' ? '1px solid #a855f7' : undefined }} onClick={() => setMembersSubTab('directory')}>
+                    <div className="stat-icon purple"><Users size={22} /></div>
+                    <div>
+                      <span className="stat-label">Enrolled Members</span>
+                      <h3 className="stat-value">{enrolledMembers.length}</h3>
+                    </div>
+                  </div>
+
+                  <div className="stat-card glass-panel">
+                    <div className="stat-icon orange"><DollarSign size={22} /></div>
+                    <div>
+                      <span className="stat-label">Total Verified Revenue</span>
+                      <h3 className="stat-value">Rs. {Number(paymentsData.stats?.totalCollected || 0).toLocaleString('en-US')}</h3>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sub Tab Navigation */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '22px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${membersSubTab === 'online' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setMembersSubTab('online')}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <CreditCard size={15} />
+                    <span>Pending Online TIDs</span>
+                    {Boolean(paymentsData.stats?.pendingOnlineCount > 0) && (
+                      <span style={{ background: '#ef4444', color: '#fff', padding: '1px 6px', borderRadius: '10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                        {paymentsData.stats.pendingOnlineCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${membersSubTab === 'cash' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setMembersSubTab('cash')}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Banknote size={15} />
+                    <span>Pending Cash Passes</span>
+                    {Boolean(paymentsData.stats?.pendingCashCount > 0) && (
+                      <span style={{ background: '#10b981', color: '#fff', padding: '1px 6px', borderRadius: '10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                        {paymentsData.stats.pendingCashCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${membersSubTab === 'directory' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setMembersSubTab('directory')}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Users size={15} />
+                    <span>Active Members Directory ({enrolledMembers.length})</span>
+                  </button>
+                </div>
+
+                {/* SUB TAB 1: PENDING ONLINE TIDS */}
+                {membersSubTab === 'online' && (
+                  <div>
+                    {paymentsData.pendingOnline?.length === 0 ? (
+                      <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
+                        <CheckCircle size={44} color="#10b981" style={{ margin: '0 auto 12px' }} />
+                        <h4 style={{ margin: '0 0 6px', color: 'var(--text-primary)' }}>All Online Payments Verified</h4>
+                        <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                          There are currently no trainee online payments or TIDs awaiting confirmation.
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: '16px' }}>
+                        {paymentsData.pendingOnline.map((item) => (
+                          <div key={item._id} className="glass-panel" style={{ padding: '18px 20px', borderRadius: '14px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{item.userName}</h4>
+                                  <span style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                    {item.membershipType} Pass
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                  📧 {item.customerEmail || 'No email provided'} | 📞 {item.customerPhone || 'No phone provided'}
+                                </div>
+                              </div>
+
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--primary-accent)' }}>
+                                  Rs. {Number(item.amount).toLocaleString('en-US')}
+                                </div>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                  Submitted {new Date(item.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                              gap: '12px',
+                              background: 'var(--card-bg-light, rgba(255,255,255,0.03))',
+                              padding: '12px 16px',
+                              borderRadius: '10px',
+                              marginBottom: '14px',
+                              fontSize: '0.84rem'
+                            }}>
+                              <div>
+                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>Transaction ID (TID)</span>
+                                <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: '0.95rem' }}>
+                                  {item.transactionRef || 'N/A'}
+                                </strong>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>Payment Method</span>
+                                <strong style={{ color: 'var(--text-primary)' }}>{item.paymentMethod}</strong>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>Facility / Branch</span>
+                                <strong style={{ color: 'var(--text-primary)' }}>{item.gymName}</strong>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>Requested Start Date</span>
+                                <strong style={{ color: item.joiningDate && new Date(item.joiningDate) > new Date() ? '#38bdf8' : 'var(--text-primary)' }}>
+                                  {item.joiningDate ? new Date(item.joiningDate).toLocaleDateString() : 'Immediate (Today)'}
+                                </strong>
+                              </div>
+                            </div>
+
+                            {item.screenshotUrl && (item.screenshotUrl.startsWith('http') || item.screenshotUrl.startsWith('data:')) && (
+                              <div style={{ marginBottom: '14px' }}>
+                                <a href={item.screenshotUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.82rem', color: '#38bdf8', textDecoration: 'underline' }}>
+                                  🖼️ View Payment Screenshot Proof
+                                </a>
+                              </div>
+                            )}
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => handleRejectPayment(item._id)}
+                                disabled={paymentActionLoading === item._id}
+                                style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                              >
+                                Reject
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleConfirmPayment(item._id, false)}
+                                disabled={paymentActionLoading === item._id}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                              >
+                                {paymentActionLoading === item._id ? 'Verifying...' : (
+                                  <>
+                                    <CheckCircle size={15} /> Verify TID & Activate Member
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SUB TAB 2: PENDING CASH PASSES */}
+                {membersSubTab === 'cash' && (
+                  <div>
+                    {paymentsData.pendingCash?.length === 0 ? (
+                      <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
+                        <Banknote size={44} color="var(--text-secondary)" style={{ margin: '0 auto 12px' }} />
+                        <h4 style={{ margin: '0 0 6px', color: 'var(--text-primary)' }}>No Pending Cash Bookings</h4>
+                        <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                          Trainees who select "Cash (Pay at Gym)" on your gym profile will appear here with their pass code.
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: '16px' }}>
+                        {paymentsData.pendingCash.map((item) => (
+                          <div key={item._id} className="glass-panel" style={{ padding: '18px 20px', borderRadius: '14px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{item.userName}</h4>
+                                  <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                    Cash at Counter
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                  📞 {item.customerPhone || 'Contact at arrival'} | 🏛️ {item.gymName}
+                                </div>
+                              </div>
+
+                              <div style={{ textAlign: 'right' }}>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Amount to Collect:</span>
+                                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#10b981' }}>
+                                  Rs. {Number(item.amount).toLocaleString('en-US')}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                              gap: '12px',
+                              background: 'var(--card-bg-light, rgba(255,255,255,0.03))',
+                              padding: '12px 16px',
+                              borderRadius: '10px',
+                              marginBottom: '14px',
+                              fontSize: '0.84rem'
+                            }}>
+                              <div>
+                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>Pass Code</span>
+                                <strong style={{ color: 'var(--primary-accent)', fontFamily: 'monospace', fontSize: '1rem' }}>
+                                  {item.trackingCode || item.paymentId}
+                                </strong>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>Plan Requested</span>
+                                <strong style={{ color: 'var(--text-primary)' }}>{item.membershipType} Pass</strong>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>Planned Join Date</span>
+                                <strong style={{ color: 'var(--text-primary)' }}>
+                                  {item.joiningDate ? new Date(item.joiningDate).toLocaleDateString() : 'Today'}
+                                </strong>
+                              </div>
+                              <div>
+                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>Reserved At</span>
+                                <span style={{ color: 'var(--text-secondary)' }}>{new Date(item.createdAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                💡 When trainee visits gym desk and pays cash, click confirm to activate their membership.
+                              </p>
+
+                              <div style={{ display: 'flex', gap: '10px' }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => handleRejectPayment(item._id)}
+                                  disabled={paymentActionLoading === item._id}
+                                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                                >
+                                  Cancel Pass
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  onClick={() => handleConfirmPayment(item._id, true)}
+                                  disabled={paymentActionLoading === item._id}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#10b981', borderColor: '#10b981' }}
+                                >
+                                  {paymentActionLoading === item._id ? 'Confirming...' : (
+                                    <>
+                                      <CheckCircle size={15} /> Confirm Cash Received & Activate
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SUB TAB 3: ACTIVE MEMBERS DIRECTORY */}
+                {membersSubTab === 'directory' && (
+                  <div className="glass-panel" style={{ padding: '22px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                        All Enrolled & Subscribed Trainees ({enrolledMembers.length})
+                      </h4>
+                    </div>
+
+                    {enrolledMembers.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
+                        <Users size={36} style={{ marginBottom: '10px' }} />
+                        <p style={{ margin: 0 }}>No active members enrolled yet.</p>
+                      </div>
+                    ) : (
+                      <div className="table-responsive">
+                        <table className="owner-table">
+                          <thead>
+                            <tr>
+                              <th>Trainee</th>
+                              <th>Facility</th>
+                              <th>Plan</th>
+                              <th>Start Date</th>
+                              <th>Valid Until</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {enrolledMembers.map((m) => (
+                              <tr key={m._id}>
+                                <td>
+                                  <div>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{m.name}</strong>
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                      {m.phone !== 'N/A' ? m.phone : m.email}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td>{m.gymName}</td>
+                                <td>
+                                  <span style={{
+                                    background: 'rgba(59, 130, 246, 0.1)',
+                                    color: '#38bdf8',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600
+                                  }}>
+                                    {m.membershipType} Pass
+                                  </span>
+                                </td>
+                                <td>{m.joiningDate ? new Date(m.joiningDate).toLocaleDateString() : 'N/A'}</td>
+                                <td>{m.expiresAt ? new Date(m.expiresAt).toLocaleDateString() : 'Active'}</td>
+                                <td>
+                                  <span style={{
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    background: m.status === 'Active' ? 'rgba(16, 185, 129, 0.15)' : m.status === 'Upcoming' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                    color: m.status === 'Active' ? '#10b981' : m.status === 'Upcoming' ? '#38bdf8' : '#ef4444'
+                                  }}>
+                                    {m.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1060,7 +1563,7 @@ const GymOwnerDashboard = () => {
                       <div><strong>Monthly Fee:</strong> Rs. {dashboardData.gym.monthlyFee}</div>
                       <div><strong>Admission Fee:</strong> Rs. {dashboardData.gym.admissionFee || 0}</div>
                       <div><strong>Security Deposit:</strong> Rs. {dashboardData.gym.securityDeposit || 0} {dashboardData.gym.securityDepositRefundable !== false ? '(Refundable)' : '(Non-Refundable)'}</div>
-                      <div><strong>Yearly Discount:</strong> {dashboardData.gym.yearlyDiscountPercent || 0}%</div>
+                      <div><strong>Yearly Plan:</strong> {(dashboardData.gym.offersYearlyPlan || dashboardData.gym.yearlyDiscountPercent > 0) ? `Offered (${dashboardData.gym.yearlyDiscountPercent || 0}% discount)` : 'Not Offered (Monthly Only)'}</div>
                     </div>
                     {/* Trainer Policy Summary */}
                     <div style={{ background: 'var(--card-bg-light, rgba(255,255,255,0.03))', padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', border: '1px solid var(--border-color, rgba(255,255,255,0.1))' }}>
@@ -1172,6 +1675,7 @@ const GymOwnerDashboard = () => {
                           type="number"
                           min="0"
                           className="search-input"
+                          placeholder="e.g. 2000 (0 if none)"
                           value={gymProfile.securityDeposit}
                           onChange={e => setGymProfile({ ...gymProfile, securityDeposit: e.target.value })}
                         />
@@ -1184,22 +1688,48 @@ const GymOwnerDashboard = () => {
                           Refundable Security Deposit
                         </label>
                       </div>
+                    </div>
 
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Yearly Plan Discount (%)</label>
+                    {/* Optional Yearly Plan Toggle */}
+                    <div style={{ background: 'var(--card-bg-light, rgba(255,255,255,0.03))', border: '1px solid var(--border-color, rgba(255,255,255,0.1))', borderRadius: '10px', padding: '16px', marginBottom: '20px' }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}>
                         <input
-                          type="number"
-                          min="0"
-                          max="50"
-                          className="search-input"
-                          placeholder="e.g. 15 for 15% off"
-                          value={gymProfile.yearlyDiscountPercent}
-                          onChange={e => setGymProfile({ ...gymProfile, yearlyDiscountPercent: e.target.value })}
+                          type="checkbox"
+                          checked={Boolean(gymProfile.offersYearlyPlan)}
+                          onChange={e => setGymProfile({ 
+                            ...gymProfile, 
+                            offersYearlyPlan: e.target.checked,
+                            yearlyDiscountPercent: e.target.checked ? (gymProfile.yearlyDiscountPercent || 0) : 0
+                          })}
                         />
-                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
-                          Discount applies to 12-month memberships (0% - 50%)
-                        </span>
-                      </div>
+                        Offer Yearly Membership Package (Optional)
+                      </label>
+                      <p style={{ margin: '4px 0 0 24px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        Gym memberships are monthly by default. Enable this only if you want to offer trainees a 12-month advance package.
+                      </p>
+
+                      {gymProfile.offersYearlyPlan && (
+                        <div style={{ marginTop: '12px', marginLeft: '24px', maxWidth: '340px' }}>
+                          <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Yearly Package Discount (%)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            className="search-input"
+                            placeholder="e.g. 15 (0 for regular 12-month fee)"
+                            value={gymProfile.yearlyDiscountPercent}
+                            onChange={e => setGymProfile({ ...gymProfile, yearlyDiscountPercent: e.target.value })}
+                          />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                            <span>Max 50% discount</span>
+                            {Number(gymProfile.monthlyFee) > 0 && (
+                              <span style={{ color: '#10b981', fontWeight: 600 }}>
+                                Yearly Total: Rs. {Math.round(Number(gymProfile.monthlyFee) * 12 * (1 - (Number(gymProfile.yearlyDiscountPercent) || 0) / 100)).toLocaleString()}/yr
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Trainer Policy Section */}

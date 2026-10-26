@@ -66,15 +66,43 @@ const POPULAR_FACILITY_SUGGESTIONS = [
  * - Google Maps URL with ?q=lat,lng or ?ll=lat,lng or query=lat,lng
  * - Google Maps embed with !3dlat!4dlng
  */
+/**
+ * Extract Google Maps URL from pasted text (e.g. from mobile share sheet)
+ */
+function extractGoogleMapsUrl(input) {
+  if (!input || typeof input !== 'string') return null;
+  const match = input.match(/(https?:\/\/[^\s]+)/i);
+  if (match) {
+    const u = match[1];
+    if (u.includes('goo.gl') || u.includes('google.com/maps') || u.includes('maps.app')) {
+      return u;
+    }
+  }
+  const bareMatch = input.match(/(maps\.app\.goo\.gl\/[^\s]+|goo\.gl\/maps\/[^\s]+|google\.com\/maps\/[^\s]+)/i);
+  if (bareMatch) {
+    return 'https://' + bareMatch[1];
+  }
+  return null;
+}
+
 function parseLocationInput(input) {
   if (!input || typeof input !== 'string') return null;
   const str = input.trim();
 
-  // Pattern 1: Raw numbers "24.8607, 67.0011" or "24.8607 67.0011"
-  const rawMatch = str.match(/^(-?\d{1,2}(?:\.\d+)?)[,\s]+(-?\d{1,3}(?:\.\d+)?)$/);
-  if (rawMatch) {
-    const lat = parseFloat(rawMatch[1]);
-    const lng = parseFloat(rawMatch[2]);
+  // Pattern 1: Raw numbers with decimals "24.8607, 67.0011" or standard pair
+  const rawDecimalMatch = str.match(/(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/);
+  if (rawDecimalMatch) {
+    const lat = parseFloat(rawDecimalMatch[1]);
+    const lng = parseFloat(rawDecimalMatch[2]);
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  const rawStrictMatch = str.match(/^(-?\d{1,2}(?:\.\d+)?)[,\s]+(-?\d{1,3}(?:\.\d+)?)$/);
+  if (rawStrictMatch) {
+    const lat = parseFloat(rawStrictMatch[1]);
+    const lng = parseFloat(rawStrictMatch[2]);
     if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
       return { lat, lng };
     }
@@ -150,7 +178,17 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
     contactEmail: branch?.contactEmail || '',
     weekdayTimings: branch?.timings?.weekday || '06:00 AM - 10:00 PM',
     weekendTimings: branch?.timings?.weekend || '08:00 AM - 08:00 PM',
-    facilities: Array.isArray(branch?.facilities) ? branch.facilities : []
+    facilities: Array.isArray(branch?.facilities) ? branch.facilities : [],
+    monthlyFee: branch?.monthlyFee ?? 5000,
+    admissionFee: branch?.admissionFee ?? 1000,
+    securityDeposit: branch?.securityDeposit ?? 0,
+    securityDepositRefundable: branch?.securityDepositRefundable ?? true,
+    offersYearlyPlan: Boolean(branch?.offersYearlyPlan || (Number(branch?.yearlyDiscountPercent) > 0)),
+    yearlyDiscountPercent: branch?.yearlyDiscountPercent ?? 0,
+    guidanceTrainer: Boolean(branch?.trainerPolicy?.guidanceTrainer),
+    personalTrainer: Boolean(branch?.trainerPolicy?.personalTrainer),
+    personalTrainerMonthlyFee: branch?.trainerPolicy?.personalTrainerMonthlyFee ?? 0,
+    trainerNotes: branch?.trainerPolicy?.notes || ''
   });
 
   // Step 2: Applicant Details
@@ -214,25 +252,44 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
     }
     setDetectingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setDetectingLocation(false);
+      async (pos) => {
         const lat = parseFloat(pos.coords.latitude.toFixed(6));
         const lng = parseFloat(pos.coords.longitude.toFixed(6));
+        
+        let detectedAddress = '';
+        let detectedCity = '';
+        try {
+          const revRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+            headers: { 'User-Agent': 'GymSync-University-Project' }
+          });
+          const revData = await revRes.json();
+          if (revData && revData.address) {
+            detectedCity = revData.address.city || revData.address.town || revData.address.county || revData.address.state || '';
+            const road = revData.address.road || revData.address.suburb || revData.address.neighbourhood || '';
+            detectedAddress = road ? `${road}, ${detectedCity || 'Pakistan'}` : revData.display_name?.split(',').slice(0, 3).join(', ');
+          }
+        } catch (e) {
+          console.warn('Reverse geocode failed:', e);
+        }
+
         setProfile(prev => ({
           ...prev,
           lat,
           lng,
-          googleMapsUrl: prev.googleMapsUrl || `https://www.google.com/maps?q=${lat},${lng}`
+          address: detectedAddress || prev.address || `GPS Location (${lat}, ${lng})`,
+          city: prev.city || detectedCity || 'Karachi',
+          googleMapsUrl: `https://www.google.com/maps?q=${lat},${lng}`
         }));
-        toast.success(`GPS detected: ${lat}, ${lng}`);
+        setDetectingLocation(false);
+        toast.success(`📍 GPS Location fixed: ${lat}, ${lng}`);
       },
       (err) => {
         setDetectingLocation(false);
         console.warn('Geolocation error:', err);
         if (err.code === 1) {
-          toast.warning('Location permission was denied. Try "Locate from Address" or paste your Google Maps link.');
+          toast.warning('Location permission was denied. Try pasting your Google Maps link.');
         } else {
-          toast.error('Unable to fetch device GPS. Please use "Locate from Address" or paste Google Maps link.');
+          toast.error('Unable to fetch device GPS. Please paste your Google Maps link.');
         }
       },
       { enableHighAccuracy: true, timeout: 9000, maximumAge: 0 }
@@ -242,7 +299,7 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
   // Find Pin automatically from Street Address + City
   const handleLocateFromAddress = async () => {
     if (!profile.address && !profile.city) {
-      toast.warning('Please enter Street Address and City first.');
+      toast.warning('Please enter Address or City first.');
       return;
     }
     setResolvingLocation(true);
@@ -267,11 +324,11 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
         ...prev,
         lat: data.lat,
         lng: data.lng,
-        googleMapsUrl: prev.googleMapsUrl || data.googleMapsUrl
+        googleMapsUrl: prev.googleMapsUrl || data.googleMapsUrl || `https://www.google.com/maps?q=${data.lat},${data.lng}`
       }));
-      toast.success(`Address pinned on map: ${data.lat}, ${data.lng}`);
+      toast.success(`📍 Address pinned & fixed on map: ${data.lat}, ${data.lng}`);
     } catch (err) {
-      toast.error(err.message || 'Could not locate address. Try searching your neighborhood or pasting Google Maps link.');
+      toast.error(err.message || 'Could not locate address. Try pasting a Google Maps link.');
     } finally {
       setResolvingLocation(false);
     }
@@ -294,7 +351,25 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
         lat: parsed.lat,
         lng: parsed.lng
       }));
-      toast.success(`Coordinates found: ${parsed.lat}, ${parsed.lng}`);
+      toast.success(`📍 Coordinates found: ${parsed.lat}, ${parsed.lng}`);
+
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${parsed.lat}&lon=${parsed.lng}`, {
+        headers: { 'User-Agent': 'GymSync-University-Project' }
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.address) {
+            const detectedCity = data.address.city || data.address.town || data.address.county || data.address.state || '';
+            const road = data.address.road || data.address.suburb || data.address.neighbourhood || '';
+            const cleanArea = road ? `${road}, ${detectedCity || 'Pakistan'}` : data.display_name?.split(',').slice(0, 3).join(', ');
+            setProfile(p => ({
+              ...p,
+              city: p.city || detectedCity,
+              address: cleanArea || p.address
+            }));
+          }
+        })
+        .catch(() => {});
       return;
     }
 
@@ -311,13 +386,27 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Could not resolve Google Maps URL');
+
+      let detectedCity = '';
+      if (data.resolvedAddress) {
+        const pkCities = ['Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Peshawar', 'Multan', 'Quetta', 'Sialkot', 'Gujranwala', 'Hyderabad', 'Abbottabad'];
+        for (const c of pkCities) {
+          if (data.resolvedAddress.toLowerCase().includes(c.toLowerCase())) {
+            detectedCity = c;
+            break;
+          }
+        }
+      }
+
       setProfile(prev => ({
         ...prev,
         googleMapsUrl: data.googleMapsUrl || inputUrl,
         lat: data.lat,
-        lng: data.lng
+        lng: data.lng,
+        address: data.resolvedAddress ? data.resolvedAddress.split(',').slice(0, 3).join(', ') : (prev.address || inputUrl),
+        city: prev.city || data.city || detectedCity || ''
       }));
-      toast.success(`Pin resolved from Maps link: ${data.lat}, ${data.lng}`);
+      toast.success(`📍 Location fixed from Google Maps link: ${data.lat}, ${data.lng}`);
     } catch (err) {
       toast.error(err.message || 'Failed to resolve location link');
     } finally {
@@ -360,21 +449,49 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
 
   // Unified Gym Location input change
   const handleLocationInputChange = (value) => {
-    const parsed = parseLocationInput(value);
+    setProfile(prev => ({
+      ...prev,
+      address: value
+    }));
+
+    const trimmed = (value || '').trim();
+    if (!trimmed) return;
+
+    // Check if input directly contains coordinates
+    const parsed = parseLocationInput(trimmed);
     if (parsed) {
       setProfile(prev => ({
         ...prev,
-        address: prev.address && !prev.address.startsWith('http') ? prev.address : value,
-        googleMapsUrl: value,
         lat: parsed.lat,
-        lng: parsed.lng
+        lng: parsed.lng,
+        googleMapsUrl: prev.googleMapsUrl || `https://www.google.com/maps?q=${parsed.lat},${parsed.lng}`
       }));
-      toast.success(`Coordinates found: ${parsed.lat}, ${parsed.lng}`);
-    } else {
-      setProfile(prev => ({
-        ...prev,
-        address: value
-      }));
+      toast.success(`📍 Coordinates pinned: ${parsed.lat}, ${parsed.lng}`);
+
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${parsed.lat}&lon=${parsed.lng}`, {
+        headers: { 'User-Agent': 'GymSync-University-Project' }
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.address) {
+            const detectedCity = data.address.city || data.address.town || data.address.county || data.address.state || '';
+            const road = data.address.road || data.address.suburb || data.address.neighbourhood || '';
+            const cleanArea = road ? `${road}, ${detectedCity || 'Pakistan'}` : data.display_name?.split(',').slice(0, 3).join(', ');
+            setProfile(p => ({
+              ...p,
+              city: p.city || detectedCity,
+              address: cleanArea || p.address
+            }));
+          }
+        })
+        .catch(() => {});
+      return;
+    }
+
+    // Auto-detect pasted Google Maps URL (standalone, shortened, or from share text)
+    const detectedUrl = extractGoogleMapsUrl(trimmed);
+    if (detectedUrl) {
+      handleResolveUrl(detectedUrl);
     }
   };
 
@@ -401,16 +518,67 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
     }));
   };
 
+  const validateStep1 = () => {
+    if (!profile.branchName || !profile.branchName.trim()) {
+      toast.error('Please enter your Branch / Gym Name to proceed.');
+      const el = document.getElementById('field-branch-name');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+      }
+      return false;
+    }
+
+    const currentAddress = (profile.address || '').trim();
+    if (!currentAddress && !profile.lat) {
+      toast.error('Please enter your Gym Location / Address or paste Google Maps link.');
+      const el = document.getElementById('field-gym-address');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+      }
+      return false;
+    }
+
+    if (!profile.city || !profile.city.trim()) {
+      toast.error('Please enter the City where your gym is located (e.g. Karachi, Lahore, Islamabad).');
+      const el = document.getElementById('field-city');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+      }
+      return false;
+    }
+
+    if (!profile.monthlyFee || Number(profile.monthlyFee) <= 0) {
+      toast.error('Please enter a valid Monthly Membership Fee (Rs.) greater than 0.');
+      const el = document.getElementById('field-monthly-fee');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+      }
+      return false;
+    }
+
+    return true;
+  };
+
   const saveDraft = async (advancingToStep = null) => {
     setSavingDraft(true);
     try {
+      const safeAddress = (profile.address && profile.address.trim()) || 
+        (profile.lat && profile.lng ? `Pinned Location (${profile.lat}, ${profile.lng})` : '') ||
+        (profile.city ? `${profile.city}, Pakistan` : (profile.branchName || 'Location Pending'));
+
+      const safeCity = (profile.city && profile.city.trim()) || 'Karachi';
+
       const payload = {
         branchId: branchId || undefined,
-        branchName: profile.branchName,
+        branchName: profile.branchName.trim(),
         gymType: profile.gymType,
-        address: profile.address,
-        city: profile.city,
-        country: profile.country,
+        address: safeAddress,
+        city: safeCity,
+        country: profile.country || 'Pakistan',
         coordinates: { lat: parseFloat(profile.lat) || 0, lng: parseFloat(profile.lng) || 0 },
         googleMapsUrl: profile.googleMapsUrl,
         contactPhone: profile.contactPhone,
@@ -420,6 +588,18 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
           weekend: profile.weekendTimings
         },
         facilities: profile.facilities,
+        monthlyFee: Number(profile.monthlyFee) || 0,
+        admissionFee: Number(profile.admissionFee) || 0,
+        securityDeposit: Number(profile.securityDeposit) || 0,
+        securityDepositRefundable: Boolean(profile.securityDepositRefundable),
+        offersYearlyPlan: Boolean(profile.offersYearlyPlan),
+        yearlyDiscountPercent: profile.offersYearlyPlan ? Math.min(50, Math.max(0, Number(profile.yearlyDiscountPercent) || 0)) : 0,
+        trainerPolicy: {
+          guidanceTrainer: Boolean(profile.guidanceTrainer),
+          personalTrainer: Boolean(profile.personalTrainer),
+          personalTrainerMonthlyFee: Number(profile.personalTrainerMonthlyFee) || 0,
+          notes: String(profile.trainerNotes || '').slice(0, 300)
+        },
         applicant
       };
 
@@ -443,11 +623,39 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
       toast.success('Branch details saved.');
       if (advancingToStep) {
         setStep(advancingToStep);
+        const modalContainer = document.querySelector('.branch-verification-modal') || document.querySelector('.modal-body');
+        if (modalContainer) modalContainer.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err) {
-      toast.error(err.message);
+      toast.error(`Could not proceed: ${err.message}`);
     } finally {
       setSavingDraft(false);
+    }
+  };
+
+  const validateStep2 = () => {
+    if (!applicant.legalOwnerName || !applicant.legalOwnerName.trim()) {
+      toast.error('Please enter the Legal Owner / Representative Name.');
+      return false;
+    }
+    if (!applicant.cnicOrPassport || !applicant.cnicOrPassport.trim()) {
+      toast.error('Please enter the CNIC or Passport number.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (step === 1) {
+      if (!validateStep1()) return;
+      saveDraft(2);
+    } else if (step === 2) {
+      if (!validateStep2()) return;
+      saveDraft(3);
+    } else {
+      setStep(4);
+      const modalContainer = document.querySelector('.branch-verification-modal') || document.querySelector('.modal-body');
+      if (modalContainer) modalContainer.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -696,6 +904,7 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
                 <div className="branch-form-group">
                   <label className="branch-form-label">Branch / Gym Name *</label>
                   <input
+                    id="field-branch-name"
                     type="text"
                     required
                     disabled={isLocked}
@@ -735,7 +944,7 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
                         onClick={handleDetectCurrentLocation}
                         disabled={detectingLocation}
                         className="location-detect-btn"
-                        title="Detect device GPS coordinates"
+                        title="Detect device GPS coordinates and auto-fill address"
                       >
                         <Compass size={15} className={detectingLocation ? 'animate-spin' : ''} />
                         {detectingLocation ? 'Detecting GPS...' : '📍 Device GPS'}
@@ -745,7 +954,7 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
                         onClick={handleLocateFromAddress}
                         disabled={resolvingLocation || !profile.address}
                         className="location-detect-btn"
-                        title="Pin this address on the map"
+                        title="Pin this address or Google Maps URL on the map"
                       >
                         <Navigation size={15} className={resolvingLocation ? 'animate-spin' : ''} />
                         {resolvingLocation ? 'Pinning...' : '📍 Pin on Map'}
@@ -756,17 +965,24 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
 
                 <div className="branch-form-group" style={{ marginBottom: '12px' }}>
                   <input
+                    id="field-gym-address"
                     type="text"
                     required
                     disabled={isLocked}
                     placeholder="Enter street address, area (e.g. Block H4 Fowler Lines, Lucky Star) or paste Google Maps URL"
                     value={profile.address}
                     onChange={e => handleLocationInputChange(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLocateFromAddress();
+                      }
+                    }}
                     className="branch-input"
                     style={isLocked ? { opacity: 0.7, cursor: 'not-allowed', background: 'rgba(255,255,255,0.02)' } : {}}
                   />
                   <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    Provide your gym's official address or Google Maps link. This single location will be used across your facility profile, explore page, and member gigs.
+                    Paste a Google Maps link or enter your gym's official street address. Once pinned or pasted, your location will be permanently fixed.
                   </p>
                 </div>
 
@@ -774,6 +990,7 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
                   <div className="branch-form-group">
                     <label className="branch-form-label">City *</label>
                     <input
+                      id="field-city"
                       type="text"
                       required
                       disabled={isLocked}
@@ -800,8 +1017,31 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
                 </div>
 
                 {/* Live Interactive Map Pin Preview */}
-                {profile.lat && profile.lng && (
-                  <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--card-border)', marginTop: '8px' }}>
+                {profile.lat && profile.lng ? (
+                  <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #10b981', marginTop: '12px', background: 'rgba(16, 185, 129, 0.05)' }}>
+                    <div style={{
+                      padding: '10px 14px',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      borderBottom: '1px solid rgba(16, 185, 129, 0.2)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '8px',
+                      fontSize: '0.85rem'
+                    }}>
+                      <span style={{ color: '#10b981', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <CheckCircle size={15} /> Location Fixed on Map: {profile.lat}, {profile.lng}
+                      </span>
+                      <a
+                        href={profile.googleMapsUrl || `https://www.google.com/maps?q=${profile.lat},${profile.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'var(--primary-accent)', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'underline', fontWeight: 600, fontSize: '0.82rem' }}
+                      >
+                        Open in Google Maps <ExternalLink size={13} />
+                      </a>
+                    </div>
                     <iframe
                       title="Gym Location Preview Map"
                       width="100%"
@@ -810,28 +1050,21 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
                       scrolling="no"
                       src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(profile.lng)-0.007}%2C${Number(profile.lat)-0.005}%2C${Number(profile.lng)+0.007}%2C${Number(profile.lat)+0.005}&layer=mapnik&marker=${profile.lat}%2C${profile.lng}`}
                     />
-                    <div style={{
-                      padding: '10px 14px',
-                      background: 'var(--card-bg-light)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '8px',
-                      fontSize: '0.82rem'
-                    }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>
-                        📍 Verified Pin: <strong style={{ color: 'var(--text-primary)' }}>{profile.lat}, {profile.lng}</strong>
-                      </span>
-                      <a
-                        href={profile.googleMapsUrl || `https://www.google.com/maps?q=${profile.lat},${profile.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: 'var(--primary-accent)', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'underline', fontWeight: 600 }}
-                      >
-                        Open in Google Maps <ExternalLink size={13} />
-                      </a>
-                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '12px 14px',
+                    border: '1px dashed var(--border-color)',
+                    borderRadius: '10px',
+                    fontSize: '0.82rem',
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <Compass size={16} color="var(--primary-accent)" />
+                    <span>Paste a Google Maps link or click <strong>Device GPS</strong> / <strong>Pin on Map</strong> to fix location coordinates.</span>
                   </div>
                 )}
               </div>
@@ -956,6 +1189,154 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
                       );
                     })}
                   </div>
+                </div>
+              </div>
+
+              {/* Branch Pricing & Trainer Policies */}
+              <div style={{ marginTop: '24px', padding: '16px', background: 'var(--card-bg-light)', borderRadius: '12px', border: '1px solid var(--card-border)' }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  Branch Membership Pricing & Policies
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="branch-form-group">
+                    <label className="branch-form-label">Monthly Membership Fee (Rs.) *</label>
+                    <input
+                      id="field-monthly-fee"
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 5000"
+                      value={profile.monthlyFee}
+                      onChange={e => setProfile({ ...profile, monthlyFee: e.target.value })}
+                      className="branch-input"
+                    />
+                  </div>
+                  <div className="branch-form-group">
+                    <label className="branch-form-label">Admission / Registration Fee (Rs.)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 1000"
+                      value={profile.admissionFee}
+                      onChange={e => setProfile({ ...profile, admissionFee: e.target.value })}
+                      className="branch-input"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '12px' }}>
+                  <div className="branch-form-group">
+                    <label className="branch-form-label">Security Deposit (Rs.)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 2000 (0 if none)"
+                      value={profile.securityDeposit}
+                      onChange={e => setProfile({ ...profile, securityDeposit: e.target.value })}
+                      className="branch-input"
+                    />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', marginTop: '6px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={profile.securityDepositRefundable}
+                        onChange={e => setProfile({ ...profile, securityDepositRefundable: e.target.checked })}
+                      />
+                      <span>Deposit is Refundable on Cancellation</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Optional Yearly Plan Toggle */}
+                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(profile.offersYearlyPlan)}
+                      onChange={e => setProfile({ 
+                        ...profile, 
+                        offersYearlyPlan: e.target.checked,
+                        yearlyDiscountPercent: e.target.checked ? (profile.yearlyDiscountPercent || 0) : 0
+                      })}
+                    />
+                    <span>Offer Yearly Membership Package (Optional)</span>
+                  </label>
+                  <p style={{ margin: '4px 0 0 24px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Gym memberships are monthly by default. Enable this only if your branch offers a 12-month advance package.
+                  </p>
+
+                  {profile.offersYearlyPlan && (
+                    <div style={{ marginTop: '12px', marginLeft: '24px', maxWidth: '340px' }}>
+                      <label className="branch-form-label">Yearly Package Discount (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="50"
+                        placeholder="e.g. 15 (0 for regular 12-month fee)"
+                        value={profile.yearlyDiscountPercent}
+                        onChange={e => setProfile({ ...profile, yearlyDiscountPercent: e.target.value })}
+                        className="branch-input"
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        <span>Max 50% discount</span>
+                        {Number(profile.monthlyFee) > 0 && (
+                          <span style={{ color: '#10b981', fontWeight: 600 }}>
+                            Yearly Total: Rs. {Math.round(Number(profile.monthlyFee) * 12 * (1 - (Number(profile.yearlyDiscountPercent) || 0) / 100)).toLocaleString()}/yr
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Trainer Policy */}
+                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+                  <label className="branch-form-label" style={{ marginBottom: '8px', display: 'block' }}>
+                    Trainer & Guidance Policy
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={profile.guidanceTrainer}
+                        onChange={e => setProfile({ ...profile, guidanceTrainer: e.target.checked })}
+                      />
+                      <span>Floor Guide Trainer available (Free, general workout form guidance)</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={profile.personalTrainer}
+                        onChange={e => setProfile({ ...profile, personalTrainer: e.target.checked })}
+                      />
+                      <span>Dedicated 1-on-1 Personal Trainer available</span>
+                    </label>
+                  </div>
+
+                  {profile.personalTrainer && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '10px' }}>
+                      <div className="branch-form-group">
+                        <label className="branch-form-label">Personal Trainer Monthly Fee (Rs.)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="e.g. 3000"
+                          value={profile.personalTrainerMonthlyFee}
+                          onChange={e => setProfile({ ...profile, personalTrainerMonthlyFee: e.target.value })}
+                          className="branch-input"
+                        />
+                      </div>
+                      <div className="branch-form-group">
+                        <label className="branch-form-label">Trainer Notes (Optional, max 300 chars)</label>
+                        <input
+                          type="text"
+                          maxLength={300}
+                          placeholder="e.g. Certified coaches available 4pm to 10pm"
+                          value={profile.trainerNotes}
+                          onChange={e => setProfile({ ...profile, trainerNotes: e.target.value })}
+                          className="branch-input"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1379,20 +1760,14 @@ export default function BranchVerificationModal({ branch, onClose, onBranchUpdat
             {step < 4 ? (
               <button
                 type="button"
-                onClick={() => {
-                  if (step === 1) {
-                    saveDraft(2);
-                  } else if (step === 2) {
-                    saveDraft(3);
-                  } else {
-                    setStep(4);
-                  }
-                }}
-                disabled={savingDraft || (step === 1 && !profile.branchName)}
+                onClick={handleNextStep}
+                disabled={savingDraft}
                 className="btn btn-primary"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                Next Step <ArrowRight size={16} />
+                {savingDraft ? 'Saving Draft...' : (
+                  <>Next Step <ArrowRight size={16} /></>
+                )}
               </button>
             ) : (
               <button

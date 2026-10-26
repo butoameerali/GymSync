@@ -91,7 +91,7 @@ export const updateGymProfile = async (req, res) => {
       name, location, monthlyFee, admissionFee, bankDetails, description, 
       facilities, equipmentImages, equipmentList, timings, todayTrainingTip, dailyTip, 
       trainerIncluded,
-      securityDeposit, securityDepositRefundable, yearlyDiscountPercent, trainerPolicy
+      securityDeposit, securityDepositRefundable, offersYearlyPlan, yearlyDiscountPercent, trainerPolicy
     } = req.body;
     const tipPayload = todayTrainingTip || dailyTip;
 
@@ -172,7 +172,15 @@ export const updateGymProfile = async (req, res) => {
         if (typeof admissionFee !== 'undefined') gym.admissionFee = Number(admissionFee);
         if (typeof securityDeposit !== 'undefined') gym.securityDeposit = Number(securityDeposit);
         if (typeof securityDepositRefundable !== 'undefined') gym.securityDepositRefundable = Boolean(securityDepositRefundable);
-        if (typeof yearlyDiscountPercent !== 'undefined') gym.yearlyDiscountPercent = Number(yearlyDiscountPercent);
+        if (typeof offersYearlyPlan !== 'undefined') {
+          gym.offersYearlyPlan = Boolean(offersYearlyPlan);
+          if (!gym.offersYearlyPlan) {
+            gym.yearlyDiscountPercent = 0;
+          }
+        }
+        if (typeof yearlyDiscountPercent !== 'undefined' && gym.offersYearlyPlan !== false) {
+          gym.yearlyDiscountPercent = Number(yearlyDiscountPercent);
+        }
         
         if (typeof trainerPolicy !== 'undefined') {
           gym.trainerPolicy = {
@@ -223,7 +231,8 @@ export const updateGymProfile = async (req, res) => {
         admissionFee: Number(admissionFee) || 0,
         securityDeposit: typeof securityDeposit !== 'undefined' ? Number(securityDeposit) : 0,
         securityDepositRefundable: typeof securityDepositRefundable !== 'undefined' ? Boolean(securityDepositRefundable) : true,
-        yearlyDiscountPercent: typeof yearlyDiscountPercent !== 'undefined' ? Number(yearlyDiscountPercent) : 0,
+        offersYearlyPlan: Boolean(offersYearlyPlan),
+        yearlyDiscountPercent: Boolean(offersYearlyPlan) && typeof yearlyDiscountPercent !== 'undefined' ? Number(yearlyDiscountPercent) : 0,
         trainerPolicy: effectiveTrainerPolicy,
         trainerIncluded: trainerPolicy
           ? Boolean(effectiveTrainerPolicy.guidanceTrainer || effectiveTrainerPolicy.personalTrainer)
@@ -697,7 +706,7 @@ export const payAnnualGymFee = async (req, res) => {
 
     // Create Payment record
     const paymentId = `FEE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const effectiveMethod = ['Stripe', 'Easypaisa', 'JazzCash', 'Card'].includes(paymentMethod) 
+    const effectiveMethod = ['Stripe', 'Easypaisa', 'JazzCash', 'Card', 'BankTransfer', 'Online'].includes(paymentMethod) 
       ? paymentMethod 
       : 'Card';
 
@@ -705,6 +714,7 @@ export const payAnnualGymFee = async (req, res) => {
       paymentId,
       userId: req.user._id,
       userName: req.user.name,
+      gymId: gym._id,
       gymName: gym.name,
       paymentType: 'AnnualGymListingFee',
       paymentMethod: effectiveMethod,
@@ -712,7 +722,7 @@ export const payAnnualGymFee = async (req, res) => {
       commission15Percent: 0,
       status: 'Completed',
       transactionRef: transactionRef || `REF-${paymentId}`,
-      methodDetails: `Annual Partner Listing Fee ($${feeAmount}/year)`,
+      methodDetails: `Annual Partner Listing Fee (Rs. ${feeAmount}/year)`,
       approvedBy: 'GymSync Automated Billing'
     });
 
@@ -725,7 +735,7 @@ export const payAnnualGymFee = async (req, res) => {
         sender: 'GymSync Billing',
         type: 'system',
         title: 'Gym Facility is Now Online! 🟢',
-        message: `Your annual partner fee of $${feeAmount} for "${gym.name}" has been confirmed. Your facility is now LIVE and visible to trainees on Explore Gyms!`,
+        message: `Your annual partner fee of Rs. ${feeAmount} for "${gym.name}" has been confirmed. Your facility is now LIVE and visible to trainees on Explore Gyms!`,
         link: `/gym/${gym._id}`,
         relatedId: String(gym._id),
         isRead: false
@@ -736,7 +746,7 @@ export const payAnnualGymFee = async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Annual partner listing fee of $${feeAmount} confirmed! "${gym.name}" is now online and publicly visible.`,
+      message: `Annual partner listing fee of Rs. ${feeAmount} confirmed! "${gym.name}" is now online and publicly visible.`,
       gym: {
         _id: gym._id,
         name: gym.name,
@@ -753,5 +763,240 @@ export const payAnnualGymFee = async (req, res) => {
   } catch (error) {
     console.error('payAnnualGymFee error:', error);
     return res.status(500).json({ message: 'Failed to process annual partner fee' });
+  }
+};
+
+// @desc    Get all membership payments (Pending Online TID, Pending Cash, and Completed) for owner's gyms
+// @route   GET /api/gym-owner/payments
+// @access  Private / GymOwner
+export const getGymOwnerPayments = async (req, res) => {
+  try {
+    const ownerGyms = await Gym.find({
+      $or: [
+        { owner: req.user._id },
+        { ownerName: req.user.name }
+      ]
+    }).select('_id name');
+
+    const gymIds = ownerGyms.map(g => g._id);
+    const gymNames = ownerGyms.map(g => g.name);
+
+    const payments = await Payment.find({
+      $or: [
+        { gymId: { $in: gymIds } },
+        { gymName: { $in: gymNames } }
+      ],
+      paymentType: 'GymMembership'
+    }).sort({ createdAt: -1 });
+
+    const pendingOnline = payments.filter(p => p.status === 'PendingApproval' && p.paymentMethod !== 'Cash');
+    const pendingCash = payments.filter(p => p.status === 'PendingCash' || (p.status === 'PendingApproval' && p.paymentMethod === 'Cash'));
+    const completed = payments.filter(p => p.status === 'Completed');
+    const rejected = payments.filter(p => p.status === 'Rejected');
+
+    const totalCollected = completed.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    return res.json({
+      success: true,
+      pendingOnline,
+      pendingCash,
+      completed,
+      rejected,
+      stats: {
+        totalCollected,
+        pendingOnlineCount: pendingOnline.length,
+        pendingCashCount: pendingCash.length,
+        completedCount: completed.length
+      }
+    });
+  } catch (error) {
+    console.error('getGymOwnerPayments error:', error);
+    return res.status(500).json({ message: 'Failed to fetch facility payments' });
+  }
+};
+
+// @desc    Gym Owner verifies TID or confirms on-site cash payment, activating member
+// @route   POST /api/gym-owner/payments/:id/confirm
+// @access  Private / GymOwner
+export const confirmMemberPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const payment = await Payment.findById(id);
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment record not found' });
+    }
+
+    // Authorization check: User must own the gym or be Admin
+    const ownerGyms = await Gym.find({
+      $or: [
+        { owner: req.user._id },
+        { ownerName: req.user.name }
+      ]
+    }).select('_id name');
+    const gymNames = ownerGyms.map(g => g.name);
+    const gymIds = ownerGyms.map(g => String(g._id));
+
+    const isAuthorized = (payment.gymId && gymIds.includes(String(payment.gymId))) ||
+                         gymNames.includes(payment.gymName) ||
+                         ['Admin', 'SuperAdmin'].includes(req.user.role);
+
+    if (!isAuthorized) {
+      return res.status(403).json({ message: 'Not authorized to confirm payments for this facility' });
+    }
+
+    payment.status = 'Completed';
+    payment.approvedBy = req.user.name || 'Gym Management';
+    await payment.save();
+
+    // Activate trainee user membership
+    let user = null;
+    if (payment.userId) {
+      user = await User.findById(payment.userId);
+    }
+    if (!user && payment.userName) {
+      user = await User.findOne({ name: payment.userName });
+    }
+
+    if (user) {
+      const startDate = payment.joiningDate ? new Date(payment.joiningDate) : new Date();
+      const expiresAt = new Date(startDate);
+      expiresAt.setMonth(expiresAt.getMonth() + (payment.membershipType === 'Yearly' ? 12 : 1));
+
+      const isFuture = startDate > new Date();
+      if (isFuture) {
+        user.futureSubscribedGymName = payment.gymName;
+        user.futureSubscriptionDate = startDate;
+      } else {
+        user.futureSubscribedGymName = null;
+        user.futureSubscriptionDate = null;
+      }
+
+      user.isSubscribed = true;
+      user.subscribedGymName = payment.gymName;
+      user.gymMembershipType = payment.membershipType || 'Monthly';
+      user.gymJoiningDate = startDate;
+      user.gymMembershipExpiresAt = expiresAt;
+      await user.save();
+
+      // Notify Trainee
+      try {
+        await Notification.create({
+          userId: String(user._id),
+          recipientId: user._id,
+          senderId: req.user._id,
+          sender: req.user.name || 'Gym Management',
+          type: 'system',
+          title: 'Membership Confirmed! 🏋️',
+          message: `Your ${payment.paymentMethod === 'Cash' ? 'cash' : 'online'} payment for "${payment.gymName}" (${payment.membershipType} Pass) has been confirmed! Membership is active from ${startDate.toLocaleDateString()} to ${expiresAt.toLocaleDateString()}.`,
+          link: '/your-gym',
+          isRead: false
+        });
+      } catch (nErr) {
+        console.warn('Failed to send trainee notification:', nErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Payment confirmed for ${payment.userName}! Membership activated.`,
+      payment
+    });
+  } catch (error) {
+    console.error('confirmMemberPayment error:', error);
+    return res.status(500).json({ message: 'Failed to confirm member payment' });
+  }
+};
+
+// @desc    Gym Owner rejects invalid TID or unpaid cash booking
+// @route   POST /api/gym-owner/payments/:id/reject
+// @access  Private / GymOwner
+export const rejectMemberPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason = 'Transaction reference could not be verified' } = req.body;
+    const payment = await Payment.findById(id);
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment record not found' });
+    }
+
+    payment.status = 'Rejected';
+    payment.methodDetails = (payment.methodDetails || '') + ` | Rejected: ${reason}`;
+    await payment.save();
+
+    if (payment.userId) {
+      try {
+        await Notification.create({
+          userId: String(payment.userId),
+          recipientId: payment.userId,
+          senderId: req.user._id,
+          sender: req.user.name || 'Gym Management',
+          type: 'system',
+          title: 'Membership Payment Rejected ⚠️',
+          message: `Your payment of Rs. ${payment.amount} for "${payment.gymName}" was rejected by management: ${reason}`,
+          link: '/explore-gyms',
+          isRead: false
+        });
+      } catch (nErr) {
+        console.warn('Failed to send rejection notification:', nErr.message);
+      }
+    }
+
+    return res.json({ success: true, message: 'Payment rejected', payment });
+  } catch (error) {
+    console.error('rejectMemberPayment error:', error);
+    return res.status(500).json({ message: 'Failed to reject payment' });
+  }
+};
+
+// @desc    Get all active & upcoming members enrolled in owner's facilities
+// @route   GET /api/gym-owner/members
+// @access  Private / GymOwner
+export const getGymOwnerMembers = async (req, res) => {
+  try {
+    const ownerGyms = await Gym.find({
+      $or: [
+        { owner: req.user._id },
+        { ownerName: req.user.name }
+      ]
+    }).select('_id name');
+
+    const gymNames = ownerGyms.map(g => g.name);
+
+    const subscribedUsers = await User.find({
+      $or: [
+        { subscribedGymName: { $in: gymNames } },
+        { futureSubscribedGymName: { $in: gymNames } }
+      ]
+    }).select('name email phone profilePic subscribedGymName gymMembershipType gymJoiningDate gymMembershipExpiresAt futureSubscribedGymName futureSubscriptionDate isSubscribed');
+
+    const now = new Date();
+    const formatted = subscribedUsers.map(u => {
+      const isExpired = u.gymMembershipExpiresAt && new Date(u.gymMembershipExpiresAt) < now;
+      const isFuture = u.gymJoiningDate && new Date(u.gymJoiningDate) > now;
+      let memberStatus = 'Active';
+      if (isExpired) memberStatus = 'Expired';
+      else if (isFuture) memberStatus = 'Upcoming';
+
+      return {
+        _id: u._id,
+        name: u.name,
+        email: u.email,
+        phone: u.phone || 'N/A',
+        profilePic: u.profilePic,
+        gymName: u.subscribedGymName || u.futureSubscribedGymName,
+        membershipType: u.gymMembershipType || 'Monthly',
+        joiningDate: u.gymJoiningDate,
+        expiresAt: u.gymMembershipExpiresAt,
+        futureJoiningDate: u.futureSubscriptionDate,
+        status: memberStatus
+      };
+    });
+
+    return res.json({ success: true, members: formatted });
+  } catch (error) {
+    console.error('getGymOwnerMembers error:', error);
+    return res.status(500).json({ message: 'Failed to fetch gym members' });
   }
 };

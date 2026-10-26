@@ -14,7 +14,11 @@ import {
   getGymTourRequests,
   updateTourRequestStatus,
   updateEquipmentStatus,
-  payAnnualGymFee
+  payAnnualGymFee,
+  getGymOwnerPayments,
+  confirmMemberPayment,
+  rejectMemberPayment,
+  getGymOwnerMembers
 } from '../controllers/gymOwnerController.js';
 import { createCoupon, getCoupons, deactivateCoupon } from '../controllers/couponController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
@@ -49,5 +53,9 @@ router.get('/trainers/:gymName', getGymTrainers);
 router.get('/tour-requests/:gymId', getGymTourRequests);
 router.put('/tour-requests/:id/status', updateTourRequestStatus);
 router.post('/gym/:id/pay-annual-fee', payAnnualGymFee);
+router.get('/payments', getGymOwnerPayments);
+router.post('/payments/:id/confirm', confirmMemberPayment);
+router.post('/payments/:id/reject', rejectMemberPayment);
+router.get('/members', getGymOwnerMembers);
 
 export default router;

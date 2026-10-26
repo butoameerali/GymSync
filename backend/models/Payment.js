@@ -4,6 +4,7 @@ const paymentSchema = new mongoose.Schema({
   paymentId: { type: String, required: true, unique: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   userName: { type: String, required: true },
+  gymId: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym', default: null },
   gymName: { type: String, default: 'GymSync Platform' },
   paymentType: { 
     type: String, 
@@ -12,14 +13,14 @@ const paymentSchema = new mongoose.Schema({
   },
   paymentMethod: { 
     type: String, 
-    enum: ['Stripe', 'Easypaisa', 'JazzCash', 'Card'], 
+    enum: ['Stripe', 'Easypaisa', 'JazzCash', 'Card', 'Cash', 'BankTransfer', 'Online'], 
     required: true 
   },
   amount: { type: Number, required: true },
   commission15Percent: { type: Number, default: 0 },
   status: { 
     type: String, 
-    enum: ['Completed', 'PendingApproval', 'Rejected'], 
+    enum: ['Completed', 'PendingApproval', 'PendingCash', 'Rejected'], 
     default: 'Completed' 
   },
   screenshotUrl: { type: String, default: '' },
@@ -27,6 +28,8 @@ const paymentSchema = new mongoose.Schema({
   methodDetails: { type: String, default: '' },
   startNextMonth: { type: Boolean, default: false },
   membershipType: { type: String, enum: ['Monthly', 'Yearly'], default: 'Monthly' },
+  joiningDate: { type: Date, default: null },
+  membershipExpiresAt: { type: Date, default: null },
   approvedBy: { type: String, default: '' },
   trackingCode: { type: String, default: undefined },
   customerEmail: { type: String, default: '' },

@@ -30,6 +30,7 @@ export const getNavigationForRole = (role) => {
       return [
         { id: 'overview', label: 'Facility Dashboard', icon: 'Activity' },
         { id: 'branches', label: 'My Gyms / Branches', icon: 'Building' },
+        { id: 'members', label: 'Members & Payments', icon: 'CreditCard' },
         { id: 'attendance', label: 'Attendance Check-In', icon: 'Clock' },
         { id: 'plans', label: 'Member Plans', icon: 'FileText' },
         { id: 'tours', label: 'Tour Requests', icon: 'Calendar' },

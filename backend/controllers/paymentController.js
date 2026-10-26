@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import PaymentConfig from '../models/PaymentConfig.js';
 import Gym from '../models/Gym.js';
 import Order from '../models/Order.js';
+import Notification from '../models/Notification.js';
 import Stripe from 'stripe';
 import { validateAndApplyCoupon } from './couponController.js';
 const getStripe = () => {
@@ -97,17 +98,25 @@ export const createPayment = async (req, res) => {
     if (!paymentId || !userName || !paymentMethod || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       return res.status(400).json({ message: 'Missing required payment fields' });
     }
-    if (!['Stripe', 'Easypaisa', 'JazzCash'].includes(paymentMethod)) {
+    if (!['Stripe', 'Easypaisa', 'JazzCash', 'Card', 'Cash', 'BankTransfer', 'Online'].includes(paymentMethod)) {
       return res.status(400).json({ message: 'Unsupported payment method' });
     }
 
     const trackingCode = `GS-GYM-${Math.floor(100000 + Math.random() * 900000)}`;
     let status = 'PendingApproval';
+    if (paymentMethod === 'Cash') {
+      status = 'PendingCash';
+    } else if (paymentMethod === 'Card') {
+      status = 'Completed';
+    }
     let finalAmount = numericAmount;
 
     let effectiveTransactionRef = (transactionRef || '').trim();
     if (!effectiveTransactionRef && screenshotUrl && !screenshotUrl.startsWith('http://') && !screenshotUrl.startsWith('https://') && !screenshotUrl.startsWith('data:')) {
       effectiveTransactionRef = screenshotUrl.trim();
+    }
+    if (!effectiveTransactionRef && paymentMethod === 'Cash') {
+      effectiveTransactionRef = trackingCode;
     }
 
     if (paymentMethod === 'Stripe') {
@@ -188,6 +197,18 @@ export const createPayment = async (req, res) => {
       }
     }
 
+    let resolvedGymId = req.body.gymId || null;
+    if (!resolvedGymId && gymName) {
+      try {
+        const foundGym = await Gym.findOne({ name: gymName });
+        if (foundGym) resolvedGymId = foundGym._id;
+      } catch {}
+    }
+
+    const startDate = joiningDate ? new Date(joiningDate) : new Date();
+    const expiryDate = new Date(startDate);
+    expiryDate.setMonth(expiryDate.getMonth() + (membershipType === 'Yearly' ? 12 : 1));
+
     const payment = await Payment.create({
       paymentId,
       userId,
@@ -196,6 +217,7 @@ export const createPayment = async (req, res) => {
       customerEmail,
       customerPhone,
       cardholderName,
+      gymId: resolvedGymId,
       gymName: gymName || 'GymSync Platform',
       paymentType,
       paymentMethod,
@@ -207,7 +229,8 @@ export const createPayment = async (req, res) => {
       methodDetails,
       startNextMonth: Boolean(startNextMonth),
       membershipType: membershipType === 'Yearly' ? 'Yearly' : 'Monthly',
-      joiningDate: joiningDate ? new Date(joiningDate) : null
+      joiningDate: startDate,
+      membershipExpiresAt: expiryDate
     });
 
     // If this is a completed gym registration via Stripe, ensure the gym record is created/approved
@@ -233,21 +256,53 @@ export const createPayment = async (req, res) => {
 
     if (status === 'Completed' && paymentType === 'GymMembership') {
       const user = await User.findOne({ name: userName });
-      if (startNextMonth && user) {
-        // Calculate the start of next month
-        const today = new Date();
-        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-        await User.findOneAndUpdate(
-          { name: userName },
-          { futureSubscribedGymName: gymName, futureSubscriptionDate: nextMonth },
-          { new: true }
-        );
-      } else {
-        await User.findOneAndUpdate(
-          { name: userName },
-          { subscribedGymName: gymName, gymMembershipType: payment.membershipType, gymJoiningDate: payment.joiningDate || new Date(), gymMembershipExpiresAt: new Date((payment.joiningDate || new Date()).getFullYear(), (payment.joiningDate || new Date()).getMonth() + (payment.membershipType === 'Yearly' ? 12 : 1), (payment.joiningDate || new Date()).getDate()), futureSubscribedGymName: null, futureSubscriptionDate: null },
-          { new: true }
-        );
+      if (user) {
+        const isFuture = startDate > new Date();
+        if (isFuture) {
+          user.futureSubscribedGymName = gymName;
+          user.futureSubscriptionDate = startDate;
+        } else {
+          user.futureSubscribedGymName = null;
+          user.futureSubscriptionDate = null;
+        }
+        user.isSubscribed = true;
+        user.subscribedGymName = gymName;
+        user.gymMembershipType = payment.membershipType;
+        user.gymJoiningDate = startDate;
+        user.gymMembershipExpiresAt = expiryDate;
+        await user.save();
+      }
+    }
+
+    // Notify gym owner if a membership payment or cash pass was created
+    if (paymentType === 'GymMembership') {
+      try {
+        const targetGym = await Gym.findOne({ $or: [{ _id: resolvedGymId }, { name: gymName }] });
+        if (targetGym && targetGym.owner) {
+          const isCash = paymentMethod === 'Cash';
+          const isCard = status === 'Completed';
+          await Notification.create({
+            userId: String(targetGym.owner),
+            recipientId: targetGym.owner,
+            senderId: userId,
+            sender: userName,
+            type: 'system',
+            title: isCash 
+              ? 'New Cash Pass Reserved 🎟️' 
+              : isCard 
+              ? 'New Member Joined (Paid) 🟢' 
+              : 'New Member Payment Awaiting TID Check 💳',
+            message: isCash
+              ? `${userName} booked a ${payment.membershipType} pass starting ${startDate.toLocaleDateString()}. Amount to collect at reception: Rs. ${finalAmount}. Pass: ${trackingCode}`
+              : isCard
+              ? `${userName} paid Rs. ${finalAmount} via Card for ${payment.membershipType} pass. Membership active!`
+              : `${userName} submitted an online payment (TID: ${effectiveTransactionRef || 'N/A'}) of Rs. ${finalAmount} for ${payment.membershipType} pass. Please verify TID.`,
+            link: '/owner-dashboard?tab=members',
+            isRead: false
+          });
+        }
+      } catch (nErr) {
+        console.warn('Failed to notify owner of payment:', nErr.message);
       }
     }
 
@@ -369,21 +424,24 @@ export const approvePayment = async (req, res) => {
         { new: true }
       );
     } else if (payment.paymentType === 'GymMembership') {
-      if (payment.startNextMonth) {
-        const today = new Date();
-        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-        await User.findOneAndUpdate(
-          { name: payment.userName },
-          { futureSubscribedGymName: payment.gymName, futureSubscriptionDate: nextMonth },
-          { new: true }
-        );
-      } else {
-        await User.findOneAndUpdate(
-          { name: payment.userName },
-          { subscribedGymName: payment.gymName, gymMembershipType: payment.membershipType, gymJoiningDate: payment.joiningDate || new Date(), gymMembershipExpiresAt: new Date((payment.joiningDate || new Date()).getFullYear(), (payment.joiningDate || new Date()).getMonth() + (payment.membershipType === 'Yearly' ? 12 : 1), (payment.joiningDate || new Date()).getDate()), futureSubscribedGymName: null, futureSubscriptionDate: null },
-          { new: true }
-        );
-      }
+      const startDate = payment.joiningDate ? new Date(payment.joiningDate) : new Date();
+      const expiresAt = new Date(startDate);
+      expiresAt.setMonth(expiresAt.getMonth() + (payment.membershipType === 'Yearly' ? 12 : 1));
+      const isFuture = startDate > new Date();
+
+      await User.findOneAndUpdate(
+        { name: payment.userName },
+        {
+          isSubscribed: true,
+          subscribedGymName: payment.gymName,
+          gymMembershipType: payment.membershipType,
+          gymJoiningDate: startDate,
+          gymMembershipExpiresAt: expiresAt,
+          futureSubscribedGymName: isFuture ? payment.gymName : null,
+          futureSubscriptionDate: isFuture ? startDate : null
+        },
+        { new: true }
+      );
     }
 
     return res.json({ message: 'Payment approved', payment });

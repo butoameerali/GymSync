@@ -96,7 +96,7 @@ const AnnualFeeModal = ({ isOpen, onClose, branch, onSuccess }) => {
               Annual Partner Fee
             </span>
             <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--primary-accent)' }}>
-              ${feeAmount} <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)' }}>/ year</span>
+              Rs. {Number(feeAmount).toLocaleString('en-US')} <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)' }}>/ year</span>
             </div>
           </div>
         </div>
@@ -156,14 +156,40 @@ const AnnualFeeModal = ({ isOpen, onClose, branch, onSuccess }) => {
           </div>
         </div>
 
+        {/* Mobile Transfer Account Instructions */}
+        {paymentMethod !== 'Card' && (
+          <div style={{
+            background: 'rgba(59, 130, 246, 0.06)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            borderRadius: '10px',
+            padding: '12px 14px',
+            fontSize: '0.84rem',
+            lineHeight: 1.5
+          }}>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+              GymSync Official {paymentMethod} Account:
+            </div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              Account Number: <strong style={{ color: 'var(--text-primary)' }}>{paymentMethod === 'Easypaisa' ? '0345-9876543' : '0300-1234567'}</strong>
+            </div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              Account Title: <strong style={{ color: 'var(--text-primary)' }}>GymSync Platform (Billing)</strong>
+            </div>
+            <div style={{ marginTop: '6px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              Transfer <strong>Rs. {Number(feeAmount).toLocaleString('en-US')}</strong> to the number above, then enter the Transaction ID (TID) from your SMS/app receipt below.
+            </div>
+          </div>
+        )}
+
         {/* Payment Details Input */}
         <div>
           <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
-            {paymentMethod === 'Card' ? 'Cardholder / Transaction Reference (Optional)' : `${paymentMethod} Transfer Transaction ID / Reference`}
+            {paymentMethod === 'Card' ? 'Card Authorization Reference (Optional)' : `${paymentMethod} Transaction ID (TID) *`}
           </label>
           <input
             type="text"
             className="search-input"
+            required={paymentMethod !== 'Card'}
             placeholder={paymentMethod === 'Card' ? 'e.g. Card Authorization Ref' : 'e.g. TID-98234812'}
             value={transactionRef}
             onChange={e => setTransactionRef(e.target.value)}
@@ -191,7 +217,7 @@ const AnnualFeeModal = ({ isOpen, onClose, branch, onSuccess }) => {
               'Processing Activation...'
             ) : (
               <>
-                <CheckCircle size={16} /> Pay ${feeAmount} & Go Online
+                <CheckCircle size={16} /> Pay Rs. {Number(feeAmount).toLocaleString('en-US')} & Go Online
               </>
             )}
           </button>
