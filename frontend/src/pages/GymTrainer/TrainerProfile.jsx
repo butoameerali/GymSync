@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { 
   UserCheck, Building2, Users, Dumbbell, Award, FileText, Settings, 
   Camera, ArrowRight, Send, Image as ImageIcon, CheckCircle, Shield, 
@@ -10,7 +10,6 @@ import UserAvatar from '../../components/common/UserAvatar';
 import ImageCropper from '../../components/layout/ImageCropper';
 import PostList from '../../features/social/components/PostList';
 import ProfileVerifyEmailModal from '../Profile/ProfileVerifyEmailModal';
-import MedicalDisclaimer from '../../components/common/MedicalDisclaimer';
 import './TrainerProfile.css';
 
 const DEFAULT_SPECIALTIES = [
@@ -23,14 +22,12 @@ const DEFAULT_SPECIALTIES = [
 ];
 
 const TrainerProfile = () => {
-  const navigate = useNavigate();
   const trainerName = localStorage.getItem('gymsync_user_name') || 'Trainer';
   const userKey = trainerName.replace(/\s+/g, '_');
-  const userRole = localStorage.getItem('gymsync_role') || 'GymTrainer';
   const token = localStorage.getItem('gymsync_token') || '';
 
   const [activeTab, setActiveTab] = useState('posts');
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [assignedGymName, setAssignedGymName] = useState('');
   const [assignedMembersCount, setAssignedMembersCount] = useState(0);
@@ -163,7 +160,7 @@ const TrainerProfile = () => {
         toast.success('Professional profile picture updated.');
         window.dispatchEvent(new Event('gymsync_user_updated'));
       }
-    } catch (e) {
+    } catch {
       toast.error('Failed to save profile picture on server.');
     }
   };
@@ -215,7 +212,7 @@ const TrainerProfile = () => {
       } else {
         toast.error('Failed to create post. Please try again.');
       }
-    } catch (err) {
+    } catch {
       toast.error('Network error creating post.');
     } finally {
       setIsPublishingPost(false);
@@ -241,7 +238,7 @@ const TrainerProfile = () => {
       } else {
         toast.error('Failed to save credentials.');
       }
-    } catch (e) {
+    } catch {
       toast.error('Network error saving credentials.');
     } finally {
       setIsSavingBio(false);
@@ -695,9 +692,6 @@ const TrainerProfile = () => {
 
         </div>
 
-        {/* Medical / Fitness Footer Disclaimer */}
-        <MedicalDisclaimer variant="footer" />
-
       </div>
 
       {/* Image Cropper Modal */}
@@ -737,7 +731,7 @@ const TrainerProfile = () => {
               } else {
                 toast.error('Failed to send OTP code.');
               }
-            } catch (err) {
+            } catch {
               toast.error('Network error sending OTP.');
             } finally {
               setIsSendingOtp(false);
@@ -758,7 +752,7 @@ const TrainerProfile = () => {
               } else {
                 toast.error('Invalid or expired OTP code.');
               }
-            } catch (err) {
+            } catch {
               toast.error('Network error verifying OTP.');
             } finally {
               setIsVerifyingOtp(false);

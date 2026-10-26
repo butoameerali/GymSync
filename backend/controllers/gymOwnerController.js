@@ -109,8 +109,17 @@ export const updateGymProfile = async (req, res) => {
         if (!isAuthorizedGymOwner(gym, req.user)) {
           return res.status(403).json({ message: 'Not authorized to modify this gym facility' });
         }
-        if (name) gym.name = name;
-        if (location) gym.location = location;
+
+        // Lock facility identity & location if under verification or approved
+        const isLockedStatus = ['Approved', 'Pending Review', 'Under Review', 'More Information Required'].includes(gym.approvalStatus);
+        if (!isLockedStatus) {
+          if (name) gym.name = name;
+          if (location) {
+            gym.location = location;
+            gym.address = location;
+          }
+        }
+
         if (typeof monthlyFee !== 'undefined') gym.monthlyFee = Number(monthlyFee);
         if (typeof admissionFee !== 'undefined') gym.admissionFee = Number(admissionFee);
         if (typeof bankDetails !== 'undefined') gym.bankDetails = bankDetails;
@@ -162,14 +171,45 @@ export const updateGymProfile = async (req, res) => {
 // @access  Private / GymOwner
 export const updateEquipmentStatus = async (req, res) => {
   try {
-    const { equipmentStatus } = req.body;
-    const gym = await Gym.findOne({ owner: req.user._id });
-    if (!gym) {
-      return res.status(404).json({ message: 'Gym not found' });
+    const { equipmentStatus, gymId } = req.body;
+    let gym = null;
+    if (gymId) {
+      gym = await Gym.findById(gymId);
     }
-    gym.equipmentStatus = Array.isArray(equipmentStatus) ? equipmentStatus : [];
+    if (!gym) {
+      gym = await Gym.findOne({ $or: [{ owner: req.user._id }, { ownerName: req.user.name }] });
+    }
+    if (!gym) {
+      return res.status(404).json({ message: 'Gym facility not found' });
+    }
+
+    if (!isAuthorizedGymOwner(gym, req.user)) {
+      return res.status(403).json({ message: 'Not authorized to modify this gym equipment' });
+    }
+
+    const cleaned = Array.isArray(equipmentStatus)
+      ? equipmentStatus
+          .filter(e => e && typeof e.name === 'string' && e.name.trim().length > 0)
+          .map(e => ({
+            name: e.name.trim(),
+            status: ['Available', 'Maintenance', 'Unavailable'].includes(e.status) ? e.status : 'Available',
+            quantity: Math.max(1, parseInt(e.quantity, 10) || 1),
+            notes: e.notes ? String(e.notes).trim() : ''
+          }))
+      : [];
+
+    gym.equipmentStatus = cleaned;
+    // Synchronize available equipment list for public display on Explore and Gym page
+    gym.equipmentList = cleaned
+      .filter(e => e.status !== 'Unavailable')
+      .map(e => e.name);
+
     await gym.save();
-    res.json({ message: 'Equipment status updated successfully', equipmentStatus: gym.equipmentStatus });
+    res.json({
+      message: 'Equipment status updated successfully',
+      equipmentStatus: gym.equipmentStatus,
+      equipmentList: gym.equipmentList
+    });
   } catch (error) {
     console.error('updateEquipmentStatus error:', error);
     res.status(500).json({ message: 'Failed to update equipment status' });

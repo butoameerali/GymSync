@@ -14,7 +14,19 @@ export const MANDATORY_DISCLAIMER_TEXT =
 export const MANDATORY_BANNER_TEXT =
   'General fitness information — not medical advice. Consult your physician if you have a health condition.';
 
-const MedicalDisclaimer = ({ variant = 'footer', className = '', style = {} }) => {
+const MedicalDisclaimer = ({ variant = 'footer', className = '', style = {}, force = false }) => {
+  // Disclaimers are accepted once upon login via MedicalDisclaimerModal.
+  // Suppress recurring inline disclaimer banners/footers on regular pages so they do not clutter feeds.
+  const isLegalPage = typeof window !== 'undefined' && (
+    window.location.pathname.startsWith('/disclaimer') || 
+    window.location.pathname.startsWith('/legal') ||
+    window.location.pathname.startsWith('/medical-disclaimer')
+  );
+
+  if (!force && !isLegalPage) {
+    return null;
+  }
+
   if (variant === 'banner') {
     return (
       <div

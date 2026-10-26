@@ -15,7 +15,9 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Check,
-  X
+  X,
+  Eye,
+  Dumbbell
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -378,7 +380,13 @@ const ExploreGyms = () => {
           {filteredGyms.map((gym, idx) => {
             const gymId = gym._id || gym.id;
             return (
-              <div key={gymId || idx} className="compact-gym-card">
+              <div 
+                key={gymId || idx} 
+                className="compact-gym-card"
+                onClick={() => navigate(`/gym/${gymId}`)}
+                style={{ cursor: 'pointer' }}
+                title={`Click to view ${gym.name} facility profile`}
+              >
                 {/* Gym Thumbnail */}
                 <div className="compact-gym-image-wrap">
                   <img 
@@ -422,8 +430,21 @@ const ExploreGyms = () => {
                     )}
                   </div>
 
+                  {/* Live Activity & Equipment Snapshot */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                      Active Facility
+                    </span>
+                    {Array.isArray(gym.equipmentList) && gym.equipmentList.length > 0 && (
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Dumbbell size={12} color="var(--primary-accent)" /> {gym.equipmentList.length} Equipment
+                      </span>
+                    )}
+                  </div>
+
                   {/* Action Buttons: Details, Subscribe, Directions */}
-                  <div className="compact-gym-actions">
+                  <div className="compact-gym-actions" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
                       className="compact-gym-directions-btn"
@@ -437,8 +458,9 @@ const ExploreGyms = () => {
                       type="button"
                       className="btn btn-outline compact-gym-btn"
                       onClick={() => navigate(`/gym/${gymId}`)}
+                      title="View full facility profile"
                     >
-                      Details
+                      <Eye size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> View Profile
                     </button>
 
                     <button

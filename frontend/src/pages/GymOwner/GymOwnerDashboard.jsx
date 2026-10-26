@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, FileText, Dumbbell, Activity, UserCheck } from 'lucide-react';
+import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, FileText, Dumbbell, Activity, UserCheck, Trash2, Lock } from 'lucide-react';
 import { toast } from 'react-toastify';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
@@ -13,7 +13,26 @@ import { getSafeImageUrl } from '../../utils/imageUtils';
 import './GymOwnerDashboard.css';
 
 const GymOwnerDashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'attendance', 'plans', 'settings'
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get('tab');
+      if (urlTab) return urlTab;
+      return localStorage.getItem('gym_owner_active_tab') || 'overview';
+    } catch {
+      return 'overview';
+    }
+  });
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    try {
+      localStorage.setItem('gym_owner_active_tab', newTab);
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', newTab);
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+  };
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditingGym, setIsEditingGym] = useState(false);
@@ -21,6 +40,8 @@ const GymOwnerDashboard = () => {
   // Form states
   const [checkInName, setCheckInName] = useState('');
   const [checkInNotes, setCheckInNotes] = useState('');
+  const [members, setMembers] = useState([]);
+  const [selectedMemberId, setSelectedMemberId] = useState('');
 
   // Plan Creator Form State
   const [planForm, setPlanForm] = useState({
@@ -61,6 +82,8 @@ const GymOwnerDashboard = () => {
   const [organization, setOrganization] = useState(null);
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [selectedBranchForModal, setSelectedBranchForModal] = useState(null);
+  const [branchToDelete, setBranchToDelete] = useState(null);
+  const [isDeletingBranch, setIsDeletingBranch] = useState(false);
 
   const ownerName = localStorage.getItem('gymsync_user_name') || 'Gym Owner';
 
@@ -81,6 +104,29 @@ const GymOwnerDashboard = () => {
       }
     } catch (e) {
       console.error('Failed to fetch branches', e);
+    }
+  };
+
+  const handleDeleteBranch = async () => {
+    if (!branchToDelete?._id) return;
+    setIsDeletingBranch(true);
+    try {
+      const res = await fetch(`/api/gym-verification/branch/${branchToDelete._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to remove branch');
+      toast.success(data.message || 'Branch removed successfully');
+      setBranchToDelete(null);
+      fetchBranches();
+      fetchDashboardData();
+    } catch (err) {
+      toast.error(err.message || 'Error deleting branch');
+    } finally {
+      setIsDeletingBranch(false);
     }
   };
 
@@ -115,7 +161,7 @@ const GymOwnerDashboard = () => {
           fetchTourRequests(dashboardData.gym._id);
         }
       }
-    } catch (e) {
+    } catch {
       toast.error('Failed to update tour status');
     }
   };
@@ -204,7 +250,7 @@ const GymOwnerDashboard = () => {
         const err = await res.json();
         toast.error(err.message || 'Failed to create trainer');
       }
-    } catch (err) {
+    } catch {
       toast.error('Error creating trainer account');
     }
   };
@@ -246,7 +292,7 @@ const GymOwnerDashboard = () => {
         const err = await res.json();
         toast.error(err.message || 'Check-in failed');
       }
-    } catch (err) {
+    } catch {
       toast.error('Check-in error');
     }
   };
@@ -267,7 +313,7 @@ const GymOwnerDashboard = () => {
           todayAttendance: prev.todayAttendance.map(a => a._id === attendanceId ? { ...a, status: 'CheckedOut', checkOutTime: new Date() } : a)
         }));
       }
-    } catch (err) {
+    } catch {
       toast.error('Check-out failed');
     }
   };
@@ -329,7 +375,7 @@ const GymOwnerDashboard = () => {
         setIsEditingGym(false);
         fetchDashboardData();
       }
-    } catch (err) {
+    } catch {
       toast.error('Error saving gym details');
     } finally {
       setUploadingPhoto(false);
@@ -365,7 +411,7 @@ const GymOwnerDashboard = () => {
       } else {
         toast.error('Failed to delete gym');
       }
-    } catch (err) {
+    } catch {
       toast.error('Error deleting gym');
     } finally {
       setIsDeletingGym(false);
@@ -411,7 +457,7 @@ const GymOwnerDashboard = () => {
           protein: 150
         });
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to create plan');
     }
   };
@@ -423,83 +469,10 @@ const GymOwnerDashboard = () => {
       title="Gym Owner Control Panel"
       subtitle={dashboardData?.gym?.name || 'GymSync Partner Facility'}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
     >
       <div className="gym-owner-page">
-        {/* Header */}
-      <div className="gym-owner-header glass-panel">
-        <div className="container header-flex">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div className="gym-owner-icon">
-              <Building size={32} color="#8b5cf6" />
-            </div>
-            <div>
-              <h2>Gym Owner Control Panel</h2>
-              <p>{dashboardData?.gym?.name || 'GymSync Partner Facility'}</p>
-            </div>
-          </div>
-
-          <div className="owner-nav-tabs">
-            <button 
-              className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
-              onClick={() => setActiveTab('overview')}
-            >
-              Overview
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'branches' ? 'active' : ''}`}
-              onClick={() => setActiveTab('branches')}
-            >
-              <Building size={16} /> My Gyms / Branches ({branches.length})
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'attendance' ? 'active' : ''}`}
-              onClick={() => setActiveTab('attendance')}
-            >
-              <UserCheck size={16} /> Attendance
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'plans' ? 'active' : ''}`}
-              onClick={() => setActiveTab('plans')}
-            >
-              <FileText size={16} /> Member Plans
-            </button>
-
-            <button 
-              className={`tab-btn ${activeTab === 'tours' ? 'active' : ''}`}
-              onClick={() => setActiveTab('tours')}
-            >
-              <Calendar size={16} /> Tour Requests ({tourRequests.length})
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'trainers' ? 'active' : ''}`}
-              onClick={() => setActiveTab('trainers')}
-            >
-              <Users size={16} /> Gym Trainers ({trainers.length})
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
-              onClick={() => setActiveTab('settings')}
-            >
-              <Edit size={16} /> Facility Info
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'equipment' ? 'active' : ''}`}
-              onClick={() => setActiveTab('equipment')}
-            >
-              <Dumbbell size={16} /> Equipment
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'offers' ? 'active' : ''}`}
-              onClick={() => setActiveTab('offers')}
-            >
-              <DollarSign size={16} /> My Offers
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="container owner-content">
+        <div className="container owner-content" style={{ paddingTop: '10px' }}>
         {loading ? (
           <div style={{ padding: '40px 0' }}>
             <SkeletonLoader height="120px" borderRadius="16px" />
@@ -512,19 +485,6 @@ const GymOwnerDashboard = () => {
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <div className="overview-container">
-                {/* 10-Day Payment Warning Banner for 50% Subscription Feature Discount */}
-                <div style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: '14px', padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-                  <div>
-                    <h4 style={{ color: '#f59e0b', margin: '0 0 4px 0', fontSize: '1.05rem', fontWeight: '700' }}>
-                      ⚠️ Gym 50% Subscription Discount Status: Active (10-Day Warning Period)
-                    </h4>
-                    <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
-                      Your members enjoy 50% off AI Trainer, Diet Plans & Fitness Notifications. Please keep monthly feature payments up-to-date to prevent account suspension.
-                    </p>
-                  </div>
-                  <span className="status-pill pending" style={{ fontSize: '0.85rem' }}>10 Days Warning</span>
-                </div>
-
                 <div className="stats-grid">
                   <div className="stat-card glass-panel">
                     <div className="stat-icon purple"><Users size={24} /></div>
@@ -621,7 +581,7 @@ const GymOwnerDashboard = () => {
                   gap: '16px'
                 }}>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.35rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <Building size={24} color="#3b82f6" />
                       {organization?.name ? `${organization.name} Organization` : 'My Multi-Branch Fitness Network'}
                     </h3>
@@ -646,7 +606,7 @@ const GymOwnerDashboard = () => {
                 {branches.length === 0 ? (
                   <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', borderRadius: '16px' }}>
                     <Building size={48} color="#64748b" style={{ marginBottom: '16px' }} />
-                    <h4 style={{ color: '#fff', marginBottom: '8px' }}>No Branches Configured</h4>
+                    <h4 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>No Branches Configured</h4>
                     <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 20px' }}>
                       You haven't established any gym branches under your owner profile yet. Register your first location to initiate verified onboarding.
                     </p>
@@ -691,12 +651,12 @@ const GymOwnerDashboard = () => {
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          border: status === 'More Information Required' ? '1px solid rgba(249, 115, 22, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'
+                          border: status === 'More Information Required' ? '1px solid rgba(249, 115, 22, 0.4)' : '1px solid var(--card-border)'
                         }}>
                           <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                               <div>
-                                <h4 style={{ margin: 0, fontSize: '1.15rem', color: '#fff', fontWeight: 700 }}>
+                                <h4 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)', fontWeight: 700 }}>
                                   {b.branchName || b.name}
                                 </h4>
                                 <span style={{ fontSize: '0.8rem', color: '#3b82f6', fontWeight: 500 }}>
@@ -723,11 +683,11 @@ const GymOwnerDashboard = () => {
 
                             {b.verificationApplication?.referenceId && (
                               <div style={{
-                                background: 'rgba(255, 255, 255, 0.03)',
+                                background: 'var(--card-bg-light)',
                                 padding: '8px 12px',
                                 borderRadius: '8px',
                                 fontSize: '0.78rem',
-                                color: '#94a3b8',
+                                color: 'var(--text-secondary)',
                                 marginBottom: '14px',
                                 display: 'flex',
                                 justifyContent: 'space-between'
@@ -757,7 +717,7 @@ const GymOwnerDashboard = () => {
                             )}
                           </div>
 
-                          <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                          <div style={{ display: 'flex', gap: '10px', marginTop: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               onClick={() => {
@@ -765,7 +725,7 @@ const GymOwnerDashboard = () => {
                                 setShowBranchModal(true);
                               }}
                               className="btn btn-outline btn-sm"
-                              style={{ flex: 1, fontSize: '0.82rem' }}
+                              style={{ flex: 1, minWidth: '130px', fontSize: '0.82rem' }}
                             >
                               {status === 'Draft' || status === 'More Information Required' 
                                 ? 'Edit / Resubmit' 
@@ -781,6 +741,24 @@ const GymOwnerDashboard = () => {
                                 Manage
                               </button>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => setBranchToDelete(b)}
+                              className="btn btn-outline btn-sm"
+                              style={{
+                                color: '#ef4444',
+                                borderColor: 'rgba(239, 68, 68, 0.35)',
+                                background: 'rgba(239, 68, 68, 0.05)',
+                                padding: '6px 12px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '0.82rem'
+                              }}
+                              title="Delete / Remove this branch"
+                            >
+                              <Trash2 size={14} /> Remove
+                            </button>
                           </div>
                         </div>
                       );
@@ -933,7 +911,11 @@ const GymOwnerDashboard = () => {
                       </div>
                     )}
                     <h2 style={{ marginBottom: '10px' }}>{dashboardData.gym.name}</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>{dashboardData.gym.location}</p>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>
+                      {dashboardData.gym.address || dashboardData.gym.location}
+                      {dashboardData.gym.city ? `, ${dashboardData.gym.city}` : ''}
+                      {dashboardData.gym.country ? `, ${dashboardData.gym.country}` : ''}
+                    </p>
                     <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
                       <div><strong>Monthly Fee:</strong> ${dashboardData.gym.monthlyFee}</div>
                       <div><strong>Admission Fee:</strong> ${dashboardData.gym.admissionFee || 0}</div>
@@ -952,25 +934,50 @@ const GymOwnerDashboard = () => {
                   </div>
                 ) : (
                   <form onSubmit={handleSaveGymProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
+                    {['Approved', 'Pending Review', 'Under Review', 'More Information Required'].includes(dashboardData?.gym?.approvalStatus) && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '12px 14px',
+                        background: 'rgba(59, 130, 246, 0.08)',
+                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        color: 'var(--text-secondary)'
+                      }}>
+                        <Lock size={16} color="#3b82f6" style={{ flexShrink: 0 }} />
+                        <span>
+                          <strong>Branch Identity Locked ({dashboardData?.gym?.approvalStatus}):</strong> Gym Name and Location are bound to your verified facility registration and cannot be modified.
+                        </span>
+                      </div>
+                    )}
+
                     <div>
                       <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Gym Name</label>
                       <input 
                         type="text" 
                         required 
+                        disabled={['Approved', 'Pending Review', 'Under Review', 'More Information Required'].includes(dashboardData?.gym?.approvalStatus)}
                         className="search-input" 
+                        style={['Approved', 'Pending Review', 'Under Review', 'More Information Required'].includes(dashboardData?.gym?.approvalStatus) ? { opacity: 0.7, cursor: 'not-allowed', background: 'rgba(255,255,255,0.02)' } : {}}
                         value={gymProfile.name}
                         onChange={e => setGymProfile({ ...gymProfile, name: e.target.value })}
+                        title={['Approved', 'Pending Review', 'Under Review', 'More Information Required'].includes(dashboardData?.gym?.approvalStatus) ? 'Locked under verification' : ''}
                       />
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Location & City</label>
+                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Location &amp; Address</label>
                       <input 
                         type="text" 
                         required 
+                        disabled={['Approved', 'Pending Review', 'Under Review', 'More Information Required'].includes(dashboardData?.gym?.approvalStatus)}
                         className="search-input" 
+                        style={['Approved', 'Pending Review', 'Under Review', 'More Information Required'].includes(dashboardData?.gym?.approvalStatus) ? { opacity: 0.7, cursor: 'not-allowed', background: 'rgba(255,255,255,0.02)' } : {}}
                         value={gymProfile.location}
                         onChange={e => setGymProfile({ ...gymProfile, location: e.target.value })}
+                        title={['Approved', 'Pending Review', 'Under Review', 'More Information Required'].includes(dashboardData?.gym?.approvalStatus) ? 'Locked under verification' : ''}
                       />
                     </div>
 
@@ -1089,12 +1096,28 @@ const GymOwnerDashboard = () => {
                 </div>
 
                 {showTrainerModal && (
-                  <form onSubmit={handleCreateTrainer} className="glass-panel" style={{ padding: '20px', borderRadius: '12px', marginBottom: '25px', display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(15,23,42,0.9)' }}>
-                    <h4 style={{ margin: 0, color: 'var(--primary-accent)' }}>Create Gym Trainer Credentials</h4>
+                  <form
+                    onSubmit={handleCreateTrainer}
+                    className="glass-panel"
+                    style={{
+                      padding: '24px',
+                      borderRadius: '12px',
+                      marginBottom: '25px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '14px',
+                      background: 'var(--card-bg-light)',
+                      border: '1px solid var(--card-border)'
+                    }}
+                  >
+                    <h4 style={{ margin: 0, color: 'var(--primary-accent)', fontSize: '1.05rem', fontWeight: 600 }}>Create Gym Trainer Credentials</h4>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Create login credentials for an official trainer assigned to {gymProfile.name || 'your gym'}.
+                    </p>
                     <input type="text" required placeholder="Trainer Full Name" className="search-input" value={trainerForm.name} onChange={e => setTrainerForm({ ...trainerForm, name: e.target.value })} />
                     <input type="email" required placeholder="Trainer Email Address" className="search-input" value={trainerForm.email} onChange={e => setTrainerForm({ ...trainerForm, email: e.target.value })} />
                     <input type="password" required placeholder="Password" className="search-input" value={trainerForm.password} onChange={e => setTrainerForm({ ...trainerForm, password: e.target.value })} />
-                    <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                       <button type="submit" className="btn btn-primary">Create Trainer</button>
                       <button type="button" className="btn btn-outline" onClick={() => setShowTrainerModal(false)}>Cancel</button>
                     </div>
@@ -1218,7 +1241,7 @@ const GymOwnerDashboard = () => {
         )}
         
         {activeTab === 'equipment' && dashboardData && (
-          <EquipmentManager gymData={dashboardData.gym} />
+          <EquipmentManager gymData={dashboardData.gym} onEquipmentUpdated={fetchDashboardData} />
         )}
         
         {activeTab === 'offers' && (
@@ -1236,6 +1259,16 @@ const GymOwnerDashboard = () => {
         loading={isDeletingGym}
         onConfirm={handleDeleteGym}
         onCancel={() => setShowDeleteGymModal(false)}
+      />
+      <ConfirmDialog
+        isOpen={Boolean(branchToDelete)}
+        title="Remove Gym Branch"
+        message={`Are you sure you want to remove the branch "${branchToDelete?.branchName || branchToDelete?.name}"? All associated verification documents and data for this branch will be permanently deleted.`}
+        confirmText="Remove Branch"
+        confirmVariant="danger"
+        loading={isDeletingBranch}
+        onConfirm={handleDeleteBranch}
+        onCancel={() => setBranchToDelete(null)}
       />
       {showBranchModal && (
         <BranchVerificationModal

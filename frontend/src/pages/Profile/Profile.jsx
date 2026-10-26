@@ -15,14 +15,38 @@ import ProfileGigTab from './ProfileGigTab';
 import ProfileVerifyEmailModal from './ProfileVerifyEmailModal';
 import TodaysEnergyCard from './TodaysEnergyCard';
 import TrainerProfile from '../GymTrainer/TrainerProfile';
+import GymOwnerProfile from './GymOwnerProfile';
+import StoreManagerProfile from './StoreManagerProfile';
+import FitnessInstructorProfile from './FitnessInstructorProfile';
+import AdminProfile from './AdminProfile';
 
 const Profile = () => {
   const userRole = localStorage.getItem('gymsync_role') || 'User';
   const normalizedRole = userRole.toLowerCase().replace(/[_\s]/g, '');
 
-  // Render isolated, dedicated Gym Trainer profile (no athlete/pokemon card or trainee metrics collision)
+  // 1. Dedicated Gym Trainer Profile
   if (normalizedRole === 'gymtrainer') {
     return <TrainerProfile />;
+  }
+
+  // 2. Dedicated Gym Owner Business Profile
+  if (normalizedRole === 'gymowner' || normalizedRole === 'gym_owner') {
+    return <GymOwnerProfile />;
+  }
+
+  // 3. Dedicated Store Manager Profile
+  if (normalizedRole === 'storemanager') {
+    return <StoreManagerProfile />;
+  }
+
+  // 4. Dedicated Fitness Instructor Profile
+  if (normalizedRole === 'fitnessinstructor') {
+    return <FitnessInstructorProfile />;
+  }
+
+  // 5. Dedicated Admin & Operations Profile
+  if (normalizedRole === 'admin' || normalizedRole === 'superadmin' || normalizedRole === 'complaintmoderator') {
+    return <AdminProfile />;
   }
 
   const isTrainee = userRole === 'User' || userRole === 'Guest';

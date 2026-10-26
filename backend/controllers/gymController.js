@@ -69,20 +69,47 @@ export const getGymById = async (req, res) => {
       }
     }
 
+    let trainers = [];
+    try {
+      trainers = await User.find(
+        { role: 'GymTrainer', gymName: gym.name },
+        { name: 1, email: 1, profilePic: 1, phone: 1 }
+      ).lean();
+    } catch {}
+
+    let activeMembersCount = 0;
+    try {
+      const distinctMembers = await GymPlan.distinct('memberName', { gymId: gym._id.toString() });
+      activeMembersCount = distinctMembers.length;
+    } catch {}
+
     return res.json({
       _id: gym._id,
       id: gym._id,
       name: gym.name,
+      branchName: gym.branchName || gym.name,
       location: gym.location,
+      address: gym.address || gym.location,
+      city: gym.city || '',
+      country: gym.country || 'Pakistan',
+      coordinates: gym.coordinates || null,
+      googleMapsUrl: gym.googleMapsUrl || '',
+      approvalStatus: gym.approvalStatus || 'Draft',
       monthlyFee: gym.monthlyFee,
       admissionFee: gym.admissionFee,
       bankDetails: gym.bankDetails,
-      description: gym.description,
+      description: gym.description || '',
       facilities: gym.facilities || [],
       equipmentImages: gym.equipmentImages || [],
-      rating: gym.rating || 4.8,
+      equipmentStatus: gym.equipmentStatus || [],
+      equipmentList: gym.equipmentList || [],
+      trainers: trainers || [],
+      activeMembersCount: activeMembersCount || 0,
+      photos: gym.photos || [],
+      rating: gym.rating || 0,
+      reviews: gym.reviews || [],
       timings: gym.timings || null,
-      todayTrainingTip: gym.todayTrainingTip?.today || '',
+      todayTrainingTip: typeof gym.todayTrainingTip === 'string' ? gym.todayTrainingTip : (gym.todayTrainingTip?.today || ''),
       ownerName: gym.ownerName,
       ownerEmail: gym.ownerEmail
     });
@@ -98,18 +125,27 @@ export const getGymById = async (req, res) => {
 export const getGymsList = async (req, res) => {
   try {
     const gyms = await Gym.find({ approvalStatus: 'Approved' }).sort({ createdAt: -1 });
-    // Map to lightweight response for Explore page
+    // Map to response for Explore page
     const payload = gyms.map(g => ({
       _id: g._id,
       id: g._id,
       name: g.name,
+      branchName: g.branchName || g.name,
       location: g.location,
+      address: g.address || g.location,
+      city: g.city || '',
+      country: g.country || 'Pakistan',
+      coordinates: g.coordinates || null,
+      googleMapsUrl: g.googleMapsUrl || '',
+      approvalStatus: g.approvalStatus || 'Approved',
       monthlyFee: g.monthlyFee,
       admissionFee: g.admissionFee,
       description: g.description || '',
       facilities: g.facilities || [],
       equipmentImages: g.equipmentImages || [],
-      rating: g.rating || 4.8,
+      equipmentList: g.equipmentList || [],
+      rating: g.rating || 0,
+      reviews: g.reviews || [],
       timings: g.timings || null,
       image: (g.equipmentImages && g.equipmentImages.length > 0) ? g.equipmentImages[0] : null,
       todayTrainingTip: g.todayTrainingTip?.today || '',

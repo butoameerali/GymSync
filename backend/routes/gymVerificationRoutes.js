@@ -6,9 +6,12 @@ import {
   uploadVerificationDocument,
   submitBranchForVerification,
   downloadVerificationDocument,
+  deleteVerificationDocument,
+  deleteOwnerBranch,
   getAdminVerificationQueue,
   getAdminVerificationDetail,
-  reviewVerificationApplication
+  reviewVerificationApplication,
+  resolveGymLocation
 } from '../controllers/gymVerificationController.js';
 import { protect, authorizeRoles, authorizeVerificationReviewer } from '../middleware/authMiddleware.js';
 
@@ -16,10 +19,16 @@ const router = express.Router();
 
 router.use(protect);
 
+// Location & Address Geocoding / Pinpoint Resolver
+router.post('/resolve-location', authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin'), resolveGymLocation);
+
 // Owner Multi-Branch & Application endpoints
 router.get('/branches', authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin'), getOwnerBranches);
 router.post('/draft', authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin'), saveBranchDraft);
 router.post('/branch/draft', authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin'), saveBranchDraft);
+
+// Branch Deletion / Removal
+router.delete('/branch/:id', authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin'), deleteOwnerBranch);
 
 router.post('/upload-document', authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin'), upload.single('file'), uploadVerificationDocument);
 router.post('/branch/:id/upload', authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin'), upload.single('file'), (req, res, next) => {
@@ -38,6 +47,10 @@ router.post('/branch/:id/submit', authorizeRoles('GymOwner', 'gym_owner', 'Admin
 
 // Decrypted Document Download / Preview (Authorized owner or admin reviewer)
 router.get('/document/:id', downloadVerificationDocument);
+
+// Document Deletion / Removal
+router.delete('/branch/:branchId/document/:docId', authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin'), deleteVerificationDocument);
+router.delete('/document/:docId', authorizeRoles('GymOwner', 'gym_owner', 'Admin', 'SuperAdmin'), deleteVerificationDocument);
 
 // Admin Verification Operations (Privileged Gym Verification review)
 router.get('/admin/queue', authorizeVerificationReviewer, getAdminVerificationQueue);

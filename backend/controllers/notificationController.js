@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Notification from '../models/Notification.js';
 
 // @desc    Get unread notification count for current user
@@ -8,11 +9,16 @@ export const getUnreadCount = async (req, res) => {
     const currentUserId = String(req.user?._id);
     const currentUserName = req.user?.name;
 
+    const orConditions = [
+      { userId: currentUserId },
+      { userId: currentUserName }
+    ];
+    if (mongoose.Types.ObjectId.isValid(currentUserId)) {
+      orConditions.push({ recipientId: req.user._id });
+    }
+
     const unreadCount = await Notification.countDocuments({
-      $or: [
-        { userId: currentUserId },
-        { userId: currentUserName }
-      ],
+      $or: orConditions,
       isRead: false
     });
 
@@ -38,11 +44,19 @@ export const getNotifications = async (req, res) => {
 
   try {
     const { page = 1, limit = 20, isRead, type } = req.query;
+    const orConditions = [
+      { userId: currentUserId },
+      { userId: currentUserName }
+    ];
+    if (mongoose.Types.ObjectId.isValid(currentUserId)) {
+      orConditions.push({ recipientId: req.user._id });
+    }
+    if (paramUserId && (paramUserId === currentUserId || paramUserId === currentUserName || isAdmin)) {
+      orConditions.push({ userId: paramUserId });
+    }
+
     const query = {
-      $or: [
-        { userId: currentUserId },
-        { userId: currentUserName }
-      ]
+      $or: orConditions
     };
 
     if (typeof isRead !== 'undefined') {
@@ -61,7 +75,7 @@ export const getNotifications = async (req, res) => {
         .limit(Number(limit)),
       Notification.countDocuments(query),
       Notification.countDocuments({
-        $or: [{ userId: currentUserId }, { userId: currentUserName }],
+        $or: orConditions,
         isRead: false
       })
     ]);
@@ -121,7 +135,11 @@ export const markSingleAsRead = async (req, res) => {
       return res.status(404).json({ message: 'Notification not found' });
     }
 
-    if (!isAdmin && notification.userId !== currentUserId && notification.userId !== currentUserName) {
+    const isRecipient = notification.userId === currentUserId ||
+      notification.userId === currentUserName ||
+      (notification.recipientId && String(notification.recipientId) === currentUserId);
+
+    if (!isAdmin && !isRecipient) {
       return res.status(403).json({ message: 'Not authorized to modify this notification' });
     }
 
@@ -150,11 +168,16 @@ export const markAsRead = async (req, res) => {
   }
 
   try {
+    const orConditions = [
+      { userId: currentUserId },
+      { userId: currentUserName }
+    ];
+    if (mongoose.Types.ObjectId.isValid(currentUserId)) {
+      orConditions.push({ recipientId: req.user._id });
+    }
+
     await Notification.updateMany({
-      $or: [
-        { userId: currentUserId },
-        { userId: currentUserName }
-      ],
+      $or: orConditions,
       isRead: false
     }, {
       isRead: true,
@@ -183,14 +206,26 @@ export const deleteNotification = async (req, res) => {
       return res.status(404).json({ message: 'Notification not found' });
     }
 
-    if (!isAdmin && notification.userId !== currentUserId && notification.userId !== currentUserName) {
+    const isRecipient = notification.userId === currentUserId ||
+      notification.userId === currentUserName ||
+      (notification.recipientId && String(notification.recipientId) === currentUserId);
+
+    if (!isAdmin && !isRecipient) {
       return res.status(403).json({ message: 'Not authorized to delete this notification' });
     }
 
     await notification.deleteOne();
 
+    const orConditions = [
+      { userId: currentUserId },
+      { userId: currentUserName }
+    ];
+    if (mongoose.Types.ObjectId.isValid(currentUserId)) {
+      orConditions.push({ recipientId: req.user._id });
+    }
+
     const unreadCount = await Notification.countDocuments({
-      $or: [{ userId: currentUserId }, { userId: currentUserName }],
+      $or: orConditions,
       isRead: false
     });
 

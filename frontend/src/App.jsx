@@ -64,9 +64,11 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    // Check onboarding status - only auto-prompt once on initial session if never dismissed or completed
+    // Check onboarding status - only auto-prompt once for consumer trainees if never dismissed or completed
     const userName = localStorage.getItem('gymsync_user_name');
-    if (!isAuthPage && userName && userName !== 'Guest User') {
+    const role = (localStorage.getItem('gymsync_role') || '').toLowerCase().replace(/[\s_]/g, '');
+    const isConsumer = role === 'user' || role === 'member';
+    if (!isAuthPage && userName && userName !== 'Guest User' && isConsumer) {
       const isCompleted = localStorage.getItem('gymsync_onboarding_completed') === 'true';
       const isDismissed = localStorage.getItem('gymsync_onboarding_dismissed') === 'true';
       if (!isCompleted && !isDismissed) {
@@ -77,7 +79,7 @@ function App() {
     const handleOpenWizard = () => setShowOnboarding(true);
     window.addEventListener('open-onboarding', handleOpenWizard);
     return () => window.removeEventListener('open-onboarding', handleOpenWizard);
-  }, []);
+  }, [isAuthPage]);
 
   const handleSkipOnboarding = () => {
     localStorage.setItem('gymsync_onboarding_dismissed', 'true');
@@ -129,12 +131,12 @@ function App() {
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/settings/:section" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         
-        {/* Privileged Operational Management Redirects (Hosted on isolated Admin Portal port 5174) */}
-        <Route path="/admin" element={<AdminPortalRedirectNotice targetRole="Administrators" />} />
-        <Route path="/moderator" element={<AdminPortalRedirectNotice targetRole="Complaint Moderators" />} />
-        <Route path="/fitness-instructor" element={<AdminPortalRedirectNotice targetRole="Fitness Instructors" />} />
+        {/* Privileged Operational Management Redirects (Hosted on isolated Admin Portal port 5174; strictly protected to admin roles) */}
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}><AdminPortalRedirectNotice targetRole="Administrators" /></ProtectedRoute>} />
+        <Route path="/moderator" element={<ProtectedRoute allowedRoles={['ComplaintModerator', 'SuperAdmin', 'Admin']}><AdminPortalRedirectNotice targetRole="Complaint Moderators" /></ProtectedRoute>} />
 
         {/* Public Website Role-Specific Management Panels */}
+        <Route path="/fitness-instructor" element={<ProtectedRoute allowedRoles={['FitnessInstructor']}><FitnessInstructorDashboard /></ProtectedRoute>} />
         <Route path="/gym-owner" element={<ProtectedRoute allowedRoles={['GymOwner', 'gym_owner']}><GymOwnerDashboard /></ProtectedRoute>} />
         <Route path="/gym-trainer" element={<ProtectedRoute allowedRoles={['GymTrainer', 'GymOwner', 'gym_owner']}><GymTrainerDashboard /></ProtectedRoute>} />
         <Route path="/store-manager" element={<ProtectedRoute allowedRoles={['StoreManager']}><StoreManagerDashboard /></ProtectedRoute>} />
@@ -152,9 +154,12 @@ function App() {
   );
 
   const { user, isAuthenticated, acceptDisclaimer } = useAuth();
+  const normalizedUserRole = String(user?.role || '').toLowerCase().replace(/[\s_]/g, '');
+  const isConsumerRole = normalizedUserRole === 'user' || normalizedUserRole === 'member';
   const needsDisclaimer = Boolean(
     isAuthenticated &&
     user &&
+    isConsumerRole &&
     !user.disclaimerAcceptedAt &&
     !isAuthPage &&
     user.role !== 'guest'

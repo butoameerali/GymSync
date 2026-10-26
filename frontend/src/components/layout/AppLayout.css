@@ -99,14 +99,15 @@
   flex-direction: column;
 }
 
-/* Profile Desktop Native Layout: Locked outer column so middle card stays fixed and only right feed scrolls */
+/* Profile Desktop Native Layout: Enable full vertical scroll for business profiles and details */
 .app-middle-column.profile-mode {
-  padding: 16px 24px 0 24px !important;
+  padding: 16px 24px 80px 24px !important;
   width: 80% !important;
   max-width: none !important;
-  height: 100vh;
-  max-height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  height: auto;
+  max-height: none;
+  overflow-y: auto !important;
   display: flex;
   flex-direction: column;
 }

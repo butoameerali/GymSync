@@ -8,7 +8,6 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { toast } from 'react-toastify';
 import LoginOTPStep from './LoginOTPStep';
 import SignupOTPStep from './SignupOTPStep';
-import MedicalDisclaimer from '../../components/common/MedicalDisclaimer';
 import './AuthPortal.css';
 
 // ------------------------------------------------------------------
@@ -228,7 +227,7 @@ const AuthPortal = () => {
       if (location.state?.from?.pathname) {
         return location.state.from.pathname + (location.state.from.search || '');
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     return getRoleRedirectPath(userRole);
@@ -595,8 +594,6 @@ const AuthPortal = () => {
                 <p>Already have an account? <button type="button" onClick={() => { setGoogleData(null); setIsLogin(true); }}>Log In</button></p>
               )}
             </div>
-
-            <MedicalDisclaimer variant="footer" style={{ margin: '14px 0 0 0', padding: '12px 14px', fontSize: '0.75rem' }} />
           </div>
           )}
         </div>

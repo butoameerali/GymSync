@@ -7,12 +7,13 @@ export const protect = async (req, res, next) => {
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      token = req.headers.authorization.split(' ')[1];
-      if (!token) {
-        return res.status(401).json({ message: 'Not authorized, no authentication token provided' });
-      }
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.query && req.query.token) {
+    token = req.query.token;
+  }
 
+  if (token) {
+    try {
       if (!process.env.JWT_SECRET) {
         console.error('CRITICAL: JWT_SECRET environment variable is missing.');
         return res.status(500).json({ message: 'Server configuration error' });
@@ -63,12 +64,15 @@ export const protect = async (req, res, next) => {
 
 // Optional protect middleware - populates req.user if valid token provided, allows unauthenticated guests without token
 export const optionalProtect = async (req, res, next) => {
+  let token;
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.query && req.query.token) {
+    token = req.query.token;
+  }
+
+  if (token) {
     try {
-      const token = req.headers.authorization.split(' ')[1];
-      if (!token) {
-        return res.status(401).json({ message: 'Not authorized, invalid token format' });
-      }
 
       if (!process.env.JWT_SECRET) {
         console.error('CRITICAL: JWT_SECRET environment variable is missing.');

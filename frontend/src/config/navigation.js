@@ -30,11 +30,13 @@ export const getNavigationForRole = (role) => {
       return [
         { id: 'overview', label: 'Facility Dashboard', icon: 'Activity' },
         { id: 'branches', label: 'My Gyms / Branches', icon: 'Building' },
-        { id: 'facility', label: 'Gym Info & Settings', icon: 'Building' },
-        { id: 'members', label: 'Member Roster', icon: 'Users' },
-        { id: 'attendance', label: 'Attendance Check-In/Out', icon: 'Clock' },
-        { id: 'trainers', label: 'Gym Trainers', icon: 'UserCheck' },
-        { id: 'plans', label: 'Assigned Workout Plans', icon: 'Dumbbell' }
+        { id: 'attendance', label: 'Attendance Check-In', icon: 'Clock' },
+        { id: 'plans', label: 'Member Plans', icon: 'FileText' },
+        { id: 'tours', label: 'Tour Requests', icon: 'Calendar' },
+        { id: 'trainers', label: 'Gym Trainers', icon: 'Users' },
+        { id: 'settings', label: 'Facility Info & Settings', icon: 'Edit' },
+        { id: 'equipment', label: 'Equipment Inventory', icon: 'Dumbbell' },
+        { id: 'offers', label: 'My Offers', icon: 'DollarSign' }
       ];
 
     case 'gymtrainer':

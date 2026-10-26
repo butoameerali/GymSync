@@ -4,7 +4,6 @@ import { getNavigationForRole } from '../../config/navigation';
 import * as Icons from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import MedicalDisclaimer from '../common/MedicalDisclaimer';
 import './DashboardShell.css';
 
 const DashboardShell = ({
@@ -139,7 +138,6 @@ const DashboardShell = ({
 
           <div className="dashboard-body">
             {children}
-            <MedicalDisclaimer variant="footer" />
           </div>
         </main>
       </div>

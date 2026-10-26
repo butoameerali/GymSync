@@ -2,11 +2,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import Organization from '../models/Organization.js';
 import Gym from '../models/Gym.js';
 import VerificationApplication from '../models/VerificationApplication.js';
 import VerificationDocument from '../models/VerificationDocument.js';
 import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 import { encryptBuffer, decryptBuffer } from '../utils/cryptoUtils.js';
 import { logAuditTrail } from '../middleware/securityMiddleware.js';
 
@@ -47,7 +49,13 @@ export const getOwnerBranches = async (req, res) => {
         { owner: req.user._id },
         { ownerName: req.user.name }
       ]
-    }).populate('verificationApplication').sort({ createdAt: -1 });
+    }).populate({
+      path: 'verificationApplication',
+      populate: {
+        path: 'documents.document',
+        select: 'documentType originalFilename mimeType fileSizeBytes createdAt'
+      }
+    }).sort({ createdAt: -1 });
 
     // Link any orphaned gyms to the owner's organization
     for (const b of branches) {
@@ -82,6 +90,7 @@ export const getOwnerBranches = async (req, res) => {
         timings: b.timings || null,
         rejectionReason: b.rejectionReason || '',
         applicationId: b.verificationApplication?._id || null,
+        verificationApplication: b.verificationApplication || null,
         createdAt: b.createdAt
       }))
     });
@@ -140,30 +149,36 @@ export const saveBranchDraft = async (req, res) => {
       });
     }
 
-    // Update branch fields
-    if (branchName) {
-      branch.name = branchName.trim();
-      branch.branchName = branchName.trim();
+    // Lock branch identity & location once submitted or approved
+    const isLockedStatus = ['Approved', 'Pending Review', 'Under Review', 'More Information Required'].includes(branch.approvalStatus);
+
+    if (!isLockedStatus) {
+      if (branchName) {
+        branch.name = branchName.trim();
+        branch.branchName = branchName.trim();
+      }
+      if (gymType !== undefined) branch.gymType = gymType;
+      if (country !== undefined) branch.country = country;
+      if (city !== undefined) branch.city = city;
+      if (address !== undefined) {
+        branch.address = address.trim();
+        branch.location = address.trim();
+      }
+      if (coordinates !== undefined) {
+        if (coordinates?.lat && coordinates?.lng) {
+          branch.coordinates = {
+            lat: Number(coordinates.lat),
+            lng: Number(coordinates.lng)
+          };
+        }
+      }
+      if (placeId !== undefined) branch.placeId = placeId;
+      if (googleMapsUrl !== undefined) branch.googleMapsUrl = googleMapsUrl;
     }
+
     if (description !== undefined) branch.description = description;
     if (contactPhone !== undefined) branch.contactPhone = contactPhone;
     if (contactEmail !== undefined) branch.contactEmail = contactEmail;
-    if (country !== undefined) branch.country = country;
-    if (city !== undefined) branch.city = city;
-    if (address !== undefined) {
-      branch.address = address;
-      branch.location = address;
-    }
-    if (coordinates !== undefined) {
-      if (coordinates?.lat && coordinates?.lng) {
-        branch.coordinates = {
-          lat: Number(coordinates.lat),
-          lng: Number(coordinates.lng)
-        };
-      }
-    }
-    if (placeId !== undefined) branch.placeId = placeId;
-    if (googleMapsUrl !== undefined) branch.googleMapsUrl = googleMapsUrl;
     if (gymType !== undefined) branch.gymType = gymType;
     if (monthlyFee !== undefined) branch.monthlyFee = Number(monthlyFee) || 0;
     if (admissionFee !== undefined) branch.admissionFee = Number(admissionFee) || 0;
@@ -205,6 +220,11 @@ export const saveBranchDraft = async (req, res) => {
 
     branch.verificationApplication = application._id;
     await branch.save();
+
+    await application.populate({
+      path: 'documents.document',
+      select: 'documentType originalFilename mimeType fileSizeBytes createdAt'
+    });
 
     res.json({
       message: 'Branch draft saved successfully',
@@ -342,6 +362,11 @@ export const uploadVerificationDocument = async (req, res) => {
 
     await application.save();
 
+    await application.populate({
+      path: 'documents.document',
+      select: 'documentType originalFilename mimeType fileSizeBytes createdAt'
+    });
+
     res.status(200).json({
       message: 'Document encrypted and securely stored',
       document: {
@@ -385,11 +410,11 @@ export const submitBranchForVerification = async (req, res) => {
       return res.status(400).json({ message: 'Please save branch details and upload verification documents first' });
     }
 
-    // Required documents check
+    // Required documents check: only Business Registration and Owner CNIC are required
     const docTypesUploaded = application.documents.map(d => d.documentType);
     const missingDocs = [];
+    if (!docTypesUploaded.includes('BusinessRegistration')) missingDocs.push('Business Registration / Commercial License / NTN');
     if (!docTypesUploaded.includes('CNIC')) missingDocs.push('Owner CNIC or Identity Document');
-    if (!docTypesUploaded.includes('EntranceSignboard')) missingDocs.push('Gym Entrance / Signboard Photo');
 
     if (missingDocs.length > 0) {
       return res.status(400).json({
@@ -417,6 +442,23 @@ export const submitBranchForVerification = async (req, res) => {
 
     logAuditTrail(req.user.name, req.user.role, 'Submitted Branch Verification', String(branch._id), `Application Ref: ${application.referenceId}`, req);
 
+    try {
+      await Notification.create({
+        userId: String(req.user._id),
+        recipientId: req.user._id,
+        senderId: req.user._id,
+        sender: 'GymSync Verification Center',
+        type: 'system',
+        title: 'Branch Verification Submitted 📋',
+        message: `Your verification application for "${branch.branchName || branch.name}" (Ref: ${application.referenceId}) was submitted successfully and is currently under administrative review.`,
+        link: '/gym-owner',
+        relatedId: String(branch._id),
+        isRead: false
+      });
+    } catch (nErr) {
+      console.warn('Could not record verification submission notification:', nErr.message);
+    }
+
     res.json({
       message: 'Application submitted successfully. Awaiting administrative review.',
       referenceId: application.referenceId,
@@ -436,13 +478,33 @@ export const submitBranchForVerification = async (req, res) => {
 export const downloadVerificationDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    const doc = await VerificationDocument.findById(id);
+    let doc = null;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      doc = await VerificationDocument.findById(id);
+      if (!doc) {
+        const app = await VerificationApplication.findOne({
+          $or: [{ 'documents._id': id }, { 'documents.document': id }]
+        });
+        if (app) {
+          const sub = app.documents.find(d => String(d._id) === String(id) || String(d.document) === String(id));
+          if (sub?.document) {
+            doc = await VerificationDocument.findById(sub.document);
+          }
+        }
+      }
+    }
+
     if (!doc) {
       return res.status(404).json({ message: 'Document not found' });
     }
 
     const isAdmin = ['SuperAdmin', 'Admin'].includes(req.user.role);
-    const isOwner = String(doc.uploader) === String(req.user._id);
+    let isOwner = String(doc.uploader) === String(req.user._id);
+    if (!isOwner && doc.branch) {
+      const br = await Gym.findOne({ _id: doc.branch, $or: [{ owner: req.user._id }, { ownerName: req.user.name }] });
+      if (br) isOwner = true;
+    }
 
     if (!isAdmin && !isOwner) {
       return res.status(403).json({ message: 'Access denied: You are not authorized to view this document.' });
@@ -461,13 +523,162 @@ export const downloadVerificationDocument = async (req, res) => {
       return res.status(500).json({ message: 'Integrity check failed: document could not be decrypted.' });
     }
 
-    res.setHeader('Content-Type', doc.mimeType);
+    res.setHeader('Content-Type', doc.mimeType || 'application/octet-stream');
     res.setHeader('Content-Length', decrypted.length);
     res.setHeader('Content-Disposition', `inline; filename="${doc.originalFilename}"`);
     return res.end(decrypted);
   } catch (error) {
     console.error('downloadVerificationDocument error:', error);
     res.status(500).json({ message: 'Failed to retrieve document' });
+  }
+};
+
+// ==========================================
+// 5B. DELETE Verification Document
+// ==========================================
+export const deleteVerificationDocument = async (req, res) => {
+  try {
+    const { branchId, docId, id } = req.params;
+    const targetId = docId || id;
+
+    if (!targetId) {
+      return res.status(400).json({ message: 'Target document identifier is required' });
+    }
+
+    let docRecord = null;
+    if (mongoose.Types.ObjectId.isValid(targetId)) {
+      docRecord = await VerificationDocument.findById(targetId);
+    }
+
+    let application = null;
+    if (branchId) {
+      application = await VerificationApplication.findOne({ branch: branchId });
+    }
+    if (!application && docRecord?.branch) {
+      application = await VerificationApplication.findOne({ branch: docRecord.branch });
+    }
+    if (!application) {
+      application = await VerificationApplication.findOne({
+        $or: [
+          { 'documents._id': targetId },
+          { 'documents.document': targetId }
+        ]
+      });
+    }
+
+    if (!docRecord && application) {
+      const matchSub = application.documents.find(
+        d => String(d._id) === String(targetId) || String(d.document) === String(targetId)
+      );
+      if (matchSub?.document) {
+        docRecord = await VerificationDocument.findById(matchSub.document);
+      }
+    }
+
+    const isAdmin = ['SuperAdmin', 'Admin'].includes(req.user.role);
+    let isOwner = false;
+    if (application) {
+      isOwner = String(application.applicant) === String(req.user._id);
+      if (!isOwner && application.branch) {
+        const br = await Gym.findOne({ _id: application.branch, $or: [{ owner: req.user._id }, { ownerName: req.user.name }] });
+        if (br) isOwner = true;
+      }
+    } else if (docRecord) {
+      isOwner = String(docRecord.uploader) === String(req.user._id);
+    }
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ message: 'Access denied: You are not authorized to delete this document.' });
+    }
+
+    if (application && application.status === 'Approved') {
+      return res.status(400).json({ message: 'Cannot remove documents from an already approved application.' });
+    }
+
+    if (application) {
+      application.documents = application.documents.filter(
+        d => String(d._id) !== String(targetId) && String(d.document) !== String(targetId) && (docRecord ? String(d.document) !== String(docRecord._id) : true)
+      );
+      await application.save();
+      await application.populate({
+        path: 'documents.document',
+        select: 'documentType originalFilename mimeType fileSizeBytes createdAt'
+      });
+    }
+
+    if (docRecord) {
+      try {
+        if (docRecord.filePath && fs.existsSync(docRecord.filePath)) {
+          fs.unlinkSync(docRecord.filePath);
+        }
+      } catch (err) {
+        console.warn('Could not remove file on disk:', err.message);
+      }
+      await VerificationDocument.findByIdAndDelete(docRecord._id);
+    }
+
+    res.json({
+      message: 'Document removed successfully',
+      application: application ? {
+        _id: application._id,
+        referenceId: application.referenceId,
+        status: application.status,
+        documents: application.documents
+      } : null
+    });
+  } catch (error) {
+    console.error('deleteVerificationDocument error:', error);
+    res.status(500).json({ message: 'Failed to delete verification document' });
+  }
+};
+
+// ==========================================
+// 5C. OWNER: Delete Branch Facility & Application
+// ==========================================
+export const deleteOwnerBranch = async (req, res) => {
+  try {
+    const { id, branchId } = req.params;
+    const targetBranchId = branchId || id;
+
+    if (!targetBranchId) {
+      return res.status(400).json({ message: 'Branch ID required' });
+    }
+
+    const branch = await Gym.findOne({
+      _id: targetBranchId,
+      $or: [{ owner: req.user._id }, { ownerName: req.user.name }]
+    });
+
+    if (!branch) {
+      return res.status(404).json({ message: 'Branch facility not found or access unauthorized' });
+    }
+
+    // Clean up VerificationApplication and its stored files if any
+    const application = await VerificationApplication.findOne({ branch: branch._id });
+    if (application) {
+      const docIds = application.documents.map(d => d.document).filter(Boolean);
+      for (const dId of docIds) {
+        try {
+          const docRecord = await VerificationDocument.findById(dId);
+          if (docRecord?.filePath && fs.existsSync(docRecord.filePath)) {
+            fs.unlinkSync(docRecord.filePath);
+          }
+          await VerificationDocument.findByIdAndDelete(dId);
+        } catch (e) {
+          console.warn('Error cleaning up doc file during branch deletion:', e.message);
+        }
+      }
+      await VerificationApplication.findByIdAndDelete(application._id);
+    }
+
+    await Gym.findByIdAndDelete(branch._id);
+
+    logAuditTrail(req.user.name, req.user.role, 'Deleted Branch Facility', String(branch._id), `Branch: ${branch.name}`, req);
+
+    res.json({ message: 'Branch successfully removed' });
+  } catch (error) {
+    console.error('deleteOwnerBranch error:', error);
+    res.status(500).json({ message: 'Failed to delete branch' });
   }
 };
 
@@ -607,6 +818,63 @@ export const reviewVerificationApplication = async (req, res) => {
 
     logAuditTrail(req.user.name, req.user.role, `Gym Verification: ${action}`, String(branch._id), `Application Ref: ${application.referenceId}. Notes: ${notes || ''}`, req);
 
+    try {
+      let ownerDoc = null;
+      if (application.applicant) {
+        ownerDoc = await User.findById(application.applicant);
+      }
+      if (!ownerDoc && branch.owner) {
+        ownerDoc = await User.findById(branch.owner);
+      }
+      if (!ownerDoc && (branch.ownerName || branch.ownerEmail)) {
+        ownerDoc = await User.findOne({
+          $or: [
+            ...(branch.ownerName ? [{ name: branch.ownerName }] : []),
+            ...(branch.ownerEmail ? [{ email: branch.ownerEmail }] : [])
+          ]
+        });
+      }
+
+      const branchDisplayName = branch.branchName || branch.name || 'Branch Facility';
+      let notifTitle = '';
+      let notifMessage = '';
+
+      if (action === 'APPROVE') {
+        notifTitle = 'Branch Verification Approved ✅';
+        notifMessage = `Congratulations! Your branch facility "${branchDisplayName}" has been officially verified and approved by administration. Your verified facility badge is now active.`;
+      } else if (action === 'REQUEST_INFO') {
+        const reqs = Array.isArray(application.missingRequirements) && application.missingRequirements.length > 0
+          ? application.missingRequirements.join(', ')
+          : 'Additional verification documents requested';
+        notifTitle = 'Verification Information Required ⚠️';
+        notifMessage = `Administration reviewed your application for "${branchDisplayName}" (Ref: ${application.referenceId}) and requested more information: ${reqs}.${notes ? ' Note: ' + notes : ''}`;
+      } else if (action === 'REJECT') {
+        notifTitle = 'Branch Verification Rejected ❌';
+        notifMessage = `Your verification application for "${branchDisplayName}" (Ref: ${application.referenceId}) was rejected. Reason: ${application.rejectionReason || notes || 'Platform verification standards'}`;
+      } else if (action === 'SUSPEND') {
+        notifTitle = 'Branch Facility Suspended ⚠️';
+        notifMessage = `Your branch facility "${branchDisplayName}" has been suspended by administration.${notes ? ' Reason: ' + notes : ''}`;
+      }
+
+      if (notifTitle && (ownerDoc || branch.ownerName || branch.owner)) {
+        const targetUserId = ownerDoc ? String(ownerDoc._id) : (branch.ownerName || String(branch.owner));
+        await Notification.create({
+          userId: targetUserId,
+          recipientId: ownerDoc ? ownerDoc._id : (branch.owner || null),
+          senderId: req.user._id,
+          sender: req.user.name || 'GymSync Administration',
+          type: 'system',
+          title: notifTitle,
+          message: notifMessage,
+          link: '/gym-owner',
+          relatedId: String(branch._id),
+          isRead: false
+        });
+      }
+    } catch (nErr) {
+      console.warn('Failed to send verification review notification to owner:', nErr.message);
+    }
+
     res.json({
       message: `Application successfully marked as ${application.status}`,
       application: {
@@ -626,3 +894,118 @@ export const reviewVerificationApplication = async (req, res) => {
     res.status(500).json({ message: 'Failed to process verification review action' });
   }
 };
+
+/**
+ * Resolves coordinates from a Google Maps URL, address, or landmark query.
+ * Follows redirects for shortened links (e.g. maps.app.goo.gl) and uses Nominatim for address geocoding.
+ */
+export const resolveGymLocation = async (req, res) => {
+  try {
+    const { url, query, address, city, country } = req.body;
+    let lat = null;
+    let lng = null;
+    let resolvedAddress = '';
+    let finalUrl = url ? url.trim() : '';
+
+    // 1. Check if URL contains coordinates directly
+    if (finalUrl) {
+      const directMatch = finalUrl.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/) ||
+        finalUrl.match(/[?&](?:q|ll|query|destination)=(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/) ||
+        finalUrl.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+
+      if (directMatch) {
+        lat = parseFloat(directMatch[1]);
+        lng = parseFloat(directMatch[2]);
+      } else if (finalUrl.includes('goo.gl') || finalUrl.includes('maps.app') || finalUrl.includes('google.com/maps')) {
+        // Follow redirect
+        try {
+          const resp = await fetch(finalUrl, {
+            redirect: 'follow',
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+          });
+          finalUrl = resp.url || finalUrl;
+          const redirectMatch = finalUrl.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/) ||
+            finalUrl.match(/[?&](?:q|ll|query|destination)=(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/) ||
+            finalUrl.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+
+          if (redirectMatch) {
+            lat = parseFloat(redirectMatch[1]);
+            lng = parseFloat(redirectMatch[2]);
+          } else {
+            const placeMatch = finalUrl.match(/\/place\/([^/@]+)/);
+            if (placeMatch) {
+              const placeName = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+              const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(placeName)}`, {
+                headers: { 'User-Agent': 'GymSync-University-Project' }
+              });
+              const geoData = await geoRes.json();
+              if (Array.isArray(geoData) && geoData.length > 0) {
+                lat = parseFloat(geoData[0].lat);
+                lng = parseFloat(geoData[0].lon);
+                resolvedAddress = geoData[0].display_name;
+              }
+            }
+          }
+        } catch (fetchErr) {
+          console.warn('URL redirect fetch error:', fetchErr.message);
+        }
+      }
+    }
+
+    // 2. Check if address or query contains direct coordinates
+    if ((lat === null || lng === null) && (address || query)) {
+      const coordMatch = (address || query || '').trim().match(/^(-?\d{1,2}(?:\.\d+)?)[,\s]+(-?\d{1,3}(?:\.\d+)?)$/);
+      if (coordMatch) {
+        lat = parseFloat(coordMatch[1]);
+        lng = parseFloat(coordMatch[2]);
+      }
+    }
+
+    // 3. Geocode from address, city, country, or custom search query with progressive fallback
+    if ((lat === null || lng === null) && (query || address || city)) {
+      const candidates = [];
+      if (query && city) candidates.push(`${query}, ${city}, ${country || 'Pakistan'}`);
+      if (query) candidates.push(`${query}, ${country || 'Pakistan'}`);
+      if (query) candidates.push(query);
+      if (address && city) candidates.push(`${address}, ${city}, ${country || 'Pakistan'}`);
+      if (address) candidates.push(`${address}, ${country || 'Pakistan'}`);
+      if (city) candidates.push(`${city}, ${country || 'Pakistan'}`);
+
+      for (const candidate of candidates) {
+        try {
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(candidate)}`, {
+            headers: { 'User-Agent': 'GymSync-University-Project' }
+          });
+          const geoData = await geoRes.json();
+          if (Array.isArray(geoData) && geoData.length > 0) {
+            lat = parseFloat(geoData[0].lat);
+            lng = parseFloat(geoData[0].lon);
+            resolvedAddress = geoData[0].display_name;
+            break;
+          }
+        } catch (geoErr) {
+          console.warn('Address geocoding error:', geoErr.message);
+        }
+      }
+    }
+
+    if (lat === null || lng === null) {
+      return res.status(404).json({
+        success: false,
+        message: 'Could not pinpoint exact location. Please try adding your city/neighborhood or pasting a standard Google Maps URL.'
+      });
+    }
+
+    return res.json({
+      success: true,
+      lat: parseFloat(lat.toFixed(6)),
+      lng: parseFloat(lng.toFixed(6)),
+      resolvedAddress,
+      googleMapsUrl: finalUrl.startsWith('http') ? finalUrl : `https://www.google.com/maps?q=${lat},${lng}`
+    });
+  } catch (error) {
+    console.error('resolveGymLocation error:', error);
+    res.status(500).json({ success: false, message: 'Failed to resolve location' });
+  }
+};
+

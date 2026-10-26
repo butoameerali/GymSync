@@ -22,7 +22,7 @@ export default function OffersManager() {
       const res = await fetch('/api/gym-owner/coupons', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (res.ok) setCoupons(data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load coupons');
     } finally {
       setLoading(false);

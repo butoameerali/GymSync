@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, ShoppingBag, Star, Sparkles, MapPin, ArrowRight, UserCheck } from 'lucide-react';
 import { getSafeImageUrl } from '../../utils/imageUtils';
-import MedicalDisclaimer from '../common/MedicalDisclaimer';
 import './RightSuggestions.css';
 
 const RightSuggestions = () => {
   const userRole = localStorage.getItem('gymsync_role') || '';
   const normalizedRole = userRole.toLowerCase().replace(/[_\s]/g, '');
   const isGymTrainer = normalizedRole === 'gymtrainer';
-  const isStaff = ['admin', 'superadmin', 'complaintmoderator', 'gymowner', 'fitnessinstructor', 'gymtrainer', 'storemanager'].includes(normalizedRole);
+  const isGymOwner = normalizedRole === 'gymowner' || normalizedRole === 'gym_owner';
+  const isStoreManager = normalizedRole === 'storemanager';
+  const isFitnessInstructor = normalizedRole === 'fitnessinstructor';
+  const isStaff = ['admin', 'superadmin', 'complaintmoderator', 'gymowner', 'gym_owner', 'fitnessinstructor', 'gymtrainer', 'storemanager'].includes(normalizedRole);
   const trainerGymName = localStorage.getItem('gymsync_user_gym') || 'PowerHouse Gym';
 
   const [gym, setGym] = useState(null);
@@ -54,7 +56,7 @@ const RightSuggestions = () => {
             setSuggestion(suggData[0]);
           }
         }
-      } catch (err) {
+      } catch {
         // Graceful error handling
       } finally {
         if (isMounted) setLoading(false);
@@ -81,6 +83,31 @@ const RightSuggestions = () => {
         </>
       ) : (
         <>
+          {/* Gym Owner Workspace Shortcut Card */}
+          {isGymOwner && (
+            <div className="suggestion-card" style={{ border: '1px solid rgba(139, 92, 246, 0.35)', background: 'var(--card-bg)' }}>
+              <span className="suggestion-card-tag" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa' }}>
+                <Building2 size={14} /> Facility Operations
+              </span>
+              <div className="suggestion-card-body" style={{ padding: '14px 16px' }}>
+                <h4 className="suggestion-card-title">Manage Your Gym</h4>
+                <span className="suggestion-card-meta">
+                  <Building2 size={13} /> Facility Owner Hub
+                </span>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '8px 0 0 0', lineHeight: 1.4 }}>
+                  Monitor member check-ins, verify branches, and manage on-duty trainers.
+                </p>
+              </div>
+              <Link 
+                to="/gym-owner" 
+                className="btn-primary suggestion-card-btn" 
+                style={{ margin: '0 16px 14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }}
+              >
+                Open Gym Panel <ArrowRight size={14} />
+              </Link>
+            </div>
+          )}
+
           {/* Trainer Workspace Shortcut Card */}
           {isGymTrainer && (
             <div className="suggestion-card" style={{ border: '1px solid rgba(59, 130, 246, 0.35)', background: 'var(--card-bg)' }}>
@@ -189,14 +216,41 @@ const RightSuggestions = () => {
             </div>
           )}
 
-          {/* Role-Specific Coaching / Fitness Tip */}
-          {isGymTrainer ? (
+          {/* Role-Specific Coaching / Fitness / Management Tip */}
+          {isGymOwner ? (
+            <div className="community-pulse-card">
+              <h4 className="community-pulse-title">
+                🏢 Facility Tip
+              </h4>
+              <p className="community-pulse-text">
+                Keep your branch registration documents verified and monitor daily member attendance check-ins.
+              </p>
+            </div>
+          ) : isGymTrainer ? (
             <div className="community-pulse-card">
               <h4 className="community-pulse-title">
                 📋 Coaching Protocol
               </h4>
               <p className="community-pulse-text">
                 Track progressive overload and volume tolerance for your assigned trainees to prevent training burnout.
+              </p>
+            </div>
+          ) : isStoreManager ? (
+            <div className="community-pulse-card">
+              <h4 className="community-pulse-title">
+                📦 Retail Tip
+              </h4>
+              <p className="community-pulse-text">
+                Maintain adequate inventory of high-demand supplements and sportswear to prevent order stockouts.
+              </p>
+            </div>
+          ) : isFitnessInstructor ? (
+            <div className="community-pulse-card">
+              <h4 className="community-pulse-title">
+                🎯 Curriculum Tip
+              </h4>
+              <p className="community-pulse-text">
+                Publish updated biomechanical cues and rest intervals to assist trainees in the exercise library.
               </p>
             </div>
           ) : (
@@ -209,8 +263,6 @@ const RightSuggestions = () => {
               </p>
             </div>
           )}
-
-          <MedicalDisclaimer variant="footer" style={{ padding: '12px 14px', fontSize: '0.74rem', marginTop: '16px' }} />
         </>
       )}
     </aside>

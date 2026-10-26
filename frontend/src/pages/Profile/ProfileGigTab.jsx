@@ -1,5 +1,6 @@
 import React from 'react';
-import { Building } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Building, MapPin } from 'lucide-react';
 import { getSafeImageUrl } from '../../utils/imageUtils';
 
 const ProfileGigTab = ({ myGymGig }) => {
@@ -14,7 +15,9 @@ const ProfileGigTab = ({ myGymGig }) => {
             </div>
           )}
           <h2 style={{ marginBottom: '10px' }}>{myGymGig.name}</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>{myGymGig.location}</p>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <MapPin size={16} color="var(--primary-accent)" /> {myGymGig.address || myGymGig.location}{myGymGig.city ? `, ${myGymGig.city}` : ''}
+          </p>
           <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
             <div><strong>Monthly Fee:</strong> ${myGymGig.monthlyFee}</div>
             <div><strong>Admission Fee:</strong> ${myGymGig.admissionFee || 0}</div>
@@ -26,17 +29,17 @@ const ProfileGigTab = ({ myGymGig }) => {
             </div>
           )}
           <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--card-border)' }}>
-            <a href="/admin" className="btn btn-outline" style={{ display: 'inline-block' }}>
-              Manage in Dashboard
-            </a>
+            <Link to="/gym-owner" className="btn btn-outline" style={{ display: 'inline-block' }}>
+              Manage in Gym Panel
+            </Link>
           </div>
         </div>
       ) : (
         <div style={{ textAlign: 'center', padding: '30px 0' }}>
           <p className="empty-text">You haven't set up your Gym Gig yet.</p>
-          <a href="/admin" className="btn btn-primary" style={{ display: 'inline-block', marginTop: '15px' }}>
+          <Link to="/gym-owner" className="btn btn-primary" style={{ display: 'inline-block', marginTop: '15px' }}>
             Set Up Facility
-          </a>
+          </Link>
         </div>
       )}
     </div>

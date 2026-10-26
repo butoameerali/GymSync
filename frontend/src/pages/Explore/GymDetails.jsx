@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Star, ArrowLeft, CheckCircle, Calendar, Clock, Phone, FileText, Dumbbell, ShieldCheck, Eye, Copy, Check } from 'lucide-react';
+import { MapPin, Star, ArrowLeft, CheckCircle, Calendar, Clock, Phone, FileText, Dumbbell, ShieldCheck, Eye, Copy, Check, Users, UserCheck, Sparkles, Activity } from 'lucide-react';
 import PaymentModal from '../../components/common/PaymentModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import Modal from '../../components/common/Modal';
@@ -8,19 +8,6 @@ import TrackingModal from '../../components/common/TrackingModal';
 import { toast } from 'react-toastify';
 import { getSafeImageUrl } from '../../utils/imageUtils';
 import './GymDetails.css';
-
-const DEFAULT_REVIEWS = [
-  { id: 1, user: 'Hamza Malik', rating: 5, date: '2 weeks ago', comment: 'Super clean facility with top-notch Olympic barbells, great lighting, and helpful trainers. 10/10 recommend.' },
-  { id: 2, user: 'Sarah Ahmed', rating: 5, date: '1 month ago', comment: 'The 24/7 access is a game changer for my work schedule. Great community atmosphere and never overcrowded.' },
-  { id: 3, user: 'Bilal Khan', rating: 4, date: '1 month ago', comment: 'Solid equipment selection. Dumbbells go up to 50kg. Air conditioning works well even during peak hours.' }
-];
-
-const DEFAULT_EQUIPMENT = [
-  { category: 'Free Weights', items: ['Olympic Barbells & Bumper Plates', 'Dumbbells (2kg - 50kg)', 'Adjustable Incline Benches', 'Power Squat Racks'] },
-  { category: 'Resistance & Cables', items: ['Dual Adjustable Pulley', 'Cable Crossover Station', 'Seated Row & Lat Pulldown', 'Leg Press & Hack Squat'] },
-  { category: 'Cardio Zone', items: ['Commercial Treadmills', 'Concept2 Rowing Machines', 'Stairmasters', 'Assault Bikes'] },
-  { category: 'Functional & Recovery', items: ['Kettlebells & Plyo Boxes', 'Turf Sprint Lane', 'Foam Rollers & Bands', 'Dedicated Stretching Zone'] }
-];
 
 const GymDetails = () => {
   const { id } = useParams();
@@ -200,16 +187,10 @@ const GymDetails = () => {
     );
   }
 
-  const galleryImages = [
-    bannerImage,
-    ...(gym.equipmentImages && gym.equipmentImages.length > 1 
-      ? gym.equipmentImages.slice(1).map(img => getSafeImageUrl(img)) 
-      : [
-          'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=800&auto=format&fit=crop',
-          'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=800&auto=format&fit=crop'
-        ]
-    )
-  ];
+  const actualPhotos = [
+    ...(Array.isArray(gym.equipmentImages) ? gym.equipmentImages : []),
+    ...(Array.isArray(gym.photos) ? gym.photos : [])
+  ].filter(Boolean);
 
   return (
     <div className="gym-details-page">
@@ -219,11 +200,51 @@ const GymDetails = () => {
             <button className="back-btn" onClick={() => navigate(-1)}>
               <ArrowLeft size={20} /> Back to Explore
             </button>
+            <div style={{ display: 'inline-block', marginBottom: '8px' }}>
+              <span style={{
+                background: 'rgba(59, 130, 246, 0.2)',
+                color: '#60a5fa',
+                border: '1px solid rgba(59, 130, 246, 0.4)',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em'
+              }}>
+                Gym Facility Profile
+              </span>
+            </div>
             <h1>{gym.name}</h1>
             <div className="gym-meta">
-              <span><MapPin size={18} /> {gym.location}</span>
-              <span><Star size={18} fill="#f59e0b" color="#f59e0b" /> 4.8 Rating (32 Reviews)</span>
-              <span><ShieldCheck size={18} color="#10b981" /> Verified GymSync Partner</span>
+              <span><MapPin size={18} /> {gym.address || gym.location}{gym.city ? `, ${gym.city}` : ''}</span>
+              {gym.ownerName && (
+                <span><UserCheck size={18} color="var(--primary-accent)" /> Managed by {gym.ownerName}</span>
+              )}
+              <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                Active Facility
+              </span>
+              {gym.activeMembersCount ? (
+                <span><Users size={18} /> {gym.activeMembersCount} Enrolled Members</span>
+              ) : null}
+              {Array.isArray(gym.reviews) && gym.reviews.length > 0 ? (
+                <span>
+                  <Star size={18} fill="#f59e0b" color="#f59e0b" />
+                  {(gym.reviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0) / gym.reviews.length).toFixed(1)} Rating ({gym.reviews.length} {gym.reviews.length === 1 ? 'Review' : 'Reviews'})
+                </span>
+              ) : (
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  <Star size={18} color="var(--text-secondary)" /> No ratings yet
+                </span>
+              )}
+              {gym.approvalStatus === 'Approved' ? (
+                <span><ShieldCheck size={18} color="#10b981" /> Verified GymSync Partner</span>
+              ) : (
+                <span style={{ color: '#f59e0b', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Clock size={16} /> Verification Pending
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -232,7 +253,31 @@ const GymDetails = () => {
       <div className="container content-grid">
         <div className="main-info glass-panel">
           <h3>About This Gym</h3>
-          <p>{gym.description || 'A state-of-the-art facility engineered for strength athletes, bodybuilders, and everyday fitness enthusiasts.'}</p>
+          <p>{gym.description || 'No detailed description provided by gym management.'}</p>
+
+          {/* Daily Training Tip / Management Announcement */}
+          {Boolean(gym.todayTrainingTip && typeof gym.todayTrainingTip === 'string' && gym.todayTrainingTip.trim().length > 0) && (
+            <div style={{
+              marginTop: '20px',
+              padding: '16px 20px',
+              borderRadius: '14px',
+              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              display: 'flex',
+              gap: '14px',
+              alignItems: 'flex-start'
+            }}>
+              <Sparkles size={22} color="var(--primary-accent)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.92rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                  Daily Training Tip & Announcement from Management
+                </strong>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  "{gym.todayTrainingTip}"
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="gym-highlights" style={{ marginTop: '24px' }}>
             <div style={{ display: 'grid', gap: '6px' }}>
@@ -243,30 +288,38 @@ const GymDetails = () => {
               <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Monthly Rate:</span>
               <strong style={{ fontSize: '1.1rem' }}>${gym.monthlyFee ?? 0} / month</strong>
             </div>
-            <div style={{ display: 'grid', gap: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Facility Timings:</span>
-              <strong>{gym.timings?.weekday || '6:00 AM - 10:00 PM (24/7 Keycard)'}</strong>
-            </div>
+            {gym.timings?.weekday && (
+              <div style={{ display: 'grid', gap: '6px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Facility Timings:</span>
+                <strong>{gym.timings.weekday}{gym.timings.weekend ? ` (Weekend: ${gym.timings.weekend})` : ''}</strong>
+              </div>
+            )}
           </div>
 
           {/* Photo Gallery */}
           <h3 style={{ marginTop: '32px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Eye size={20} color="var(--primary-accent)" /> Facility Photo Gallery
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginTop: '14px' }}>
-            {galleryImages.map((imgUrl, i) => (
-              <div 
-                key={i} 
-                onClick={() => setPreviewPhoto(imgUrl)}
-                style={{ height: '120px', borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--border-color)', position: 'relative' }}
-              >
-                <img src={imgUrl} alt="Facility preview" style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} />
-              </div>
-            ))}
-          </div>
+          {actualPhotos.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginTop: '14px' }}>
+              {actualPhotos.map((imgUrl, i) => (
+                <div 
+                  key={i} 
+                  onClick={() => setPreviewPhoto(getSafeImageUrl(imgUrl))}
+                  style={{ height: '140px', borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--border-color)', position: 'relative' }}
+                >
+                  <img src={getSafeImageUrl(imgUrl)} alt="Facility preview" style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: '24px', background: 'var(--card-bg, rgba(255,255,255,0.02))', borderRadius: '12px', border: '1px solid var(--border-color)', marginTop: '14px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <p style={{ margin: 0, fontSize: '0.9rem' }}>No facility photos uploaded by gym owner yet.</p>
+            </div>
+          )}
 
           {/* Facilities */}
-          {gym.facilities?.length > 0 && (
+          {Array.isArray(gym.facilities) && gym.facilities.length > 0 && (
             <>
               <h3 style={{ marginTop: '32px' }}>Amenities & Facilities</h3>
               <div className="facilities-grid">
@@ -279,47 +332,145 @@ const GymDetails = () => {
             </>
           )}
 
-          {/* Comprehensive Equipment Breakdown */}
-          <h3 style={{ marginTop: '36px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Dumbbell size={20} color="var(--primary-accent)" /> Equipment & Training Zones
-          </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginTop: '16px' }}>
-            {DEFAULT_EQUIPMENT.map((grp, idx) => (
-              <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                <h4 style={{ margin: '0 0 10px 0', color: 'var(--primary-accent)', fontSize: '0.95rem' }}>{grp.category}</h4>
-                <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.6' }}>
-                  {grp.items.map((item, itemIdx) => (
-                    <li key={itemIdx}>{item}</li>
+          {/* Detailed Equipment Breakdown */}
+          {((Array.isArray(gym.equipmentStatus) && gym.equipmentStatus.length > 0) || (Array.isArray(gym.equipmentList) && gym.equipmentList.length > 0)) && (
+            <>
+              <h3 style={{ marginTop: '36px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Dumbbell size={20} color="var(--primary-accent)" /> 
+                Available Equipment & Machines ({gym.equipmentStatus?.length || gym.equipmentList?.length})
+              </h3>
+              
+              {Array.isArray(gym.equipmentStatus) && gym.equipmentStatus.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginTop: '14px' }}>
+                  {gym.equipmentStatus.map((eq, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      background: 'var(--card-bg-light, rgba(255,255,255,0.03))',
+                      border: '1px solid var(--card-border, rgba(255,255,255,0.08))'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: 'rgba(59, 130, 246, 0.12)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Dumbbell size={16} color="var(--primary-accent)" />
+                        </div>
+                        <div>
+                          <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)', display: 'block' }}>{eq.name}</strong>
+                          {eq.notes && <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{eq.notes}</span>}
+                        </div>
+                      </div>
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '10px',
+                        background: eq.status === 'Available' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                        color: eq.status === 'Available' ? '#10b981' : '#f59e0b'
+                      }}>
+                        {eq.quantity > 1 ? `×${eq.quantity} ` : ''}{eq.status || 'Available'}
+                      </span>
+                    </div>
                   ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '14px' }}>
+                  {gym.equipmentList.map((item, idx) => (
+                    <span key={idx} style={{ padding: '6px 14px', borderRadius: '8px', background: 'var(--card-bg, rgba(255,255,255,0.04))', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}>
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
 
-          {/* Verified Member Reviews */}
-          <h3 style={{ marginTop: '36px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Star size={20} fill="#f59e0b" color="#f59e0b" /> Verified Member Reviews (4.8 / 5.0)
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
-            {DEFAULT_REVIEWS.map(rev => (
-              <div key={rev.id} style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <strong>{rev.user}</strong>
-                    <div style={{ display: 'flex', gap: '2px' }}>
-                      {[...Array(rev.rating)].map((_, rIdx) => (
-                        <Star key={rIdx} size={14} fill="#f59e0b" color="#f59e0b" />
-                      ))}
+          {/* Certified On-Site Trainers */}
+          {Array.isArray(gym.trainers) && gym.trainers.length > 0 && (
+            <>
+              <h3 style={{ marginTop: '36px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={20} color="var(--primary-accent)" /> 
+                Certified On-Site Trainers ({gym.trainers.length})
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '12px', marginTop: '14px' }}>
+                {gym.trainers.map((tr, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    background: 'var(--card-bg-light, rgba(255,255,255,0.03))',
+                    border: '1px solid var(--card-border, rgba(255,255,255,0.08))'
+                  }}>
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--primary-accent)',
+                      fontWeight: 700,
+                      fontSize: '1.05rem',
+                      overflow: 'hidden'
+                    }}>
+                      {tr.profilePic ? (
+                        <img src={getSafeImageUrl(tr.profilePic)} alt={tr.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        (tr.name || 'T')[0].toUpperCase()
+                      )}
+                    </div>
+                    <div>
+                      <strong style={{ fontSize: '0.92rem', color: 'var(--text-primary)', display: 'block' }}>{tr.name}</strong>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Certified Fitness Coach</span>
                     </div>
                   </div>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{rev.date}</span>
-                </div>
-                <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                  "{rev.comment}"
-                </p>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
+
+          {/* Member Reviews */}
+          <h3 style={{ marginTop: '36px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Star size={20} fill="#f59e0b" color="#f59e0b" /> Member Reviews
+          </h3>
+          {Array.isArray(gym.reviews) && gym.reviews.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
+              {gym.reviews.map((rev, rIdx) => (
+                <div key={rev._id || rIdx} style={{ background: 'var(--card-bg, rgba(255,255,255,0.02))', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <strong>{rev.user?.name || rev.userName || 'Member'}</strong>
+                      <div style={{ display: 'flex', gap: '2px' }}>
+                        {[...Array(Number(rev.rating) || 5)].map((_, starIdx) => (
+                          <Star key={starIdx} size={14} fill="#f59e0b" color="#f59e0b" />
+                        ))}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{rev.createdAt ? new Date(rev.createdAt).toLocaleDateString() : ''}</span>
+                  </div>
+                  <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                    "{rev.comment || rev.text || ''}"
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: '24px', background: 'var(--card-bg, rgba(255,255,255,0.02))', borderRadius: '12px', border: '1px solid var(--border-color)', marginTop: '14px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <p style={{ margin: 0, fontSize: '0.9rem' }}>No member reviews submitted yet.</p>
+            </div>
+          )}
         </div>
 
         {/* Membership & Action Sidebar */}

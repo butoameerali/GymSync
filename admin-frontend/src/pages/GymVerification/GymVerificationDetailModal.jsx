@@ -12,6 +12,8 @@ import {
   XCircle,
   Clock,
   Download,
+  Eye,
+  RefreshCw,
   ShieldCheck,
   Ban
 } from 'lucide-react';
@@ -68,9 +70,37 @@ const GymVerificationDetailModal = ({ application, onClose, onRefresh }) => {
     }
   };
 
-  const handleDownloadDoc = (docId) => {
-    // Open secure decrypted preview using token query or window fetch
-    window.open(`/api/gym-verification/document/${docId}`, '_blank');
+  const [previewingDocId, setPreviewingDocId] = useState(null);
+
+  const handleDownloadDoc = async (docId) => {
+    if (!docId) return;
+    setPreviewingDocId(docId);
+    const adminToken = token || localStorage.getItem('gymsync_admin_token') || localStorage.getItem('gymsync_token') || '';
+
+    try {
+      const res = await fetch(`/api/gym-verification/document/${docId}?token=${encodeURIComponent(adminToken)}`, {
+        headers: adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {}
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to retrieve document preview');
+      }
+
+      const blob = await res.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      window.open(objectUrl, '_blank');
+    } catch (err) {
+      console.error('Preview error:', err);
+      // Fallback: try opening direct route with token query parameter
+      if (adminToken) {
+        window.open(`/api/gym-verification/document/${docId}?token=${encodeURIComponent(adminToken)}`, '_blank');
+      } else {
+        toast.error(err.message || 'Error loading document preview');
+      }
+    } finally {
+      setPreviewingDocId(null);
+    }
   };
 
   return (
@@ -145,7 +175,7 @@ const GymVerificationDetailModal = ({ application, onClose, onRefresh }) => {
           {/* Verification Documents Checklist */}
           <div className="admin-card" style={{ padding: '16px', marginBottom: '20px' }}>
             <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f3f4f6', marginBottom: '12px' }}>
-              Confidential Verification Documents (AES-256-GCM Encrypted at Rest)
+              Submitted Verification Documents
             </h4>
             {documents.length === 0 ? (
               <p style={{ color: '#9ca3af', fontSize: '0.85rem' }}>No verification documents uploaded yet.</p>
@@ -153,6 +183,8 @@ const GymVerificationDetailModal = ({ application, onClose, onRefresh }) => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {documents.map((item, idx) => {
                   const docRecord = item.document || {};
+                  const docId = docRecord._id || item._id;
+                  const isPreviewing = previewingDocId === docId;
                   return (
                     <div
                       key={idx}
@@ -179,11 +211,13 @@ const GymVerificationDetailModal = ({ application, onClose, onRefresh }) => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleDownloadDoc(docRecord._id || item._id)}
+                        onClick={() => handleDownloadDoc(docId)}
+                        disabled={isPreviewing}
                         className="btn-admin btn-admin-secondary"
-                        style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                        style={{ padding: '6px 14px', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
-                        <Download size={14} /> Decrypted Preview
+                        {isPreviewing ? <RefreshCw className="animate-spin" size={14} /> : <Eye size={14} />}
+                        <span>Preview</span>
                       </button>
                     </div>
                   );

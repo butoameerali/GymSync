@@ -4,7 +4,6 @@ import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import MedicalDisclaimer from '../common/MedicalDisclaimer';
 import './AICoachWidget.css';
 
 const QUICK_PROMPTS = [
@@ -607,7 +606,6 @@ const AICoachWidget = ({ userContext: propUserContext }) => {
               <Send size={18} />
             </button>
           </div>
-          <MedicalDisclaimer variant="chat" />
         </div>
       )}
     </div>

@@ -4,7 +4,6 @@ import { MessageCircle, X, Send, Bot, Building2, Trash2, Sparkles, ExternalLink,
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-toastify';
 import UserAvatar from '../common/UserAvatar';
-import MedicalDisclaimer from '../common/MedicalDisclaimer';
 import './GlobalChat.css';
 
 const SYSTEM_CONTACTS = [
@@ -554,9 +553,33 @@ const GlobalChat = () => {
     }
   };
 
-  // Route-guard early returns — placed right before return JSX after all hooks and handlers
-  const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(userRole);
-  if (['/messages', '/chat', '/reels'].includes(location.pathname) || isGuest || (isAdmin && location.pathname.startsWith('/admin'))) {
+  // Portal & Role Isolation:
+  // GlobalChat (with AI Workout Coach & Nutrition Assistant) is strictly for end-user trainees/athletes.
+  // Must NEVER be shown in Gym Owner, Gym Trainer, Fitness Instructor, Store Manager, Admin, or Moderator portals.
+  const normalizedRole = String(userRole || '').toLowerCase().replace(/[\s_]/g, '');
+  const isAdmin = ['admin', 'superadmin', 'complaintmoderator'].includes(normalizedRole);
+  const isStaffRole = [
+    'gymowner',
+    'gymtrainer',
+    'fitnessinstructor',
+    'storemanager',
+    'admin',
+    'superadmin',
+    'complaintmoderator'
+  ].includes(normalizedRole);
+
+  const isStaffPath = (
+    location.pathname.startsWith('/gym-owner') ||
+    location.pathname.startsWith('/gym-trainer') ||
+    location.pathname.startsWith('/fitness-instructor') ||
+    location.pathname.startsWith('/store-manager') ||
+    location.pathname.startsWith('/admin') ||
+    location.pathname.startsWith('/complaint-moderator') ||
+    location.pathname.startsWith('/moderator') ||
+    ['/messages', '/chat', '/reels'].includes(location.pathname)
+  );
+
+  if (isGuest || isStaffRole || isStaffPath) {
     return null;
   }
 
@@ -1192,7 +1215,6 @@ const GlobalChat = () => {
               <input ref={inputRef} type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} />
               <button type="submit" className="send-btn"><Send size={18} /></button>
             </form>
-            <MedicalDisclaimer variant="chat" />
           </>
         )}
       </div>
