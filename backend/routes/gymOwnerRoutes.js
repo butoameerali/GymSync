@@ -13,7 +13,8 @@ import {
   getGymTrainers,
   getGymTourRequests,
   updateTourRequestStatus,
-  updateEquipmentStatus
+  updateEquipmentStatus,
+  payAnnualGymFee
 } from '../controllers/gymOwnerController.js';
 import { createCoupon, getCoupons, deactivateCoupon } from '../controllers/couponController.js';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
@@ -47,5 +48,6 @@ router.post('/trainers', createGymTrainer);
 router.get('/trainers/:gymName', getGymTrainers);
 router.get('/tour-requests/:gymId', getGymTourRequests);
 router.put('/tour-requests/:id/status', updateTourRequestStatus);
+router.post('/gym/:id/pay-annual-fee', payAnnualGymFee);
 
 export default router;

@@ -86,6 +86,21 @@ export const getOwnerBranches = async (req, res) => {
         approvalStatus: b.approvalStatus || 'Draft',
         monthlyFee: b.monthlyFee || 0,
         admissionFee: b.admissionFee || 0,
+        securityDeposit: b.securityDeposit || 0,
+        securityDepositRefundable: b.securityDepositRefundable ?? true,
+        yearlyDiscountPercent: b.yearlyDiscountPercent || 0,
+        trainerPolicy: b.trainerPolicy || {
+          guidanceTrainer: false,
+          personalTrainer: false,
+          personalTrainerMonthlyFee: 0,
+          notes: ''
+        },
+        annualSubscriptionFee: b.annualSubscriptionFee || 20,
+        subscriptionPaid: b.subscriptionPaid || false,
+        subscriptionPaidAt: b.subscriptionPaidAt || null,
+        subscriptionExpiresAt: b.subscriptionExpiresAt || null,
+        isOnline: b.isOnline || false,
+        listingStatus: b.listingStatus || (b.approvalStatus === 'Approved' ? (b.subscriptionPaid ? 'Online' : 'Pending Payment') : (b.approvalStatus || 'Offline')),
         facilities: b.facilities || [],
         timings: b.timings || null,
         rejectionReason: b.rejectionReason || '',
@@ -120,6 +135,10 @@ export const saveBranchDraft = async (req, res) => {
       gymType,
       monthlyFee,
       admissionFee,
+      securityDeposit,
+      securityDepositRefundable,
+      yearlyDiscountPercent,
+      trainerPolicy,
       facilities,
       timings,
       photos,
@@ -180,8 +199,67 @@ export const saveBranchDraft = async (req, res) => {
     if (contactPhone !== undefined) branch.contactPhone = contactPhone;
     if (contactEmail !== undefined) branch.contactEmail = contactEmail;
     if (gymType !== undefined) branch.gymType = gymType;
-    if (monthlyFee !== undefined) branch.monthlyFee = Number(monthlyFee) || 0;
-    if (admissionFee !== undefined) branch.admissionFee = Number(admissionFee) || 0;
+
+    if (monthlyFee !== undefined) {
+      const parsed = Number(monthlyFee);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return res.status(400).json({ message: 'Monthly fee must be a valid number >= 0' });
+      }
+      branch.monthlyFee = parsed;
+    }
+
+    if (admissionFee !== undefined) {
+      const parsed = Number(admissionFee);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return res.status(400).json({ message: 'Admission fee must be a valid number >= 0' });
+      }
+      branch.admissionFee = parsed;
+    }
+
+    if (securityDeposit !== undefined) {
+      const parsed = Number(securityDeposit);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return res.status(400).json({ message: 'Security deposit must be a valid number >= 0' });
+      }
+      branch.securityDeposit = parsed;
+    }
+
+    if (securityDepositRefundable !== undefined) {
+      branch.securityDepositRefundable = Boolean(securityDepositRefundable);
+    }
+
+    if (yearlyDiscountPercent !== undefined) {
+      const parsed = Number(yearlyDiscountPercent);
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 50) {
+        return res.status(400).json({ message: 'Yearly discount percent must be between 0 and 50' });
+      }
+      branch.yearlyDiscountPercent = parsed;
+    }
+
+    if (trainerPolicy !== undefined) {
+      if (typeof trainerPolicy !== 'object' || trainerPolicy === null) {
+        return res.status(400).json({ message: 'trainerPolicy must be an object' });
+      }
+      const guidanceTrainer = Boolean(trainerPolicy.guidanceTrainer);
+      const personalTrainer = Boolean(trainerPolicy.personalTrainer);
+      const personalTrainerMonthlyFee = Number(trainerPolicy.personalTrainerMonthlyFee ?? 0);
+      if (!Number.isFinite(personalTrainerMonthlyFee) || personalTrainerMonthlyFee < 0) {
+        return res.status(400).json({ message: 'Personal trainer monthly fee must be a valid number >= 0' });
+      }
+      if (trainerPolicy.notes && String(trainerPolicy.notes).length > 300) {
+        return res.status(400).json({ message: 'Trainer policy notes cannot exceed 300 characters' });
+      }
+      const notes = String(trainerPolicy.notes || '').slice(0, 300);
+
+      branch.trainerPolicy = {
+        guidanceTrainer,
+        personalTrainer,
+        personalTrainerMonthlyFee,
+        notes
+      };
+      branch.trainerIncluded = Boolean(guidanceTrainer || personalTrainer);
+    }
+
     if (facilities !== undefined) branch.facilities = Array.isArray(facilities) ? facilities : [];
     if (timings !== undefined) branch.timings = timings;
     if (photos !== undefined) branch.photos = Array.isArray(photos) ? photos : [];
@@ -787,20 +865,28 @@ export const reviewVerificationApplication = async (req, res) => {
       branch.approvedBy = req.user.name;
       branch.approvedAt = now;
       branch.rejectionReason = '';
+      branch.isOnline = branch.subscriptionPaid || false;
+      branch.listingStatus = branch.subscriptionPaid ? 'Online' : 'Pending Payment';
     } else if (action === 'REQUEST_INFO') {
       application.status = 'More Information Required';
       application.missingRequirements = Array.isArray(missingRequirements) ? missingRequirements : [missingRequirements || 'Additional verification evidence requested'];
       application.reviewerNotes = notes || '';
       branch.approvalStatus = 'More Information Required';
+      branch.isOnline = false;
+      branch.listingStatus = 'Offline';
     } else if (action === 'REJECT') {
       application.status = 'Rejected';
       application.rejectionReason = rejectionReason || notes || 'Facility application does not meet platform verification standards.';
       branch.approvalStatus = 'Rejected';
       branch.rejectionReason = application.rejectionReason;
+      branch.isOnline = false;
+      branch.listingStatus = 'Offline';
     } else if (action === 'SUSPEND') {
       application.status = 'Suspended';
       branch.approvalStatus = 'Suspended';
       branch.rejectionReason = notes || 'Administrative suspension';
+      branch.isOnline = false;
+      branch.listingStatus = 'Suspended';
     } else {
       return res.status(400).json({ message: 'Invalid verification review action' });
     }
@@ -841,7 +927,9 @@ export const reviewVerificationApplication = async (req, res) => {
 
       if (action === 'APPROVE') {
         notifTitle = 'Branch Verification Approved ✅';
-        notifMessage = `Congratulations! Your branch facility "${branchDisplayName}" has been officially verified and approved by administration. Your verified facility badge is now active.`;
+        notifMessage = branch.subscriptionPaid
+          ? `Congratulations! Your branch facility "${branchDisplayName}" has been officially verified and approved. Your facility is now LIVE and publicly listed on GymSync!`
+          : `Congratulations! Your branch facility "${branchDisplayName}" has been officially verified and approved by administration. Please pay the $20 annual listing fee to take your facility online and accept member tours.`;
       } else if (action === 'REQUEST_INFO') {
         const reqs = Array.isArray(application.missingRequirements) && application.missingRequirements.length > 0
           ? application.missingRequirements.join(', ')

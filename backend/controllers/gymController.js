@@ -4,6 +4,7 @@ import GymPlan from '../models/GymPlan.js';
 import Attendance from '../models/Attendance.js';
 import Post from '../models/Post.js';
 import TourRequest from '../models/TourRequest.js';
+import Coupon from '../models/Coupon.js';
 
 // @desc    Get gym details for a specific user's gym (owner or member)
 // @route   GET /api/gyms/my-gym/:userId
@@ -51,6 +52,7 @@ export const getMyGym = async (req, res) => {
 };
 
 // @desc    Get gym details by gym id
+// @desc    Get gym details by gym id
 // @route   GET /api/gyms/:id
 // @access  Public
 export const getGymById = async (req, res) => {
@@ -61,7 +63,7 @@ export const getGymById = async (req, res) => {
       return res.status(404).json({ message: 'Gym not found' });
     }
 
-    if (gym.approvalStatus !== 'Approved') {
+    if (gym.approvalStatus !== 'Approved' || (!gym.isOnline && !gym.subscriptionPaid)) {
       const isOwner = req.user && ((gym.owner && String(gym.owner) === String(req.user._id)) || gym.ownerName === req.user.name);
       const isAdmin = req.user && ['Admin', 'SuperAdmin'].includes(req.user.role);
       if (!isOwner && !isAdmin) {
@@ -69,19 +71,96 @@ export const getGymById = async (req, res) => {
       }
     }
 
+    // Query official trainers assigned to this gym - only expose safe public fields
     let trainers = [];
     try {
-      trainers = await User.find(
-        { role: 'GymTrainer', gymName: gym.name },
-        { name: 1, email: 1, profilePic: 1, phone: 1 }
+      const rawTrainers = await User.find(
+        {
+          role: 'GymTrainer',
+          $or: [
+            { assignedGymName: gym.name },
+            { gymName: gym.name },
+            { assignedBranch: gym._id }
+          ]
+        },
+        { name: 1, profilePic: 1, bio: 1, fitnessGoal: 1, bioData: 1 }
       ).lean();
-    } catch {}
+
+      trainers = rawTrainers.map(t => ({
+        _id: t._id,
+        name: t.name,
+        profilePic: t.profilePic || '',
+        bio: t.bio || '',
+        fitnessGoal: t.fitnessGoal || '',
+        specialization: t.bioData?.mainGoalArea || t.fitnessGoal || 'Fitness Coach',
+        fitnessLevel: t.bioData?.fitnessLevel || 'Certified'
+      }));
+    } catch (trainersErr) {
+      console.error('Error fetching trainers for gym:', trainersErr);
+    }
+
+    // Query active non-expired public coupons belonging to this gym or owner
+    let activeOffers = [];
+    try {
+      let gymIds = [gym._id];
+      if (gym.owner) {
+        const ownerGyms = await Gym.find({ owner: gym.owner }).select('_id');
+        gymIds = Array.from(new Set([...gymIds, ...ownerGyms.map(g => g._id)]));
+      }
+
+      const now = new Date();
+      const coupons = await Coupon.find({
+        gymId: { $in: gymIds },
+        isActive: true,
+        approvalStatus: 'Approved',
+        validUntil: { $gte: now },
+        audience: { $ne: 'SingleUser' }
+      }).sort({ discountValue: -1 }).lean();
+
+      activeOffers = coupons
+        .filter(c => !c.usageLimit || c.timesUsed < c.usageLimit)
+        .map(c => ({
+          code: c.code,
+          discountType: c.discountType,
+          discountValue: c.discountValue,
+          title: c.discountType === 'Percentage' ? `${c.discountValue}% OFF` : `Rs. ${c.discountValue} OFF`,
+          description: c.audience === 'NewMembersOnly' ? 'Exclusive discount for new members' : 'Limited-time special offer',
+          audience: c.audience,
+          validUntil: c.validUntil
+        }));
+    } catch (offerErr) {
+      console.error('getGymById activeOffers error:', offerErr);
+    }
 
     let activeMembersCount = 0;
     try {
       const distinctMembers = await GymPlan.distinct('memberName', { gymId: gym._id.toString() });
       activeMembersCount = distinctMembers.length;
     } catch {}
+
+    // Safe default logic for old gyms
+    const hasExplicitTrainerPolicy = Boolean(
+      gym.trainerPolicy?.guidanceTrainer ||
+      gym.trainerPolicy?.personalTrainer ||
+      gym.trainerPolicy?.personalTrainerMonthlyFee ||
+      (gym.trainerPolicy?.notes && gym.trainerPolicy.notes.trim().length > 0)
+    );
+    const trainerPolicy = {
+      guidanceTrainer: Boolean(
+        gym.trainerPolicy?.guidanceTrainer || (!hasExplicitTrainerPolicy && gym.trainerIncluded)
+      ),
+      personalTrainer: Boolean(gym.trainerPolicy?.personalTrainer ?? false),
+      personalTrainerMonthlyFee: Number(gym.trainerPolicy?.personalTrainerMonthlyFee) || 0,
+      notes: gym.trainerPolicy?.notes || ''
+    };
+
+    const equipmentStatus = (gym.equipmentStatus || []).map(e => ({
+      name: e.name,
+      category: e.category || 'Other',
+      status: e.status || 'Available',
+      quantity: Number(e.quantity) || 1,
+      notes: e.notes || ''
+    }));
 
     return res.json({
       _id: gym._id,
@@ -95,15 +174,21 @@ export const getGymById = async (req, res) => {
       coordinates: gym.coordinates || null,
       googleMapsUrl: gym.googleMapsUrl || '',
       approvalStatus: gym.approvalStatus || 'Draft',
-      monthlyFee: gym.monthlyFee,
-      admissionFee: gym.admissionFee,
+      monthlyFee: Number(gym.monthlyFee) || 0,
+      admissionFee: Number(gym.admissionFee) || 0,
+      securityDeposit: Number.isFinite(gym.securityDeposit) ? gym.securityDeposit : 0,
+      securityDepositRefundable: gym.securityDepositRefundable ?? true,
+      yearlyDiscountPercent: Number.isFinite(gym.yearlyDiscountPercent) ? gym.yearlyDiscountPercent : 0,
+      trainerPolicy,
+      trainerIncluded: Boolean(gym.trainerIncluded || trainerPolicy.guidanceTrainer || trainerPolicy.personalTrainer),
       bankDetails: gym.bankDetails,
       description: gym.description || '',
       facilities: gym.facilities || [],
       equipmentImages: gym.equipmentImages || [],
-      equipmentStatus: gym.equipmentStatus || [],
+      equipmentStatus,
       equipmentList: gym.equipmentList || [],
       trainers: trainers || [],
+      activeOffers: activeOffers || [],
       activeMembersCount: activeMembersCount || 0,
       photos: gym.photos || [],
       rating: gym.rating || 0,
@@ -111,7 +196,13 @@ export const getGymById = async (req, res) => {
       timings: gym.timings || null,
       todayTrainingTip: typeof gym.todayTrainingTip === 'string' ? gym.todayTrainingTip : (gym.todayTrainingTip?.today || ''),
       ownerName: gym.ownerName,
-      ownerEmail: gym.ownerEmail
+      ownerEmail: gym.ownerEmail,
+      annualSubscriptionFee: gym.annualSubscriptionFee || 20,
+      subscriptionPaid: gym.subscriptionPaid || false,
+      subscriptionPaidAt: gym.subscriptionPaidAt || null,
+      subscriptionExpiresAt: gym.subscriptionExpiresAt || null,
+      isOnline: gym.isOnline || false,
+      listingStatus: gym.listingStatus || (gym.approvalStatus === 'Approved' ? (gym.subscriptionPaid ? 'Online' : 'Pending Payment') : 'Offline')
     });
   } catch (error) {
     console.error('getGymById error:', error);
@@ -119,38 +210,111 @@ export const getGymById = async (req, res) => {
   }
 };
 
-// @desc    List public gyms (approved)
+// @desc    List public gyms (approved and online)
 // @route   GET /api/gyms
 // @access  Public
 export const getGymsList = async (req, res) => {
   try {
-    const gyms = await Gym.find({ approvalStatus: 'Approved' }).sort({ createdAt: -1 });
+    const gyms = await Gym.find({
+      approvalStatus: 'Approved',
+      $or: [
+        { isOnline: true },
+        { subscriptionPaid: true }
+      ]
+    }).sort({ createdAt: -1 });
+
+    const now = new Date();
+    const couponsByGym = new Map();
+    try {
+      const activeCoupons = await Coupon.find({
+        isActive: true,
+        approvalStatus: 'Approved',
+        validUntil: { $gte: now },
+        audience: { $ne: 'SingleUser' }
+      }).lean();
+
+      activeCoupons.forEach(c => {
+        if (c.usageLimit > 0 && c.timesUsed >= c.usageLimit) return;
+        const gId = String(c.gymId);
+        if (!couponsByGym.has(gId)) couponsByGym.set(gId, []);
+        couponsByGym.get(gId).push({
+          code: c.code,
+          discountType: c.discountType,
+          discountValue: c.discountValue,
+          title: c.discountType === 'Percentage' ? `${c.discountValue}% OFF` : `Rs. ${c.discountValue} OFF`,
+          description: c.audience === 'NewMembersOnly' ? 'Exclusive discount for new members' : 'Limited-time special offer',
+          audience: c.audience,
+          validUntil: c.validUntil
+        });
+      });
+    } catch (couponErr) {
+      console.error('getGymsList coupons fetch error:', couponErr);
+    }
+
     // Map to response for Explore page
-    const payload = gyms.map(g => ({
-      _id: g._id,
-      id: g._id,
-      name: g.name,
-      branchName: g.branchName || g.name,
-      location: g.location,
-      address: g.address || g.location,
-      city: g.city || '',
-      country: g.country || 'Pakistan',
-      coordinates: g.coordinates || null,
-      googleMapsUrl: g.googleMapsUrl || '',
-      approvalStatus: g.approvalStatus || 'Approved',
-      monthlyFee: g.monthlyFee,
-      admissionFee: g.admissionFee,
-      description: g.description || '',
-      facilities: g.facilities || [],
-      equipmentImages: g.equipmentImages || [],
-      equipmentList: g.equipmentList || [],
-      rating: g.rating || 0,
-      reviews: g.reviews || [],
-      timings: g.timings || null,
-      image: (g.equipmentImages && g.equipmentImages.length > 0) ? g.equipmentImages[0] : null,
-      todayTrainingTip: g.todayTrainingTip?.today || '',
-      ownerName: g.ownerName
-    }));
+    const payload = gyms.map(g => {
+      const hasExplicitTrainerPolicy = Boolean(
+        g.trainerPolicy?.guidanceTrainer ||
+        g.trainerPolicy?.personalTrainer ||
+        g.trainerPolicy?.personalTrainerMonthlyFee ||
+        (g.trainerPolicy?.notes && g.trainerPolicy.notes.trim().length > 0)
+      );
+      const trainerPolicy = {
+        guidanceTrainer: Boolean(
+          g.trainerPolicy?.guidanceTrainer || (!hasExplicitTrainerPolicy && g.trainerIncluded)
+        ),
+        personalTrainer: Boolean(g.trainerPolicy?.personalTrainer ?? false),
+        personalTrainerMonthlyFee: Number(g.trainerPolicy?.personalTrainerMonthlyFee) || 0,
+        notes: g.trainerPolicy?.notes || ''
+      };
+
+      const equipmentStatus = (g.equipmentStatus || []).map(e => ({
+        name: e.name,
+        category: e.category || 'Other',
+        status: e.status || 'Available',
+        quantity: Number(e.quantity) || 1,
+        notes: e.notes || ''
+      }));
+
+      const activeOffers = couponsByGym.get(String(g._id)) || [];
+
+      return {
+        _id: g._id,
+        id: g._id,
+        name: g.name,
+        branchName: g.branchName || g.name,
+        location: g.location,
+        address: g.address || g.location,
+        city: g.city || '',
+        country: g.country || 'Pakistan',
+        coordinates: g.coordinates || null,
+        googleMapsUrl: g.googleMapsUrl || '',
+        approvalStatus: g.approvalStatus || 'Approved',
+        monthlyFee: Number(g.monthlyFee) || 0,
+        admissionFee: Number(g.admissionFee) || 0,
+        securityDeposit: Number.isFinite(g.securityDeposit) ? g.securityDeposit : 0,
+        securityDepositRefundable: g.securityDepositRefundable ?? true,
+        yearlyDiscountPercent: Number.isFinite(g.yearlyDiscountPercent) ? g.yearlyDiscountPercent : 0,
+        trainerPolicy,
+        trainerIncluded: Boolean(g.trainerIncluded || trainerPolicy.guidanceTrainer || trainerPolicy.personalTrainer),
+        annualSubscriptionFee: g.annualSubscriptionFee || 20,
+        subscriptionPaid: g.subscriptionPaid || false,
+        isOnline: g.isOnline || false,
+        listingStatus: g.listingStatus || 'Online',
+        description: g.description || '',
+        facilities: g.facilities || [],
+        equipmentImages: g.equipmentImages || [],
+        equipmentStatus,
+        equipmentList: g.equipmentList || [],
+        activeOffers,
+        rating: g.rating || 0,
+        reviews: g.reviews || [],
+        timings: g.timings || null,
+        image: (g.equipmentImages && g.equipmentImages.length > 0) ? g.equipmentImages[0] : null,
+        todayTrainingTip: typeof g.todayTrainingTip === 'string' ? g.todayTrainingTip : (g.todayTrainingTip?.today || ''),
+        ownerName: g.ownerName
+      };
+    });
 
     return res.json(payload);
   } catch (error) {

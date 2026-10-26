@@ -3,6 +3,9 @@ import Attendance from '../models/Attendance.js';
 import GymPlan from '../models/GymPlan.js';
 import User from '../models/User.js';
 import TourRequest from '../models/TourRequest.js';
+import Payment from '../models/Payment.js';
+import PaymentConfig from '../models/PaymentConfig.js';
+import Notification from '../models/Notification.js';
 
 // @desc    Get Gym Owner Dashboard data
 // @route   GET /api/gym-owner/dashboard/:ownerName
@@ -84,8 +87,53 @@ const isAuthorizedGymOwner = (gym, user) => {
 export const updateGymProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, location, monthlyFee, admissionFee, bankDetails, description, facilities, equipmentImages, equipmentList, timings, todayTrainingTip, dailyTip, trainerIncluded } = req.body;
+    const { 
+      name, location, monthlyFee, admissionFee, bankDetails, description, 
+      facilities, equipmentImages, equipmentList, timings, todayTrainingTip, dailyTip, 
+      trainerIncluded,
+      securityDeposit, securityDepositRefundable, yearlyDiscountPercent, trainerPolicy
+    } = req.body;
     const tipPayload = todayTrainingTip || dailyTip;
+
+    // Validate fees and policies
+    if (typeof monthlyFee !== 'undefined') {
+      const num = Number(monthlyFee);
+      if (!Number.isFinite(num) || num < 0) {
+        return res.status(400).json({ message: 'Monthly fee must be a valid non-negative number.' });
+      }
+    }
+    if (typeof admissionFee !== 'undefined') {
+      const num = Number(admissionFee);
+      if (!Number.isFinite(num) || num < 0) {
+        return res.status(400).json({ message: 'Admission fee must be a valid non-negative number.' });
+      }
+    }
+    if (typeof securityDeposit !== 'undefined') {
+      const num = Number(securityDeposit);
+      if (!Number.isFinite(num) || num < 0) {
+        return res.status(400).json({ message: 'Security deposit must be a valid non-negative number.' });
+      }
+    }
+    if (typeof yearlyDiscountPercent !== 'undefined') {
+      const num = Number(yearlyDiscountPercent);
+      if (!Number.isFinite(num) || num < 0 || num > 50) {
+        return res.status(400).json({ message: 'Yearly discount percent must be a number between 0 and 50.' });
+      }
+    }
+    if (typeof trainerPolicy !== 'undefined') {
+      if (typeof trainerPolicy !== 'object' || trainerPolicy === null) {
+        return res.status(400).json({ message: 'Trainer policy must be an object.' });
+      }
+      if (typeof trainerPolicy.personalTrainerMonthlyFee !== 'undefined') {
+        const num = Number(trainerPolicy.personalTrainerMonthlyFee);
+        if (!Number.isFinite(num) || num < 0) {
+          return res.status(400).json({ message: 'Personal trainer monthly fee must be a valid non-negative number.' });
+        }
+      }
+      if (typeof trainerPolicy.notes !== 'undefined' && typeof trainerPolicy.notes === 'string' && trainerPolicy.notes.length > 300) {
+        return res.status(400).json({ message: 'Trainer policy notes must be 300 characters or fewer.' });
+      }
+    }
 
     try {
       let gym = null;
@@ -122,12 +170,27 @@ export const updateGymProfile = async (req, res) => {
 
         if (typeof monthlyFee !== 'undefined') gym.monthlyFee = Number(monthlyFee);
         if (typeof admissionFee !== 'undefined') gym.admissionFee = Number(admissionFee);
+        if (typeof securityDeposit !== 'undefined') gym.securityDeposit = Number(securityDeposit);
+        if (typeof securityDepositRefundable !== 'undefined') gym.securityDepositRefundable = Boolean(securityDepositRefundable);
+        if (typeof yearlyDiscountPercent !== 'undefined') gym.yearlyDiscountPercent = Number(yearlyDiscountPercent);
+        
+        if (typeof trainerPolicy !== 'undefined') {
+          gym.trainerPolicy = {
+            guidanceTrainer: Boolean(trainerPolicy.guidanceTrainer),
+            personalTrainer: Boolean(trainerPolicy.personalTrainer),
+            personalTrainerMonthlyFee: Number(trainerPolicy.personalTrainerMonthlyFee) || 0,
+            notes: typeof trainerPolicy.notes === 'string' ? trainerPolicy.notes.slice(0, 300) : ''
+          };
+          gym.trainerIncluded = Boolean(gym.trainerPolicy.guidanceTrainer || gym.trainerPolicy.personalTrainer);
+        } else if (trainerIncluded !== undefined) {
+          gym.trainerIncluded = Boolean(trainerIncluded);
+        }
+
         if (typeof bankDetails !== 'undefined') gym.bankDetails = bankDetails;
         if (description) gym.description = description;
         if (Array.isArray(facilities)) gym.facilities = facilities;
         if (Array.isArray(equipmentImages)) gym.equipmentImages = equipmentImages;
         if (Array.isArray(equipmentList)) gym.equipmentList = equipmentList;
-        if (trainerIncluded !== undefined) gym.trainerIncluded = trainerIncluded;
         if (timings) gym.timings = timings;
         if (typeof tipPayload !== 'undefined') gym.todayTrainingTip = tipPayload;
         await gym.save();
@@ -137,6 +200,19 @@ export const updateGymProfile = async (req, res) => {
       // If still no gym found, create one for the owner
       const ownerName = req.user?.name || 'Gym Owner';
       const ownerEmail = req.user?.email || '';
+
+      const effectiveTrainerPolicy = trainerPolicy ? {
+        guidanceTrainer: Boolean(trainerPolicy.guidanceTrainer),
+        personalTrainer: Boolean(trainerPolicy.personalTrainer),
+        personalTrainerMonthlyFee: Number(trainerPolicy.personalTrainerMonthlyFee) || 0,
+        notes: typeof trainerPolicy.notes === 'string' ? trainerPolicy.notes.slice(0, 300) : ''
+      } : {
+        guidanceTrainer: false,
+        personalTrainer: false,
+        personalTrainerMonthlyFee: 0,
+        notes: ''
+      };
+
       const newGym = await Gym.create({
         owner: req.user?._id || null,
         ownerName,
@@ -145,11 +221,17 @@ export const updateGymProfile = async (req, res) => {
         location: location || 'Unknown',
         monthlyFee: Number(monthlyFee) || 0,
         admissionFee: Number(admissionFee) || 0,
+        securityDeposit: typeof securityDeposit !== 'undefined' ? Number(securityDeposit) : 0,
+        securityDepositRefundable: typeof securityDepositRefundable !== 'undefined' ? Boolean(securityDepositRefundable) : true,
+        yearlyDiscountPercent: typeof yearlyDiscountPercent !== 'undefined' ? Number(yearlyDiscountPercent) : 0,
+        trainerPolicy: effectiveTrainerPolicy,
+        trainerIncluded: trainerPolicy
+          ? Boolean(effectiveTrainerPolicy.guidanceTrainer || effectiveTrainerPolicy.personalTrainer)
+          : (typeof trainerIncluded !== 'undefined' ? Boolean(trainerIncluded) : false),
         bankDetails: bankDetails || '',
         description: description || '',
         facilities: Array.isArray(facilities) ? facilities : [],
         equipmentImages: Array.isArray(equipmentImages) ? equipmentImages : [],
-        trainerIncluded: typeof trainerIncluded !== 'undefined' ? trainerIncluded : false,
         approvalStatus: 'Pending',
         todayTrainingTip: tipPayload || { today: '' }
       });
@@ -187,11 +269,13 @@ export const updateEquipmentStatus = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to modify this gym equipment' });
     }
 
+    const validCategories = ['Cardio', 'Strength Machine', 'Free Weights', 'Functional', 'Other'];
     const cleaned = Array.isArray(equipmentStatus)
       ? equipmentStatus
           .filter(e => e && typeof e.name === 'string' && e.name.trim().length > 0)
           .map(e => ({
             name: e.name.trim(),
+            category: validCategories.includes(e.category) ? e.category : 'Other',
             status: ['Available', 'Maintenance', 'Unavailable'].includes(e.status) ? e.status : 'Available',
             quantity: Math.max(1, parseInt(e.quantity, 10) || 1),
             notes: e.notes ? String(e.notes).trim() : ''
@@ -556,5 +640,118 @@ export const updateTourRequestStatus = async (req, res) => {
   } catch (error) {
     console.error('updateTourRequestStatus error:', error.message);
     res.status(500).json({ message: 'Failed to update tour request status' });
+  }
+};
+
+// @desc    Gym Owner pays annual partner listing fee to activate verified gym
+// @route   POST /api/gym-owner/gym/:id/pay-annual-fee
+// @access  Private / GymOwner, Admin
+export const payAnnualGymFee = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paymentMethod = 'Card', transactionRef = '' } = req.body;
+
+    const gym = await Gym.findById(id);
+    if (!gym) {
+      return res.status(404).json({ message: 'Gym facility not found' });
+    }
+
+    const isOwner = (gym.owner && String(gym.owner) === String(req.user._id)) ||
+                    gym.ownerName === req.user.name ||
+                    (req.user.role && ['Admin', 'SuperAdmin'].includes(req.user.role));
+
+    if (!isOwner) {
+      return res.status(403).json({ message: 'Access denied: You do not own this facility' });
+    }
+
+    if (gym.approvalStatus !== 'Approved') {
+      return res.status(400).json({ 
+        message: 'Gym verification must be approved by administration before paying the annual partner fee.' 
+      });
+    }
+
+    // Determine platform fee from PaymentConfig
+    let feeAmount = 20;
+    try {
+      const feeConfig = await PaymentConfig.findOne({ method: 'PlatformFee' });
+      if (feeConfig && Number.isFinite(feeConfig.amount) && feeConfig.amount > 0) {
+        feeAmount = feeConfig.amount;
+      }
+    } catch (e) {
+      console.warn('Could not read PlatformFee config, using default 20:', e.message);
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now);
+    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+    gym.annualSubscriptionFee = feeAmount;
+    gym.subscriptionPaid = true;
+    gym.subscriptionPaidAt = now;
+    gym.subscriptionExpiresAt = expiresAt;
+    gym.subscriptionPaymentMethod = paymentMethod;
+    gym.isOnline = true;
+    gym.listingStatus = 'Online';
+
+    await gym.save();
+
+    // Create Payment record
+    const paymentId = `FEE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const effectiveMethod = ['Stripe', 'Easypaisa', 'JazzCash', 'Card'].includes(paymentMethod) 
+      ? paymentMethod 
+      : 'Card';
+
+    await Payment.create({
+      paymentId,
+      userId: req.user._id,
+      userName: req.user.name,
+      gymName: gym.name,
+      paymentType: 'AnnualGymListingFee',
+      paymentMethod: effectiveMethod,
+      amount: feeAmount,
+      commission15Percent: 0,
+      status: 'Completed',
+      transactionRef: transactionRef || `REF-${paymentId}`,
+      methodDetails: `Annual Partner Listing Fee ($${feeAmount}/year)`,
+      approvedBy: 'GymSync Automated Billing'
+    });
+
+    // Notify owner
+    try {
+      await Notification.create({
+        userId: String(req.user._id),
+        recipientId: req.user._id,
+        senderId: req.user._id,
+        sender: 'GymSync Billing',
+        type: 'system',
+        title: 'Gym Facility is Now Online! 🟢',
+        message: `Your annual partner fee of $${feeAmount} for "${gym.name}" has been confirmed. Your facility is now LIVE and visible to trainees on Explore Gyms!`,
+        link: `/gym/${gym._id}`,
+        relatedId: String(gym._id),
+        isRead: false
+      });
+    } catch (nErr) {
+      console.warn('Failed to send notification for annual fee payment:', nErr.message);
+    }
+
+    return res.json({
+      success: true,
+      message: `Annual partner listing fee of $${feeAmount} confirmed! "${gym.name}" is now online and publicly visible.`,
+      gym: {
+        _id: gym._id,
+        name: gym.name,
+        branchName: gym.branchName || gym.name,
+        approvalStatus: gym.approvalStatus,
+        annualSubscriptionFee: gym.annualSubscriptionFee,
+        subscriptionPaid: gym.subscriptionPaid,
+        subscriptionPaidAt: gym.subscriptionPaidAt,
+        subscriptionExpiresAt: gym.subscriptionExpiresAt,
+        isOnline: gym.isOnline,
+        listingStatus: gym.listingStatus
+      }
+    });
+  } catch (error) {
+    console.error('payAnnualGymFee error:', error);
+    return res.status(500).json({ message: 'Failed to process annual partner fee' });
   }
 };

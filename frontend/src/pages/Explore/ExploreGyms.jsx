@@ -162,8 +162,8 @@ const ExploreGyms = () => {
         return has24hFacility || has24hTiming;
       }
 
-      if (activeFilter === 'Under $40') {
-        return (gym.monthlyFee || 0) <= 40;
+      if (activeFilter === 'Under Rs. 5,000' || activeFilter === 'Under $40') {
+        return (gym.monthlyFee || 0) <= 5000;
       }
 
       if (activeFilter === 'Top Rated') {
@@ -171,7 +171,11 @@ const ExploreGyms = () => {
       }
 
       if (activeFilter === 'Trainer Included') {
-        return gym.trainerIncluded === true;
+        return Boolean(gym.trainerIncluded || gym.trainerPolicy?.guidanceTrainer || gym.trainerPolicy?.personalTrainer);
+      }
+
+      if (activeFilter === 'Personal Trainer Available' || activeFilter === 'Personal Trainer') {
+        return Boolean(gym.trainerPolicy?.personalTrainer);
       }
 
       return true;
@@ -286,9 +290,10 @@ const ExploreGyms = () => {
                   <div className="filter-dropdown-list">
                     {[
                       { label: 'All Gyms', value: 'All' },
-                      { label: 'Under $40 / mo', value: 'Under $40' },
+                      { label: 'Under Rs. 5,000 / mo', value: 'Under Rs. 5,000' },
                       { label: 'Top Rated (4.5+ ⭐)', value: 'Top Rated' },
                       { label: 'Trainer Included', value: 'Trainer Included' },
+                      { label: 'Personal Trainer Available', value: 'Personal Trainer Available' },
                       { label: '24 Hours Open', value: '24 Hours' }
                     ].map((item) => {
                       const isSelected = activeFilter === item.value;
@@ -401,19 +406,42 @@ const ExploreGyms = () => {
                     <Star size={12} fill="#f59e0b" color="#f59e0b" />
                     <span>{gym.rating || 4.8}</span>
                   </div>
-                  {gym.trainerIncluded && (
-                    <div className="compact-gym-badge-trainer">
-                      Trainer Included
-                    </div>
-                  )}
+                  {(() => {
+                    const hasGuide = Boolean(gym.trainerPolicy?.guidanceTrainer || (!gym.trainerPolicy && gym.trainerIncluded));
+                    const hasPersonal = Boolean(gym.trainerPolicy?.personalTrainer);
+
+                    if (!hasGuide && !hasPersonal) return null;
+
+                    return (
+                      <div className="compact-gym-badges-left">
+                        {hasGuide && (
+                          <div className="compact-gym-badge-trainer" title="Floor guide trainer included">
+                            Guide Trainer
+                          </div>
+                        )}
+                        {hasPersonal && (
+                          <div className="compact-gym-badge-trainer compact-gym-badge-personal" title="Personal trainer available">
+                            Personal Trainer
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Gym Body Info */}
                 <div className="compact-gym-body">
                   <div className="compact-gym-title-row">
                     <h3 className="compact-gym-name" title={gym.name}>{gym.name}</h3>
-                    <div className="compact-gym-price">
-                      ${gym.monthlyFee}<span>/mo</span>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div className="compact-gym-price">
+                        Rs. {Number(gym.monthlyFee || 0).toLocaleString('en-US')}<span>/mo</span>
+                      </div>
+                      {Number(gym.securityDeposit) > 0 && (
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: 500 }}>
+                          Deposit: Rs. {Number(gym.securityDeposit).toLocaleString('en-US')}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -466,9 +494,9 @@ const ExploreGyms = () => {
                     <button
                       type="button"
                       className="btn btn-primary compact-gym-btn"
-                      onClick={() => navigate(`/gym/${gymId}?subscribe=true`)}
+                      onClick={() => navigate(`/gym/${gymId}?tour=true`)}
                     >
-                      Subscribe
+                      Book Tour
                     </button>
                   </div>
                 </div>

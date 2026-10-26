@@ -7,12 +7,12 @@ const paymentSchema = new mongoose.Schema({
   gymName: { type: String, default: 'GymSync Platform' },
   paymentType: { 
     type: String, 
-    enum: ['GymMembership', 'GymRegistration', 'PlatformSubscription', 'StoreOrder'], 
+    enum: ['GymMembership', 'GymRegistration', 'PlatformSubscription', 'StoreOrder', 'AnnualGymListingFee'], 
     default: 'GymMembership' 
   },
   paymentMethod: { 
     type: String, 
-    enum: ['Stripe', 'Easypaisa', 'JazzCash'], 
+    enum: ['Stripe', 'Easypaisa', 'JazzCash', 'Card'], 
     required: true 
   },
   amount: { type: Number, required: true },

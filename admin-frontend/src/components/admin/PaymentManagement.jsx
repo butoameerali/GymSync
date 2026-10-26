@@ -13,6 +13,7 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
   const [configNumber, setConfigNumber] = useState('');
   const [configDetails, setConfigDetails] = useState('');
   const [configNotes, setConfigNotes] = useState('');
+  const [configAmount, setConfigAmount] = useState(20);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   // Sudo Mode Admin Password State
@@ -51,6 +52,7 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
           setConfigNumber(active.accountNumber || '');
           setConfigDetails(active.bankDetails || '');
           setConfigNotes(active.notes || '');
+          setConfigAmount(active.amount || 20);
         }
       }
 
@@ -74,10 +76,12 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
       setConfigNumber(cfg.accountNumber || '');
       setConfigDetails(cfg.bankDetails || '');
       setConfigNotes(cfg.notes || '');
+      setConfigAmount(cfg.amount || 20);
     } else {
       setConfigNumber('');
       setConfigDetails('');
       setConfigNotes('');
+      setConfigAmount(20);
     }
   };
 
@@ -135,6 +139,7 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
           accountNumber: configNumber.trim(),
           bankDetails: configDetails.trim(),
           notes: configNotes.trim(),
+          amount: Number(configAmount) || 20,
           adminPassword: adminPassword.trim()
         })
       });
@@ -282,10 +287,10 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
             <h3 style={{ margin: 0 }}>Mobile Payment Receiving Accounts (Sudo Protected)</h3>
           </div>
           <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-            Configure the official recipient accounts and instructions shown to users during checkout. Changes require Admin Password verification.
+            Configure official platform receiving accounts and the annual listing fee charged to gym owners after verification. Changes require Admin Password verification.
           </p>
 
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
             <button 
               type="button"
               className={`btn btn-sm ${selectedMethod === 'Easypaisa' ? 'btn-primary' : 'btn-outline'}`}
@@ -300,53 +305,108 @@ const PaymentManagement = ({ isSeniorAdmin, onRefresh }) => {
             >
               JazzCash Account
             </button>
+            <button 
+              type="button"
+              className={`btn btn-sm ${selectedMethod === 'PlatformFee' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => handleSelectMethod('PlatformFee')}
+            >
+              Annual Gym Listing Fee ($)
+            </button>
           </div>
 
           <form onSubmit={handlePromptSudoSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', maxWidth: '800px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                Account / Mobile Phone Number *
-              </label>
-              <input
-                type="text"
-                required
-                className="search-input"
-                value={configNumber}
-                onChange={e => setConfigNumber(e.target.value)}
-                placeholder="e.g. 03XXXXXXXXX"
-              />
-            </div>
+            {selectedMethod === 'PlatformFee' ? (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Annual Gym Listing Fee ($ USD) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    className="search-input"
+                    value={configAmount}
+                    onChange={e => setConfigAmount(e.target.value)}
+                    placeholder="e.g. 20"
+                  />
+                </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                Account Title / Holder Name *
-              </label>
-              <input
-                type="text"
-                required
-                className="search-input"
-                value={configDetails}
-                onChange={e => setConfigDetails(e.target.value)}
-                placeholder="Account Title Name"
-              />
-            </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Fee Title / Program Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="search-input"
+                    value={configDetails}
+                    onChange={e => setConfigDetails(e.target.value)}
+                    placeholder="e.g. GymSync Annual Partner Listing Fee"
+                  />
+                </div>
 
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                Transfer Instructions & Notes for Users
-              </label>
-              <textarea
-                rows="2"
-                className="search-input"
-                value={configNotes}
-                onChange={e => setConfigNotes(e.target.value)}
-                placeholder="Instructions shown to user on Payment Modal..."
-              />
-            </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Policy & Instructions Shown to Gym Owners
+                  </label>
+                  <textarea
+                    rows="2"
+                    className="search-input"
+                    value={configNotes}
+                    onChange={e => setConfigNotes(e.target.value)}
+                    placeholder="e.g. Annual partner fee charged to gym owners after verification approval to activate their facility on Explore Gyms."
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Account / Mobile Phone Number *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="search-input"
+                    value={configNumber}
+                    onChange={e => setConfigNumber(e.target.value)}
+                    placeholder="e.g. 03XXXXXXXXX"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Account Title / Holder Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="search-input"
+                    value={configDetails}
+                    onChange={e => setConfigDetails(e.target.value)}
+                    placeholder="Account Title Name"
+                  />
+                </div>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Transfer Instructions & Notes for Users
+                  </label>
+                  <textarea
+                    rows="2"
+                    className="search-input"
+                    value={configNotes}
+                    onChange={e => setConfigNotes(e.target.value)}
+                    placeholder="Instructions shown to user on Payment Modal..."
+                  />
+                </div>
+              </>
+            )}
 
             <div style={{ gridColumn: '1 / -1' }}>
               <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Lock size={16} /> Save {selectedMethod} Settings (Requires Password)
+                <Lock size={16} /> Save {selectedMethod === 'PlatformFee' ? 'Annual Fee ($)' : selectedMethod} Settings (Requires Password)
               </button>
             </div>
           </form>

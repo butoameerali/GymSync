@@ -13,72 +13,74 @@ const PRESET_CATEGORIES = [
     id: 'popular',
     label: '🔥 Most Popular',
     items: [
-      { name: 'Commercial Treadmill', icon: '🏃', defaultQty: 4 },
-      { name: 'Dumbbell Set (2.5kg - 50kg)', icon: '🏋️', defaultQty: 2 },
-      { name: 'Olympic Barbells & Plates', icon: '🏋️', defaultQty: 3 },
-      { name: 'Power Squat Rack', icon: '🏗️', defaultQty: 2 },
-      { name: 'Cable Crossover Machine', icon: '⚙️', defaultQty: 1 },
-      { name: 'Adjustable Incline Bench', icon: '📐', defaultQty: 3 },
-      { name: 'Stationary Spin Bike', icon: '🚴', defaultQty: 4 },
-      { name: '45-Degree Leg Press', icon: '🦵', defaultQty: 1 },
-      { name: 'Pull-Up & Dip Station', icon: '🤸', defaultQty: 2 },
-      { name: 'High-Density Yoga Mats', icon: '🧘', defaultQty: 10 }
+      { name: 'Commercial Treadmill', icon: '🏃', defaultQty: 4, category: 'Cardio' },
+      { name: 'Dumbbell Set (2.5kg - 50kg)', icon: '🏋️', defaultQty: 2, category: 'Free Weights' },
+      { name: 'Olympic Barbells & Plates', icon: '🏋️', defaultQty: 3, category: 'Free Weights' },
+      { name: 'Power Squat Rack', icon: '🏗️', defaultQty: 2, category: 'Strength Machine' },
+      { name: 'Cable Crossover Machine', icon: '⚙️', defaultQty: 1, category: 'Strength Machine' },
+      { name: 'Adjustable Incline Bench', icon: '📐', defaultQty: 3, category: 'Free Weights' },
+      { name: 'Stationary Spin Bike', icon: '🚴', defaultQty: 4, category: 'Cardio' },
+      { name: '45-Degree Leg Press', icon: '🦵', defaultQty: 1, category: 'Strength Machine' },
+      { name: 'Pull-Up & Dip Station', icon: '🤸', defaultQty: 2, category: 'Functional' },
+      { name: 'High-Density Yoga Mats', icon: '🧘', defaultQty: 10, category: 'Functional' }
     ]
   },
   {
     id: 'cardio',
     label: '🏃 Cardio',
     items: [
-      { name: 'Commercial Treadmill', icon: '🏃', defaultQty: 3 },
-      { name: 'Stationary Spin Bike', icon: '🚴', defaultQty: 3 },
-      { name: 'Elliptical Cross Trainer', icon: '⛷️', defaultQty: 2 },
-      { name: 'Rowing Machine', icon: '🚣', defaultQty: 2 },
-      { name: 'StairMaster / Climber', icon: '🪜', defaultQty: 1 },
-      { name: 'Air Assault Bike', icon: '💨', defaultQty: 2 }
+      { name: 'Commercial Treadmill', icon: '🏃', defaultQty: 3, category: 'Cardio' },
+      { name: 'Stationary Spin Bike', icon: '🚴', defaultQty: 3, category: 'Cardio' },
+      { name: 'Elliptical Cross Trainer', icon: '⛷️', defaultQty: 2, category: 'Cardio' },
+      { name: 'Rowing Machine', icon: '🚣', defaultQty: 2, category: 'Cardio' },
+      { name: 'StairMaster / Climber', icon: '🪜', defaultQty: 1, category: 'Cardio' },
+      { name: 'Air Assault Bike', icon: '💨', defaultQty: 2, category: 'Cardio' }
     ]
   },
   {
     id: 'freeweights',
     label: '🏋️ Free Weights',
     items: [
-      { name: 'Dumbbell Set (2.5kg - 50kg)', icon: '🏋️', defaultQty: 2 },
-      { name: 'Olympic Barbells & Plates', icon: '🏋️', defaultQty: 3 },
-      { name: 'Rubber Bumper Plates Set', icon: '🔘', defaultQty: 4 },
-      { name: 'Adjustable Incline Bench', icon: '📐', defaultQty: 3 },
-      { name: 'Olympic Flat Bench Press', icon: '🛋️', defaultQty: 2 },
-      { name: 'EZ Curl Barbells', icon: '〰️', defaultQty: 2 },
-      { name: 'Kettlebells Set (4kg - 32kg)', icon: '🔔', defaultQty: 2 }
+      { name: 'Dumbbell Set (2.5kg - 50kg)', icon: '🏋️', defaultQty: 2, category: 'Free Weights' },
+      { name: 'Olympic Barbells & Plates', icon: '🏋️', defaultQty: 3, category: 'Free Weights' },
+      { name: 'Rubber Bumper Plates Set', icon: '🔘', defaultQty: 4, category: 'Free Weights' },
+      { name: 'Adjustable Incline Bench', icon: '📐', defaultQty: 3, category: 'Free Weights' },
+      { name: 'Olympic Flat Bench Press', icon: '🛋️', defaultQty: 2, category: 'Free Weights' },
+      { name: 'EZ Curl Barbells', icon: '〰️', defaultQty: 2, category: 'Free Weights' },
+      { name: 'Kettlebells Set (4kg - 32kg)', icon: '🔔', defaultQty: 2, category: 'Free Weights' }
     ]
   },
   {
     id: 'machines',
     label: '⚙️ Strength Machines',
     items: [
-      { name: 'Cable Crossover Machine', icon: '⚙️', defaultQty: 1 },
-      { name: 'Power Squat Rack', icon: '🏗️', defaultQty: 2 },
-      { name: 'Smith Machine', icon: '🏛️', defaultQty: 1 },
-      { name: '45-Degree Leg Press', icon: '🦵', defaultQty: 1 },
-      { name: 'Lat Pulldown & Seated Row', icon: '🧗', defaultQty: 1 },
-      { name: 'Pec Fly / Rear Delt Machine', icon: '💺', defaultQty: 1 },
-      { name: 'Leg Extension & Curl Machine', icon: '🦿', defaultQty: 1 },
-      { name: 'Seated Chest Press', icon: '🪑', defaultQty: 1 },
-      { name: 'Preacher Curl Bench', icon: '💪', defaultQty: 1 }
+      { name: 'Cable Crossover Machine', icon: '⚙️', defaultQty: 1, category: 'Strength Machine' },
+      { name: 'Power Squat Rack', icon: '🏗️', defaultQty: 2, category: 'Strength Machine' },
+      { name: 'Smith Machine', icon: '🏛️', defaultQty: 1, category: 'Strength Machine' },
+      { name: '45-Degree Leg Press', icon: '🦵', defaultQty: 1, category: 'Strength Machine' },
+      { name: 'Lat Pulldown & Seated Row', icon: '🧗', defaultQty: 1, category: 'Strength Machine' },
+      { name: 'Pec Fly / Rear Delt Machine', icon: '💺', defaultQty: 1, category: 'Strength Machine' },
+      { name: 'Leg Extension & Curl Machine', icon: '🦿', defaultQty: 1, category: 'Strength Machine' },
+      { name: 'Seated Chest Press', icon: '🪑', defaultQty: 1, category: 'Strength Machine' },
+      { name: 'Preacher Curl Bench', icon: '💪', defaultQty: 1, category: 'Strength Machine' }
     ]
   },
   {
     id: 'functional',
     label: '🤸 Functional & Boxing',
     items: [
-      { name: 'Pull-Up & Dip Station', icon: '🤸', defaultQty: 2 },
-      { name: 'Heavy Boxing Bag', icon: '🥊', defaultQty: 2 },
-      { name: 'Battle Ropes (50ft)', icon: '➰', defaultQty: 2 },
-      { name: 'Plyometric Jump Boxes', icon: '📦', defaultQty: 3 },
-      { name: 'High-Density Yoga Mats', icon: '🧘', defaultQty: 10 },
-      { name: 'Resistance Bands Set', icon: '🎗️', defaultQty: 5 },
-      { name: 'Medicine & Slam Balls', icon: '⚽', defaultQty: 4 }
+      { name: 'Pull-Up & Dip Station', icon: '🤸', defaultQty: 2, category: 'Functional' },
+      { name: 'Heavy Boxing Bag', icon: '🥊', defaultQty: 2, category: 'Functional' },
+      { name: 'Battle Ropes (50ft)', icon: '➰', defaultQty: 2, category: 'Functional' },
+      { name: 'Plyometric Jump Boxes', icon: '📦', defaultQty: 3, category: 'Functional' },
+      { name: 'High-Density Yoga Mats', icon: '🧘', defaultQty: 10, category: 'Functional' },
+      { name: 'Resistance Bands Set', icon: '🎗️', defaultQty: 5, category: 'Functional' },
+      { name: 'Medicine & Slam Balls', icon: '⚽', defaultQty: 4, category: 'Functional' }
     ]
   }
 ];
+
+const VALID_CATEGORIES = ['Cardio', 'Strength Machine', 'Free Weights', 'Functional', 'Other'];
 
 export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
   const [equipmentList, setEquipmentList] = useState([]);
@@ -89,10 +91,12 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
   const [activeCategory, setActiveCategory] = useState('popular');
   const [customName, setCustomName] = useState('');
   const [customQty, setCustomQty] = useState(1);
+  const [customCategory, setCustomCategory] = useState('Cardio');
 
   // Search & Filter state
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
 
   const customInputRef = useRef(null);
 
@@ -100,7 +104,10 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
   useEffect(() => {
     if (gymData && Array.isArray(gymData.equipmentStatus)) {
       if (!isDirty) {
-        setEquipmentList(gymData.equipmentStatus);
+        setEquipmentList(gymData.equipmentStatus.map(e => ({
+          ...e,
+          category: e.category || 'Other'
+        })));
       }
     }
   }, [gymData]);
@@ -152,6 +159,7 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
       // Add new item to front of list
       const newItem = {
         name: preset.name,
+        category: preset.category || 'Other',
         status: 'Available',
         quantity: preset.defaultQty || 1,
         notes: ''
@@ -176,7 +184,7 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
       setEquipmentList(prev => prev.map(item => {
         if (item.name.trim().toLowerCase() === trimmed.toLowerCase()) {
           const newQty = (parseInt(item.quantity, 10) || 1) + (parseInt(customQty, 10) || 1);
-          return { ...item, quantity: newQty };
+          return { ...item, quantity: newQty, category: customCategory || item.category || 'Other' };
         }
         return item;
       }));
@@ -184,6 +192,7 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
     } else {
       const newItem = {
         name: trimmed,
+        category: customCategory || 'Other',
         status: 'Available',
         quantity: Math.max(1, parseInt(customQty, 10) || 1),
         notes: ''
@@ -257,6 +266,12 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
     setLoading(true);
     try {
       const token = localStorage.getItem('gymsync_token');
+      const sanitizedList = equipmentList.map(item => ({
+        ...item,
+        category: VALID_CATEGORIES.includes(item.category) ? item.category : 'Other',
+        quantity: Math.max(1, parseInt(item.quantity, 10) || 1)
+      }));
+
       const res = await fetch('/api/gym-owner/equipment', {
         method: 'PUT',
         headers: {
@@ -265,7 +280,7 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
         },
         body: JSON.stringify({
           gymId: gymData?._id,
-          equipmentStatus: equipmentList
+          equipmentStatus: sanitizedList
         })
       });
 
@@ -274,7 +289,10 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
 
       // Update state with cleaned server response
       if (Array.isArray(data.equipmentStatus)) {
-        setEquipmentList(data.equipmentStatus);
+        setEquipmentList(data.equipmentStatus.map(e => ({
+          ...e,
+          category: e.category || 'Other'
+        })));
       }
       setIsDirty(false);
 
@@ -292,17 +310,19 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
     }
   };
 
-  // Filtered list based on search and status
+  // Filtered list based on search, status, and category
   const filteredList = useMemo(() => {
     return equipmentList.filter(item => {
       const matchesSearch = !searchFilter.trim() || 
         (item.name && item.name.toLowerCase().includes(searchFilter.toLowerCase())) ||
+        (item.category && item.category.toLowerCase().includes(searchFilter.toLowerCase())) ||
         (item.notes && item.notes.toLowerCase().includes(searchFilter.toLowerCase()));
       
       const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesCategory = categoryFilter === 'ALL' || (item.category || 'Other') === categoryFilter;
+      return matchesSearch && matchesStatus && matchesCategory;
     });
-  }, [equipmentList, searchFilter, statusFilter]);
+  }, [equipmentList, searchFilter, statusFilter, categoryFilter]);
 
   const activeCategoryData = PRESET_CATEGORIES.find(c => c.id === activeCategory) || PRESET_CATEGORIES[0];
 
@@ -455,6 +475,29 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
               />
             </div>
 
+            <div className="fast-add-cat-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Category:</span>
+              <select
+                className="fast-add-cat-select"
+                value={customCategory}
+                onChange={e => setCustomCategory(e.target.value)}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--card-border, #e2e8f0)',
+                  background: 'var(--card-bg, #ffffff)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.85rem'
+                }}
+              >
+                <option value="Cardio">🏃 Cardio</option>
+                <option value="Strength Machine">⚙️ Strength Machine</option>
+                <option value="Free Weights">🏋️ Free Weights</option>
+                <option value="Functional">🤸 Functional</option>
+                <option value="Other">📦 Other</option>
+              </select>
+            </div>
+
             <div className="fast-add-qty-wrapper">
               <span>Qty:</span>
               <input
@@ -482,7 +525,7 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
             </h3>
           </div>
 
-          <div className="inventory-filters">
+          <div className="inventory-filters" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <input
               type="text"
               className="search-filter-input"
@@ -490,6 +533,20 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
               value={searchFilter}
               onChange={e => setSearchFilter(e.target.value)}
             />
+
+            <select
+              className="search-filter-input"
+              value={categoryFilter}
+              onChange={e => setCategoryFilter(e.target.value)}
+              style={{ width: 'auto', minWidth: '135px', padding: '6px 10px', fontSize: '0.85rem' }}
+            >
+              <option value="ALL">All Categories</option>
+              <option value="Cardio">🏃 Cardio</option>
+              <option value="Strength Machine">⚙️ Strength Machine</option>
+              <option value="Free Weights">🏋️ Free Weights</option>
+              <option value="Functional">🤸 Functional</option>
+              <option value="Other">📦 Other</option>
+            </select>
 
             <div style={{ display: 'flex', gap: '4px' }}>
               {['ALL', 'Available', 'Maintenance', 'Unavailable'].map(st => (
@@ -512,11 +569,12 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
             <table className="equipment-modern-table">
               <thead>
                 <tr>
-                  <th style={{ width: '30%' }}>Equipment Name</th>
-                  <th style={{ width: '18%' }}>Quantity</th>
-                  <th style={{ width: '18%' }}>Condition / Status</th>
-                  <th style={{ width: '26%' }}>Notes / Maintenance Info</th>
-                  <th style={{ width: '8%', textAlign: 'center' }}>Remove</th>
+                  <th style={{ width: '25%' }}>Equipment Name</th>
+                  <th style={{ width: '18%' }}>Category</th>
+                  <th style={{ width: '16%' }}>Quantity</th>
+                  <th style={{ width: '16%' }}>Condition / Status</th>
+                  <th style={{ width: '19%' }}>Notes / Maintenance Info</th>
+                  <th style={{ width: '6%', textAlign: 'center' }}>Remove</th>
                 </tr>
               </thead>
               <tbody>
@@ -537,17 +595,52 @@ export default function EquipmentManager({ gymData, onEquipmentUpdated }) {
                       </td>
 
                       <td>
+                        <select
+                          className="form-control"
+                          value={eq.category || 'Other'}
+                          onChange={e => handleChange(realIndex, 'category', e.target.value)}
+                          style={{
+                            fontSize: '0.85rem',
+                            padding: '6px 8px',
+                            borderRadius: '8px',
+                            fontWeight: 500
+                          }}
+                        >
+                          <option value="Cardio">🏃 Cardio</option>
+                          <option value="Strength Machine">⚙️ Strength Machine</option>
+                          <option value="Free Weights">🏋️ Free Weights</option>
+                          <option value="Functional">🤸 Functional</option>
+                          <option value="Other">📦 Other</option>
+                        </select>
+                      </td>
+
+                      <td>
                         <div className="stepper-control">
                           <button
                             type="button"
                             className="stepper-btn"
                             onClick={() => handleStepQty(realIndex, -1)}
-                            disabled={eq.quantity <= 1}
+                            disabled={(parseInt(eq.quantity, 10) || 1) <= 1}
                             title="Decrease quantity"
                           >
                             <Minus size={14} />
                           </button>
-                          <span className="stepper-val">{eq.quantity || 1}</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={eq.quantity || 1}
+                            onChange={e => handleChange(realIndex, 'quantity', Math.max(1, parseInt(e.target.value, 10) || 1))}
+                            style={{
+                              width: '40px',
+                              textAlign: 'center',
+                              border: 'none',
+                              background: 'transparent',
+                              fontWeight: 700,
+                              color: 'var(--text-primary)',
+                              outline: 'none',
+                              fontSize: '0.95rem'
+                            }}
+                          />
                           <button
                             type="button"
                             className="stepper-btn"

@@ -28,6 +28,13 @@ const getDefaultConfigs = () => {
       accountNumber: accountNumber || '',
       bankDetails: 'JazzCash Account - GymSync Payments',
       notes: 'Send proof screenshot after transfer. Admin approval is required.'
+    },
+    {
+      method: 'PlatformFee',
+      accountNumber: 'PLATFORM_ANNUAL_FEE',
+      bankDetails: 'GymSync Annual Partner Listing Fee',
+      notes: 'Annual partner fee charged to gym owners after verification to go online.',
+      amount: 20
     }
   ];
 };
@@ -264,6 +271,18 @@ export const getPaymentConfigs = async (req, res) => {
     let configs = await PaymentConfig.find({});
     if (configs.length === 0) {
       configs = await PaymentConfig.insertMany(getDefaultConfigs());
+    } else {
+      const hasPlatformFee = configs.some(c => c.method === 'PlatformFee');
+      if (!hasPlatformFee) {
+        const feeConfig = await PaymentConfig.create({
+          method: 'PlatformFee',
+          accountNumber: 'PLATFORM_ANNUAL_FEE',
+          bankDetails: 'GymSync Annual Partner Listing Fee',
+          notes: 'Annual partner fee charged to gym owners after verification to go online.',
+          amount: 20
+        });
+        configs.push(feeConfig);
+      }
     }
     return res.json(configs);
   } catch (error) {
@@ -275,9 +294,9 @@ export const getPaymentConfigs = async (req, res) => {
 export const updatePaymentConfig = async (req, res) => {
   try {
     const { method } = req.params;
-    const { accountNumber, bankDetails, notes, adminPassword } = req.body;
+    const { accountNumber, bankDetails, notes, amount, adminPassword } = req.body;
 
-    if (!['Easypaisa', 'JazzCash'].includes(method)) {
+    if (!['Easypaisa', 'JazzCash', 'PlatformFee'].includes(method)) {
       return res.status(400).json({ message: 'Unsupported payment method' });
     }
 
@@ -295,9 +314,14 @@ export const updatePaymentConfig = async (req, res) => {
       return res.status(401).json({ message: 'Incorrect admin password. Action aborted.' });
     }
 
+    const updateFields = { accountNumber, bankDetails, notes };
+    if (method === 'PlatformFee' && amount !== undefined) {
+      updateFields.amount = Number(amount) || 20;
+    }
+
     const config = await PaymentConfig.findOneAndUpdate(
       { method },
-      { accountNumber, bankDetails, notes },
+      updateFields,
       { returnDocument: 'after', upsert: true }
     );
 

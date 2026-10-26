@@ -431,16 +431,29 @@
   gap: 4px;
 }
 
-.compact-gym-badge-trainer {
+.compact-gym-badges-left {
   position: absolute;
   top: 10px;
   left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 2;
+}
+
+.compact-gym-badge-trainer {
   background: rgba(16, 185, 129, 0.9);
   color: #ffffff;
   padding: 3px 8px;
   border-radius: 8px;
   font-size: 0.7rem;
   font-weight: 700;
+  backdrop-filter: blur(4px);
+  width: fit-content;
+}
+
+.compact-gym-badge-personal {
+  background: rgba(37, 99, 235, 0.9);
 }
 
 .compact-gym-body {

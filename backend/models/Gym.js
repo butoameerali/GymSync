@@ -15,11 +15,22 @@ const gymSchema = new mongoose.Schema({
   equipmentImages: [String],
   equipmentStatus: [{
     name: String,
+    category: { 
+      type: String, 
+      enum: ['Cardio', 'Strength Machine', 'Free Weights', 'Functional', 'Other'], 
+      default: 'Other' 
+    },
     status: { type: String, enum: ['Available', 'Maintenance', 'Unavailable'], default: 'Available' },
     quantity: { type: Number, default: 1 },
     notes: String
   }],
   trainerIncluded: { type: Boolean, default: false },
+  trainerPolicy: {
+    guidanceTrainer: { type: Boolean, default: false },        // free general guide trainer (not personal)
+    personalTrainer: { type: Boolean, default: false },        // personal trainer available
+    personalTrainerMonthlyFee: { type: Number, default: 0, min: 0 },
+    notes: { type: String, default: '', maxlength: 300 }
+  },
   organization: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
@@ -57,11 +68,25 @@ const gymSchema = new mongoose.Schema({
   },
   monthlyFee: { type: Number, required: true },
   admissionFee: { type: Number, default: 0 },
+  securityDeposit: { type: Number, default: 0, min: 0 },
+  securityDepositRefundable: { type: Boolean, default: true },
+  yearlyDiscountPercent: { type: Number, default: 0, min: 0, max: 50 },
   bankDetails: { type: String, default: '' },
   equipmentList: [String],
   timings: {
     weekday: { type: String, default: '6:00 AM - 10:00 PM' },
     weekend: { type: String, default: '8:00 AM - 8:00 PM' }
+  },
+  annualSubscriptionFee: { type: Number, default: 20 },
+  subscriptionPaid: { type: Boolean, default: false },
+  subscriptionPaidAt: { type: Date, default: null },
+  subscriptionExpiresAt: { type: Date, default: null },
+  subscriptionPaymentMethod: { type: String, default: '' },
+  isOnline: { type: Boolean, default: false },
+  listingStatus: { 
+    type: String, 
+    enum: ['Offline', 'Pending Verification', 'Pending Payment', 'Online', 'Suspended'], 
+    default: 'Offline' 
   }
 }, { timestamps: true });
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, FileText, Dumbbell, Activity, UserCheck, Trash2, Lock } from 'lucide-react';
+import { Building, Users, Calendar, DollarSign, Plus, CheckCircle, Clock, Edit, FileText, Dumbbell, Activity, UserCheck, Trash2, Lock, Sparkles, CreditCard, ShieldCheck, Eye } from 'lucide-react';
 import { toast } from 'react-toastify';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import Modal from '../../components/common/Modal';
@@ -9,6 +9,7 @@ import StatCard from '../../components/ui/StatCard';
 import EquipmentManager from './EquipmentManager';
 import OffersManager from './OffersManager';
 import BranchVerificationModal from './BranchVerificationModal';
+import AnnualFeeModal from './AnnualFeeModal';
 import { getSafeImageUrl } from '../../utils/imageUtils';
 import './GymOwnerDashboard.css';
 
@@ -62,6 +63,13 @@ const GymOwnerDashboard = () => {
     location: '',
     monthlyFee: 50,
     admissionFee: 0,
+    securityDeposit: 0,
+    securityDepositRefundable: true,
+    yearlyDiscountPercent: 0,
+    guidanceTrainer: false,
+    personalTrainer: false,
+    personalTrainerMonthlyFee: 0,
+    trainerNotes: '',
     bankDetails: '',
     description: 'A premium fitness facility.',
     equipmentListStr: 'Treadmills, Dumbbells, Power Racks, Cable Crossover, Smith Machine',
@@ -84,6 +92,8 @@ const GymOwnerDashboard = () => {
   const [selectedBranchForModal, setSelectedBranchForModal] = useState(null);
   const [branchToDelete, setBranchToDelete] = useState(null);
   const [isDeletingBranch, setIsDeletingBranch] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [branchToPay, setBranchToPay] = useState(null);
 
   const ownerName = localStorage.getItem('gymsync_user_name') || 'Gym Owner';
 
@@ -183,6 +193,13 @@ const GymOwnerDashboard = () => {
             location: data.gym.location || '',
             monthlyFee: data.gym.monthlyFee ?? 50,
             admissionFee: data.gym.admissionFee ?? 0,
+            securityDeposit: data.gym.securityDeposit ?? 0,
+            securityDepositRefundable: data.gym.securityDepositRefundable ?? true,
+            yearlyDiscountPercent: data.gym.yearlyDiscountPercent ?? 0,
+            guidanceTrainer: Boolean(data.gym.trainerPolicy?.guidanceTrainer ?? (data.gym.trainerIncluded && !data.gym.trainerPolicy)),
+            personalTrainer: Boolean(data.gym.trainerPolicy?.personalTrainer ?? false),
+            personalTrainerMonthlyFee: data.gym.trainerPolicy?.personalTrainerMonthlyFee ?? 0,
+            trainerNotes: data.gym.trainerPolicy?.notes || '',
             bankDetails: data.gym.bankDetails || '',
             description: data.gym.description || 'A premium fitness facility.',
             equipmentListStr: (data.gym.equipmentList && data.gym.equipmentList.length > 0)
@@ -332,8 +349,17 @@ const GymOwnerDashboard = () => {
         body: JSON.stringify({
           name: gymProfile.name,
           location: gymProfile.location,
-          monthlyFee: Number(gymProfile.monthlyFee),
-          admissionFee: Number(gymProfile.admissionFee),
+          monthlyFee: Number(gymProfile.monthlyFee) || 0,
+          admissionFee: Number(gymProfile.admissionFee) || 0,
+          securityDeposit: Number(gymProfile.securityDeposit) || 0,
+          securityDepositRefundable: Boolean(gymProfile.securityDepositRefundable),
+          yearlyDiscountPercent: Number(gymProfile.yearlyDiscountPercent) || 0,
+          trainerPolicy: {
+            guidanceTrainer: Boolean(gymProfile.guidanceTrainer),
+            personalTrainer: Boolean(gymProfile.personalTrainer),
+            personalTrainerMonthlyFee: Number(gymProfile.personalTrainerMonthlyFee) || 0,
+            notes: gymProfile.trainerNotes || ''
+          },
           bankDetails: gymProfile.bankDetails,
           description: gymProfile.description,
           equipmentList: gymProfile.equipmentListStr.split(',').map(item => item.trim()),
@@ -374,6 +400,9 @@ const GymOwnerDashboard = () => {
         }
         setIsEditingGym(false);
         fetchDashboardData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || 'Failed to update gym profile');
       }
     } catch {
       toast.error('Error saving gym details');
@@ -485,6 +514,49 @@ const GymOwnerDashboard = () => {
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <div className="overview-container">
+                {branches.some(b => b.approvalStatus === 'Approved' && !b.subscriptionPaid) && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%)',
+                    border: '1px solid rgba(59, 130, 246, 0.4)',
+                    borderRadius: '14px',
+                    padding: '16px 20px',
+                    marginBottom: '24px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ background: '#3b82f6', color: '#fff', borderRadius: '10px', padding: '10px' }}>
+                        <Sparkles size={24} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                          🎉 Facility Verification Approved!
+                        </h4>
+                        <p style={{ margin: '3px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                          Pay the annual partner listing fee (${branches.find(b => b.approvalStatus === 'Approved' && !b.subscriptionPaid)?.annualSubscriptionFee || 20}/year) to take your gym live on Explore Gyms.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        const target = branches.find(b => b.approvalStatus === 'Approved' && !b.subscriptionPaid);
+                        if (target) {
+                          setBranchToPay(target);
+                          setShowPaymentModal(true);
+                        }
+                      }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <CreditCard size={16} /> Pay Fee & Go Online
+                    </button>
+                  </div>
+                )}
+
                 <div className="stats-grid">
                   <div className="stat-card glass-panel">
                     <div className="stat-icon purple"><Users size={24} /></div>
@@ -506,7 +578,7 @@ const GymOwnerDashboard = () => {
                     <div className="stat-icon blue"><DollarSign size={24} /></div>
                     <div>
                       <span className="stat-label">Est. Monthly Revenue</span>
-                      <h3 className="stat-value">${dashboardData?.stats?.monthlyRevenue ?? 0}</h3>
+                      <h3 className="stat-value">Rs. {dashboardData?.stats?.monthlyRevenue ?? 0}</h3>
                     </div>
                   </div>
 
@@ -514,7 +586,7 @@ const GymOwnerDashboard = () => {
                     <div className="stat-icon amber"><DollarSign size={24} /></div>
                     <div>
                       <span className="stat-label">15% GymSync Commission Owed</span>
-                      <h3 className="stat-value" style={{ color: '#f59e0b' }}>${(dashboardData?.stats?.commission15PercentOwed || 0).toFixed(2)}</h3>
+                      <h3 className="stat-value" style={{ color: '#f59e0b' }}>Rs. {(dashboardData?.stats?.commission15PercentOwed || 0).toFixed(2)}</h3>
                     </div>
                   </div>
                 </div>
@@ -715,6 +787,61 @@ const GymOwnerDashboard = () => {
                                 </ul>
                               </div>
                             )}
+
+                            {/* Verification Approved - Online vs Awaiting Payment State */}
+                            {status === 'Approved' && (
+                              b.subscriptionPaid || b.isOnline ? (
+                                <div style={{
+                                  background: 'rgba(16, 185, 129, 0.1)',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  borderRadius: '10px',
+                                  padding: '10px 14px',
+                                  marginBottom: '12px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '0.95rem' }}>🟢</span>
+                                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#10b981' }}>
+                                      Live & Online
+                                    </span>
+                                  </div>
+                                  <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                                    Fee Paid (${b.annualSubscriptionFee || 20}/yr)
+                                  </span>
+                                </div>
+                              ) : (
+                                <div style={{
+                                  background: 'rgba(59, 130, 246, 0.09)',
+                                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                                  borderRadius: '10px',
+                                  padding: '12px 14px',
+                                  marginBottom: '12px'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                    <Sparkles size={16} color="#38bdf8" />
+                                    <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                                      Verification Approved!
+                                    </strong>
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                    Pay the <strong>${b.annualSubscriptionFee || 20}/year</strong> partner fee to take your facility live on Explore Gyms.
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm"
+                                    style={{ marginTop: '10px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.82rem' }}
+                                    onClick={() => {
+                                      setBranchToPay(b);
+                                      setShowPaymentModal(true);
+                                    }}
+                                  >
+                                    <CreditCard size={15} /> Pay ${b.annualSubscriptionFee || 20} & Activate Online
+                                  </button>
+                                </div>
+                              )
+                            )}
                           </div>
 
                           <div style={{ display: 'flex', gap: '10px', marginTop: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -732,14 +859,27 @@ const GymOwnerDashboard = () => {
                                 : 'View Application'}
                             </button>
                             {status === 'Approved' && (
-                              <button
-                                type="button"
-                                onClick={() => setActiveTab('overview')}
-                                className="btn btn-primary btn-sm"
-                                style={{ fontSize: '0.82rem' }}
-                              >
-                                Manage
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab('overview')}
+                                  className="btn btn-primary btn-sm"
+                                  style={{ fontSize: '0.82rem' }}
+                                >
+                                  Manage
+                                </button>
+                                {(b.subscriptionPaid || b.isOnline) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => window.open(`/gym/${b._id}`, '_blank')}
+                                    className="btn btn-outline btn-sm"
+                                    style={{ fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                    title="View public gym profile on Explore Gyms"
+                                  >
+                                    <Eye size={13} /> View Public
+                                  </button>
+                                )}
+                              </>
                             )}
                             <button
                               type="button"
@@ -916,9 +1056,28 @@ const GymOwnerDashboard = () => {
                       {dashboardData.gym.city ? `, ${dashboardData.gym.city}` : ''}
                       {dashboardData.gym.country ? `, ${dashboardData.gym.country}` : ''}
                     </p>
-                    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-                      <div><strong>Monthly Fee:</strong> ${dashboardData.gym.monthlyFee}</div>
-                      <div><strong>Admission Fee:</strong> ${dashboardData.gym.admissionFee || 0}</div>
+                    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                      <div><strong>Monthly Fee:</strong> Rs. {dashboardData.gym.monthlyFee}</div>
+                      <div><strong>Admission Fee:</strong> Rs. {dashboardData.gym.admissionFee || 0}</div>
+                      <div><strong>Security Deposit:</strong> Rs. {dashboardData.gym.securityDeposit || 0} {dashboardData.gym.securityDepositRefundable !== false ? '(Refundable)' : '(Non-Refundable)'}</div>
+                      <div><strong>Yearly Discount:</strong> {dashboardData.gym.yearlyDiscountPercent || 0}%</div>
+                    </div>
+                    {/* Trainer Policy Summary */}
+                    <div style={{ background: 'var(--card-bg-light, rgba(255,255,255,0.03))', padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', border: '1px solid var(--border-color, rgba(255,255,255,0.1))' }}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95rem' }}>Trainer Policy</h4>
+                      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                        <div>
+                          Guide Trainer: <strong style={{ color: dashboardData.gym.trainerPolicy?.guidanceTrainer ? '#10b981' : 'inherit' }}>{dashboardData.gym.trainerPolicy?.guidanceTrainer ? 'Yes (Free Guidance)' : 'No'}</strong>
+                        </div>
+                        <div>
+                          Personal Trainer: <strong style={{ color: dashboardData.gym.trainerPolicy?.personalTrainer ? '#10b981' : 'inherit' }}>{dashboardData.gym.trainerPolicy?.personalTrainer ? `Available (Rs. ${dashboardData.gym.trainerPolicy?.personalTrainerMonthlyFee || 0}/mo)` : 'Not Available'}</strong>
+                        </div>
+                      </div>
+                      {dashboardData.gym.trainerPolicy?.notes && (
+                        <p style={{ margin: '8px 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                          "{dashboardData.gym.trainerPolicy.notes}"
+                        </p>
+                      )}
                     </div>
                     {dashboardData.gym.description && (
                       <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '12px', marginBottom: '20px' }}>
@@ -981,15 +1140,122 @@ const GymOwnerDashboard = () => {
                       />
                     </div>
 
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Monthly Subscription Fee ($)</label>
-                      <input 
-                        type="number" 
-                        required 
-                        className="search-input" 
-                        value={gymProfile.monthlyFee}
-                        onChange={e => setGymProfile({ ...gymProfile, monthlyFee: e.target.value })}
-                      />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Monthly Subscription Fee (Rs.)</label>
+                        <input 
+                          type="number" 
+                          required 
+                          min="0"
+                          className="search-input" 
+                          value={gymProfile.monthlyFee}
+                          onChange={e => setGymProfile({ ...gymProfile, monthlyFee: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Admission Fee (Rs.)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="search-input"
+                          value={gymProfile.admissionFee}
+                          onChange={e => setGymProfile({ ...gymProfile, admissionFee: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Security Deposit (Rs.)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="search-input"
+                          value={gymProfile.securityDeposit}
+                          onChange={e => setGymProfile({ ...gymProfile, securityDeposit: e.target.value })}
+                        />
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '8px', fontSize: '0.85rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                          <input
+                            type="checkbox"
+                            checked={gymProfile.securityDepositRefundable}
+                            onChange={e => setGymProfile({ ...gymProfile, securityDepositRefundable: e.target.checked })}
+                          />
+                          Refundable Security Deposit
+                        </label>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Yearly Plan Discount (%)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="50"
+                          className="search-input"
+                          placeholder="e.g. 15 for 15% off"
+                          value={gymProfile.yearlyDiscountPercent}
+                          onChange={e => setGymProfile({ ...gymProfile, yearlyDiscountPercent: e.target.value })}
+                        />
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
+                          Discount applies to 12-month memberships (0% - 50%)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Trainer Policy Section */}
+                    <div style={{ background: 'var(--card-bg-light, rgba(255,255,255,0.03))', border: '1px solid var(--border-color, rgba(255,255,255,0.1))', borderRadius: '10px', padding: '16px' }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem' }}>Trainer Policy &amp; Services</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={gymProfile.guidanceTrainer}
+                            onChange={e => setGymProfile({ ...gymProfile, guidanceTrainer: e.target.checked })}
+                          />
+                          Guide trainer available (free, general guidance)
+                        </label>
+
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={gymProfile.personalTrainer}
+                            onChange={e => setGymProfile({ ...gymProfile, personalTrainer: e.target.checked })}
+                          />
+                          Personal trainer available
+                        </label>
+
+                        {gymProfile.personalTrainer && (
+                          <div style={{ marginLeft: '24px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.83rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                                Personal trainer monthly fee (Rs.)
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                className="search-input"
+                                style={{ maxWidth: '300px' }}
+                                value={gymProfile.personalTrainerMonthlyFee}
+                                onChange={e => setGymProfile({ ...gymProfile, personalTrainerMonthlyFee: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.83rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                            Trainer Policy Notes (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={300}
+                            className="search-input"
+                            placeholder="e.g. Free general guidance trainers always on duty; 1-on-1 PT packages available"
+                            value={gymProfile.trainerNotes}
+                            onChange={e => setGymProfile({ ...gymProfile, trainerNotes: e.target.value })}
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div>
@@ -999,16 +1265,6 @@ const GymOwnerDashboard = () => {
                         className="search-input" 
                         value={gymProfile.description}
                         onChange={e => setGymProfile({ ...gymProfile, description: e.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Admission Fee</label>
-                      <input
-                        type="number"
-                        className="search-input"
-                        value={gymProfile.admissionFee}
-                        onChange={e => setGymProfile({ ...gymProfile, admissionFee: e.target.value })}
                       />
                     </div>
 
@@ -1278,6 +1534,20 @@ const GymOwnerDashboard = () => {
             setSelectedBranchForModal(null);
           }}
           onBranchUpdated={() => {
+            fetchBranches();
+            fetchDashboardData();
+          }}
+        />
+      )}
+      {showPaymentModal && branchToPay && (
+        <AnnualFeeModal
+          isOpen={showPaymentModal}
+          branch={branchToPay}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setBranchToPay(null);
+          }}
+          onSuccess={() => {
             fetchBranches();
             fetchDashboardData();
           }}
