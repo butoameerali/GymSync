@@ -15,7 +15,7 @@ import ProfileGigTab from './ProfileGigTab';
 import ProfileVerifyEmailModal from './ProfileVerifyEmailModal';
 import TodaysEnergyCard from './TodaysEnergyCard';
 import TrainerProfile from '../GymTrainer/TrainerProfile';
-import GymOwnerProfile from './GymOwnerProfile';
+import GymOwnerProfileRedirect from './GymOwnerProfileRedirect';
 import StoreManagerProfile from './StoreManagerProfile';
 import FitnessInstructorProfile from './FitnessInstructorProfile';
 import AdminProfile from './AdminProfile';
@@ -29,9 +29,9 @@ const Profile = () => {
     return <TrainerProfile />;
   }
 
-  // 2. Dedicated Gym Owner Business Profile
+  // 2. Dedicated Gym Owner Facility Profile (Unified with /gym/:id)
   if (normalizedRole === 'gymowner' || normalizedRole === 'gym_owner') {
-    return <GymOwnerProfile />;
+    return <GymOwnerProfileRedirect />;
   }
 
   // 3. Dedicated Store Manager Profile

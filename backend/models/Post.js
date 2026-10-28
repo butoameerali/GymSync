@@ -4,7 +4,15 @@ const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   authorName: { type: String, default: 'Unknown User' },
   authorRole: { type: String, default: 'User' },
-  content: { type: String, required: true },
+  gymId: { type: mongoose.Schema.Types.ObjectId, ref: 'Gym' },
+  gymName: { type: String, default: '' },
+  isGymPost: { type: Boolean, default: false },
+  postType: { 
+    type: String, 
+    enum: ['announcement', 'tip', 'offer', 'update'], 
+    default: 'announcement' 
+  },
+  content: { type: String, default: '' },
   mediaUrl: { type: String },
   isCashback: { type: Boolean, default: false },
   cashbackAmount: { type: Number, default: 0 },
@@ -38,12 +46,14 @@ const postSchema = new mongoose.Schema({
   },
   likes: [{ type: String }],
   comments: [{
+    _id: { type: mongoose.Schema.Types.Mixed, default: () => new mongoose.Types.ObjectId() },
     text: { type: String },
     author: { type: String },
     authorName: { type: String },
     authorPic: { type: String },
     date: { type: Date, default: Date.now },
     replies: [{
+      _id: { type: mongoose.Schema.Types.Mixed, default: () => new mongoose.Types.ObjectId() },
       text: { type: String },
       author: { type: String },
       authorName: { type: String },
@@ -70,6 +80,7 @@ const postSchema = new mongoose.Schema({
 
 postSchema.index({ author: 1 });
 postSchema.index({ authorName: 1 });
+postSchema.index({ gymId: 1, createdAt: -1 });
 postSchema.index({ createdAt: -1 });
 postSchema.index({ author: 1, createdAt: -1 });
 

@@ -96,7 +96,7 @@ export const getPostById = async (req, res) => {
 // @route   POST /api/posts
 // @access  Private
 export const createPost = async (req, res) => {
-  const { content } = req.body;
+  const { content, gymId, gymName, postType } = req.body;
   let mediaUrl = '';
   
   if (req.file) {
@@ -135,15 +135,19 @@ export const createPost = async (req, res) => {
     }
 
     const authorId = req.user?._id || new mongoose.Types.ObjectId();
-    const authorName = req.user?.name || 'User';
-    const authorRole = req.user?.role || 'User';
+    const authorName = (req.body.authorName && req.body.authorName.trim()) || req.user?.name || 'User';
+    const authorRole = (req.body.authorRole && req.body.authorRole.trim()) || req.user?.role || 'User';
 
     const createdPost = await insertPost({
       authorId,
       authorName,
       authorRole,
       content: content?.trim() || '',
-      mediaUrl
+      mediaUrl,
+      gymId: gymId || null,
+      gymName: gymName || '',
+      isGymPost: Boolean(gymId),
+      postType: postType || 'announcement'
     });
 
     res.status(201).json(createdPost);

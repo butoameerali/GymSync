@@ -15,14 +15,15 @@ import { safeRegex, safeExactRegex, isValidObjectId } from '../utils/validation.
 // ==============================================================================
 
 export const fetchAllPosts = async () => {
-  // Authoritative MongoDB Query (carries live moderation flags, comments, and replies)
+  let mongoPosts = [];
   try {
-    const mongoPosts = await Post.find({ isModerated: { $ne: true } }).populate('author', 'name role').sort({ createdAt: -1 }).lean();
-    if (mongoPosts && mongoPosts.length > 0) {
-      return mongoPosts;
-    }
+    mongoPosts = await Post.find({ isModerated: { $ne: true } })
+      .populate('author', 'name role')
+      .sort({ createdAt: -1 })
+      .lean();
   } catch (e) {
-    console.warn('MongoDB fetchAllPosts fallback to Supabase:', e.message);
+    console.warn('MongoDB fetchAllPosts error:', e.message);
+    mongoPosts = [];
   }
 
   if (isSupabaseConfigured() && supabase) {
@@ -32,41 +33,84 @@ export const fetchAllPosts = async () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (!error && Array.isArray(data)) {
+        const existingMongoIds = new Set(mongoPosts.map(p => String(p._id)));
+        
+        for (const p of data) {
+          if (p.is_moderated) continue;
+          const matchesExisting = (p.mongo_id && existingMongoIds.has(String(p.mongo_id))) ||
+                                  existingMongoIds.has(String(p.id));
+          if (!matchesExisting) {
+            // Also backfill this Supabase post into MongoDB if it's missing from Mongo
+            try {
+              const newMongoDoc = await Post.create({
+                authorName: p.author_name || 'User',
+                authorRole: p.author_role || 'User',
+                content: p.content || '',
+                mediaUrl: p.media_url || '',
+                likes: p.likes || [],
+                comments: p.comments || [],
+                gymId: p.gym_id || null,
+                gymName: p.gym_name || '',
+                isGymPost: Boolean(p.is_gym_post || p.gym_id),
+                postType: p.post_type || 'announcement',
+                createdAt: p.created_at ? new Date(p.created_at) : new Date(),
+                updatedAt: p.updated_at ? new Date(p.updated_at) : new Date()
+              });
+              // Update the Supabase record with its new mongo_id
+              await supabase
+                .from('posts')
+                .update({ mongo_id: String(newMongoDoc._id) })
+                .eq('id', p.id);
 
-      // Transform snake_case columns to camelCase expected by frontend
-      return (data || [])
-        .filter(p => !p.is_moderated)
-        .map(p => ({
-        _id: p.mongo_id || p.id,
-        supabaseId: p.id,
-        author: p.author_id,
-        authorName: p.author_name,
-        authorRole: p.author_role,
-        content: p.content,
-        mediaUrl: p.media_url,
-        likes: p.likes || [],
-        comments: p.comments || [],
-        reportCount: p.report_count || 0,
-        approvalStatus: p.approval_status,
-        commentRestriction: p.comment_restriction,
-        createdAt: p.created_at,
-        updatedAt: p.updated_at
-      }));
+              mongoPosts.push(newMongoDoc.toObject());
+              existingMongoIds.add(String(newMongoDoc._id));
+            } catch (syncErr) {
+              // If MongoDB creation fails, still include it in memory for the response
+              mongoPosts.push({
+                _id: p.mongo_id || p.id,
+                supabaseId: p.id,
+                author: p.author_id,
+                authorName: p.author_name,
+                authorRole: p.author_role,
+                content: p.content,
+                mediaUrl: p.media_url,
+                likes: p.likes || [],
+                comments: p.comments || [],
+                gymId: p.gym_id || null,
+                gymName: p.gym_name || '',
+                isGymPost: Boolean(p.is_gym_post || p.gym_id),
+                postType: p.post_type || 'announcement',
+                reportCount: p.report_count || 0,
+                approvalStatus: p.approval_status || 'published',
+                commentRestriction: p.comment_restriction || 'SubscribersOnly',
+                createdAt: p.created_at,
+                updatedAt: p.updated_at
+              });
+            }
+          }
+        }
+      }
     } catch (err) {
       console.warn(`[Supabase fetchAllPosts Error]: ${err.message}.`);
     }
   }
 
-  return [];
+  // Sort all posts with newest first
+  mongoPosts.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  return mongoPosts;
 };
 
-export const insertPost = async ({ authorId, authorName, authorRole, content, mediaUrl }) => {
+export const insertPost = async ({ authorId, authorName, authorRole, content, mediaUrl, gymId, gymName, isGymPost, postType }) => {
   // Always save to MongoDB (authoritative primary store)
   const post = new Post({
     author: authorId,
     authorName: authorName || 'User',
     authorRole: authorRole || 'User',
+    gymId: gymId || null,
+    gymName: gymName || '',
+    isGymPost: Boolean(isGymPost || gymId),
+    postType: postType || 'announcement',
     content: content || '',
     mediaUrl: mediaUrl || '',
     likes: [],
@@ -84,6 +128,10 @@ export const insertPost = async ({ authorId, authorName, authorRole, content, me
           author_id: String(authorId),
           author_name: authorName || 'User',
           author_role: authorRole || 'User',
+          gym_id: gymId ? String(gymId) : null,
+          gym_name: gymName || '',
+          is_gym_post: Boolean(isGymPost || gymId),
+          post_type: postType || 'announcement',
           content: content || '',
           media_url: mediaUrl || '',
           likes: [],
@@ -98,9 +146,29 @@ export const insertPost = async ({ authorId, authorName, authorRole, content, me
 };
 
 export const updatePostLikes = async (postId, userName) => {
+  let updatedLikes = null;
+
+  // MongoDB Atomic Update
+  if (isValidObjectId(postId)) {
+    try {
+      const existing = await Post.findById(postId).select('likes').lean();
+      if (existing) {
+        const isLiked = (existing.likes || []).includes(userName);
+        const updateOp = isLiked
+          ? { $pull: { likes: userName } }
+          : { $addToSet: { likes: userName } };
+
+        const updated = await Post.findByIdAndUpdate(postId, updateOp, { new: true, runValidators: false }).select('likes').lean();
+        if (updated) updatedLikes = updated.likes;
+      }
+    } catch (mErr) {
+      console.warn('MongoDB updatePostLikes warning:', mErr.message);
+    }
+  }
+
+  // Dual-mirror to Supabase
   if (isSupabaseConfigured() && supabase) {
     try {
-      // Fetch post from Supabase
       const { data: post, error: fetchErr } = await supabase
         .from('posts')
         .select('likes')
@@ -110,36 +178,43 @@ export const updatePostLikes = async (postId, userName) => {
       if (!fetchErr && post) {
         let currentLikes = post.likes || [];
         const isLiked = currentLikes.includes(userName);
-        const updatedLikes = isLiked
+        const nextLikes = isLiked
           ? currentLikes.filter(u => u !== userName)
           : [...currentLikes, userName];
 
         const { error: updateErr } = await supabase
           .from('posts')
-          .update({ likes: updatedLikes, updated_at: new Date().toISOString() })
+          .update({ likes: nextLikes, updated_at: new Date().toISOString() })
           .or(`id.eq.${postId},mongo_id.eq.${postId}`);
 
-        if (!updateErr) return { likes: updatedLikes };
+        if (!updateErr && !updatedLikes) updatedLikes = nextLikes;
       }
     } catch (err) {
-      console.warn(`[Supabase updatePostLikes Error]: ${err.message}. Falling back to MongoDB.`);
+      console.warn(`[Supabase updatePostLikes Error]: ${err.message}`);
     }
   }
 
-  // MongoDB Atomic Update
-  if (!isValidObjectId(postId)) return null;
-  const existing = await Post.findById(postId).select('likes').lean();
-  if (!existing) return null;
-  const isLiked = (existing.likes || []).includes(userName);
-  const updateOp = isLiked
-    ? { $pull: { likes: userName } }
-    : { $addToSet: { likes: userName } };
-
-  const updated = await Post.findByIdAndUpdate(postId, updateOp, { new: true, runValidators: false }).select('likes').lean();
-  return { likes: updated ? updated.likes : [] };
+  return { likes: updatedLikes || [] };
 };
 
 export const appendPostComment = async (postId, comment) => {
+  let updatedComments = null;
+
+  // MongoDB Atomic Push
+  if (isValidObjectId(postId)) {
+    try {
+      const updated = await Post.findByIdAndUpdate(
+        postId,
+        { $push: { comments: comment } },
+        { new: true, runValidators: false }
+      ).select('comments').lean();
+      if (updated) updatedComments = updated.comments;
+    } catch (mErr) {
+      console.warn('MongoDB appendPostComment warning:', mErr.message);
+    }
+  }
+
+  // Dual-mirror to Supabase
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data: post, error: fetchErr } = await supabase
@@ -155,24 +230,42 @@ export const appendPostComment = async (postId, comment) => {
           .update({ comments, updated_at: new Date().toISOString() })
           .or(`id.eq.${postId},mongo_id.eq.${postId}`);
 
-        if (!updateErr) return comments;
+        if (!updateErr && !updatedComments) updatedComments = comments;
       }
     } catch (err) {
-      console.warn(`[Supabase appendPostComment Error]: ${err.message}. Falling back to MongoDB.`);
+      console.warn(`[Supabase appendPostComment Error]: ${err.message}`);
     }
   }
 
-  // MongoDB Atomic Push
-  if (!isValidObjectId(postId)) return null;
-  const updated = await Post.findByIdAndUpdate(
-    postId,
-    { $push: { comments: comment } },
-    { new: true, runValidators: false }
-  ).select('comments').lean();
-  return updated ? updated.comments : null;
+  return updatedComments;
 };
 
 export const removePost = async (postId, userName, isModerator) => {
+  let deletedFromMongo = false;
+  let deletedFromSupa = false;
+
+  // 1. Try deleting from MongoDB
+  try {
+    let mongoPost = null;
+    if (isValidObjectId(postId)) {
+      mongoPost = await Post.findById(postId);
+    }
+    if (!mongoPost) {
+      mongoPost = await Post.findOne({ _id: postId }).catch(() => null);
+    }
+    if (mongoPost) {
+      if (mongoPost.authorName !== userName && !isModerator) {
+        throw new Error('Unauthorized');
+      }
+      await mongoPost.deleteOne();
+      deletedFromMongo = true;
+    }
+  } catch (err) {
+    if (err.message === 'Unauthorized') throw err;
+    console.warn('MongoDB removePost error:', err.message);
+  }
+
+  // 2. Try deleting from Supabase
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data: post, error: fetchErr } = await supabase
@@ -191,22 +284,15 @@ export const removePost = async (postId, userName, isModerator) => {
           .delete()
           .or(`id.eq.${postId},mongo_id.eq.${postId}`);
 
-        if (!delErr) return true;
+        if (!delErr) deletedFromSupa = true;
       }
     } catch (err) {
       if (err.message === 'Unauthorized') throw err;
-      console.warn(`[Supabase removePost Error]: ${err.message}. Falling back to MongoDB.`);
+      console.warn(`[Supabase removePost Error]: ${err.message}`);
     }
   }
 
-  // MongoDB Fallback
-  const mongoPost = await Post.findById(postId);
-  if (!mongoPost) return null;
-  if (mongoPost.authorName !== userName && !isModerator) {
-    throw new Error('Unauthorized');
-  }
-  await mongoPost.deleteOne();
-  return true;
+  return deletedFromMongo || deletedFromSupa;
 };
 
 export const addPostReply = async (postId, commentId, reply) => {

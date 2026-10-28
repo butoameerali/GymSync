@@ -212,6 +212,7 @@ export const updateGymProfile = async (req, res) => {
         if (typeof tipPayload !== 'undefined') gym.todayTrainingTip = tipPayload;
         if (typeof req.body.contactPhone !== 'undefined') gym.contactPhone = req.body.contactPhone;
         if (typeof req.body.contactEmail !== 'undefined') gym.contactEmail = req.body.contactEmail;
+        if (typeof req.body.logo !== 'undefined') gym.logo = req.body.logo;
         if (Array.isArray(req.body.photos)) gym.photos = req.body.photos;
         await gym.save();
         return res.json(gym);

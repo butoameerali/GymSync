@@ -50,6 +50,7 @@ const gymSchema = new mongoose.Schema({
   gymType: { type: String, default: 'Commercial Gym' },
   contactPhone: { type: String, default: '' },
   contactEmail: { type: String, default: '' },
+  logo: { type: String, default: '' },
   photos: [String],
   verificationApplication: {
     type: mongoose.Schema.Types.ObjectId,
