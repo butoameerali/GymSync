@@ -368,11 +368,31 @@ const ExerciseDetailView = ({
               />
             )
           ) : (
-            <img
-              src={rawMedia}
-              alt={currentExercise.name}
-              style={{ width: '100%', maxHeight: '360px', objectFit: 'contain' }}
-            />
+            <div
+              style={{
+                background: 'radial-gradient(circle at center, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%)',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '260px',
+                width: '100%',
+                boxSizing: 'border-box',
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.08)'
+              }}
+            >
+              <img
+                src={rawMedia}
+                alt={currentExercise.name}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '340px',
+                  objectFit: 'contain',
+                  filter: 'url(#remove-white-bg)'
+                }}
+              />
+            </div>
           )
         ) : (
           <div

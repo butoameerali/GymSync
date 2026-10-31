@@ -248,7 +248,7 @@ export const MissionRunner = ({
   if (phase === 'brief') {
     return renderOverlay(
       <div className="mission-runner-overlay">
-        <div className="mission-runner-content glass-panel">
+        <div className="mission-runner-content">
           <button 
             className="mission-close-btn"
             onClick={onCancel}
@@ -276,13 +276,13 @@ export const MissionRunner = ({
             </div>
             <div className="mission-detail-item">
               <span className="mission-detail-label">Estimated Energy Burn</span>
-              <span className="mission-detail-value" style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span className="mission-detail-value mission-burn-val">
                 <Flame size={16} /> ~{burnedKcal} kcal
               </span>
             </div>
             <div className="mission-detail-item">
               <span className="mission-detail-label">Reward Points</span>
-              <span className="mission-detail-value" style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span className="mission-detail-value mission-reward-val">
                 <Award size={16} /> +{earnedXP} XP
               </span>
             </div>
@@ -298,18 +298,10 @@ export const MissionRunner = ({
               return (
                 <div 
                   key={idx} 
-                  className="mission-preview-card"
-                  style={{
-                    border: isCurrent && !isAlreadyDone ? '1px solid #3b82f6' : isAlreadyDone ? '1px solid rgba(16, 185, 129, 0.4)' : undefined,
-                    background: isCurrent && !isAlreadyDone ? 'rgba(59, 130, 246, 0.08)' : isAlreadyDone ? 'rgba(16, 185, 129, 0.05)' : undefined
-                  }}
+                  className={`mission-preview-card ${isCurrent && !isAlreadyDone ? 'is-current' : ''} ${isAlreadyDone ? 'is-done' : ''}`}
                 >
                   <div 
-                    className="mission-preview-number"
-                    style={{
-                      background: isAlreadyDone ? 'rgba(16, 185, 129, 0.15)' : ex.isWarmup ? 'rgba(245, 158, 11, 0.15)' : undefined,
-                      color: isAlreadyDone ? '#10b981' : ex.isWarmup ? '#f59e0b' : undefined
-                    }}
+                    className={`mission-preview-number ${isAlreadyDone ? 'is-done' : ''} ${ex.isWarmup && !isAlreadyDone ? 'is-warmup' : ''}`}
                   >
                     {isAlreadyDone ? '✓' : idx + 1}
                   </div>
@@ -327,17 +319,17 @@ export const MissionRunner = ({
                   </div>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     {isAlreadyDone && (
-                      <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700, background: 'rgba(16, 185, 129, 0.15)', padding: '2px 7px', borderRadius: '5px' }}>
+                      <span className="mission-status-pill done">
                         ✓ Done
                       </span>
                     )}
                     {isCurrent && !isAlreadyDone && (
-                      <span style={{ fontSize: '0.72rem', color: '#3b82f6', fontWeight: 700, background: 'rgba(59, 130, 246, 0.15)', padding: '2px 7px', borderRadius: '5px' }}>
+                      <span className="mission-status-pill start-here">
                         👉 Start Here
                       </span>
                     )}
                     {ex.isWarmup && (
-                      <span style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700, background: 'rgba(245, 158, 11, 0.15)', padding: '2px 7px', borderRadius: '5px' }}>
+                      <span className="mission-status-pill warmup">
                         Warm-Up
                       </span>
                     )}
@@ -366,7 +358,7 @@ export const MissionRunner = ({
 
     return renderOverlay(
       <div className="mission-runner-overlay">
-        <div className="mission-runner-content active-exercise-card glass-panel">
+        <div className="mission-runner-content active-exercise-card">
           
           {/* Top Header Bar */}
           <div className="mission-active-header">
@@ -512,20 +504,25 @@ export const MissionRunner = ({
             <div className="mission-manual-game-container">
               
               {/* Exercise Demo Animation / Illustration Placeholder */}
-              <div className={`mission-manual-visual-card ${currentEx.gifUrl ? 'has-gif' : 'no-gif'}`}>
-                {currentEx.gifUrl ? (
-                  <img 
-                    src={currentEx.gifUrl} 
-                    alt={currentEx.name} 
-                    className="mission-exercise-gif"
-                  />
-                ) : (
-                  <div className="mission-exercise-icon-placeholder">
-                    <Dumbbell size={20} color="#3b82f6" />
-                    <p>{currentEx.instructions && currentEx.instructions !== 'Follow AI targets' ? currentEx.instructions : 'Focus on controlled movement & full range of motion'}</p>
+              {(() => {
+                const exerciseMedia = currentEx.gifUrl || currentEx.mediaUrl || currentEx.videoUrl;
+                return (
+                  <div className={`mission-manual-visual-card ${exerciseMedia ? 'has-gif' : 'no-gif'}`}>
+                    {exerciseMedia ? (
+                      <img 
+                        src={exerciseMedia} 
+                        alt={currentEx.name} 
+                        className="mission-exercise-gif"
+                      />
+                    ) : (
+                      <div className="mission-exercise-icon-placeholder">
+                        <Dumbbell size={20} color="#3b82f6" />
+                        <p>{currentEx.instructions && currentEx.instructions !== 'Follow AI targets' ? currentEx.instructions : 'Focus on controlled movement & full range of motion'}</p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
 
               {/* Set Tracker & Rep Controller */}
               <div className="mission-set-controller-card">
@@ -602,7 +599,7 @@ export const MissionRunner = ({
 
     return renderOverlay(
       <div className="mission-runner-overlay">
-        <div className="mission-runner-content mission-rest-card glass-panel">
+        <div className="mission-runner-content mission-rest-card">
           
           <div className="mission-badge" style={{ color: '#3b82f6' }}>
             <Activity size={16} /> RECOVERY PERIOD
@@ -657,7 +654,7 @@ export const MissionRunner = ({
   if (phase === 'celebration') {
     return renderOverlay(
       <div className="mission-runner-overlay">
-        <div className="mission-runner-content mission-celebration glass-panel">
+        <div className="mission-runner-content mission-celebration">
           
           <div className="mission-celebration-trophy">
             <CheckCircle size={72} color="#10b981" />

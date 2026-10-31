@@ -14,7 +14,7 @@
   border-right: 1px solid var(--sidebar-border);
   padding: 16px 14px;
   overflow: visible !important; /* No scrollbar */
-  z-index: 900;
+  z-index: 1050;
   transition: all 0.25s ease;
 }
 
@@ -163,16 +163,18 @@
   position: absolute;
   bottom: calc(100% + 8px);
   left: 0;
-  width: 240px;
+  min-width: 220px;
+  width: max-content;
+  max-width: 280px;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 16px;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--card-border);
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  z-index: 1100;
+  z-index: 9999;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   animation: popoverFadeIn 0.15s ease-out;
@@ -193,7 +195,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border-radius: 10px;
   font-size: 0.88rem;
   font-weight: 500;
@@ -205,6 +207,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
+  white-space: nowrap;
 }
 
 .popover-item:hover {
@@ -325,10 +328,14 @@
 }
 
 .app-sidebar.rail-mode .sidebar-popover {
-  left: 74px !important;
+  left: calc(100% + 12px) !important;
   bottom: 0 !important;
-  margin-left: 8px !important;
-  width: 220px !important;
+  margin-left: 0 !important;
+  min-width: 220px !important;
+  width: max-content !important;
+  max-width: 280px !important;
+  z-index: 9999 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32), 0 0 0 1px var(--card-border) !important;
 }
 
 /* Tablet Rail View (769px - 1200px) */
@@ -368,10 +375,14 @@
     width: 100% !important;
   }
   .sidebar-popover {
-    left: 74px !important;
+    left: calc(100% + 12px) !important;
     bottom: 0 !important;
-    margin-left: 8px !important;
-    width: 220px !important;
+    margin-left: 0 !important;
+    min-width: 220px !important;
+    width: max-content !important;
+    max-width: 280px !important;
+    z-index: 9999 !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32), 0 0 0 1px var(--card-border) !important;
   }
 }
 

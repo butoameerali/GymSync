@@ -36,6 +36,8 @@ const GlobalChat = () => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState({});
   const [memberContacts, setMemberContacts] = useState([]);
+  const [isSending, setIsSending] = useState(false);
+  const [clickedSuggestions, setClickedSuggestions] = useState(new Set());
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -359,8 +361,14 @@ const GlobalChat = () => {
     };
   }, []);
 
-  const handleSendMessageText = async (messageText) => {
-    if (!messageText?.trim() || !activeContact) return;
+  const handleSendMessageText = async (messageText, chipKey = null) => {
+    if (!messageText?.trim() || !activeContact || isSending) return;
+
+    if (chipKey) {
+      setClickedSuggestions(prev => new Set(prev).add(chipKey));
+    }
+
+    setIsSending(true);
 
     const trimmed = messageText.trim();
     const newMsg = {
@@ -376,8 +384,8 @@ const GlobalChat = () => {
     }));
 
     const isAI = activeContact.id === 'ai' || activeContact.id === 'diet_ai';
-    if (isAI) {
-      try {
+    try {
+      if (isAI) {
         const token = localStorage.getItem('gymsync_token') || localStorage.getItem('token') || '';
         const receiver = activeContact.id === 'diet_ai' ? 'AI Nutritionist' : 'AI Workout Coach';
         const persona = activeContact.persona || (activeContact.id === 'diet_ai' ? 'nutritionist' : 'workout_coach');
@@ -466,24 +474,8 @@ const GlobalChat = () => {
           ...prev,
           [activeContact.id]: [...(prev[activeContact.id] || []), botMsg]
         }));
-      } catch (err) {
-        console.error('AI chat error:', err);
-        const errReply = {
-          id: generateMessageId(),
-          text: "Sorry, I am having trouble connecting to AI services right now. Please try again shortly.",
-          sender: 'other',
-          timestamp: new Date().toISOString(),
-          suggestions: ['🔄 Try Again', '💬 Ask Something Else']
-        };
-        setMessages(prev => ({
-          ...prev,
-          [activeContact.id]: [...(prev[activeContact.id] || []), errReply]
-        }));
-      }
-    }
-    else {
-      // Direct message to member / friend / trainer
-      try {
+      } else {
+        // Direct message to member / friend / trainer
         const token = localStorage.getItem('gymsync_token') || '';
         await fetch('/api/chat', {
           method: 'POST',
@@ -497,21 +489,39 @@ const GlobalChat = () => {
             text: trimmed
           })
         });
-      } catch (err) {
-        console.error("Direct chat send error:", err);
       }
+    } catch (err) {
+      console.error('Chat error:', err);
+      const errReply = {
+        id: generateMessageId(),
+        text: "Sorry, I am having trouble connecting to AI services right now. Please try again shortly.",
+        sender: 'other',
+        timestamp: new Date().toISOString(),
+        suggestions: ['🔄 Try Again', '💬 Ask Something Else']
+      };
+      setMessages(prev => ({
+        ...prev,
+        [activeContact.id]: [...(prev[activeContact.id] || []), errReply]
+      }));
+    } finally {
+      setIsSending(false);
     }
   };
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !activeContact) return;
+    if (!input.trim() || !activeContact || isSending) return;
     const msg = input.trim();
     setInput('');
     await handleSendMessageText(msg);
   };
 
-  const handleSuggestionClick = async (sugText) => {
+  const handleSuggestionClick = async (sugText, chipKey = null) => {
+    if (isSending) return;
+    if (chipKey) {
+      if (clickedSuggestions.has(chipKey)) return;
+      setClickedSuggestions(prev => new Set(prev).add(chipKey));
+    }
     const lower = (sugText || '').toLowerCase();
     if (lower.includes('switch to ai nutritionist') || lower.includes('open ai nutritionist') || lower.includes('talk to ai nutritionist') || lower.includes('switch to nutritionist')) {
       handleContactClick(SYSTEM_CONTACTS[1]);
@@ -521,7 +531,7 @@ const GlobalChat = () => {
       handleContactClick(SYSTEM_CONTACTS[0]);
       return;
     }
-    await handleSendMessageText(sugText);
+    await handleSendMessageText(sugText, chipKey);
   };
 
   const handleClearChat = async () => {
@@ -1166,40 +1176,53 @@ const GlobalChat = () => {
                           maxWidth: '95%'
                         }}
                       >
-                        {msg.suggestions.map((sug, sIdx) => (
-                          <button
-                            key={sIdx}
-                            type="button"
-                            className="suggestion-chip-btn"
-                            style={{
-                              background: 'rgba(59, 130, 246, 0.14)',
-                              border: '1px solid rgba(59, 130, 246, 0.4)',
-                              color: '#93c5fd',
-                              padding: '5px 12px',
-                              borderRadius: '20px',
-                              fontSize: '0.78rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              transition: 'all 0.15s ease'
-                            }}
-                            onClick={() => handleSuggestionClick(sug)}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.28)';
-                              e.currentTarget.style.borderColor = '#60a5fa';
-                              e.currentTarget.style.transform = 'translateY(-1px)';
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.14)';
-                              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-                              e.currentTarget.style.transform = 'none';
-                            }}
-                          >
-                            {sug}
-                          </button>
-                        ))}
+                        {msg.suggestions.map((sug, sIdx) => {
+                          const chipKey = `${msg.id || idx}-gc-sug-${sIdx}-${sug}`;
+                          const isClicked = clickedSuggestions.has(chipKey);
+                          return (
+                            <button
+                              key={sIdx}
+                              type="button"
+                              className={`suggestion-chip-btn ${isClicked ? 'clicked' : ''}`}
+                              disabled={isSending || isClicked}
+                              style={{
+                                background: isClicked ? 'rgba(255, 255, 255, 0.04)' : 'rgba(59, 130, 246, 0.14)',
+                                border: isClicked ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(59, 130, 246, 0.4)',
+                                color: isClicked ? 'var(--text-secondary, #64748b)' : '#93c5fd',
+                                padding: '5px 12px',
+                                borderRadius: '20px',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                cursor: isSending || isClicked ? 'not-allowed' : 'pointer',
+                                opacity: isSending || isClicked ? 0.6 : 1,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onClick={() => {
+                                if (isSending || isClicked) return;
+                                handleSuggestionClick(sug, chipKey);
+                              }}
+                              onMouseEnter={e => {
+                                if (!isClicked && !isSending) {
+                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.28)';
+                                  e.currentTarget.style.borderColor = '#60a5fa';
+                                  e.currentTarget.style.transform = 'translateY(-1px)';
+                                }
+                              }}
+                              onMouseLeave={e => {
+                                if (!isClicked && !isSending) {
+                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.14)';
+                                  e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                                  e.currentTarget.style.transform = 'none';
+                                }
+                              }}
+                            >
+                              {isClicked ? `${sug} ✓` : sug}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1212,8 +1235,10 @@ const GlobalChat = () => {
             </div>
 
             <form className="chat-footer" onSubmit={handleSend}>
-              <input ref={inputRef} type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} />
-              <button type="submit" className="send-btn"><Send size={18} /></button>
+              <input ref={inputRef} type="text" placeholder={isSending ? "Sending message..." : "Type a message..."} value={input} onChange={(e) => setInput(e.target.value)} disabled={isSending} />
+              <button type="submit" disabled={!input.trim() || isSending} className="send-btn" title={isSending ? "Sending..." : "Send message"}>
+                {isSending ? <span style={{ fontSize: '0.75rem' }}>...</span> : <Send size={18} />}
+              </button>
             </form>
           </>
         )}

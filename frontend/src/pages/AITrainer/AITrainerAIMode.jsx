@@ -703,7 +703,7 @@ const AITrainerAIMode = ({
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                         <span style={{ fontSize: '1.4rem' }}>🔥</span>
-                        <h4 style={{ margin: 0, color: '#f87171', fontSize: '1.15rem' }}>Weight Loss Plan</h4>
+                        <h4 className="starter-heading-red" style={{ margin: 0, fontSize: '1.15rem' }}>Weight Loss Plan</h4>
                       </div>
                       <p style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', margin: 0 }}>
                         High-calorie burn, HIIT &amp; progressive metabolic conditioning split for rapid fat loss.
@@ -741,7 +741,7 @@ const AITrainerAIMode = ({
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                         <span style={{ fontSize: '1.4rem' }}>💪</span>
-                        <h4 style={{ margin: 0, color: '#34d399', fontSize: '1.15rem' }}>Body Development Plan</h4>
+                        <h4 className="starter-heading-green" style={{ margin: 0, fontSize: '1.15rem' }}>Body Development Plan</h4>
                       </div>
                       <p style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', margin: 0 }}>
                         Hypertrophy &amp; progressive muscle growth split (Chest, Back, Legs, Arms &amp; Shoulders).
@@ -779,7 +779,7 @@ const AITrainerAIMode = ({
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                         <span style={{ fontSize: '1.4rem' }}>⚡</span>
-                        <h4 style={{ margin: 0, color: '#60a5fa', fontSize: '1.15rem' }}>Strength &amp; Muscle Plan</h4>
+                        <h4 className="starter-heading-blue" style={{ margin: 0, fontSize: '1.15rem' }}>Strength &amp; Muscle Plan</h4>
                       </div>
                       <p style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', margin: 0 }}>
                         Compound lift strength periodization with progressive overload benchmarks.
@@ -2809,7 +2809,6 @@ const AITrainerAIMode = ({
           onClick={() => setShowSavedPlansModal(false)}
         >
           <div
-            className="glass-panel"
             style={{
               maxWidth: '650px',
               width: '100%',
@@ -2885,7 +2884,7 @@ const AITrainerAIMode = ({
                     <div
                       key={plan._id}
                       style={{
-                        background: 'rgba(255, 255, 255, 0.04)',
+                        background: 'var(--card-bg-light)',
                         border: '1px solid var(--card-border, rgba(255, 255, 255, 0.08))',
                         borderRadius: '12px',
                         padding: '16px',

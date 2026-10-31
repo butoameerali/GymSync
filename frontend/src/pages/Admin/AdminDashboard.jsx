@@ -14,6 +14,7 @@ import BroadcastManagement from '../../components/admin/BroadcastManagement';
 import AuditLogManagement from '../../components/admin/AuditLogManagement';
 import InstructorTaskManagement from '../../components/admin/InstructorTaskManagement';
 import AdminStoreOversight from '../../components/admin/AdminStoreOversight';
+import SuggestionManagement from '../../components/admin/SuggestionManagement';
 
 import './AdminDashboard.css';
 
@@ -38,7 +39,7 @@ const AdminDashboard = () => {
   // Allowed tabs based on role
   const allowedTabs = isModerator 
     ? ['overview', 'moderation', 'reported_posts', 'complaints', 'complaint_chats']
-    : ['overview', 'users', 'users_instructors', 'instructor_tasks', 'gyms', 'gym_approvals', 'store_oversight', 'moderation', 'reported_posts', 'complaints', 'complaint_chats', 'payments', 'cashback', 'broadcast', 'audit', 'audit_logs'];
+    : ['overview', 'users', 'users_instructors', 'instructor_tasks', 'gyms', 'gym_approvals', 'store_oversight', 'suggestions', 'moderation', 'reported_posts', 'complaints', 'complaint_chats', 'payments', 'cashback', 'broadcast', 'audit', 'audit_logs'];
 
   const fetchAdminData = useCallback(async () => {
     try {
@@ -189,6 +190,11 @@ const AdminDashboard = () => {
             {/* STORE & PRODUCT OVERSIGHT (Admin/SuperAdmin only) */}
             {!isModerator && effectiveTab === 'store_oversight' && (
               <AdminStoreOversight />
+            )}
+
+            {/* SUGGESTIONS & DISCOVER SPOTLIGHT (Admin/SuperAdmin only) */}
+            {!isModerator && effectiveTab === 'suggestions' && (
+              <SuggestionManagement />
             )}
 
             {/* POST MODERATION QUEUE (Admin, SuperAdmin & ComplaintModerator) */}

@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Utensils, Flame, Droplets, RefreshCw, MessageSquare, CheckCircle2, ShieldCheck, PlusCircle } from 'lucide-react';
+import { Utensils, Flame, Droplets, RefreshCw, MessageSquare, CheckCircle2, ShieldCheck, PlusCircle, ChefHat } from 'lucide-react';
 import DietCatalogue from '../../components/trainee/DietCatalogue';
 import MedicalDisclaimer from '../../components/common/MedicalDisclaimer';
+import CustomDietBuilderModal from '../../components/trainee/CustomDietBuilderModal';
 
 const MyAIDietHub = ({ aiPlan }) => {
   const [activeUserDiet, setActiveUserDiet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showCatalogue, setShowCatalogue] = useState(false);
-  const [showComingSoon, setShowComingSoon] = useState(false);
+  const [showCustomBuilder, setShowCustomBuilder] = useState(false);
 
   // Load active diet from server or fallback to props
   const fetchActiveDiet = useCallback(async () => {
@@ -133,7 +134,7 @@ const MyAIDietHub = ({ aiPlan }) => {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => { setShowCatalogue(true); setShowComingSoon(false); }}
+              onClick={() => { setShowCatalogue(true); }}
               style={{
                 padding: '12px 22px',
                 borderRadius: '10px',
@@ -155,7 +156,7 @@ const MyAIDietHub = ({ aiPlan }) => {
             <button
               type="button"
               className="btn btn-outline"
-              onClick={() => setShowComingSoon(!showComingSoon)}
+              onClick={() => setShowCustomBuilder(true)}
               style={{
                 padding: '12px 22px',
                 borderRadius: '10px',
@@ -164,33 +165,15 @@ const MyAIDietHub = ({ aiPlan }) => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                borderColor: '#3b82f6',
+                color: '#3b82f6'
               }}
             >
-              <PlusCircle size={16} />
-              Build my own diet
+              <ChefHat size={16} />
+              Build My Own Diet (Apna Khana Khud Chunein)
             </button>
           </div>
-
-          {/* COMING SOON STATE FOR BUILD MY OWN DIET (PHASE 2) */}
-          {showComingSoon && (
-            <div style={{
-              marginTop: '16px',
-              padding: '16px 20px',
-              borderRadius: '12px',
-              background: 'rgba(59, 130, 246, 0.08)',
-              border: '1px solid rgba(59, 130, 246, 0.25)',
-              maxWidth: '600px',
-              textAlign: 'left'
-            }}>
-              <strong style={{ display: 'block', color: 'var(--text-primary)', marginBottom: '4px', fontSize: '0.95rem' }}>
-                🚀 Custom Diet Builder — Coming Soon (Phase 2)
-              </strong>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                In Phase 2, you will be able to construct and save custom daily meals with automated macro calculation from our certified food catalog. In the meantime, select from our certified trainer meal plans below.
-              </p>
-            </div>
-          )}
         </div>
 
         {/* TRAINER DIET CATALOGUE */}
@@ -199,6 +182,16 @@ const MyAIDietHub = ({ aiPlan }) => {
             <DietCatalogue onDietAdopted={handleDietAdopted} />
           </div>
         )}
+
+        {/* CUSTOM DIET BUILDER MODAL */}
+        <CustomDietBuilderModal
+          isOpen={showCustomBuilder}
+          onClose={() => setShowCustomBuilder(false)}
+          onSavePlan={(newPlan) => {
+            handleDietAdopted(newPlan);
+            setShowCustomBuilder(false);
+          }}
+        />
 
         <MedicalDisclaimer variant="footer" />
       </div>
@@ -277,6 +270,27 @@ const MyAIDietHub = ({ aiPlan }) => {
 
           <button
             type="button"
+            onClick={() => setShowCustomBuilder(true)}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '10px',
+              background: 'rgba(59, 130, 246, 0.12)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              color: '#3b82f6',
+              fontSize: '0.88rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <ChefHat size={16} />
+            Log Today's Meal / Build Diet
+          </button>
+
+          <button
+            type="button"
             onClick={() => handleOpenNutritionist()}
             style={{
               padding: '10px 18px',
@@ -321,7 +335,7 @@ const MyAIDietHub = ({ aiPlan }) => {
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
             {calories} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>kcal</span>
           </div>
-          <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 500 }}>Calibrated target</span>
+          <span className="macro-tag-green">Calibrated target</span>
         </div>
 
         {/* Protein */}
@@ -333,7 +347,7 @@ const MyAIDietHub = ({ aiPlan }) => {
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
             {protein} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>g</span>
           </div>
-          <span style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 500 }}>Muscle recovery</span>
+          <span className="macro-tag-blue">Muscle recovery</span>
         </div>
 
         {/* Carbs */}
@@ -345,7 +359,7 @@ const MyAIDietHub = ({ aiPlan }) => {
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
             {carbs} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>g</span>
           </div>
-          <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 500 }}>Training energy</span>
+          <span className="macro-tag-amber">Training energy</span>
         </div>
 
         {/* Fat */}
@@ -357,7 +371,7 @@ const MyAIDietHub = ({ aiPlan }) => {
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
             {fat} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>g</span>
           </div>
-          <span style={{ fontSize: '0.72rem', color: '#a78bfa', fontWeight: 500 }}>Hormone balance</span>
+          <span className="macro-tag-purple">Hormone balance</span>
         </div>
 
         {/* Hydration */}
@@ -369,7 +383,7 @@ const MyAIDietHub = ({ aiPlan }) => {
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
             {hydration} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Liters</span>
           </div>
-          <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 500 }}>Daily water target</span>
+          <span className="macro-tag-cyan">Daily water target</span>
         </div>
       </div>
 
@@ -454,17 +468,17 @@ const MyAIDietHub = ({ aiPlan }) => {
                         justifyContent: 'space-between',
                         padding: '10px 14px',
                         borderRadius: '10px',
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(255,255,255,0.05)'
+                        background: 'var(--card-bg-light)',
+                        border: '1px solid var(--card-border)'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <CheckCircle2 size={15} color="#10b981" />
-                        <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#e2e8f0' }}>
+                        <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                           {itemName}
                         </span>
                       </div>
-                      <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
                         {itemPortion}
                       </span>
                     </div>
@@ -486,11 +500,21 @@ const MyAIDietHub = ({ aiPlan }) => {
         alignItems: 'center',
         gap: '12px'
       }}>
-        <ShieldCheck size={20} color="#60a5fa" style={{ minWidth: '20px' }} />
-        <span style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: '1.4' }}>
-          <strong>Safety Note:</strong> Your nutrition protocol is prescribed by certified fitness professionals. To swap an ingredient (e.g. dairy, poultry, or lentils), click <em>"Swap Ingredient"</em> to find equivalent macronutrient replacements.
+        <ShieldCheck size={20} color="#3b82f6" style={{ minWidth: '20px' }} />
+        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+          <strong style={{ color: 'var(--text-primary)' }}>Safety Note:</strong> Your nutrition protocol is prescribed by certified fitness professionals. To swap an ingredient (e.g. dairy, poultry, or lentils), click <em>"Swap Ingredient"</em> to find equivalent macronutrient replacements.
         </span>
       </div>
+
+      {/* CUSTOM DIET BUILDER MODAL */}
+      <CustomDietBuilderModal
+        isOpen={showCustomBuilder}
+        onClose={() => setShowCustomBuilder(false)}
+        onSavePlan={(newPlan) => {
+          handleDietAdopted(newPlan);
+          setShowCustomBuilder(false);
+        }}
+      />
 
       <MedicalDisclaimer variant="footer" />
     </div>

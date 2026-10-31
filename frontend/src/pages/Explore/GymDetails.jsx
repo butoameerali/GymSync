@@ -80,6 +80,7 @@ const GymDetails = () => {
 
   // Social Wall & Posts
   const [gymPosts, setGymPosts] = useState([]);
+  const [visibleGymPostsCount, setVisibleGymPostsCount] = useState(5);
   const [newPostText, setNewPostText] = useState('');
   const [postType, setPostType] = useState('announcement'); // 'announcement' | 'workout' | 'offer' | 'general'
   const [selectedPostFile, setSelectedPostFile] = useState(null);
@@ -948,87 +949,101 @@ const GymDetails = () => {
             {/* Posts Feed */}
             <div className="gym-feed-container">
               {gymPosts.length > 0 ? (
-                gymPosts.map((post) => {
-                  const postLikes = Array.isArray(post.likes) ? post.likes : [];
-                  const isLiked = postLikes.some(u => (typeof u === 'string' ? u === userName : u?.name === userName || u?._id === currentUser?._id));
-                  const commentsCount = Array.isArray(post.comments) ? post.comments.length : 0;
+                <>
+                  {gymPosts.slice(0, visibleGymPostsCount).map((post) => {
+                    const postLikes = Array.isArray(post.likes) ? post.likes : [];
+                    const isLiked = postLikes.some(u => (typeof u === 'string' ? u === userName : u?.name === userName || u?._id === currentUser?._id));
+                    const commentsCount = Array.isArray(post.comments) ? post.comments.length : 0;
 
-                  return (
-                    <div key={post._id || post.id} className="gym-post-card">
-                      <div className="gym-post-card-header">
-                        <div className="composer-gym-avatar">
-                          {gym.logo ? (
-                            <img src={getSafeImageUrl(gym.logo)} alt={gym.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            (post.authorName || gym.name || 'G')[0].toUpperCase()
-                          )}
-                        </div>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            <span className="gym-post-author-name">{post.authorName || gym.name}</span>
-                            <ShieldCheck size={15} color="#10b981" />
-                            {post.postType && (
-                              <span className={`fb-post-type-badge ${post.postType}`}>
-                                {post.postType === 'announcement' ? '📢 Announcement' : post.postType === 'workout' ? '🏋️ Tip' : post.postType === 'offer' ? '🏷️ Offer' : '💬 Update'}
-                              </span>
+                    return (
+                      <div key={post._id || post.id} className="gym-post-card">
+                        <div className="gym-post-card-header">
+                          <div className="composer-gym-avatar">
+                            {gym.logo ? (
+                              <img src={getSafeImageUrl(gym.logo)} alt={gym.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              (post.authorName || gym.name || 'G')[0].toUpperCase()
                             )}
                           </div>
-                          <span className="gym-post-time">
-                            {post.createdAt ? new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently'}
-                          </span>
-                        </div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span className="gym-post-author-name">{post.authorName || gym.name}</span>
+                              <ShieldCheck size={15} color="#10b981" />
+                              {post.postType && (
+                                <span className={`fb-post-type-badge ${post.postType}`}>
+                                  {post.postType === 'announcement' ? '📢 Announcement' : post.postType === 'workout' ? '🏋️ Tip' : post.postType === 'offer' ? '🏷️ Offer' : '💬 Update'}
+                                </span>
+                              )}
+                            </div>
+                            <span className="gym-post-time">
+                              {post.createdAt ? new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently'}
+                            </span>
+                          </div>
 
-                        {isOwner && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteGymPost(post._id || post.id)}
-                            title="Remove Announcement"
-                            style={{
-                              marginLeft: 'auto',
-                              background: 'transparent',
-                              border: 'none',
-                              color: 'var(--text-secondary)',
-                              cursor: 'pointer',
-                              padding: '6px',
-                              borderRadius: '6px',
-                              display: 'flex',
-                              alignItems: 'center'
-                            }}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-
-                      {post.content && (
-                        <div className="gym-post-content">{post.content}</div>
-                      )}
-
-                      {post.mediaUrl && (
-                        <div className="gym-post-media">
-                          {post.mediaUrl.match(/\.(mp4|webm|mov)$/i) ? (
-                            <video src={getSafeImageUrl(post.mediaUrl)} controls />
-                          ) : (
-                            <img src={getSafeImageUrl(post.mediaUrl)} alt="Post media" />
+                          {isOwner && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteGymPost(post._id || post.id)}
+                              title="Remove Announcement"
+                              style={{
+                                marginLeft: 'auto',
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                padding: '6px',
+                                borderRadius: '6px',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           )}
                         </div>
-                      )}
 
-                      <div className="gym-post-card-footer">
-                        <button
-                          type="button"
-                          className={`gym-post-action-btn ${isLiked ? 'liked' : ''}`}
-                          onClick={() => handleLikeGymPost(post._id || post.id)}
-                        >
-                          <Heart size={16} /> {postLikes.length} {postLikes.length === 1 ? 'Like' : 'Likes'}
-                        </button>
-                        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <MessageSquare size={16} /> {commentsCount} {commentsCount === 1 ? 'Comment' : 'Comments'}
-                        </span>
+                        {post.content && (
+                          <div className="gym-post-content">{post.content}</div>
+                        )}
+
+                        {post.mediaUrl && (
+                          <div className="gym-post-media">
+                            {post.mediaUrl.match(/\.(mp4|webm|mov)$/i) ? (
+                              <video src={getSafeImageUrl(post.mediaUrl)} controls />
+                            ) : (
+                              <img src={getSafeImageUrl(post.mediaUrl)} alt="Post media" />
+                            )}
+                          </div>
+                        )}
+
+                        <div className="gym-post-card-footer">
+                          <button
+                            type="button"
+                            className={`gym-post-action-btn ${isLiked ? 'liked' : ''}`}
+                            onClick={() => handleLikeGymPost(post._id || post.id)}
+                          >
+                            <Heart size={16} /> {postLikes.length} {postLikes.length === 1 ? 'Like' : 'Likes'}
+                          </button>
+                          <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <MessageSquare size={16} /> {commentsCount} {commentsCount === 1 ? 'Comment' : 'Comments'}
+                          </span>
+                        </div>
                       </div>
+                    );
+                  })}
+                  {visibleGymPostsCount < gymPosts.length && (
+                    <div style={{ textAlign: 'center', marginTop: '16px', marginBottom: '20px' }}>
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        style={{ padding: '8px 24px', borderRadius: '9999px', fontSize: '0.9rem' }}
+                        onClick={() => setVisibleGymPostsCount(prev => prev + 5)}
+                      >
+                        Load More Announcements ({gymPosts.length - visibleGymPostsCount} remaining)
+                      </button>
                     </div>
-                  );
-                })
+                  )}
+                </>
               ) : (
                 <div style={{
                   padding: '36px 20px',

@@ -12,6 +12,7 @@ export const getNavigationForRole = (role) => {
         { id: 'instructor_tasks', label: 'Instructor Tasks', icon: 'CheckSquare' },
         { id: 'gyms', label: 'Gym Facility Approvals', icon: 'Building' },
         { id: 'store_oversight', label: 'Store & Product Oversight', icon: 'ShoppingBag' },
+        { id: 'suggestions', label: 'Discover & Ads Spotlight', icon: 'Sparkles' },
         { id: 'moderation', label: 'Post Moderation', icon: 'ShieldAlert' },
         { id: 'complaints', label: 'Complaints Queue', icon: 'MessageSquare' },
         { id: 'payments', label: 'Payment Verifications', icon: 'CreditCard' },

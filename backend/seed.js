@@ -59,6 +59,13 @@ const seedDatabase = async (attempt = 1) => {
         password: userPassword,
         role: 'User',
         isBanned: false
+      },
+      {
+        name: 'Captain Farhan (Fitness Trainer)',
+        email: 'trainer@gymsync.com',
+        password: 'trainer123',
+        role: 'FitnessInstructor',
+        isBanned: false
       }
     ];
 

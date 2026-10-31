@@ -147,7 +147,7 @@ function App() {
         <Route path="/medical-disclaimer" element={<LegalPage type="disclaimer" />} />
         <Route path="/legal" element={<LegalPage type="terms" />} />
         
-        <Route path="/profile/:userName" element={<PublicProfile />} />
+        <Route path="/profile/:userName" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

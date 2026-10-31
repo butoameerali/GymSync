@@ -5,6 +5,7 @@ import exerciseRegistry from '../workout/exerciseRegistry.js';
 import eventAwarenessEngine, { EVENT_TYPES } from '../workout/eventAwarenessEngine.js';
 import { generatePlanObject, parsePlanDuration } from '../../controllers/recommendationEngine.js';
 import { getAlternatives, FOOD_SUBSTITUTION_GROUPS } from '../nutrition/foodSubstitutionGroups.js';
+import nutritionCalculator from '../nutrition/nutritionCalculator.js';
 
 /**
  * Conversational Adaptive Personal Trainer & Reasoning Engine
@@ -613,14 +614,15 @@ To program the right training volume, split, and progressive overload for you:
 
     const isTest7Specific = text.includes('100 kg') && (text.includes('want to lose') || text.includes('lose it') || text.includes('kam karna'));
 
-    const wantsFullPlan = !isDietAction && !isTest7Specific && (isAskingAboutDetails || isInIntakeFlow ||
+    const isTodaySession = text.includes('today') || text.includes('aaj');
+    const wantsFullPlan = !isDietAction && !isTest7Specific && !isTodaySession && (isAskingAboutDetails || isInIntakeFlow ||
       /(?:generate|build|create|make|give|suggest|start|want|need)\s+.*?(?:workout|exercise|excercice|routine|plan|program)/i.test(raw) ||
       /(?:workout|exercise|excercice|routine|program)\s+(?:plan|for|banana|chahiye|de|do)/i.test(raw) ||
       /\b(?:workout\s*plan|exercise\s*plan|excercice\s*plan|new\s*plan|make\s*a\s*plan|build\s*a\s*plan)\b/i.test(raw) ||
       (/\b(?:losing\s*weight|weight\s*loss|weight\s*lost|lose\s*weight|build\s*muscle|body\s*development)\b/i.test(raw)) ||
       (/(?:weight|wajan)\s*(?:kam|ghatana|loss|lose)/i.test(raw)) ||
       (intent === INTENTS.WEIGHT_MANAGEMENT) ||
-      (intent === INTENTS.GENERATE_WORKOUT && !text.includes('today') && !text.includes('aaj')));
+      (intent === INTENTS.GENERATE_WORKOUT));
 
     if (wantsFullPlan) {
       const intakeState = extractIntakeState(raw, history, effectiveProfile);
@@ -779,6 +781,31 @@ Everything is almost ready! We're building your **${durationInfo.label} ${intake
 
       const targetWeightLine = intakeState.targetWeight ? `\n- 🎯 **Target Weight**: ${intakeState.targetWeight} kg (Starting from ${currentWeight || 70} kg)` : '';
 
+      const weightKg = Number(effectiveProfile.weight || effectiveProfile.weightKg || 70);
+      const heightCm = Number(effectiveProfile.height || effectiveProfile.heightCm || 172);
+      const userAge = Number(effectiveProfile.age || 25);
+      const userGender = effectiveProfile.gender || 'Male';
+      const energyReport = nutritionCalculator.calculateMacroTargets({
+        weightKg,
+        heightCm,
+        age: userAge,
+        gender: userGender,
+        goal: intakeState.goal,
+        activityLevel: finalDays
+      });
+
+      const balanceStrategy = energyReport.targetCalories < energyReport.tdee
+        ? `Deficit of -${energyReport.tdee - energyReport.targetCalories} kcal/day for fat shredding & lean definition`
+        : energyReport.targetCalories > energyReport.tdee
+        ? `Surplus of +${energyReport.targetCalories - energyReport.tdee} kcal/day for clean hypertrophy & muscle development`
+        : 'Equilibrium maintenance for stamina and endurance';
+
+      const ageNote = userAge < 18
+        ? 'Youth Athletic Calibration: Prioritizing technical movement form, joint safety, and avoiding excessive 1RM spinal loading.'
+        : userAge > 45
+        ? 'Longevity & Joint Health: Incorporating 75-90s recovery intervals, joint-friendly tempos, and mobility warmups.'
+        : 'Prime Adult Capacity: High mechanical tension, progressive overload, and high metabolic density.';
+
       responseContent = `🎉 **Your Customized ${durationInfo.label} ${intakeState.goal} Program is Ready!**
 
 ### 📋 Calibrated Program Summary:
@@ -787,6 +814,14 @@ Everything is almost ready! We're building your **${durationInfo.label} ${intake
 - 🚀 **Start Date**: ${intakeState.startSchedule || 'Today'}
 - 📅 **Schedule**: ${finalDays} Days per Week
 - 🏋️ **Equipment**: ${finalEquip}
+- 👤 **Age Suitability (${userAge} yrs)**: ${ageNote}
+
+### ⚡ Energy Balance Report (Calories In vs Calories Out):
+- 🔥 **Total Daily Energy Burn (TDEE / Calories Out)**: ~**${energyReport.tdee} kcal/day** (BMR: ${energyReport.bmr} kcal)
+- 🥗 **Target Daily Caloric Intake (Calories In)**: ~**${energyReport.targetCalories} kcal/day**
+- ⚖️ **Energy Balance Strategy**: ${balanceStrategy}
+- 🥩 **Target Macros**: Protein **${energyReport.proteinGrams}g** | Carbs **${energyReport.carbGrams}g** | Fats **${energyReport.fatGrams}g**
+- 💧 **Daily Hydration**: **${energyReport.hydrationLiters} Liters** water
 
 Your interactive periodized calendar has been generated and saved to your **Workout Hub**!`;
 
@@ -1752,6 +1787,22 @@ Click Apply to log this instead.`;
     // =====================================================================
 
     if (intent === INTENTS.TODAY_WORKOUT || intent === INTENTS.GENERATE_WORKOUT || intent === INTENTS.SPORT_SPECIFIC_TRAINING) {
+      const activePlan = currentPlan || userContext.activeSavedPlan || userContext.activeWorkoutProgram;
+      const weightKg = Number(effectiveProfile.weight || effectiveProfile.weightKg || 70);
+      const heightCm = Number(effectiveProfile.height || effectiveProfile.heightCm || 172);
+      const userAge = Number(effectiveProfile.age || 25);
+      const userGender = effectiveProfile.gender || 'Male';
+      const userGoal = effectiveProfile.primaryGoal || effectiveProfile.mainGoalArea || 'General Fitness';
+
+      const energyReport = nutritionCalculator.calculateMacroTargets({
+        weightKg,
+        heightCm,
+        age: userAge,
+        gender: userGender,
+        goal: userGoal,
+        activityLevel: effectiveProfile.trainingDaysPerWeek || 4
+      });
+
       const session = workoutDecisionEngine.generateSession({
         recoveryFlag: userContext.recoveryFlag || "Normal",
         userProfile: effectiveProfile,
@@ -1760,13 +1811,36 @@ Click Apply to log this instead.`;
         dayNumber: currentProgress.completedDays?.length ? (currentProgress.completedDays.length + 1) : 1
       });
 
+      const balanceStrategy = energyReport.targetCalories < energyReport.tdee
+        ? `Deficit of -${energyReport.tdee - energyReport.targetCalories} kcal/day (Fat Loss Mode)`
+        : energyReport.targetCalories > energyReport.tdee
+        ? `Surplus of +${energyReport.targetCalories - energyReport.tdee} kcal/day (Muscle Hypertrophy Mode)`
+        : 'Equilibrium maintenance (Stamina Mode)';
+
+      const ageAdvice = userAge < 18
+        ? 'Youth Athlete: Strict form priority, 10-12 reps per set, avoiding 1RM spinal strain.'
+        : userAge > 45
+        ? 'Joint Protection: Extended 75-90s rest, warmups emphasized.'
+        : 'Hypertrophy & Density: High intensity 8-12 reps with progressive overload.';
+
+      const enrolledHeader = activePlan
+        ? `✅ **Active Program Detected**: Pulling today's session directly from your enrolled plan **${activePlan.title || 'Workout Program'}**.`
+        : `ℹ️ **No Program Enrolled**: Generated a customized standalone session based on your Bio details & Energy Balance.`;
+
       responseContent = `💪 **Today's Reasoned Training Plan**
+${enrolledHeader}
+
+### ⚡ Bio & Energy Balance Report:
+- 👤 **Athlete Profile**: Age **${userAge} yrs** (${ageAdvice})
+- 🔥 **Calories Out (TDEE)**: ~**${energyReport.tdee} kcal/day** (BMR: ${energyReport.bmr} kcal)
+- 🥗 **Calories In (Target Intake)**: ~**${energyReport.targetCalories} kcal/day** [${balanceStrategy}]
+- 🎯 **Daily Macros**: Protein **${energyReport.proteinGrams}g** | Carbs **${energyReport.carbGrams}g** | Fats **${energyReport.fatGrams}g** | Water **${energyReport.hydrationLiters}L**
+- 🏋️ **Equipment**: ${effectiveProfile.equipmentAccess || 'Full Gym'}
+
+---
 
 ### 🎯 Session Objective: **${session.sessionObjective}**
 - **Duration**: ~${session.timeBudget.totalEstimatedMinutes} Mins (${session.timeBudget.warmupMinutes}m Warmup + ${session.timeBudget.mainWorkMinutes}m Main + ${session.timeBudget.cooldownMinutes}m Cooldown)
-- **Equipment**: ${effectiveProfile.equipmentAccess}
-
----
 
 #### 1. Reasoned Warm-Up (4 Phases)
 ${session.warmup.warmupExercises.map(w => `• **${w.phase}**: ${w.name} (${w.repsOrDuration})`).join('\n')}
@@ -1779,11 +1853,14 @@ ${session.cooldown.cooldownExercises.map(c => `• **${c.name}** — ${c.duratio
 
 > 💡 *Note: ${session.medicalSafetyReview?.safetyWarnings?.[0] || 'General fitness guidance only — not medical advice.'}*`;
 
-      const suggestions = ['🏋️ Apply Workout', '❓ Why this workout?', '🔄 Change Exercises', '🥗 Matching Diet'];
+      const suggestions = activePlan 
+        ? ['🏋️ Apply Workout to AI Trainer', '❓ Why this workout?', '🥗 Matching Diet Plan']
+        : ['🏋️ Apply Workout to AI Trainer', '📋 Browse Trainer Programs', '🥗 Matching Diet Plan', '🔄 Change Equipment'];
+
       structuredAction.type = 'UPDATE_WORKOUT';
       structuredAction.workout = session;
       structuredAction.rationale = session.rationale;
-      structuredAction.explanation = `Generated full session for ${session.sessionObjective}.`;
+      structuredAction.explanation = `Generated full session for ${session.sessionObjective} with Energy Balance calculation.`;
       structuredAction.suggestions = suggestions;
       return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }

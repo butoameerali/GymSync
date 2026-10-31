@@ -15,6 +15,8 @@ const ProfileTimelineTab = ({
   photoPosts,
   profilePic,
   userName,
+  loggedInUserName,
+  isOwnProfile = true,
   myPosts,
   newPostText,
   setNewPostText,
@@ -51,8 +53,10 @@ const ProfileTimelineTab = ({
   };
 
   useEffect(() => {
-    fetchModeratedPosts();
-  }, [userName]);
+    if (isOwnProfile) {
+      fetchModeratedPosts();
+    }
+  }, [userName, isOwnProfile]);
 
   const handleSubmitAppeal = async (postId) => {
     const text = appealTextMap[postId]?.trim();
@@ -184,8 +188,8 @@ const ProfileTimelineTab = ({
 
       {/* Feed Section: Create Post Card + Interactive PostList */}
       <div className="fb-profile-feed">
-        {/* Moderation Hold & Appeal Banner */}
-        {moderatedPosts && moderatedPosts.length > 0 && (
+        {/* Moderation Hold & Appeal Banner (Own Profile Only) */}
+        {isOwnProfile && moderatedPosts && moderatedPosts.length > 0 && (
           <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f87171', fontWeight: 600, fontSize: '0.95rem' }}>
@@ -275,61 +279,63 @@ const ProfileTimelineTab = ({
           </div>
         )}
 
-        {/* Create Post Card */}
-        <div className="glass-panel fb-create-post-card">
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <div className="fb-feed-avatar" style={{ overflow: 'hidden' }}>
-              <UserAvatar src={profilePic} name={userName} size={40} />
-            </div>
-            <input
-              type="text"
-              className="fb-post-input"
-              placeholder={`What's on your fitness mind, ${userName.split(' ')[0]}?`}
-              value={newPostText}
-              onChange={e => setNewPostText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleCreateProfilePost(e); }}
-            />
-          </div>
-
-          {selectedPostFile && (
-            <div className="fb-media-preview">
-              <span>Attached: {selectedPostFile.name}</span>
-              <button type="button" onClick={() => { setSelectedPostFile(null); if (postFileInputRef.current) postFileInputRef.current.value = null; }}>Remove</button>
-            </div>
-          )}
-
-          <div className="fb-post-actions-bar">
-            <label className="fb-upload-btn">
-              <ImageIcon size={18} color="#10b981" />
-              <span>Photo / Video</span>
+        {/* Create Post Card (Own Profile Only) */}
+        {isOwnProfile && (
+          <div className="glass-panel fb-create-post-card">
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <div className="fb-feed-avatar" style={{ overflow: 'hidden' }}>
+                <UserAvatar src={profilePic} name={userName} size={40} />
+              </div>
               <input
-                type="file"
-                ref={postFileInputRef}
-                accept="image/*,video/*"
-                style={{ display: 'none' }}
-                onChange={e => {
-                  if (e.target.files && e.target.files[0]) {
-                    setSelectedPostFile(e.target.files[0]);
-                  }
-                }}
+                type="text"
+                className="fb-post-input"
+                placeholder={`What's on your fitness mind, ${userName.split(' ')[0]}?`}
+                value={newPostText}
+                onChange={e => setNewPostText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleCreateProfilePost(e); }}
               />
-            </label>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={handleCreateProfilePost}
-              disabled={isPublishingPost}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Send size={14} />
-              {isPublishingPost ? 'Posting...' : 'Post'}
-            </button>
+            </div>
+
+            {selectedPostFile && (
+              <div className="fb-media-preview">
+                <span>Attached: {selectedPostFile.name}</span>
+                <button type="button" onClick={() => { setSelectedPostFile(null); if (postFileInputRef.current) postFileInputRef.current.value = null; }}>Remove</button>
+              </div>
+            )}
+
+            <div className="fb-post-actions-bar">
+              <label className="fb-upload-btn">
+                <ImageIcon size={18} color="#10b981" />
+                <span>Photo / Video</span>
+                <input
+                  type="file"
+                  ref={postFileInputRef}
+                  accept="image/*,video/*"
+                  style={{ display: 'none' }}
+                  onChange={e => {
+                    if (e.target.files && e.target.files[0]) {
+                      setSelectedPostFile(e.target.files[0]);
+                    }
+                  }}
+                />
+              </label>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleCreateProfilePost}
+                disabled={isPublishingPost}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Send size={14} />
+                {isPublishingPost ? 'Posting...' : 'Post'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Facebook PostList with interactive like, comment, and replies */}
         <PostList
           posts={myPosts}
-          currentUserName={userName}
+          currentUserName={loggedInUserName || userName}
           userRole={userRole}
           onLike={handleLikePost}
           onAddComment={handleAddComment}

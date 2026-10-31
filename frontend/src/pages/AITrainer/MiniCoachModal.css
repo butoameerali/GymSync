@@ -126,3 +126,30 @@
 .mini-coach-nav .btn-primary:hover {
   background: #2563eb;
 }
+
+body.light-mode .mini-coach-overlay {
+  background: rgba(15, 23, 42, 0.65);
+}
+
+body.light-mode .mini-coach-window {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25) !important;
+}
+
+body.light-mode .mini-coach-window h3 {
+  color: #0f172a !important;
+}
+
+body.light-mode .mini-coach-pill {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+body.light-mode .mini-coach-pill.selected {
+  background: #eff6ff !important;
+  border-color: #3b82f6 !important;
+  color: #1d4ed8 !important;
+}
+

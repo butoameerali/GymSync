@@ -82,16 +82,34 @@ const MessagesPage = () => {
   const initialContact = searchParams.get('contact') || '';
 
   const [conversations, setConversations] = useState([]);
-  const [activeContact, setActiveContact] = useState(initialContact);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [clickedSuggestions, setClickedSuggestions] = useState(new Set());
 
   const messagesEndRef = useRef(null);
   const chatMessagesContainerRef = useRef(null);
   const currentUserName = user?.name || localStorage.getItem('gymsync_user_name') || 'User';
+
+  const userRole = user?.role || localStorage.getItem('gymsync_role') || '';
+  const normalizedRole = String(userRole || '').toLowerCase().replace(/[\s_]/g, '');
+  const isConsumer = normalizedRole === 'user' || normalizedRole === 'member' || !normalizedRole;
+  const isStaffOrAdmin = !isConsumer;
+
+  const isExcludedForStaff = (contactName) => {
+    const n = String(contactName || '').toLowerCase().trim();
+    return [
+      'ai', 'diet_ai', 'ai workout coach', 'ai nutritionist', 'workout coach', 'nutritionist',
+      'ai trainer', 'gym support', 'gymsupport', 'support desk'
+    ].includes(n);
+  };
+
+  const [activeContact, setActiveContact] = useState(
+    isStaffOrAdmin && isExcludedForStaff(initialContact) ? '' : initialContact
+  );
 
   const scrollToBottom = (behavior = 'smooth') => {
     if (chatMessagesContainerRef.current) {
@@ -104,39 +122,36 @@ const MessagesPage = () => {
     }
   };
 
-  const userRole = user?.role || localStorage.getItem('gymsync_role') || '';
-  const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(userRole);
-
-  const isExcludedForAdmin = (contactName) => {
-    const n = String(contactName || '').toLowerCase().trim();
-    return [
-      'ai', 'diet_ai', 'ai workout coach', 'ai nutritionist', 'workout coach', 'nutritionist',
-      'ai trainer', 'gym support', 'gymsupport', 'support desk'
-    ].includes(n);
-  };
-
   // 1. Fetch conversation list
   const loadConversations = async () => {
     try {
       const data = await messageService.getConversations(currentUserName);
       let convList = Array.isArray(data) ? data : [];
-      if (isAdmin) {
+      if (isStaffOrAdmin) {
         convList = convList.filter(c => {
           const contactName = typeof c === 'string' ? c : (c.name || c.id || '');
-          return !isExcludedForAdmin(contactName);
+          return !isExcludedForStaff(contactName);
         });
       }
       setConversations(convList);
       setLoadingConvs(false);
 
-      if (isAdmin && activeContact && isExcludedForAdmin(activeContact)) {
+      if (isStaffOrAdmin && activeContact && isExcludedForStaff(activeContact)) {
         setActiveContact('');
       } else if (!activeContact && convList.length > 0) {
-        if (initialContact) {
+        if (initialContact && (!isStaffOrAdmin || !isExcludedForStaff(initialContact))) {
           setActiveContact(initialContact);
         } else if (window.innerWidth >= 768) {
-          const firstContact = typeof convList[0] === 'string' ? convList[0] : (convList[0].name || convList[0].id);
-          setActiveContact(firstContact);
+          const firstValid = convList.find(c => {
+            const cName = typeof c === 'string' ? c : (c.name || c.id);
+            return !isStaffOrAdmin || !isExcludedForStaff(cName);
+          });
+          if (firstValid) {
+            const firstContact = typeof firstValid === 'string' ? firstValid : (firstValid.name || firstValid.id);
+            setActiveContact(firstContact);
+          } else {
+            setActiveContact('');
+          }
         }
       }
     } catch (err) {
@@ -210,10 +225,18 @@ const MessagesPage = () => {
     return () => clearInterval(interval);
   }, [activeContact, currentUserName]);
 
-  const handleSendMessage = async (e, textOverride = null) => {
+  const handleSendMessage = async (e, textOverride = null, chipKey = null) => {
     if (e) e.preventDefault();
+    if (isSending) return;
+
     const textToSend = (textOverride !== null ? textOverride : inputText).trim();
     if (!textToSend || !activeContact) return;
+
+    if (chipKey) {
+      setClickedSuggestions(prev => new Set(prev).add(chipKey));
+    }
+
+    setIsSending(true);
 
     if (textOverride === null) {
       setInputText('');
@@ -267,20 +290,31 @@ const MessagesPage = () => {
     } catch (err) {
       console.error('Failed to send message:', err);
       setMessages(prev => prev.filter(m => m._id !== optimisticId));
+    } finally {
+      setIsSending(false);
     }
   };
 
-  const handleSendSuggested = (sugText) => {
+  const handleSendSuggested = (sugText, chipKey = null) => {
+    if (isSending) return;
+    if (chipKey) {
+      if (clickedSuggestions.has(chipKey)) return;
+      setClickedSuggestions(prev => new Set(prev).add(chipKey));
+    }
     const lower = (sugText || '').toLowerCase();
     if (lower.includes('switch to ai nutritionist') || lower.includes('open ai nutritionist') || lower.includes('talk to ai nutritionist') || lower.includes('switch to nutritionist')) {
-      setActiveContact('AI Nutritionist');
+      if (!isStaffOrAdmin) {
+        setActiveContact('AI Nutritionist');
+      }
       return;
     }
     if (lower.includes('switch to ai workout coach') || lower.includes('open ai workout coach') || lower.includes('talk to ai workout coach') || lower.includes('switch to workout coach')) {
-      setActiveContact('AI Workout Coach');
+      if (!isStaffOrAdmin) {
+        setActiveContact('AI Workout Coach');
+      }
       return;
     }
-    handleSendMessage(null, sugText);
+    handleSendMessage(null, sugText, chipKey);
   };
 
   const handleClearChat = async () => {
@@ -301,7 +335,7 @@ const MessagesPage = () => {
 
   const filteredConversations = conversations.filter(c => {
     const name = typeof c === 'string' ? c : (c.name || c.id || '');
-    if (isAdmin && isExcludedForAdmin(name)) return false;
+    if (isStaffOrAdmin && isExcludedForStaff(name)) return false;
     return name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
@@ -426,7 +460,7 @@ const MessagesPage = () => {
                         </div>
 
                         {/* SWITCH_TO_NUTRITIONIST Action Card */}
-                        {!isMine && msg.structuredAction?.type === 'SWITCH_TO_NUTRITIONIST' && (
+                        {!isMine && !isStaffOrAdmin && msg.structuredAction?.type === 'SWITCH_TO_NUTRITIONIST' && (
                           <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#34d399' }}>🥗 Sports Nutritionist Available</span>
                             <button type="button" onClick={() => setActiveContact('AI Nutritionist')} style={{ padding: '7px 14px', borderRadius: '8px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', fontWeight: 700, fontSize: '0.8rem', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-start' }}>
@@ -436,7 +470,7 @@ const MessagesPage = () => {
                         )}
 
                         {/* SWITCH_TO_WORKOUT_COACH Action Card */}
-                        {!isMine && msg.structuredAction?.type === 'SWITCH_TO_WORKOUT_COACH' && (
+                        {!isMine && !isStaffOrAdmin && msg.structuredAction?.type === 'SWITCH_TO_WORKOUT_COACH' && (
                           <div style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '10px', background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#60a5fa' }}>🏋️ Workout Coach Available</span>
                             <button type="button" onClick={() => setActiveContact('AI Workout Coach')} style={{ padding: '7px 14px', borderRadius: '8px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', fontWeight: 700, fontSize: '0.8rem', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-start' }}>
@@ -625,22 +659,41 @@ const MessagesPage = () => {
                               </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginTop: '2px' }}>
-                              <button type="button" onClick={() => handleSendSuggested('🏋️ Generate Workout')}
-                                style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(59,130,246,0.18)', border: '1px solid rgba(59,130,246,0.4)', color: '#3b82f6', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
-                                <Dumbbell size={13} /> Generate Workout
-                              </button>
-                              <button type="button" onClick={() => handleSendSuggested('🥗 Custom Diet')}
-                                style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
-                                <Utensils size={13} /> Custom Diet
-                              </button>
-                              <button type="button" onClick={() => handleSendSuggested('⚡ 20-Min Workout')}
-                                style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(245,158,11,0.18)', border: '1px solid rgba(245,158,11,0.4)', color: '#f59e0b', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
-                                <Zap size={13} /> 20-Min Workout
-                              </button>
-                              <button type="button" onClick={() => handleSendSuggested('📊 View Progress')}
-                                style={{ padding: '8px 10px', borderRadius: '8px', background: 'rgba(168,85,247,0.18)', border: '1px solid rgba(168,85,247,0.4)', color: '#a855f7', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
-                                <TrendingUp size={13} /> View Progress
-                              </button>
+                              {[
+                                { text: '🏋️ Generate Workout', icon: <Dumbbell size={13} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.18)', border: 'rgba(59,130,246,0.4)' },
+                                { text: '🥗 Custom Diet', icon: <Utensils size={13} />, color: '#10b981', bg: 'rgba(16,185,129,0.18)', border: 'rgba(16,185,129,0.4)' },
+                                { text: '⚡ 20-Min Workout', icon: <Zap size={13} />, color: '#f59e0b', bg: 'rgba(245,158,11,0.18)', border: 'rgba(245,158,11,0.4)' },
+                                { text: '📊 View Progress', icon: <TrendingUp size={13} />, color: '#a855f7', bg: 'rgba(168,85,247,0.18)', border: 'rgba(168,85,247,0.4)' }
+                              ].map((pill, pIdx) => {
+                                const chipKey = `${msg._id || idx}-pill-${pIdx}`;
+                                const isClicked = clickedSuggestions.has(chipKey);
+                                return (
+                                  <button
+                                    key={pIdx}
+                                    type="button"
+                                    disabled={isSending || isClicked}
+                                    onClick={() => handleSendSuggested(pill.text, chipKey)}
+                                    style={{
+                                      padding: '8px 10px',
+                                      borderRadius: '8px',
+                                      background: isClicked ? 'rgba(255,255,255,0.04)' : pill.bg,
+                                      border: isClicked ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${pill.border}`,
+                                      color: isClicked ? 'var(--text-secondary)' : pill.color,
+                                      opacity: isClicked || isSending ? 0.6 : 1,
+                                      cursor: isClicked || isSending ? 'not-allowed' : 'pointer',
+                                      fontSize: '0.78rem',
+                                      fontWeight: 600,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '6px',
+                                      transition: 'all 0.15s'
+                                    }}
+                                  >
+                                    {pill.icon} {isClicked ? `${pill.text} ✓` : pill.text}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -665,13 +718,37 @@ const MessagesPage = () => {
                                 : 'Select how many weeks or months your periodized cycle should run:'}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              {(msg.suggestions || []).map((sug, sIdx) => (
-                                <button key={sIdx} type="button" onClick={() => handleSendSuggested(sug)}
-                                  style={{ padding: '9px 14px', borderRadius: '10px', background: 'var(--card-bg-light)', border: '1px solid var(--card-border)', color: 'var(--text-primary)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.15s' }}>
-                                  <span>{sug}</span>
-                                  <CheckCircle2 size={13} color="#3b82f6" />
-                                </button>
-                              ))}
+                              {(msg.suggestions || []).map((sug, sIdx) => {
+                                const chipKey = `${msg._id || idx}-q-${sIdx}-${sug}`;
+                                const isClicked = clickedSuggestions.has(chipKey);
+                                return (
+                                  <button
+                                    key={sIdx}
+                                    type="button"
+                                    disabled={isSending || isClicked}
+                                    onClick={() => handleSendSuggested(sug, chipKey)}
+                                    style={{
+                                      padding: '9px 14px',
+                                      borderRadius: '10px',
+                                      background: isClicked ? 'rgba(255,255,255,0.03)' : 'var(--card-bg-light)',
+                                      border: isClicked ? '1px solid rgba(255,255,255,0.06)' : '1px solid var(--card-border)',
+                                      color: isClicked ? 'var(--text-secondary)' : 'var(--text-primary)',
+                                      opacity: isClicked || isSending ? 0.6 : 1,
+                                      cursor: isClicked || isSending ? 'not-allowed' : 'pointer',
+                                      fontSize: '0.82rem',
+                                      fontWeight: 600,
+                                      textAlign: 'left',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      transition: 'all 0.15s'
+                                    }}
+                                  >
+                                    <span>{isClicked ? `${sug} ✓` : sug}</span>
+                                    <CheckCircle2 size={13} color={isClicked ? '#64748b' : '#3b82f6'} />
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -693,12 +770,34 @@ const MessagesPage = () => {
                             </div>
                             {msg.structuredAction.steps[0]?.options ? (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                {msg.structuredAction.steps[0].options.map((opt, oIdx) => (
-                                  <button key={oIdx} type="button" onClick={() => handleSendSuggested(opt)}
-                                    style={{ padding: '7px 12px', borderRadius: '14px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.35)', color: '#3b82f6', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                    {opt}
-                                  </button>
-                                ))}
+                                {msg.structuredAction.steps[0].options.map((opt, oIdx) => {
+                                  const chipKey = `${msg._id || idx}-mci-${oIdx}-${opt}`;
+                                  const isClicked = clickedSuggestions.has(chipKey);
+                                  return (
+                                    <button
+                                      key={oIdx}
+                                      type="button"
+                                      disabled={isSending || isClicked}
+                                      onClick={() => handleSendSuggested(opt, chipKey)}
+                                      style={{
+                                        padding: '7px 12px',
+                                        borderRadius: '14px',
+                                        background: isClicked ? 'rgba(255,255,255,0.04)' : 'rgba(59,130,246,0.15)',
+                                        border: isClicked ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(59,130,246,0.35)',
+                                        color: isClicked ? 'var(--text-secondary)' : '#3b82f6',
+                                        opacity: isClicked || isSending ? 0.6 : 1,
+                                        cursor: isClicked || isSending ? 'not-allowed' : 'pointer',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 600,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                    >
+                                      {isClicked ? `${opt} ✓` : opt}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             ) : (
                               <button type="button" onClick={() => navigate('/ai-trainer')}
@@ -798,40 +897,53 @@ const MessagesPage = () => {
                               maxWidth: '90%'
                             }}
                           >
-                            {msg.suggestions.map((sug, sIdx) => (
-                              <button
-                                key={sIdx}
-                                type="button"
-                                className="suggestion-chip-btn"
-                                style={{
-                                  background: 'rgba(59, 130, 246, 0.14)',
-                                  border: '1px solid rgba(59, 130, 246, 0.4)',
-                                  color: '#93c5fd',
-                                  padding: '5px 12px',
-                                  borderRadius: '20px',
-                                  fontSize: '0.78rem',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  transition: 'all 0.15s ease'
-                                }}
-                                onClick={() => handleSendMessage(null, sug)}
-                                onMouseEnter={e => {
-                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.28)';
-                                  e.currentTarget.style.borderColor = '#60a5fa';
-                                  e.currentTarget.style.transform = 'translateY(-1px)';
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.14)';
-                                  e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-                                  e.currentTarget.style.transform = 'none';
-                                }}
-                              >
-                                {sug}
-                              </button>
-                            ))}
+                            {msg.suggestions.map((sug, sIdx) => {
+                              const chipKey = `${msg._id || idx}-sug-${sIdx}-${sug}`;
+                              const isClicked = clickedSuggestions.has(chipKey);
+                              return (
+                                <button
+                                  key={sIdx}
+                                  type="button"
+                                  className={`suggestion-chip-btn ${isClicked ? 'clicked' : ''}`}
+                                  disabled={isSending || isClicked}
+                                  style={{
+                                    background: isClicked ? 'rgba(255, 255, 255, 0.04)' : 'rgba(59, 130, 246, 0.14)',
+                                    border: isClicked ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(59, 130, 246, 0.4)',
+                                    color: isClicked ? 'var(--text-secondary, #64748b)' : '#93c5fd',
+                                    padding: '5px 12px',
+                                    borderRadius: '20px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 600,
+                                    cursor: isSending || isClicked ? 'not-allowed' : 'pointer',
+                                    opacity: isSending || isClicked ? 0.6 : 1,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                  onClick={() => {
+                                    if (isSending || isClicked) return;
+                                    handleSendSuggested(sug, chipKey);
+                                  }}
+                                  onMouseEnter={e => {
+                                    if (!isClicked && !isSending) {
+                                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.28)';
+                                      e.currentTarget.style.borderColor = '#60a5fa';
+                                      e.currentTarget.style.transform = 'translateY(-1px)';
+                                    }
+                                  }}
+                                  onMouseLeave={e => {
+                                    if (!isClicked && !isSending) {
+                                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.14)';
+                                      e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                                      e.currentTarget.style.transform = 'none';
+                                    }
+                                  }}
+                                >
+                                  {isClicked ? `${sug} ✓` : sug}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -842,15 +954,16 @@ const MessagesPage = () => {
               </div>
 
               {/* Chat Input Form */}
-              <form className="chat-input-form" onSubmit={handleSendMessage}>
+              <form className="chat-input-form" onSubmit={(e) => handleSendMessage(e)}>
                 <input
                   type="text"
-                  placeholder={`Write a message to ${activeContact}...`}
+                  placeholder={isSending ? "Sending message..." : `Write a message to ${activeContact}...`}
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
+                  disabled={isSending}
                 />
-                <button type="submit" disabled={!inputText.trim()} className="btn-send-msg">
-                  <Send size={18} />
+                <button type="submit" disabled={!inputText.trim() || isSending} className="btn-send-msg" title={isSending ? "Sending..." : "Send message"}>
+                  {isSending ? <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>...</span> : <Send size={18} />}
                 </button>
               </form>
             </>

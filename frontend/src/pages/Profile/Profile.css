@@ -9,17 +9,18 @@
   display: none !important;
 }
 
-/* PC / Desktop: Mid 60% width with side gaps */
+/* PC / Desktop: Balanced container */
 .profile-page .container {
   width: 100%;
-  max-width: 60%;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 24px 20px;
 }
 
 @media (max-width: 1024px) {
   .profile-page .container {
-    max-width: 82%;
+    max-width: 96%;
+    padding: 16px 12px;
   }
 }
 
@@ -28,6 +29,418 @@
     max-width: 100%;
     padding: 0 12px;
   }
+}
+
+/* ========================================================
+   MODERN AUTHENTIC ATHLETE PROFILE CARD
+   ======================================================== */
+.profile-modern-card-container {
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.profile-modern-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.light-mode .profile-modern-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* Cover Banner */
+.profile-card-cover-banner {
+  height: 105px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #8b5cf6 100%);
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 12px;
+}
+
+.profile-card-role-badge {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* Avatar Frame */
+.profile-card-avatar-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: -52px;
+  position: relative;
+  z-index: 2;
+}
+
+.profile-card-avatar-frame {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  border: 4px solid var(--card-bg);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  position: relative;
+  background: var(--card-bg);
+}
+
+body.light-mode .profile-card-avatar-frame {
+  border-color: #ffffff !important;
+  background: #ffffff !important;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12) !important;
+}
+
+.profile-card-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-card-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  user-select: none;
+}
+
+.avatar-fallback-initials {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  font-family: 'Outfit', sans-serif;
+  color: #ffffff;
+}
+
+.profile-card-avatar-edit-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: #ffffff;
+  border: 2.5px solid var(--card-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  padding: 0;
+}
+
+body.light-mode .profile-card-avatar-edit-btn {
+  border-color: #ffffff !important;
+}
+
+.profile-card-avatar-edit-btn:hover {
+  background: #2563eb;
+  transform: scale(1.08);
+}
+
+/* Identity */
+.profile-card-identity {
+  padding: 12px 20px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.profile-card-display-name {
+  font-size: 1.32rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.25;
+}
+
+body.light-mode .profile-card-display-name {
+  color: #0f172a !important;
+}
+
+.profile-card-username-handle {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+body.light-mode .profile-card-username-handle {
+  color: #64748b !important;
+}
+
+.profile-card-bio-tagline {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin: 0 0 14px 0;
+}
+
+body.light-mode .profile-card-bio-tagline {
+  color: #475569 !important;
+}
+
+/* Measurement Chips */
+.profile-card-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.profile-chip {
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+body.light-mode .profile-chip {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+/* Metrics Grid */
+.profile-card-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.profile-metric-box {
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-align: center;
+}
+
+body.light-mode .profile-metric-box {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+.metric-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.metric-icon.streak-icon { color: #f97316; }
+.metric-icon.workout-icon { color: #3b82f6; }
+.metric-icon.xp-icon { color: #10b981; }
+
+.metric-number {
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+body.light-mode .metric-number {
+  color: #0f172a !important;
+}
+
+.metric-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+body.light-mode .metric-label {
+  color: #64748b !important;
+}
+
+/* Social Counts */
+.profile-card-social-counts {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+body.light-mode .profile-card-social-counts {
+  border-color: #e2e8f0 !important;
+}
+
+.social-count-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.social-count-item strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+body.light-mode .social-count-item strong {
+  color: #0f172a !important;
+}
+
+body.light-mode .social-count-item {
+  color: #64748b !important;
+}
+
+.social-count-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--card-border);
+}
+
+body.light-mode .social-count-divider {
+  background: #e2e8f0 !important;
+}
+
+/* Actions */
+.profile-card-actions-wrapper {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.profile-visitor-btn-group {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.profile-owner-btn-group {
+  width: 100%;
+}
+
+.btn-profile-primary {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-profile-primary:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.btn-profile-primary.following {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+body.light-mode .btn-profile-primary.following {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #a7f3d0 !important;
+}
+
+.btn-profile-secondary {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  background: var(--card-bg-light);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 700;
+  border: 1px solid var(--card-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+body.light-mode .btn-profile-secondary {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.btn-profile-secondary:hover {
+  background: var(--card-border);
+}
+
+body.light-mode .btn-profile-secondary:hover {
+  background: #e2e8f0 !important;
+}
+
+.btn-profile-secondary.full-width {
+  width: 100%;
+}
+
+.profile-card-footer-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+body.light-mode .profile-card-footer-meta {
+  color: #94a3b8 !important;
 }
 
 /* ========================================================
@@ -1047,62 +1460,55 @@
 }
 
 
-/* Responsive Profile Layout: 2-Column Desktop Grid & 2-Slide Mobile Carousel */
+/* Responsive Profile Layout: 2-Column Desktop Grid */
 .profile-page {
+  min-height: 100vh;
   width: 100%;
-  height: 100%;
+  padding-bottom: 60px;
 }
 
 .profile-page .container {
-  width: 100% !important;
-  max-width: 100% !important;
-  height: 100%;
-  margin: 0 !important;
-  padding: 0 !important;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  box-sizing: border-box;
 }
 
 /* Desktop 2-Column Grid: Fixed Athlete Card on Left, Smoothly Scrolling Main Content on Right */
 .profile-desktop-grid {
   display: grid;
-  grid-template-columns: 390px minmax(0, 1fr);
+  grid-template-columns: 340px minmax(0, 1fr);
   gap: 28px;
-  align-items: stretch;
-  height: 100%;
+  align-items: start;
   width: 100%;
   margin: 0;
-  overflow: hidden;
 }
 
 .profile-desktop-card-col {
-  width: 390px;
+  width: 340px;
   flex-shrink: 0;
-  height: 100%;
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  z-index: 10;
+  max-height: calc(100vh - 48px);
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding-bottom: 24px;
 }
 .profile-desktop-card-col::-webkit-scrollbar {
   display: none;
 }
 
 .profile-desktop-main-col {
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
   min-width: 0;
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding-right: 14px;
   padding-bottom: 80px;
   box-sizing: border-box;
-  scrollbar-width: thin;
 }
 
 /* 3D Athlete Card Polish */
@@ -1254,13 +1660,9 @@
     padding: 0 !important;
   }
 
-  /* Lock vertical scrolling when viewing the Card on mobile */
+  /* Mobile Profile Slide 0 & 1 */
   .profile-page.profile-mobile-locked {
-    height: calc(100dvh - 55px) !important;
-    max-height: calc(100dvh - 55px) !important;
-    overflow: hidden !important;
-    touch-action: pan-x !important;
-    padding: 0 !important;
+    min-height: calc(100dvh - 55px);
   }
 
   /* Sliding Track */
@@ -1277,56 +1679,21 @@
     box-sizing: border-box;
   }
 
-  /* Slide 0: Athlete Card (Centered, Consumes Full Screen Height, Balanced Borders) */
+  /* Slide 0: Athlete Card (Clean, Modern Profile Card on Mobile) */
   .profile-card-slide {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
-    justify-content: space-between !important;
-    height: calc(100dvh - 118px) !important;
-    max-height: calc(100dvh - 118px) !important;
-    overflow: hidden !important;
-    touch-action: pan-x;
-    padding: 4px 10px 8px 10px !important;
+    padding: 12px 14px 28px 14px !important;
     box-sizing: border-box !important;
     width: 100% !important;
+    overflow-y: auto !important;
   }
 
-  .profile-card-slide .pokemon-card-wrapper {
-    margin: 0 auto !important;
+  .profile-card-slide .profile-modern-card-container {
     width: 100% !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-  }
-
-  .profile-card-slide .pokemon-fullart-card {
-    width: 100% !important;
-    max-width: min(380px, calc(100vw - 20px)) !important;
-    height: clamp(520px, calc(100dvh - 170px), 660px) !important;
-    max-height: calc(100dvh - 170px) !important;
+    max-width: 420px !important;
     margin: 0 auto !important;
-    padding: 8px 12px !important;
-    touch-action: pan-x;
-    box-sizing: border-box !important;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-
-  .profile-card-slide .pokemon-card-art-frame {
-    height: clamp(165px, 28dvh, 250px) !important;
-    margin: 6px 0 !important;
-  }
-
-  .profile-card-slide .pokemon-card-top-bar {
-    padding: 6px 12px !important;
-  }
-
-  .profile-card-slide .pokemon-card-name {
-    font-size: 1.14rem !important;
   }
 
   .profile-card-slide .pokemon-card-substrip {
@@ -1439,6 +1806,28 @@
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
   }
+}
+
+/* Visitor Action Bar (Follow & Message under 3D Athlete Card) */
+.profile-visitor-action-bar {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+}
+
+.profile-visitor-action-bar .btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
 }
 
 

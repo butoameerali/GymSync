@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import ImageCropper from '../../components/layout/ImageCropper';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -21,35 +22,37 @@ import FitnessInstructorProfile from './FitnessInstructorProfile';
 import AdminProfile from './AdminProfile';
 
 const Profile = () => {
-  const userRole = localStorage.getItem('gymsync_role') || 'User';
-  const normalizedRole = userRole.toLowerCase().replace(/[_\s]/g, '');
+  const { userName: routeUserName } = useParams();
+  const loggedInUserName = localStorage.getItem('gymsync_user_name') || 'Guest User';
+  const loggedInRole = localStorage.getItem('gymsync_role') || 'User';
 
-  // 1. Dedicated Gym Trainer Profile
-  if (normalizedRole === 'gymtrainer') {
-    return <TrainerProfile />;
+  const isOwnProfile = !routeUserName || routeUserName.toLowerCase() === loggedInUserName.toLowerCase();
+  const activeUserName = isOwnProfile ? loggedInUserName : routeUserName;
+
+  // Dedicated role redirects apply ONLY when viewing own profile
+  if (isOwnProfile) {
+    const normalizedRole = loggedInRole.toLowerCase().replace(/[_\s]/g, '');
+    if (normalizedRole === 'gymtrainer') {
+      return <TrainerProfile />;
+    }
+    if (normalizedRole === 'gymowner' || normalizedRole === 'gym_owner') {
+      return <GymOwnerProfileRedirect />;
+    }
+    if (normalizedRole === 'storemanager') {
+      return <StoreManagerProfile />;
+    }
+    if (normalizedRole === 'fitnessinstructor') {
+      return <FitnessInstructorProfile />;
+    }
+    if (normalizedRole === 'admin' || normalizedRole === 'superadmin' || normalizedRole === 'complaintmoderator') {
+      return <AdminProfile />;
+    }
   }
 
-  // 2. Dedicated Gym Owner Facility Profile (Unified with /gym/:id)
-  if (normalizedRole === 'gymowner' || normalizedRole === 'gym_owner') {
-    return <GymOwnerProfileRedirect />;
-  }
+  const [userData, setUserData] = useState(null);
+  const profileRole = isOwnProfile ? loggedInRole : (userData?.role || 'User');
+  const isTrainee = profileRole === 'User' || profileRole === 'Guest';
 
-  // 3. Dedicated Store Manager Profile
-  if (normalizedRole === 'storemanager') {
-    return <StoreManagerProfile />;
-  }
-
-  // 4. Dedicated Fitness Instructor Profile
-  if (normalizedRole === 'fitnessinstructor') {
-    return <FitnessInstructorProfile />;
-  }
-
-  // 5. Dedicated Admin & Operations Profile
-  if (normalizedRole === 'admin' || normalizedRole === 'superadmin' || normalizedRole === 'complaintmoderator') {
-    return <AdminProfile />;
-  }
-
-  const isTrainee = userRole === 'User' || userRole === 'Guest';
   const [activeTab, setActiveTab] = useState('posts');
   const [activeSettingSection, setActiveSettingSection] = useState('general');
   const [mobileSlide, setMobileSlide] = useState(0); // 0: Athlete Card, 1: Activity & Feed
@@ -59,7 +62,6 @@ const Profile = () => {
   const touchEndYRef = useRef(0);
 
   useEffect(() => {
-    // Keep global body overflow unset; slide locking is scoped to .profile-mobile-locked in CSS
     document.body.style.overflow = '';
     return () => {
       document.body.style.overflow = '';
@@ -98,11 +100,16 @@ const Profile = () => {
   const [upcoming, setUpcoming] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
   const [myGymGig, setMyGymGig] = useState(null);
-  const userName = localStorage.getItem('gymsync_user_name') || 'Guest User';
-  const userKey = userName.replace(/\s+/g, '_');
-  const [profilePic, setProfilePic] = useState(localStorage.getItem(`gymsync_${userKey}_pic`) || '');
-  const [userData, setUserData] = useState(null);
+
+  const userKey = activeUserName.replace(/\s+/g, '_');
+  const [profilePic, setProfilePic] = useState(
+    isOwnProfile ? (localStorage.getItem(`gymsync_${userKey}_pic`) || '') : ''
+  );
   const [rawImageSrc, setRawImageSrc] = useState(null);
+
+  // Follow State (when viewing another user's profile)
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowPending, setIsFollowPending] = useState(false);
 
   // New Post State
   const [newPostText, setNewPostText] = useState('');
@@ -131,7 +138,7 @@ const Profile = () => {
 
   // Settings State
   const [hideHealthData, setHideHealthData] = useState(() => localStorage.getItem('gymsync_privacy_hideHealth') === 'true');
-  const isAdminUser = ['SuperAdmin', 'Admin', 'ComplaintModerator'].includes(userRole);
+  const isAdminUser = ['SuperAdmin', 'Admin', 'ComplaintModerator'].includes(profileRole);
   const authToken = localStorage.getItem('gymsync_token');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -190,8 +197,8 @@ const Profile = () => {
     try {
       const res = await fetch('/api/users/send-verification-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
-        body: JSON.stringify({ userName, email: verifyEmailInput.trim() })
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken || ''}` },
+        body: JSON.stringify({ userName: activeUserName, email: verifyEmailInput.trim() })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to send OTP');
@@ -208,8 +215,8 @@ const Profile = () => {
     try {
       const res = await fetch('/api/users/verify-email-otp', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('gymsync_token') || ''}` },
-        body: JSON.stringify({ userName, email: verifyEmailInput.trim(), otp: otpInput.trim() })
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken || ''}` },
+        body: JSON.stringify({ userName: activeUserName, email: verifyEmailInput.trim(), otp: otpInput.trim() })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'OTP Verification failed');
@@ -224,12 +231,13 @@ const Profile = () => {
 
   const handleCreateProfilePost = async (e) => {
     if (e) e.preventDefault();
+    if (!isOwnProfile) return;
     if (!newPostText.trim() && !selectedPostFile) { toast.warning('Please write something or attach a photo.'); return; }
     setIsPublishingPost(true);
     try {
       const formData = new FormData();
       formData.append('content', newPostText);
-      formData.append('authorName', userName);
+      formData.append('authorName', activeUserName);
       if (selectedPostFile) formData.append('media', selectedPostFile);
       const created = await postService.createPost(formData);
       setMyPosts(prev => [created, ...prev]);
@@ -242,61 +250,134 @@ const Profile = () => {
   };
 
   const handleLikePost = async (postId) => {
-    try { const updated = await postService.likePost(postId); setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p))); }
-    catch (err) { toast.error(err.message || 'Failed to like post'); }
+    try {
+      const updated = await postService.likePost(postId);
+      setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p)));
+    } catch (err) { toast.error(err.message || 'Failed to like post'); }
   };
 
   const handleAddComment = async (postId, text) => {
-    try { const updated = await postService.addComment(postId, text); setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p))); }
-    catch (err) { toast.error(err.message || 'Failed to add comment'); }
+    try {
+      const updated = await postService.addComment(postId, text);
+      setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p)));
+    } catch (err) { toast.error(err.message || 'Failed to add comment'); }
   };
 
   const handleDeleteComment = async (postId, commentId) => {
-    try { const updated = await postService.deleteComment(postId, commentId); setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p))); }
-    catch (err) { toast.error(err.message || 'Failed to delete comment'); }
+    try {
+      const updated = await postService.deleteComment(postId, commentId);
+      setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p)));
+    } catch (err) { toast.error(err.message || 'Failed to delete comment'); }
   };
 
   const handleAddReply = async (postId, commentId, text) => {
-    try { const updated = await postService.addReply(postId, commentId, text); setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p))); }
-    catch (err) { toast.error(err.message || 'Failed to reply'); }
+    try {
+      const updated = await postService.addReply(postId, commentId, text);
+      setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p)));
+    } catch (err) { toast.error(err.message || 'Failed to add reply'); }
   };
 
   const handleDeleteReply = async (postId, commentId, replyId) => {
-    try { const updated = await postService.deleteReply(postId, commentId, replyId); setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p))); }
-    catch (err) { toast.error(err.message || 'Failed to delete reply'); }
+    try {
+      const updated = await postService.deleteReply(postId, commentId, replyId);
+      setMyPosts(prev => prev.map(p => ((p._id === postId || p.id === postId) ? updated : p)));
+    } catch (err) { toast.error(err.message || 'Failed to delete reply'); }
   };
 
   const handlePicUpload = (e) => {
+    if (!isOwnProfile) return;
     const file = e.target.files[0];
-    if (file) { const reader = new FileReader(); reader.onloadend = () => setRawImageSrc(reader.result); reader.readAsDataURL(file); }
-    if (e.target) e.target.value = null;
-  };
-
-  const saveProfilePic = async (image) => {
-    try {
-      localStorage.setItem(`gymsync_${userKey}_pic`, image);
-    } catch (storageErr) {
-      console.warn('LocalStorage pic quota exceeded:', storageErr);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setRawImageSrc(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
-    const response = await fetch('/api/users/profile-pic', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
-      body: JSON.stringify({ profilePic: image })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Unable to save profile picture.');
   };
 
-  const onCropComplete = async (croppedImage) => {
-    setProfilePic(croppedImage);
-    setRawImageSrc(null);
-    try { await saveProfilePic(croppedImage); toast.success('Profile picture updated.'); }
-    catch (error) { toast.error(error.message); }
+  const onCropComplete = async (croppedBlob) => {
+    if (!isOwnProfile) return;
+    try {
+      const formData = new FormData();
+      formData.append('profilePic', croppedBlob, 'avatar.jpg');
+      formData.append('userName', activeUserName);
+
+      const res = await fetch('/api/users/profile-pic', {
+        method: 'PUT',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update avatar');
+
+      const updatedPic = data.profilePic || data.url;
+      setProfilePic(updatedPic);
+      localStorage.setItem(`gymsync_${userKey}_pic`, updatedPic);
+      setRawImageSrc(null);
+      toast.success('Profile photo updated successfully!');
+      window.dispatchEvent(new Event('gymsync_user_updated'));
+    } catch (err) {
+      toast.error(err.message || 'Avatar update failed');
+    }
+  };
+
+  const handleFollowToggle = async () => {
+    if (loggedInUserName === 'Guest User' || isFollowPending) {
+      if (loggedInUserName === 'Guest User') toast.info('Please log in to follow athletes.');
+      return;
+    }
+    const previousState = isFollowing;
+    const newState = !previousState;
+    setIsFollowing(newState);
+    setIsFollowPending(true);
+
+    setUserData(prev => {
+      if (!prev) return prev;
+      const followers = prev.followers || [];
+      const updatedFollowers = newState
+        ? (followers.includes(loggedInUserName) ? followers : [...followers, loggedInUserName])
+        : followers.filter(name => name !== loggedInUserName);
+      return { ...prev, followers: updatedFollowers };
+    });
+
+    try {
+      const endpoint = previousState ? '/api/users/unfollow' : '/api/users/follow';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken || ''}`
+        },
+        body: JSON.stringify({ followerName: loggedInUserName, targetName: activeUserName })
+      });
+      if (!res.ok) {
+        setIsFollowing(previousState);
+        toast.error('Action failed. Rolled back follow status.');
+      } else {
+        toast.success(previousState ? `Unfollowed ${activeUserName}` : `Now following ${activeUserName}!`);
+      }
+    } catch (err) {
+      console.error(err);
+      setIsFollowing(previousState);
+      toast.error('Network error updating follow status.');
+    } finally {
+      setIsFollowPending(false);
+    }
+  };
+
+  const handleOpenMessage = () => {
+    if (loggedInUserName === 'Guest User') {
+      toast.info('Please log in to message athletes.');
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('open_chat', { detail: { userName: activeUserName } }));
   };
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    setPasswordError(''); setPasswordMessage('');
+    setPasswordMessage(''); setPasswordError('');
     if (!currentPassword || !newPassword || !confirmPassword) { setPasswordError('Please fill in all password fields.'); return; }
     if (newPassword !== confirmPassword) { setPasswordError('New passwords do not match.'); return; }
     if (newPassword.length < 6) { setPasswordError('New password must be at least 6 characters long.'); return; }
@@ -315,38 +396,30 @@ const Profile = () => {
 
   // ─── Data Loading Effect ─────────────────────────────────────────────────────
   useEffect(() => {
-    const mockPoints = localStorage.getItem(`gymsync_${userKey}_points`) || '0';
-    const mockStreak = localStorage.getItem(`gymsync_${userKey}_streak`) || '0';
-    setStats({ points: parseInt(mockPoints), streak: parseInt(mockStreak) });
+    setIsLoading(true);
 
-    let rawHistory = [];
-    try { const parsed = JSON.parse(localStorage.getItem(`gymsync_${userKey}_history`) || '[]'); rawHistory = Array.isArray(parsed) ? parsed : []; }
-    catch (e) { rawHistory = []; }
-    setHistory([...rawHistory].reverse());
+    if (isOwnProfile) {
+      const mockPoints = localStorage.getItem(`gymsync_${userKey}_points`) || '0';
+      const mockStreak = localStorage.getItem(`gymsync_${userKey}_streak`) || '0';
+      setStats({ points: parseInt(mockPoints, 10), streak: parseInt(mockStreak, 10) });
 
-    if (userRole === 'FitnessInstructor') {
-      const token = localStorage.getItem('gymsync_token') || '';
-      const headers = { 'Authorization': `Bearer ${token}` };
-      Promise.all([
-        fetch('/api/plans/premade', { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch('/api/articles', { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch('/api/instructor-requests', { headers }).then(r => r.ok ? r.json() : []).catch(() => [])
-      ]).then(([plans, articles, requests]) => {
-        setInstructorStats({
-          programs: (plans || []).filter(p => (p.type === 'workout' || !p.type)).length,
-          diets: (plans || []).filter(p => p.type === 'diet').length,
-          articles: (articles || []).length,
-          tasksCompleted: (requests || []).filter(r => r.status === 'Completed').length
-        });
-      }).catch(err => console.error('Error fetching instructor stats:', err));
-    }
+      let rawHistory = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem(`gymsync_${userKey}_history`) || '[]');
+        rawHistory = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        rawHistory = [];
+      }
+      setHistory([...rawHistory].reverse());
 
-    const loadBioData = () => {
       const bioFilled = localStorage.getItem(`gymsync_${userKey}_bio_filled`) === 'true' || localStorage.getItem('gymsync_bio_filled') === 'true';
       if (bioFilled) {
         const storedBio = localStorage.getItem(`gymsync_${userKey}_bio_data`) || localStorage.getItem(`gymsync_${userKey}_bio`);
-        if (storedBio) { try { setBio(JSON.parse(storedBio)); } catch (e) { console.error("Error parsing bio data", e); } }
+        if (storedBio) {
+          try { setBio(JSON.parse(storedBio)); } catch (e) {}
+        }
       }
+
       const storedPlan = localStorage.getItem(`gymsync_${userKey}_ai_plan`);
       if (storedPlan) {
         try {
@@ -358,58 +431,103 @@ const Profile = () => {
           }
         } catch (e) {}
       }
-      const storedProgress = localStorage.getItem(`gymsync_${userKey}_workout_progress`);
-      if (storedProgress) { try { setWorkoutProgress(JSON.parse(storedProgress)); } catch (e) {} }
-      if (userName !== 'Guest User') {
-        fetch('/api/users/workout-progress', { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } })
-          .then(res => res.ok ? res.json() : null)
-          .then(srvProg => {
-            if (srvProg && srvProg.completedDays) {
-              setWorkoutProgress(srvProg);
-              localStorage.setItem(`gymsync_${userKey}_workout_progress`, JSON.stringify(srvProg));
-            }
-          })
-          .catch(err => console.warn("Error fetching workout progress from server:", err));
-      }
-    };
 
-    loadBioData();
-    window.addEventListener('gymsync_bio_updated', loadBioData);
+      const storedProgress = localStorage.getItem(`gymsync_${userKey}_workout_progress`);
+      if (storedProgress) {
+        try { setWorkoutProgress(JSON.parse(storedProgress)); } catch (e) {}
+      }
+    }
 
     const fetches = [];
-    if (userName !== 'Guest User') {
+
+    // 1. Fetch user data from DB
+    if (activeUserName !== 'Guest User') {
       fetches.push(
-        fetch(`/api/users/${userName}`)
+        fetch(`/api/users/${encodeURIComponent(activeUserName)}`)
           .then(res => res.ok ? res.json() : null)
           .then(user => {
             if (user && !user.message && user._id) {
               setUserData(user);
-              if (user.profilePic) { setProfilePic(user.profilePic); localStorage.setItem(`gymsync_${userKey}_pic`, user.profilePic); }
+              if (user.profilePic) {
+                setProfilePic(user.profilePic);
+                if (isOwnProfile) localStorage.setItem(`gymsync_${userKey}_pic`, user.profilePic);
+              }
+              setStats({
+                points: Number(user.points) || 0,
+                streak: Number(user.streak) || 0
+              });
+
+              if (user.bioData || user.bio || user.location || user.city) {
+                const b = user.bioData || {};
+                setBio(prev => ({
+                  ...prev,
+                  height: b.height || prev.height || '',
+                  weight: b.weight || prev.weight || '',
+                  bodyType: b.bodyType || prev.bodyType || 'healthy',
+                  fitnessGoals: b.mainGoalArea || (b.goals && b.goals[0]) || user.fitnessGoal || prev.fitnessGoals || '',
+                  location: user.location || user.city || prev.location || '',
+                  trainingDaysPerWeek: b.trainingDaysPerWeek || prev.trainingDaysPerWeek || 3,
+                  equipmentAccess: b.equipmentAccess || prev.equipmentAccess || 'Full Gym',
+                  pushupBaseline: b.pushupBaseline || prev.pushupBaseline || 10,
+                  targetMuscles: b.targetMuscles || prev.targetMuscles || [],
+                  gender: b.gender || prev.gender || '',
+                  units: b.units || prev.units || 'metric',
+                  foodPreferences: b.foodPreferences || prev.foodPreferences || ''
+                }));
+              }
             }
           })
           .catch(err => console.error("Error fetching profile from DB:", err))
       );
     }
+
+    // 2. Fetch posts
     fetches.push(
       fetch('/api/posts')
         .then(res => res.ok ? res.json() : [])
         .then(data => {
-          if (Array.isArray(data)) setMyPosts(data.filter(p => p && (p.authorName === userName || p.author?.name === userName)));
-          else setMyPosts([]);
+          if (Array.isArray(data)) {
+            setMyPosts(data.filter(p => p && (p.authorName === activeUserName || p.author?.name === activeUserName)));
+          } else {
+            setMyPosts([]);
+          }
         })
-        .catch(err => { console.error(err); setMyPosts([]); })
+        .catch(err => {
+          console.error(err);
+          setMyPosts([]);
+        })
     );
-    if (localStorage.getItem('gymsync_role') === 'GymOwner') {
+
+    // 3. Follow check if viewing another user
+    if (!isOwnProfile && loggedInUserName !== 'Guest User') {
       fetches.push(
-        fetch(`/api/gym-owner/dashboard/${userName}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('gymsync_token') || ''}` } })
+        fetch(`/api/users/${encodeURIComponent(loggedInUserName)}`)
           .then(res => res.ok ? res.json() : null)
-          .then(data => { if (data && data.gym && data.gym._id !== 'gym_demo_id') setMyGymGig(data.gym); })
+          .then(me => {
+            if (me && Array.isArray(me.following)) {
+              setIsFollowing(me.following.includes(activeUserName));
+            }
+          })
+          .catch(err => console.warn("Error fetching following state:", err))
+      );
+    }
+
+    // 4. Gym gig if own profile and GymOwner
+    if (isOwnProfile && loggedInRole === 'GymOwner') {
+      fetches.push(
+        fetch(`/api/gym-owner/dashboard/${encodeURIComponent(activeUserName)}`, {
+          headers: { 'Authorization': `Bearer ${authToken || ''}` }
+        })
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data && data.gym && data.gym._id !== 'gym_demo_id') setMyGymGig(data.gym);
+          })
           .catch(err => console.error('Error fetching gym gig', err))
       );
     }
+
     Promise.allSettled(fetches).then(() => setIsLoading(false));
-    return () => window.removeEventListener('gymsync_bio_updated', loadBioData);
-  }, [userKey, userName]);
+  }, [activeUserName, isOwnProfile, loggedInUserName]);
 
   // ─── Derived values ──────────────────────────────────────────────────────────
   const todayDate = new Date().toDateString();
@@ -430,12 +548,11 @@ const Profile = () => {
     );
   }
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
   // ─── Render Sub-Sections ──────────────────────────────────────────────────
   const renderCardHeader = () => (
     <ProfileHeader
-      userName={userName}
-      userRole={userRole}
+      userName={activeUserName}
+      userRole={profileRole}
       bio={bio}
       profilePic={profilePic}
       userData={userData}
@@ -447,60 +564,120 @@ const Profile = () => {
       workoutProgress={workoutProgress}
       history={history}
       setActiveTab={setActiveTab}
+      isOwnProfile={isOwnProfile}
+      isFollowing={isFollowing}
+      isFollowPending={isFollowPending}
+      handleFollowToggle={handleFollowToggle}
+      handleOpenMessage={handleOpenMessage}
     />
   );
 
   const renderMainFeedContent = () => (
     <>
-      {/* Today's Energy & Unified Calorie Tracker */}
-      {isTrainee && (
+      {/* Today's Energy & Unified Calorie Tracker (Own Profile Only) */}
+      {isTrainee && isOwnProfile && (
         <TodaysEnergyCard bio={bio} currentWeight={userData?.bioData?.weight} />
       )}
 
       {/* Navigation Tabs */}
       <div className="profile-tabs glass-panel">
-        <button className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>Timeline</button>
-        {isTrainee && <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Workout History</button>}
-        {isTrainee && <button className={`tab-btn ${activeTab === 'bio' ? 'active' : ''}`} onClick={() => setActiveTab('bio')}>Health Bio</button>}
-        {userRole === 'GymOwner' && <button className={`tab-btn ${activeTab === 'gig' ? 'active' : ''}`} onClick={() => setActiveTab('gig')}>Your Gym Gig</button>}
-        <button className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings &amp; Privacy</button>
+        <button className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>
+          Timeline
+        </button>
+        {isTrainee && (
+          <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+            Workout History
+          </button>
+        )}
+        {isTrainee && (
+          <button className={`tab-btn ${activeTab === 'bio' ? 'active' : ''}`} onClick={() => setActiveTab('bio')}>
+            Health Bio
+          </button>
+        )}
+        {isOwnProfile && profileRole === 'GymOwner' && (
+          <button className={`tab-btn ${activeTab === 'gig' ? 'active' : ''}`} onClick={() => setActiveTab('gig')}>
+            Your Gym Gig
+          </button>
+        )}
+        {isOwnProfile && (
+          <button className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+            Settings &amp; Privacy
+          </button>
+        )}
       </div>
 
       <div className="profile-content">
         {activeTab === 'posts' && (
           <ProfileTimelineTab
-            bio={bio} userRole={userRole} isAdminUser={isAdminUser} isTrainee={isTrainee}
-            hideHealthData={hideHealthData} stats={stats} instructorStats={instructorStats}
-            photoPosts={photoPosts} profilePic={profilePic} userName={userName}
-            myPosts={myPosts} newPostText={newPostText} setNewPostText={setNewPostText}
-            selectedPostFile={selectedPostFile} setSelectedPostFile={setSelectedPostFile}
-            postFileInputRef={postFileInputRef} isPublishingPost={isPublishingPost}
-            handleCreateProfilePost={handleCreateProfilePost} handleLikePost={handleLikePost}
-            handleAddComment={handleAddComment} handleDeleteComment={handleDeleteComment}
-            handleAddReply={handleAddReply} handleDeleteReply={handleDeleteReply}
+            bio={bio}
+            userRole={profileRole}
+            isAdminUser={isAdminUser}
+            isTrainee={isTrainee}
+            hideHealthData={hideHealthData}
+            stats={stats}
+            instructorStats={instructorStats}
+            photoPosts={photoPosts}
+            profilePic={profilePic}
+            userName={activeUserName}
+            loggedInUserName={loggedInUserName}
+            isOwnProfile={isOwnProfile}
+            myPosts={myPosts}
+            newPostText={newPostText}
+            setNewPostText={setNewPostText}
+            selectedPostFile={selectedPostFile}
+            setSelectedPostFile={setSelectedPostFile}
+            postFileInputRef={postFileInputRef}
+            isPublishingPost={isPublishingPost}
+            handleCreateProfilePost={handleCreateProfilePost}
+            handleLikePost={handleLikePost}
+            handleAddComment={handleAddComment}
+            handleDeleteComment={handleDeleteComment}
+            handleAddReply={handleAddReply}
+            handleDeleteReply={handleDeleteReply}
           />
         )}
         {activeTab === 'history' && isTrainee && (
-          <ProfileHistoryTab upcoming={upcoming} todayHistory={todayHistory} safeHistory={safeHistory} aiPlan={aiPlan} workoutProgress={workoutProgress} />
+          <ProfileHistoryTab
+            upcoming={upcoming}
+            todayHistory={todayHistory}
+            safeHistory={safeHistory}
+            aiPlan={aiPlan}
+            workoutProgress={workoutProgress}
+          />
         )}
-        {activeTab === 'bio' && isTrainee && <ProfileBioTab bio={bio} />}
-        {activeTab === 'settings' && (
+        {activeTab === 'bio' && isTrainee && (
+          <ProfileBioTab bio={bio} userName={activeUserName} isOwnProfile={isOwnProfile} />
+        )}
+        {isOwnProfile && activeTab === 'settings' && (
           <ProfileSettingsPanel
-            activeSettingSection={activeSettingSection} setActiveSettingSection={setActiveSettingSection}
-            userName={userName} userRole={userRole} userData={userData}
-            currentPassword={currentPassword} setCurrentPassword={setCurrentPassword}
-            newPassword={newPassword} setNewPassword={setNewPassword}
-            confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword}
-            passwordMessage={passwordMessage} passwordError={passwordError}
-            handleChangePassword={handleChangePassword} hideHealthData={hideHealthData}
-            setHideHealthData={setHideHealthData} bio={bio} stats={stats}
-            history={history} myPosts={myPosts} profilePic={profilePic}
+            activeSettingSection={activeSettingSection}
+            setActiveSettingSection={setActiveSettingSection}
+            userName={activeUserName}
+            userRole={profileRole}
+            userData={userData}
+            currentPassword={currentPassword}
+            setCurrentPassword={setCurrentPassword}
+            newPassword={newPassword}
+            setNewPassword={setNewPassword}
+            confirmPassword={confirmPassword}
+            setConfirmPassword={setConfirmPassword}
+            passwordMessage={passwordMessage}
+            passwordError={passwordError}
+            handleChangePassword={handleChangePassword}
+            hideHealthData={hideHealthData}
+            setHideHealthData={setHideHealthData}
+            bio={bio}
+            stats={stats}
+            history={history}
+            myPosts={myPosts}
+            profilePic={profilePic}
             setShowDeleteAccountModal={setShowDeleteAccountModal}
             setShowDeactivateAccountModal={setShowDeactivateAccountModal}
-            setVerifyEmailInput={setVerifyEmailInput} setIsVerifyModalOpen={setIsVerifyModalOpen}
+            setVerifyEmailInput={setVerifyEmailInput}
+            setIsVerifyModalOpen={setIsVerifyModalOpen}
             onProfileUpdate={(updatedUser) => {
               setUserData(prev => ({ ...prev, ...updatedUser }));
-              if (updatedUser?.name && updatedUser.name !== userName) {
+              if (updatedUser?.name && updatedUser.name !== activeUserName) {
                 localStorage.setItem('gymsync_user_name', updatedUser.name);
                 window.dispatchEvent(new Event('gymsync_user_updated'));
               }
@@ -508,7 +685,7 @@ const Profile = () => {
             toast={toast}
           />
         )}
-        {activeTab === 'gig' && <ProfileGigTab myGymGig={myGymGig} />}
+        {isOwnProfile && activeTab === 'gig' && <ProfileGigTab myGymGig={myGymGig} />}
       </div>
     </>
   );
@@ -564,7 +741,6 @@ const Profile = () => {
           </div>
         </div>
       </div>
-
 
       {rawImageSrc && (
         <ImageCropper imageSrc={rawImageSrc} onCropComplete={onCropComplete} onCancel={() => setRawImageSrc(null)} />

@@ -1,37 +1,45 @@
 import React from 'react';
 import { Target, Activity, Shield, AlertTriangle, Heart } from 'lucide-react';
 
-const ProfileBioTab = ({ bio = {} }) => {
+const ProfileBioTab = ({ bio = {}, userName = 'User', isOwnProfile = true }) => {
   const isProfileStarted = Boolean(bio.height || bio.gender || bio.trainingDaysPerWeek || bio.weight || bio.equipmentAccess || bio.mainGoalArea);
 
   return (
     <div className="glass-panel section-panel bio-panel">
       <div style={{display:'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
         <h3 className="section-title"><Target size={20}/> Health & Biological Profile</h3>
-        <button
-          className="btn btn-outline btn-sm"
-          onClick={() => {
-            localStorage.setItem('gymsync_onboarding_skip_date', '');
-            window.dispatchEvent(new Event('open-onboarding'));
-          }}
-        >
-          Edit Bio
-        </button>
-      </div>
-
-      {!isProfileStarted ? (
-        <div style={{textAlign: 'center', padding: '30px 0'}}>
-          <p className="empty-text">Your comprehensive biological profile is incomplete.</p>
+        {isOwnProfile && (
           <button
-            className="btn btn-primary"
+            className="btn btn-outline btn-sm"
             onClick={() => {
               localStorage.setItem('gymsync_onboarding_skip_date', '');
               window.dispatchEvent(new Event('open-onboarding'));
             }}
-            style={{marginTop: '15px'}}
           >
-            Start Assessment Now
+            Edit Bio
           </button>
+        )}
+      </div>
+
+      {!isProfileStarted ? (
+        <div style={{textAlign: 'center', padding: '30px 0'}}>
+          <p className="empty-text">
+            {isOwnProfile 
+              ? 'Your comprehensive biological profile is incomplete.' 
+              : `${userName}'s biological profile has not been configured yet.`}
+          </p>
+          {isOwnProfile && (
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                localStorage.setItem('gymsync_onboarding_skip_date', '');
+                window.dispatchEvent(new Event('open-onboarding'));
+              }}
+              style={{marginTop: '15px'}}
+            >
+              Start Assessment Now
+            </button>
+          )}
         </div>
       ) : (
         <div className="bio-summary-grid">

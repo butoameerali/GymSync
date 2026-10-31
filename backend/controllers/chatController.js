@@ -214,7 +214,8 @@ export const clearConversation = async (req, res) => {
 export const getConversations = async (req, res) => {
   const currentUserId = req.user?._id;
   const currentUserName = req.user?.name;
-  const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(req.user?.role);
+  const currentUserRole = req.user?.role || 'User';
+  const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(currentUserRole);
 
   const target = await resolveParticipant(req.params.userName || currentUserName);
   const isSelf = isSameParticipant(target, currentUserId, currentUserName);
@@ -222,6 +223,14 @@ export const getConversations = async (req, res) => {
   if (!isAdmin && !isSelf) {
     return res.status(403).json({ message: 'Not authorized to view these conversations' });
   }
+
+  // Determine whether target participant is a consumer trainee / member
+  let targetRole = currentUserRole;
+  if (!isSelf && target.id) {
+    const targetDoc = await User.findById(target.id).select('role').lean();
+    if (targetDoc?.role) targetRole = targetDoc.role;
+  }
+  const isConsumer = String(targetRole || '').trim().toLowerCase() === 'user' || String(targetRole || '').trim().toLowerCase() === 'member';
 
   try {
     const matchMine = target.id
@@ -242,6 +251,16 @@ export const getConversations = async (req, res) => {
       const key = counterpartId ? String(counterpartId) : counterpartName;
       if (!key) continue;
 
+      // If user is a GymOwner, GymTrainer, Admin or any staff role, virtual system bots are strictly excluded
+      if (!isConsumer) {
+        const lowerName = String(counterpartName || '').toLowerCase().trim();
+        const isBot = SYSTEM_CONTACTS.has(counterpartName) || [
+          'ai', 'diet_ai', 'ai workout coach', 'ai nutritionist', 'workout coach', 'nutritionist',
+          'ai trainer', 'gym support', 'gymsupport', 'support desk'
+        ].includes(lowerName);
+        if (isBot) continue;
+      }
+
       if (!conversationMap.has(key)) {
         conversationMap.set(key, {
           id: counterpartId ? String(counterpartId) : counterpartName,
@@ -257,43 +276,46 @@ export const getConversations = async (req, res) => {
       }
     }
 
-    // Ensure AI Workout Coach is permanently visible on the messages page
-    if (!conversationMap.has('AI Workout Coach') && !conversationMap.has('AI Trainer')) {
-      conversationMap.set('AI Workout Coach', {
-        id: 'AI Workout Coach',
-        name: 'AI Workout Coach',
-        role: 'Personal Trainer',
-        lastMessage: 'Ready to train? Tap to start your workout routine.',
-        lastMessageTime: new Date(),
-        isRead: true,
-        unreadCount: 0
-      });
-    }
+    // Virtual assistant bots (AI Workout Coach, AI Nutritionist, Gym Support) are strictly for consumer trainees
+    if (isConsumer) {
+      // Ensure AI Workout Coach is permanently visible on the messages page
+      if (!conversationMap.has('AI Workout Coach') && !conversationMap.has('AI Trainer')) {
+        conversationMap.set('AI Workout Coach', {
+          id: 'AI Workout Coach',
+          name: 'AI Workout Coach',
+          role: 'Personal Trainer',
+          lastMessage: 'Ready to train? Tap to start your workout routine.',
+          lastMessageTime: new Date(),
+          isRead: true,
+          unreadCount: 0
+        });
+      }
 
-    // Ensure AI Nutritionist is permanently visible on the messages page
-    if (!conversationMap.has('AI Nutritionist')) {
-      conversationMap.set('AI Nutritionist', {
-        id: 'AI Nutritionist',
-        name: 'AI Nutritionist',
-        role: 'Clinical Diet & Meal Planner',
-        lastMessage: 'Tap to check today\'s meals, macros, or swap foods.',
-        lastMessageTime: new Date(),
-        isRead: true,
-        unreadCount: 0
-      });
-    }
+      // Ensure AI Nutritionist is permanently visible on the messages page
+      if (!conversationMap.has('AI Nutritionist')) {
+        conversationMap.set('AI Nutritionist', {
+          id: 'AI Nutritionist',
+          name: 'AI Nutritionist',
+          role: 'Clinical Diet & Meal Planner',
+          lastMessage: 'Tap to check today\'s meals, macros, or swap foods.',
+          lastMessageTime: new Date(),
+          isRead: true,
+          unreadCount: 0
+        });
+      }
 
-    // Ensure Gym Support is permanently visible on the messages page
-    if (!conversationMap.has('Gym Support')) {
-      conversationMap.set('Gym Support', {
-        id: 'Gym Support',
-        name: 'Gym Support',
-        role: 'Support Desk',
-        lastMessage: 'Reach out to gym staff for any queries or help.',
-        lastMessageTime: new Date(),
-        isRead: true,
-        unreadCount: 0
-      });
+      // Ensure Gym Support is permanently visible on the messages page
+      if (!conversationMap.has('Gym Support')) {
+        conversationMap.set('Gym Support', {
+          id: 'Gym Support',
+          name: 'Gym Support',
+          role: 'Support Desk',
+          lastMessage: 'Reach out to gym staff for any queries or help.',
+          lastMessageTime: new Date(),
+          isRead: true,
+          unreadCount: 0
+        });
+      }
     }
 
     res.json(Array.from(conversationMap.values()));
@@ -323,6 +345,11 @@ export const sendMessage = async (req, res) => {
 
   try {
     if (isAi) {
+      const role = req.user?.role || 'User';
+      const isConsumer = String(role).trim().toLowerCase() === 'user' || String(role).trim().toLowerCase() === 'member';
+      if (!isConsumer) {
+        return res.status(403).json({ message: 'AI Workout Coach & AI Nutritionist are available for gym trainees and members only.' });
+      }
       const assistantPersona = isNutritionist ? 'nutritionist' : 'workout_coach';
       const targetSystemName = isNutritionist ? 'AI Nutritionist' : 'AI Workout Coach';
       const queryNames = isNutritionist ? ['AI Nutritionist'] : ['AI Workout Coach', 'AI Trainer'];
@@ -390,6 +417,12 @@ export const sendMessage = async (req, res) => {
     }
 
     if (isGymSupport) {
+      const role = req.user?.role || 'User';
+      const isConsumer = String(role).trim().toLowerCase() === 'user' || String(role).trim().toLowerCase() === 'member';
+      if (!isConsumer) {
+        return res.status(403).json({ message: 'Gym Support is available for gym trainees and members only.' });
+      }
+
       const userMessage = await Message.create({
         sender,
         senderId: req.user?._id || null,

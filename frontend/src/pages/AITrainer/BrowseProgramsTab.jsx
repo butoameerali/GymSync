@@ -129,16 +129,21 @@ export const BrowseProgramsTab = ({ onProgramApplied }) => {
                 {(prog.description || '').slice(0, 100)}{prog.description?.length > 100 ? '…' : ''}
               </p>
 
-              <div style={{ display: 'flex', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              <div style={{ display: 'flex', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Clock size={13} /> {prog.durationWeeks || 4} weeks
+                  <Clock size={13} /> {prog.durationMonths || Math.max(1, Math.round((prog.durationWeeks || 4) / 4))} Month{prog.durationMonths > 1 ? 's' : ''} ({prog.durationWeeks || 4} wks)
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Target size={13} /> {prog.goal || 'General'}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Dumbbell size={13} /> {prog.daysPerWeek || 3}×/wk
+                  <Dumbbell size={13} /> {prog.equipmentRequired?.length ? prog.equipmentRequired.join(', ') : 'Bodyweight'}
                 </span>
+                {prog.ageRange && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981', fontWeight: 600 }}>
+                    👤 {prog.ageRange}
+                  </span>
+                )}
               </div>
 
               <button

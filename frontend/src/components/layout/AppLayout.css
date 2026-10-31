@@ -32,6 +32,7 @@
   position: sticky;
   top: 0;
   align-self: flex-start;
+  z-index: 1050;
 }
 
 /* Dedicated Rail Mode Column for Dashboard Portals */

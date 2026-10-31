@@ -36,6 +36,10 @@ const preMadePlanSchema = new mongoose.Schema({
     type: Number,
     default: 4
   },
+  durationMonths: {
+    type: Number,
+    default: 1
+  },
   daysPerWeek: {
     type: Number,
     default: 4
@@ -43,6 +47,22 @@ const preMadePlanSchema = new mongoose.Schema({
   targetAudience: {
     type: String,
     default: 'All athletes'
+  },
+  minAge: {
+    type: Number,
+    default: 16
+  },
+  maxAge: {
+    type: Number,
+    default: 65
+  },
+  ageRange: {
+    type: String,
+    default: '16 - 60 years'
+  },
+  ageGuidelines: {
+    type: String,
+    default: ''
   },
   sportTags: [{
     type: String

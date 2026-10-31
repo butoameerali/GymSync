@@ -7,6 +7,7 @@ import PostList from '../../features/social/components/PostList';
 import UserAvatar from '../../components/common/UserAvatar';
 import { rankFeedPosts } from '../../features/social/utils/feedRanking';
 import { postService } from '../../services/postService';
+import useInfiniteScroll from '../../hooks/useInfiniteScroll';
 import './Home.css';
 
 const Home = () => {
@@ -25,6 +26,11 @@ const Home = () => {
   const isAdmin = ['Admin', 'SuperAdmin', 'ComplaintModerator'].includes(userRole);
   const userName = localStorage.getItem('gymsync_user_name') || 'Guest User';
   const [currentUser, setCurrentUser] = useState(null);
+
+  // Lazy Loading / Infinite Scroll State
+  const POSTS_PER_PAGE = 6;
+  const [visibleCount, setVisibleCount] = useState(POSTS_PER_PAGE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Admin Removal Modal State
   const [removalPostId, setRemovalPostId] = useState(null);
@@ -96,6 +102,7 @@ const Home = () => {
       const createdPost = await postService.createPost(formData);
       createdPost.author = { name: userName, role: userRole };
       setPosts(prev => [createdPost, ...prev]);
+      setVisibleCount(prev => prev + 1);
       setNewPost('');
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = null;
@@ -208,6 +215,26 @@ const Home = () => {
     userFollowing: currentUser?.following || []
   });
 
+  const hasMore = visibleCount < rankedPosts.length;
+
+  const handleLoadMore = () => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setVisibleCount(prev => Math.min(prev + POSTS_PER_PAGE, rankedPosts.length));
+      setIsLoadingMore(false);
+    }, 250);
+  };
+
+  const sentinelRef = useInfiniteScroll({
+    onIntersect: handleLoadMore,
+    hasMore,
+    isLoading: isLoadingMore,
+    rootMargin: '300px'
+  });
+
+  const visiblePosts = rankedPosts.slice(0, visibleCount);
+
   return (
     <div className="home-page">
       <div className="feed-container">
@@ -264,19 +291,44 @@ const Home = () => {
           {loading ? (
             <LoadingSpinner size="large" message="Loading GymSync timeline..." />
           ) : (
-            <PostList
-              posts={rankedPosts}
-              currentUserName={userName}
-              userRole={userRole}
-              globalUsers={globalUsers}
-              onLike={handleLikePost}
-              onAddComment={handleAddComment}
-              onDeleteComment={handleDeleteComment}
-              onAddReply={handleAddReply}
-              onDeleteReply={handleDeleteReply}
-              onReport={(id) => setReportPostId(id)}
-              onAdminRemove={(id) => setRemovalPostId(id)}
-            />
+            <>
+              <PostList
+                posts={visiblePosts}
+                currentUserName={userName}
+                userRole={userRole}
+                globalUsers={globalUsers}
+                onLike={handleLikePost}
+                onAddComment={handleAddComment}
+                onDeleteComment={handleDeleteComment}
+                onAddReply={handleAddReply}
+                onDeleteReply={handleDeleteReply}
+                onReport={(id) => setReportPostId(id)}
+                onAdminRemove={(id) => setRemovalPostId(id)}
+              />
+
+              {/* Infinite Scroll Sentinel & Loader */}
+              {hasMore && (
+                <div ref={sentinelRef} className="feed-infinite-scroll-trigger">
+                  {isLoadingMore ? (
+                    <div className="feed-loading-more">
+                      <div className="feed-spinner-ring" />
+                      <span>Loading more updates...</span>
+                    </div>
+                  ) : (
+                    <div style={{ height: '30px' }} />
+                  )}
+                </div>
+              )}
+
+              {/* End of Feed Indicator */}
+              {!hasMore && rankedPosts.length > POSTS_PER_PAGE && (
+                <div className="feed-end-message">
+                  <div className="feed-end-line" />
+                  <span className="feed-end-badge">🎉 You're all caught up!</span>
+                  <div className="feed-end-line" />
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
