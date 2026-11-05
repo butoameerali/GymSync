@@ -204,8 +204,8 @@ const runSeed = async () => {
         defaultSets: 4,
         defaultReps: 10,
         instructions: 'Rest bar across upper traps. Break at hips and knees together, sinking hips below parallel. Drive through mid-foot to stand.',
-        gifUrl: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0043-s6bYM8w.gif',
-        mediaUrl: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0043-s6bYM8w.gif',
+        gifUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0043-qXTaZnJ.gif',
+        mediaUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0043-qXTaZnJ.gif',
         description: 'The foundation of lower body development, hormone response, and athletic drive.',
         trainingGoals: ['Strength', 'Hypertrophy'],
         metValue: 7.0
@@ -220,8 +220,8 @@ const runSeed = async () => {
         defaultSets: 3,
         defaultReps: 20,
         instructions: 'Stand shoulder-width apart. Squat down until thighs are parallel to ground, keeping chest proud. Press through feet to return.',
-        gifUrl: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0043-s6bYM8w.gif',
-        mediaUrl: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0043-s6bYM8w.gif',
+        gifUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3119-75Bgtjy.gif',
+        mediaUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3119-75Bgtjy.gif',
         description: 'Zero-equipment foundational leg exercise for endurance, conditioning, and joint health.',
         trainingGoals: ['General Fitness', 'Endurance', 'Fat Loss'],
         metValue: 5.0
@@ -236,8 +236,8 @@ const runSeed = async () => {
         defaultSets: 3,
         defaultReps: 12,
         instructions: 'Hold weights in front of thighs with slight knee bend. Push hips back as weights track down shins until deep hamstring stretch, then fire glutes forward.',
-        gifUrl: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0380-z8bYM8w.gif',
-        mediaUrl: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0380-z8bYM8w.gif',
+        gifUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0085-wQ2c4XD.gif',
+        mediaUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0085-wQ2c4XD.gif',
         description: 'Posterior chain builder focusing heavily on hamstring stretch and glute recruitment.',
         trainingGoals: ['Hypertrophy', 'Strength'],
         metValue: 5.5
@@ -252,8 +252,8 @@ const runSeed = async () => {
         defaultSets: 3,
         defaultReps: 16,
         instructions: 'Step forward into a deep lunge with back knee hovering an inch off floor. Push through front heel to step directly into the next lunge.',
-        gifUrl: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0336-q8bYM8w.gif',
-        mediaUrl: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0336-q8bYM8w.gif',
+        gifUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/1460-IZVHb27.gif',
+        mediaUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/1460-IZVHb27.gif',
         description: 'Unilateral leg stamina, balance, and high calorie burn.',
         trainingGoals: ['Fat Loss', 'Endurance', 'Hypertrophy'],
         metValue: 5.8

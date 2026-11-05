@@ -7,6 +7,9 @@ export default defineConfig({
   server: {
     host: true, // Listen on all local IPs
     allowedHosts: true, // Allow all external tunneling hosts like localtunnel
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups'
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

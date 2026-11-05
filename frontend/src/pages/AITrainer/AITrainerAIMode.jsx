@@ -2995,7 +2995,12 @@ const AITrainerAIMode = ({
             }));
             const mList = (Array.isArray(curDay?.workoutSplit)
               ? curDay.workoutSplit
-              : (curDay?.exercises || curDay?.mainWorkout || [])).map(ex => ({ ...ex, isWarmup: false }));
+              : (curDay?.exercises || curDay?.mainWorkout || [])).map(ex => ({
+                ...ex,
+                gifUrl: ex.gifUrl || ex.mediaUrl || '',
+                mediaUrl: ex.mediaUrl || ex.gifUrl || '',
+                isWarmup: false
+              }));
 
             return [...wList, ...mList];
           })()}

@@ -73,6 +73,20 @@ const exerciseSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  targetGender: {
+    type: String,
+    enum: ['All', 'Female', 'Male'],
+    default: 'All',
+    index: true
+  },
+  isHomeWorkout: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  primaryBenefits: [{
+    type: String
+  }],
   aliases: [{
     type: String
   }],

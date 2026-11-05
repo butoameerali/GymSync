@@ -4,7 +4,8 @@ import RateLimit from '../models/RateLimit.js';
 // Express Security Headers Middleware (Helmet Alternative)
 export const securityHeaders = (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  // Allow Google OAuth iframes (needed for Sign In with Google button)
+  // Allow Google OAuth iframes and popups (needed for Google Sign-In & postMessage)
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   // res.setHeader('X-Frame-Options', 'DENY'); -- disabled: blocks Google OAuth popup
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');

@@ -10,7 +10,7 @@ import { getOllamaChatUrl } from '../services/ai/ollamaCoachService.js';
 // GET /api/exercises - Public / User fetch with search, filters and optional cursor pagination
 export const getAllExercises = async (req, res) => {
   try {
-    const { search, category, equipment, status, includeArchived, cursor, page, limit = 24, paginate } = req.query;
+    const { search, category, equipment, gender, isHomeWorkout, status, includeArchived, cursor, page, limit = 24, paginate } = req.query;
 
     const isPaginated = paginate === 'true' || Boolean(cursor) || Boolean(page);
 
@@ -55,6 +55,14 @@ export const getAllExercises = async (req, res) => {
         }
       }
 
+      if (gender && gender !== 'All') {
+        mongoQuery.targetGender = gender;
+      }
+
+      if (isHomeWorkout === 'true') {
+        mongoQuery.isHomeWorkout = true;
+      }
+
       if (andConditions.length > 0) {
         mongoQuery.$and = andConditions;
       }
@@ -65,8 +73,8 @@ export const getAllExercises = async (req, res) => {
         mongoQuery.status = { $ne: 'archived' };
       }
 
-      // Lightweight card DTO projection (omits heavy execution steps and coaching matrices)
-      const cardProjection = '_id exerciseId name category targetMuscles secondaryMuscles equipmentRequired difficulty mediaUrl status isAiTrackable calorieEstimation';
+      // Lightweight card DTO projection with rich metadata
+      const cardProjection = '_id exerciseId name category targetMuscles secondaryMuscles equipmentRequired difficulty mediaUrl gifUrl videoUrl status isAiTrackable calorieEstimation targetGender isHomeWorkout primaryBenefits description';
 
       const paginatedResult = await paginateQuery(Exercise, mongoQuery, {
         cursor,

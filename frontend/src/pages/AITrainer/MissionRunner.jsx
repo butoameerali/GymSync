@@ -8,6 +8,8 @@ import {
 import './MissionRunner.css';
 import AIDetectorContainer from '../../ai-detectors/AIDetectorContainer';
 
+const exerciseMediaCache = new Map();
+
 export const MissionRunner = ({ 
   dayTitle, 
   exercises = [], 
@@ -42,12 +44,17 @@ export const MissionRunner = ({
   const [currentSet, setCurrentSet] = useState(1);
   const [repsDone, setRepsDone] = useState(10);
   const [aiModeChoice, setAiModeChoice] = useState(null); // null | 'with_ai' | 'without_ai'
+  const [mediaLoadError, setMediaLoadError] = useState(false);
 
   useEffect(() => {
     if (typeof initialExerciseIndex === 'number' && initialExerciseIndex >= 0) {
       setCurrentExIndex(initialExerciseIndex);
     }
   }, [initialExerciseIndex]);
+
+  useEffect(() => {
+    setMediaLoadError(false);
+  }, [currentExIndex]);
   
   // Rest Timer State
   const [restCountdown, setRestCountdown] = useState(45);
@@ -116,6 +123,92 @@ export const MissionRunner = ({
       setAiModeChoice(null); // Prompt choice for AI-enabled exercise
     }
   }, [currentExIndex, targetRepsForCurrent, isCurrentExAiSupported]);
+
+  // Dynamic media resolution for exercises where gifUrl/mediaUrl is not embedded directly in the routine
+  const [resolvedMedia, setResolvedMedia] = useState(
+    currentEx.gifUrl || currentEx.mediaUrl || currentEx.videoUrl || ''
+  );
+
+  useEffect(() => {
+    const directMedia = currentEx.gifUrl || currentEx.mediaUrl || currentEx.videoUrl;
+    if (directMedia) {
+      setResolvedMedia(directMedia);
+      return;
+    }
+
+    const exName = (currentEx.name || currentEx.exerciseName || currentEx.title || '').trim();
+    if (!exName) {
+      setResolvedMedia('');
+      return;
+    }
+
+    const cacheKey = exName.toLowerCase();
+    if (exerciseMediaCache.has(cacheKey)) {
+      setResolvedMedia(exerciseMediaCache.get(cacheKey));
+      return;
+    }
+
+    let isMounted = true;
+    fetch(`/api/exercises?search=${encodeURIComponent(exName)}`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (!isMounted) return;
+        const list = Array.isArray(data) ? data : (data.items || []);
+        const target = exName.trim().toLowerCase();
+
+        // Smart ranking: prioritize direct barbell/dumbbell and non-band variants
+        const withMedia = list.filter(e => Boolean(e.mediaUrl || e.gifUrl));
+        let matched = null;
+
+        if (withMedia.length > 0) {
+          // 1. Exact name match
+          matched = withMedia.find(e => e.name.trim().toLowerCase() === target);
+
+          // 2. Exact match with barbell prefix (e.g. "bench press" -> "barbell bench press")
+          if (!matched) {
+            matched = withMedia.find(e => e.name.toLowerCase() === `barbell ${target}`);
+          }
+
+          // 3. Exact match with dumbbell prefix
+          if (!matched) {
+            matched = withMedia.find(e => e.name.toLowerCase() === `dumbbell ${target}`);
+          }
+
+          // 4. Non-band, non-smith match that contains target word
+          if (!matched) {
+            matched = withMedia.find(e => {
+              const n = e.name.toLowerCase();
+              if (!target.includes('band') && (n.includes('band') || n.includes('resistance'))) return false;
+              if (!target.includes('smith') && n.includes('smith')) return false;
+              return n.includes(target);
+            });
+          }
+
+          // 5. Any non-band match
+          if (!matched) {
+            matched = withMedia.find(e => !e.name.toLowerCase().includes('band'));
+          }
+
+          // 6. Fallback
+          if (!matched) {
+            matched = withMedia[0];
+          }
+        }
+
+        if (matched) {
+          const media = matched.mediaUrl || matched.gifUrl;
+          exerciseMediaCache.set(cacheKey, media);
+          setResolvedMedia(media);
+        } else {
+          setResolvedMedia('');
+        }
+      })
+      .catch(() => {
+        if (isMounted) setResolvedMedia('');
+      });
+
+    return () => { isMounted = false; };
+  }, [currentEx.name, currentEx.exerciseName, currentEx.title, currentEx.gifUrl, currentEx.mediaUrl, currentEx.videoUrl]);
 
   // Workout Duration Timer
   useEffect(() => {
@@ -505,18 +598,38 @@ export const MissionRunner = ({
               
               {/* Exercise Demo Animation / Illustration Placeholder */}
               {(() => {
-                const exerciseMedia = currentEx.gifUrl || currentEx.mediaUrl || currentEx.videoUrl;
+                const rawMedia = currentEx.gifUrl || currentEx.mediaUrl || currentEx.videoUrl || resolvedMedia;
+                // Auto-fix any legacy cached broken hash for Barbell Squat
+                const exerciseMedia = (typeof rawMedia === 'string' && rawMedia.includes('0043-s6bYM8w'))
+                  ? rawMedia.replace('0043-s6bYM8w', '0043-qXTaZnJ')
+                  : rawMedia;
+                const isVideo = typeof exerciseMedia === 'string' && (exerciseMedia.endsWith('.mp4') || exerciseMedia.endsWith('.webm'));
+                const showMedia = Boolean(exerciseMedia && !mediaLoadError);
+
                 return (
-                  <div className={`mission-manual-visual-card ${exerciseMedia ? 'has-gif' : 'no-gif'}`}>
-                    {exerciseMedia ? (
-                      <img 
-                        src={exerciseMedia} 
-                        alt={currentEx.name} 
-                        className="mission-exercise-gif"
-                      />
+                  <div className={`mission-manual-visual-card ${showMedia ? 'has-gif' : 'no-gif'}`}>
+                    {showMedia ? (
+                      isVideo ? (
+                        <video
+                          src={exerciseMedia}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          onError={() => setMediaLoadError(true)}
+                          className="mission-exercise-gif"
+                        />
+                      ) : (
+                        <img 
+                          src={exerciseMedia} 
+                          alt={currentEx.name} 
+                          onError={() => setMediaLoadError(true)}
+                          className="mission-exercise-gif"
+                        />
+                      )
                     ) : (
                       <div className="mission-exercise-icon-placeholder">
-                        <Dumbbell size={20} color="#3b82f6" />
+                        <Dumbbell size={24} color="#3b82f6" />
                         <p>{currentEx.instructions && currentEx.instructions !== 'Follow AI targets' ? currentEx.instructions : 'Focus on controlled movement & full range of motion'}</p>
                       </div>
                     )}

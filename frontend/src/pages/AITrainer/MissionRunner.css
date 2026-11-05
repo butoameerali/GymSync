@@ -598,11 +598,15 @@ body.light-mode .choice-icon-wrap {
 }
 
 .mission-manual-visual-card.has-gif {
-  height: 180px;
-  background: radial-gradient(circle at center, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-  padding: 8px;
+  height: 240px;
+  background: #ffffff !important;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .mission-manual-visual-card.no-gif {
@@ -615,7 +619,7 @@ body.light-mode .choice-icon-wrap {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  filter: url(#remove-white-bg);
+  border-radius: 12px;
 }
 
 .mission-exercise-icon-placeholder {

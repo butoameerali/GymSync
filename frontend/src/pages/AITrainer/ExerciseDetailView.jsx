@@ -256,11 +256,14 @@ const ExerciseDetailView = ({
   }
 
   // ── 3. MANUAL / LIBRARY DETAIL VIEW ──────────────────────────────────────
-  const rawMedia =
+  const uncorrectedMedia =
     currentExercise.mediaUrl ||
     currentExercise.gifUrl ||
     currentExercise.videoUrl ||
     (currentExercise.video !== 'none' ? currentExercise.video : null);
+  const rawMedia = (typeof uncorrectedMedia === 'string' && uncorrectedMedia.includes('0043-s6bYM8w'))
+    ? uncorrectedMedia.replace('0043-s6bYM8w', '0043-qXTaZnJ')
+    : uncorrectedMedia;
   const hasMedia = rawMedia && rawMedia !== 'none';
   const isVideoMedia =
     hasMedia &&
@@ -370,7 +373,7 @@ const ExerciseDetailView = ({
           ) : (
             <div
               style={{
-                background: 'radial-gradient(circle at center, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%)',
+                background: '#ffffff',
                 padding: '16px',
                 display: 'flex',
                 alignItems: 'center',
@@ -379,7 +382,8 @@ const ExerciseDetailView = ({
                 width: '100%',
                 boxSizing: 'border-box',
                 borderRadius: '16px',
-                border: '1px solid rgba(255, 255, 255, 0.08)'
+                border: '1.5px solid #e2e8f0',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.06)'
               }}
             >
               <img
@@ -389,7 +393,7 @@ const ExerciseDetailView = ({
                   maxWidth: '100%',
                   maxHeight: '340px',
                   objectFit: 'contain',
-                  filter: 'url(#remove-white-bg)'
+                  borderRadius: '12px'
                 }}
               />
             </div>
@@ -536,7 +540,64 @@ const ExerciseDetailView = ({
               {isAssigned ? `${totalSets} Sets × ${targetReps} Reps` : 'Educational Guide'}
             </strong>
           </div>
+          <div
+            style={{
+              background: 'var(--card-bg-light)',
+              padding: '12px',
+              borderRadius: '8px',
+              border: '1px solid var(--card-border)',
+            }}
+          >
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>
+              Energy &amp; Calorie Burn
+            </span>
+            <strong style={{ fontSize: '0.9rem', color: '#ef4444' }}>
+              🔥 ~{currentExercise.calorieEstimation?.estimatedKcalPerMinute || 6} kcal/min
+            </strong>
+          </div>
+          <div
+            style={{
+              background: 'var(--card-bg-light)',
+              padding: '12px',
+              borderRadius: '8px',
+              border: '1px solid var(--card-border)',
+            }}
+          >
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>
+              Setting &amp; Audience
+            </span>
+            <strong style={{ fontSize: '0.9rem', color: '#c084fc' }}>
+              {currentExercise.isHomeWorkout ? '🏠 Home Friendly' : '🏋️ Gym Gear'} • 👥 Men &amp; Women (Age 16–60+)
+            </strong>
+          </div>
         </div>
+
+        {/* PRIMARY BENEFITS & FITNESS IMPACT */}
+        {Array.isArray(currentExercise.primaryBenefits) && currentExercise.primaryBenefits.length > 0 && (
+          <div style={{ marginTop: '16px' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+              Primary Benefits &amp; Health Impact:
+            </span>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {currentExercise.primaryBenefits.map((benefit, bIdx) => (
+                <span
+                  key={bIdx}
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.12)',
+                    color: '#60a5fa',
+                    fontSize: '0.78rem',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    fontWeight: 500,
+                  }}
+                >
+                  ✓ {benefit}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* PROGRESSIVE SETS LOGGING SECTION */}
         {isAssigned && (

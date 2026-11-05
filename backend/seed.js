@@ -1,10 +1,15 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
+import dns from 'dns';
 import User from './models/User.js';
 import Gym from './models/Gym.js';
 import Product from './models/Product.js';
 import Exercise from './models/Exercise.js';
+
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+} catch (e) {}
 
 dotenv.config();
 

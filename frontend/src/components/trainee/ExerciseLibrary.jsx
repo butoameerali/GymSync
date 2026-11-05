@@ -39,6 +39,19 @@ const ExerciseCard = memo(({ ex, isFavorite, onToggleFavorite, onSelect }) => {
             {ex.difficulty}
           </span>
         )}
+        {(ex.isHomeWorkout || equipment.toLowerCase().includes('bodyweight') || equipment.toLowerCase().includes('none')) && (
+          <span className="category-badge" style={{ background: 'rgba(59,130,246,0.12)', color: '#60a5fa', fontSize: '0.7rem' }}>
+            🏠 Home
+          </span>
+        )}
+        <span className="category-badge" style={{ background: 'rgba(147,51,234,0.12)', color: '#c084fc', fontSize: '0.7rem' }}>
+          👥 Men &amp; Women (16+)
+        </span>
+        {ex.calorieEstimation?.estimatedKcalPerMinute && (
+          <span className="category-badge" style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', fontSize: '0.7rem' }}>
+            🔥 ~{ex.calorieEstimation.estimatedKcalPerMinute} kcal/m
+          </span>
+        )}
         {ex.isAiTrackable && (
           <span className="category-badge" style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
             <Sparkles size={10} /> AI Vision
@@ -101,8 +114,10 @@ const ExerciseLibrary = ({ onSelectExercise, favorites = [], onToggleFavorite = 
       if (activeCategory !== 'All' && activeCategory !== 'Favorites') {
         params.append('category', activeCategory);
       }
-      if (activeEquipment !== 'All') {
-        params.append('equipment', activeEquipment);
+      if (activeEquipment === 'Home' || activeEquipment === 'No Equipment') {
+        params.append('equipment', 'No Equipment');
+      } else if (activeEquipment === 'With Equipment') {
+        params.append('equipment', 'With Equipment');
       }
       if (cursorParam) {
         params.append('cursor', cursorParam);
@@ -179,13 +194,17 @@ const ExerciseLibrary = ({ onSelectExercise, favorites = [], onToggleFavorite = 
         </div>
 
         <div className="category-scroll" style={{ marginTop: '10px' }}>
-          {['All', 'No Equipment', 'With Equipment'].map(eq => (
+          {[
+            { id: 'All', label: 'All Equipment' },
+            { id: 'Home', label: '🏠 No Equipment (Home)' },
+            { id: 'With Equipment', label: '🏋️ With Equipment' }
+          ].map(eq => (
             <button
-              key={eq}
-              className={`cat-pill ${activeEquipment === eq ? 'active' : ''}`}
-              onClick={() => setActiveEquipment(eq)}
+              key={eq.id}
+              className={`cat-pill ${activeEquipment === eq.id ? 'active' : ''}`}
+              onClick={() => setActiveEquipment(eq.id)}
             >
-              {eq === 'All' ? 'All Equipment' : eq}
+              {eq.label}
             </button>
           ))}
         </div>

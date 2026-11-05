@@ -126,7 +126,10 @@ const preMadePlanSchema = new mongoose.Schema({
         intensity: { type: String, default: 'Moderate' },
         rpe: { type: Number, default: 7 },
         tempo: { type: String, default: '2-0-2' },
-        notes: { type: String, default: '' }
+        notes: { type: String, default: '' },
+        gifUrl: { type: String, default: '' },
+        mediaUrl: { type: String, default: '' },
+        videoUrl: { type: String, default: '' }
       }],
       cooldown: [{
         text: { type: String, default: '' },

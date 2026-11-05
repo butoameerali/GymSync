@@ -1,4 +1,12 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Configure reliable DNS servers to prevent router/ISP DNS from timing out on MongoDB Atlas SRV & TXT queries
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+} catch (dnsErr) {
+  console.warn('⚠️ Could not set custom DNS servers:', dnsErr.message);
+}
 
 let cached = global.mongoose;
 
