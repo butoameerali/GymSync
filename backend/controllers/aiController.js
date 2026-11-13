@@ -25,6 +25,9 @@ import { planMergeEngine } from '../services/ai/planMergeEngine.js';
 import { lookupFoodItem, getAlternatives } from '../services/nutrition/foodSubstitutionGroups.js';
 import { ollamaCoachService } from '../services/ai/ollamaCoachService.js';
 import { GYMSYNC_PRODUCT_KNOWLEDGE, buildLiveGymSyncContext } from '../services/ai/gymSyncKnowledge.js';
+import aiUserMemoryService from '../services/ai/aiUserMemoryService.js';
+import aiCoachTruthGuard from '../services/ai/aiCoachTruthGuard.js';
+import workoutBuddyFinder from '../services/ai/workoutBuddyFinder.js';
 
 // Allowed source attribution types
 export const ALLOWED_SOURCE_TYPES = ['instructor_program', 'instructor_diet', 'instructor_article', 'system_curated', 'community'];
@@ -164,6 +167,9 @@ export const validateAndSanitizeStructuredAction = (action) => {
     suggestions: Array.isArray(action.suggestions) ? action.suggestions.slice(0, 10).map(s => String(s).slice(0, 80)) : [],
     quickReplies: Array.isArray(action.quickReplies) ? action.quickReplies.slice(0, 10).map(s => String(s).slice(0, 80)) : [],
     plan: action.plan || null,
+    missingContext: action.missingContext || null,
+    buddies: Array.isArray(action.buddies) ? action.buddies : [],
+    communityPosts: Array.isArray(action.communityPosts) ? action.communityPosts : [],
     safetyFlags: Array.isArray(action.safetyFlags)
       ? action.safetyFlags.map(f => String(f).slice(0, 300)).filter(Boolean)
       : [],
@@ -313,46 +319,33 @@ export const executeCoachPipeline = async ({
           };
         }
 
-        // ARCHITECTURAL PIPELINE (Issue 11): AI Proposes -> Backend Validates -> Activation
+        // Rule R1 / 1.2: Conversational plan edits must NOT mutate programs.
+        // AI suggests an alternative from the exercise library; user applies it via normal UI if permitted.
         const editResult = applyPlanEdits(targetPlan, rawMessage);
         if (editResult.success) {
-          // 1. Validate proposed exercises against orthopedic safety & joint pain
-          const candidateExercises = (targetPlan.calendar || []).flatMap(d => d.exercises || []);
-          const safetyCheck = exerciseSafetyValidator.filterSafeExercises(candidateExercises, dbUser?.bioData || {});
-          
-          if (safetyCheck.excludedExercises && safetyCheck.excludedExercises.length > 0) {
-            const excludedNames = safetyCheck.excludedExercises.map(e => e.name).join(', ');
-            return {
-              role: 'assistant',
-              content: `⚠️ **Safety Guard Warning**: The requested modification includes **${excludedNames}**.\n\nFor your safety, this modification was not applied to your active schedule. Would you like an alternative?`,
-              suggestions: ['🔄 Propose Alternative', '💬 Ask Coach About Form'],
-              structuredAction: { type: 'SAFETY_REJECTED', safetyWarnings: safetyCheck.safetyWarnings }
-            };
+          const swapMatch = rawMessage.match(/(?:swap|replace|change|substitute)\s+([a-zA-Z0-9\s]+?)\s+(?:for|with|to|instead of)\s+([a-zA-Z0-9\s]+)/i);
+          let alternativeSuggestion = null;
+          if (swapMatch) {
+            const requestedAlt = swapMatch[2].trim();
+            const libExercise = await Exercise.findOne({
+              name: new RegExp(requestedAlt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+              isActive: { $ne: false }
+            }).lean();
+            if (libExercise) {
+              alternativeSuggestion = libExercise.name;
+            }
           }
-
-          // 2. Validate and clamp reps and sets within sports-science bounds
-          (targetPlan.calendar || []).forEach(day => {
-            (day.exercises || []).forEach(ex => {
-              if (ex.reps) ex.reps = sanitizeReps(ex.reps);
-              if (ex.sets) ex.sets = Math.max(1, Math.min(6, parseInt(ex.sets, 10) || 3));
-            });
-          });
-
-          // 3. Activation phase — commit to DB only after passing all validation gates
-          targetPlan.markModified('calendar');
-          targetPlan.markModified('workout');
-          await targetPlan.save();
 
           return {
             role: 'assistant',
-            content: `✅ **Updated Plan: ${targetPlan.title}**\n\n${editResult.summary}\n\n*Validated against orthopedic safety and volume caps.* Your changes have been activated and saved to your **Workout Hub**!`,
+            content: `💡 **Exercise Suggestion**: ${alternativeSuggestion ? `**${alternativeSuggestion}** is available in our exercise library.` : 'You can swap this movement for an approved alternative.'}\n\nTo preserve safe progression, workout programs are human-authored and cannot be directly rewritten by AI. If the program author allows exercise swaps, you can apply this change directly through your **Workout Hub**!`,
+            suggestions: ['📖 View Exercise Library', '💬 Ask Coach About Form', '🏋️ Return to Workout Hub'],
             structuredAction: {
-              type: 'PLAN_UPDATED',
-              planId: targetPlan._id,
-              planTitle: targetPlan.title,
-              plan: targetPlan
+              type: 'SUGGEST_ALTERNATIVE',
+              suggestedExercise: alternativeSuggestion || null,
+              authorAllowsSwaps: Boolean(targetPlan.allowExerciseSwaps !== false)
             },
-            sourceAttribution: { sourceType: 'ai_plan_update' }
+            sourceAttribution: { sourceType: 'system_curated' }
           };
         }
       }
@@ -374,11 +367,26 @@ export const executeCoachPipeline = async ({
 
   if (effectiveUserId) {
     // Authenticated user: Load canonical truth directly from MongoDB
-    const dbUser = await User.findById(effectiveUserId).select('name role bioData');
+    const dbUser = await User.findById(effectiveUserId).select('name role bioData city subscribedGymName');
     if (!dbUser) {
       const err = new Error('Athlete profile not found');
       err.status = 401;
       throw err;
+    }
+
+    // Phase 5.3: Extract any newly provided user info (weight, height, equipment, days) and persist server-side
+    try {
+      const { updatedFields } = await aiUserMemoryService.extractAndPersistUserEntities(effectiveUserId, rawMessage, dbUser);
+      if (updatedFields && Object.keys(updatedFields).length > 0) {
+        if (!dbUser.bioData) dbUser.bioData = {};
+        if (updatedFields['bioData.weight']) dbUser.bioData.weight = updatedFields['bioData.weight'];
+        if (updatedFields['bioData.height']) dbUser.bioData.height = updatedFields['bioData.height'];
+        if (updatedFields['bioData.equipmentAccess']) dbUser.bioData.equipmentAccess = updatedFields['bioData.equipmentAccess'];
+        if (updatedFields['bioData.trainingDaysPerWeek']) dbUser.bioData.trainingDaysPerWeek = updatedFields['bioData.trainingDaysPerWeek'];
+        if (updatedFields['bioData.fitnessLevel']) dbUser.bioData.fitnessLevel = updatedFields['bioData.fitnessLevel'];
+      }
+    } catch (memErr) {
+      console.warn('Memory extraction warning:', memErr.message);
     }
 
     const bio = dbUser.bioData || {};
@@ -387,6 +395,8 @@ export const executeCoachPipeline = async ({
       name: dbUser.name,
       userName: dbUser.name,
       role: dbUser.role,
+      city: dbUser.city || '',
+      subscribedGymName: dbUser.subscribedGymName || '',
       primaryGoal: bio.mainGoalArea || bio.goals?.[0] || 'General Fitness',
       fitnessLevel: bio.fitnessLevel || 'Beginner',
       equipmentAccess: bio.equipmentAccess || 'Full Gym',
@@ -604,6 +614,70 @@ export const executeCoachPipeline = async ({
 
   const structuredAction = decisionResult.structuredAction || {};
   structuredAction.safetyFlags = structuredAction.safetyFlags || [];
+
+  // Phase 5.2: Workout buddy search (searches PUBLIC profiles/posts only; never private bio/weight/medical/logs)
+  const isBuddyQuery = structuredAction.intent === 'workout_buddy' || /\b(?:workout\s*buddy|gym\s*buddy|training\s*partner|find\s*(?:me\s*)?(?:a\s*)?(?:buddy|partner)|need\s*(?:a\s*)?(?:gym\s*)?partner|spotter|kasrat\s*partner|partner\s*chahiye)\b/i.test(rawMessage);
+  if (isBuddyQuery) {
+    const buddyData = await workoutBuddyFinder.findWorkoutBuddies({
+      query: rawMessage,
+      city: authoritativeContext.city || '',
+      gymName: authoritativeContext.subscribedGymName || '',
+      goal: primaryGoal,
+      currentUserId: effectiveUserId,
+      limit: 3
+    });
+
+    let buddyText = "🤝 **GymSync Workout Buddy Finder**\n\n";
+    if (buddyData.buddies && buddyData.buddies.length > 0) {
+      buddyText += "Here are active GymSync members training near you:\n";
+      buddyData.buddies.forEach(b => {
+        buddyText += `• **${b.name}** (@${b.username || 'member'})${b.city ? ` — ${b.city}` : ''}${b.subscribedGymName ? ` [${b.subscribedGymName}]` : ''}${b.fitnessGoal ? ` • Goal: ${b.fitnessGoal}` : ''}\n`;
+      });
+      buddyText += "\n*(Privacy Note: Only public profiles & gym locations are shared. Private metrics, weights, and logs are strictly protected.)*";
+    } else {
+      buddyText += "No active workout partners were found matching your exact filter right now, but you can post in the Community feed to find a spotter!";
+    }
+
+    const suggestions = ['💬 Message a Buddy', '📢 Post in Community', '🏋️ Today\'s Workout'];
+    return {
+      role: 'assistant',
+      content: buddyText,
+      suggestions,
+      structuredAction: validateAndSanitizeStructuredAction({
+        intent: 'workout_buddy',
+        workout: null,
+        diet: null,
+        safetyFlags: [],
+        sourceAttribution: buddyData.sourceAttribution,
+        suggestions,
+        buddies: buddyData.buddies,
+        communityPosts: buddyData.communityPosts
+      }),
+      meta: { retrievalTimeMs, decisionTimeMs, qwenTimeMs: 0, totalTimeMs: Date.now() - startTime }
+    };
+  }
+
+  // Phase 5.3: Ask once rule for missing information (server-side memory)
+  if (structuredAction.type === 'ASK_CLARIFICATION' || structuredAction.missingContext) {
+    const fieldKey = structuredAction.missingContext || structuredAction.type;
+    const alreadyAsked = await aiUserMemoryService.hasBeenAsked(effectiveUserId, fieldKey);
+    if (alreadyAsked) {
+      // User was already asked once! Do NOT re-ask. Proceed with best-effort response.
+      structuredAction.type = 'INFO';
+      structuredAction.missingContext = null;
+      decisionResult.content = "I noticed you're continuing our routine. Let's proceed with your current setup!";
+    } else {
+      // Record that we asked once
+      await aiUserMemoryService.recordFieldAsked(effectiveUserId, fieldKey);
+      return {
+        role: 'assistant',
+        content: decisionResult.content,
+        suggestions: decisionResult.suggestions || structuredAction.suggestions || [],
+        structuredAction: validateAndSanitizeStructuredAction(structuredAction),
+        meta: { retrievalTimeMs, decisionTimeMs, qwenTimeMs: 0, totalTimeMs: Date.now() - startTime }
+      };
+    }
+  }
 
   // Intercept structured plan questionnaires and periodized plan generation immediately
   if (structuredAction.type === 'PLAN_QUESTIONNAIRE' || structuredAction.type === 'PLAN_GENERATED') {
@@ -870,9 +944,10 @@ ${buildLiveGymSyncContext({ context: authoritativeContext, progress: authoritati
 
       const reply = await ollamaCoachService.reply({ systemPrompt, message: rawMessage, history });
       if (reply && reply.length > 5) {
+          const guardedReply = aiCoachTruthGuard.sanitizeCoachResponse(reply, { structuredAction, intent: structuredAction.intent });
           return {
             role: 'assistant',
-            content: reply,
+            content: guardedReply,
             suggestions: decisionResult.suggestions || structuredAction.suggestions || [],
             structuredAction: validateAndSanitizeStructuredAction(structuredAction),
             meta: {
@@ -946,9 +1021,10 @@ ${buildLiveGymSyncContext({ context: authoritativeContext, progress: authoritati
     };
   }
 
+  const sanitizedFallback = aiCoachTruthGuard.sanitizeCoachResponse(decisionResult.content, { structuredAction, intent: structuredAction.intent });
   return {
     role: 'assistant',
-    content: decisionResult.content,
+    content: sanitizedFallback,
     suggestions: decisionResult.suggestions || structuredAction.suggestions || [],
     structuredAction: validateAndSanitizeStructuredAction(structuredAction),
     meta: performanceMeta

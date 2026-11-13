@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import AdminOverview from '../../components/admin/AdminOverview';
+import FitnessTrainerOverview from '../../components/admin/FitnessTrainerOverview';
 import { toast } from 'react-toastify';
 
 const AdminOverviewPage = () => {
@@ -45,6 +46,13 @@ const AdminOverviewPage = () => {
       navigate(routeMap[tab]);
     }
   };
+
+  const roleNormalized = (role || '').toLowerCase().replace(/_/g, '');
+  const isInstructor = roleNormalized === 'fitnessinstructor';
+
+  if (isInstructor) {
+    return <FitnessTrainerOverview />;
+  }
 
   return (
     <div>

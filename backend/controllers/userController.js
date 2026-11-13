@@ -20,6 +20,7 @@ import {
 import { uploadToSupabaseStorage } from '../config/supabase.js';
 import { isValidObjectId } from '../utils/validation.js';
 import PDFDocument from 'pdfkit';
+import { isBioComplete } from '../services/user/bioValidator.js';
 
 // @desc    Get all users (for friend search and member directory)
 // @route   GET /api/users
@@ -1085,24 +1086,25 @@ export const saveUserBioController = async (req, res) => {
 
     const bio = req.body || {};
     user.bioData = {
-      mainGoalArea: bio.mainGoalArea || user.bioData?.mainGoalArea || '',
+      mainGoalArea: bio.mainGoalArea !== undefined ? String(bio.mainGoalArea || '').trim() : (user.bioData?.mainGoalArea || ''),
       goals: Array.isArray(bio.goals) ? bio.goals : user.bioData?.goals || [],
-      planDuration: bio.planDuration || user.bioData?.planDuration || '1 Month',
-      trainingDaysPerWeek: Number(bio.trainingDaysPerWeek) || user.bioData?.trainingDaysPerWeek || 3,
-      equipmentAccess: bio.equipmentAccess || user.bioData?.equipmentAccess || 'Full Gym',
-      pushupBaseline: Number(bio.pushupBaseline) || user.bioData?.pushupBaseline || 10,
-      gender: bio.gender || user.bioData?.gender || '',
-      dob: bio.dob || user.bioData?.dob || '',
+      planDuration: bio.planDuration !== undefined ? String(bio.planDuration || '').trim() : (user.bioData?.planDuration || '1 Month'),
+      trainingDaysPerWeek: bio.trainingDaysPerWeek !== undefined && bio.trainingDaysPerWeek !== '' ? Number(bio.trainingDaysPerWeek) : (user.bioData?.trainingDaysPerWeek ?? 3),
+      equipmentAccess: bio.equipmentAccess !== undefined ? String(bio.equipmentAccess || '').trim() : (user.bioData?.equipmentAccess || 'Full Gym'),
+      pushupBaseline: bio.pushupBaseline !== undefined && bio.pushupBaseline !== '' ? Number(bio.pushupBaseline) : (user.bioData?.pushupBaseline ?? 10),
+      gender: bio.gender !== undefined ? (bio.gender ? String(bio.gender).trim() : null) : (user.bioData?.gender ?? null),
+      dob: bio.dob !== undefined ? (bio.dob ? String(bio.dob).trim() : null) : (user.bioData?.dob ?? null),
       units: bio.units || user.bioData?.units || 'metric',
-      height: Number(bio.height) || user.bioData?.height || 170,
-      weight: Number(bio.weight) || user.bioData?.weight || 70,
+      height: bio.height !== undefined && bio.height !== '' && bio.height !== null ? Number(bio.height) : (user.bioData?.height ?? null),
+      weight: bio.weight !== undefined && bio.weight !== '' && bio.weight !== null ? Number(bio.weight) : (user.bioData?.weight ?? null),
       targetMuscles: Array.isArray(bio.targetMuscles) ? bio.targetMuscles : user.bioData?.targetMuscles || [],
-      sport: bio.sport || user.bioData?.sport || '',
-      fitnessLevel: bio.fitnessLevel || user.bioData?.fitnessLevel || 'Beginner',
-      sessionDurationMins: Number(bio.sessionDurationMins) || user.bioData?.sessionDurationMins || 45,
+      sport: bio.sport !== undefined ? String(bio.sport || '').trim() : (user.bioData?.sport || ''),
+      fitnessLevel: bio.fitnessLevel !== undefined ? String(bio.fitnessLevel || '').trim() : (user.bioData?.fitnessLevel || 'Beginner'),
+      sessionDurationMins: bio.sessionDurationMins !== undefined && bio.sessionDurationMins !== '' ? Number(bio.sessionDurationMins) : (user.bioData?.sessionDurationMins ?? 45),
       foodPreferences: Array.isArray(bio.foodPreferences) 
         ? bio.foodPreferences.map(s => String(s).trim()).filter(Boolean).join(', ')
-        : (bio.foodPreferences != null ? String(bio.foodPreferences).trim() : user.bioData?.foodPreferences || '')
+        : (bio.foodPreferences != null ? String(bio.foodPreferences).trim() : user.bioData?.foodPreferences || ''),
+      bioUnverified: false
     };
     user.isOnboardingCompleted = true;
 
@@ -1111,7 +1113,8 @@ export const saveUserBioController = async (req, res) => {
     res.status(200).json({
       success: true,
       bioData: user.bioData,
-      isOnboardingCompleted: user.isOnboardingCompleted
+      isOnboardingCompleted: user.isOnboardingCompleted,
+      isBioComplete: isBioComplete(user)
     });
   } catch (err) {
     console.error('saveUserBioController Error:', err);
@@ -1132,7 +1135,8 @@ export const getUserBioController = async (req, res) => {
     res.status(200).json({
       success: true,
       bioData: user.bioData || null,
-      isOnboardingCompleted: Boolean(user.isOnboardingCompleted)
+      isOnboardingCompleted: Boolean(user.isOnboardingCompleted),
+      isBioComplete: isBioComplete(user)
     });
   } catch (err) {
     console.error('getUserBioController Error:', err);

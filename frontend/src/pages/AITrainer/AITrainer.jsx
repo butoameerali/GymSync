@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense, useMemo } from 'react';
 import { Dumbbell, Sparkles, Utensils, BookOpen, ChevronDown } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -7,30 +7,58 @@ import ExerciseDetailView from './ExerciseDetailView';
 import AITrainerAIMode from './AITrainerAIMode';
 import AITrainerAssignedMode from './AITrainerAssignedMode';
 import { MiniCoachModal } from './MiniCoachModal';
-import { MergeOfferCard } from './MergeOfferCard';
 import { BrowseProgramsTab } from './BrowseProgramsTab';
 import './AITrainer.css';
 
 // Code-split catalogue & library tabs for optimal initial bundle size and zero static exercise bloat
 const ExerciseLibrary = lazy(() => import('../../components/trainee/ExerciseLibrary'));
+const FoodLibraryView = lazy(() => import('../../features/foodLogging/FoodLibraryView'));
 const ProgramCatalogue = lazy(() => import('../../components/trainee/ProgramCatalogue'));
 const DietCatalogue = lazy(() => import('../../components/trainee/DietCatalogue'));
 const MyAIDietHub = lazy(() => import('./MyAIDietHub'));
 const LearnArticles = lazy(() => import('../../components/trainee/LearnArticles'));
 
-const WORKOUT_MODES = [
-  { key: 'ai', label: 'My Workouts', emoji: '✨' },
-  { key: 'library', label: 'Exercise Library', emoji: '📚' },
-  { key: 'programs', label: 'Workout Programs', emoji: '🏋️' },
-  { key: 'diets', label: 'My Diet Plan', emoji: '🥗' },
-  { key: 'learn', label: 'Guides & Knowledge', emoji: '📖' },
-  { key: 'assigned', label: 'Trainer Assigned', emoji: '📋' }
+const MAIN_TABS = [
+  { key: 'my_plan', label: 'My Plan', emoji: '✨' },
+  { key: 'library', label: 'Library', emoji: '📚' },
+  { key: 'fit_logs', label: 'Fit logs', emoji: '🏋️' }
+];
+
+const SUB_TABS = {
+  my_plan: [
+    { key: 'ai', label: 'My Workouts', icon: Sparkles },
+    { key: 'diets', label: 'My Diet Plan', icon: Utensils }
+  ],
+  library: [
+    { key: 'food_library', label: 'Food Library', icon: Utensils },
+    { key: 'library', label: 'Exercise Library', icon: BookOpen }
+  ],
+  fit_logs: [
+    { key: 'programs', label: 'Workout Programs', icon: Dumbbell },
+    { key: 'learn', label: 'Guides', icon: BookOpen }
+  ]
+};
+
+const MOBILE_OPTIONS = [
+  { key: 'ai', label: 'My Plan • My Workouts', emoji: '✨' },
+  { key: 'diets', label: 'My Plan • My Diet Plan', emoji: '🥗' },
+  { key: 'food_library', label: 'Library • Food Library', emoji: '🍲' },
+  { key: 'library', label: 'Library • Exercise Library', emoji: '📚' },
+  { key: 'programs', label: 'Fit logs • Workout Programs', emoji: '🏋️' },
+  { key: 'learn', label: 'Fit logs • Guides', emoji: '📖' }
 ];
 
 const AITrainer = () => {
   const [activeMode, setActiveMode] = useState('ai'); // Default selected: 'ai' ('My Workouts')
   const [showModeDropdown, setShowModeDropdown] = useState(false);
   const modeDropdownRef = useRef(null);
+
+  const mainTab = useMemo(() => {
+    if (activeMode === 'ai' || activeMode === 'diets') return 'my_plan';
+    if (activeMode === 'library' || activeMode === 'food_library') return 'library';
+    if (activeMode === 'programs' || activeMode === 'learn') return 'fit_logs';
+    return 'my_plan';
+  }, [activeMode]);
   const [favorites, setFavorites] = useState([]);
   const [aiModeChoice, setAiModeChoice] = useState(null); // null | 'with_ai' | 'without_ai'
 
@@ -48,6 +76,8 @@ const AITrainer = () => {
   const [isSubscribedState, setIsSubscribedState] = useState(true);
   const [dbExercises, setDbExercises] = useState([]);
   const [activeUserProgram, setActiveUserProgram] = useState(null);
+  const [allUserPrograms, setAllUserPrograms] = useState([]);
+  const [triggerReviewProgram, setTriggerReviewProgram] = useState(null);
 
   useEffect(() => {
     // Load favorites from local storage for demo
@@ -173,19 +203,57 @@ const AITrainer = () => {
   const fetchActiveProgram = () => {
     const token = localStorage.getItem('gymsync_token');
     if (!token) return;
-    fetch('/api/plans/user-programs/active', {
+    fetch('/api/plans/user-programs', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data && data._id) {
-          setActiveUserProgram(data);
+      .then(res => res.ok ? res.json() : [])
+      .then(list => {
+        const progList = Array.isArray(list) ? list : [];
+        setAllUserPrograms(progList);
+        const currentActive = progList.find(p => p.isActive && !p.isCompleted) || null;
+        setActiveUserProgram(currentActive);
+        if (currentActive) {
+          setSelectedPlanForView(prev => {
+            const mapped = {
+              _id: currentActive._id,
+              title: currentActive.title,
+              goal: currentActive.goal || 'Strength & Conditioning',
+              fitnessLevel: currentActive.difficulty || 'All Levels',
+              durationWeeks: currentActive.durationWeeks || 4,
+              daysPerWeek: currentActive.daysPerWeek || 4,
+              planDuration: currentActive.durationWeeks ? `${currentActive.durationWeeks * 7} Days` : '4 Weeks',
+              isInstructorProgram: true,
+              instructorName: currentActive.instructorName || 'Fitness Instructor',
+              programVersion: currentActive.programVersion || 1,
+              progress: currentActive.progress || { currentWeek: 1, currentDay: 1, completedSessions: [] },
+              weeks: currentActive.weeks || [],
+              outcomeReport: currentActive.outcomeReport || null,
+              rawProgram: currentActive
+            };
+            // Do not auto-open program when visiting Workout Hub; keep user on the Hub overview screen
+            if (!prev) return null;
+            if (prev._id === currentActive._id) {
+              return { ...prev, ...mapped };
+            }
+            return prev;
+          });
         } else {
           setActiveUserProgram(null);
         }
       })
-      .catch(err => console.error('Fetch active program error:', err));
+      .catch(err => console.error('Fetch user programs error:', err));
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reviewId = params.get('reviewProgramId');
+    if (reviewId && allUserPrograms.length > 0) {
+      const targetProg = allUserPrograms.find(p => String(p._id) === reviewId);
+      if (targetProg) {
+        setTriggerReviewProgram(targetProg);
+      }
+    }
+  }, [allUserPrograms]);
 
   const handleLogProgramSession = async (userProgramId, weekNum, dayNum) => {
     try {
@@ -206,21 +274,16 @@ const AITrainer = () => {
       });
       if (res.ok) {
         const updated = await res.json();
-        setActiveUserProgram(updated);
-        setSelectedPlanForView(prev => {
-          if (prev?.isInstructorProgram || prev?._id === userProgramId) {
-            return {
-              ...prev,
-              progress: updated.progress,
-              weeks: updated.weeks,
-              rawProgram: updated
-            };
-          }
-          return prev;
-        });
-        toast.success(`Day ${dayNum} of Week ${weekNum} completed! Workout streak updated.`);
+        fetchActiveProgram();
+        if (updated.isCompleted) {
+          setTriggerReviewProgram(updated);
+          toast.success(`🎉 Program Completed! All weeks finished. Share your results with AI Coach!`, { autoClose: 6000 });
+        } else {
+          toast.success(`Day ${dayNum} of Week ${weekNum} completed! Workout streak updated.`);
+        }
       } else {
-        toast.error('Could not log session progress');
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || 'Could not log session progress');
       }
     } catch (err) {
       console.error(err);
@@ -242,6 +305,7 @@ const AITrainer = () => {
       if (res.ok) {
         setActiveUserProgram(null);
         setSelectedPlanForView(prev => (prev?.isInstructorProgram || prev?._id === programId) ? null : prev);
+        fetchActiveProgram();
         toast.success('Successfully un-enrolled from workout program.');
       } else {
         const data = await res.json().catch(() => ({}));
@@ -270,13 +334,17 @@ const AITrainer = () => {
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
 
+  // Ensure user always lands on Workout Hub overview when navigating to /ai-trainer afresh
+  useEffect(() => {
+    setSelectedPlanForView(null);
+  }, [location.pathname]);
+
   // Saved AI Plans state
   const [savedPlans, setSavedPlans] = useState([]);
   const [showSavedPlansModal, setShowSavedPlansModal] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [isLoadingSavedPlans, setIsLoadingSavedPlans] = useState(false);
   
-  const [mergeOfferData, setMergeOfferData] = useState(null);
   const [miniCoachSteps, setMiniCoachSteps] = useState(null);
 
   const loadSavedPlans = async () => {
@@ -384,99 +452,65 @@ const AITrainer = () => {
   };
 
   const handleCreateNewPlan = () => {
-    const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
-    setAiPlan(null);
-    setSelectedPlanForView(null);
-    localStorage.removeItem(`gymsync_${userKey}_ai_plan`);
-    toast.info('Choose AI Coach or a Trainer Program to start your new plan!');
+    setActiveMode('programs');
+    toast.info('Explore certified workout programs and choose the best plan for you!');
   };
 
   const handleCreateStarterPlan = async (goalType) => {
-    const title = goalType === 'weight_loss' ? 'Weight Loss Plan' : goalType === 'body_dev' ? 'Body Development Plan' : 'Strength & Muscle Plan';
-    const mainGoalArea = goalType === 'weight_loss' ? 'Lose Weight' : goalType === 'body_dev' ? 'Build Muscle' : 'Gain Strength';
-
     setIsGeneratingPlan(true);
     try {
-      const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
-      const bioData = JSON.parse(localStorage.getItem(`gymsync_${userKey}_bio_data`) || '{}');
-      const payload = {
-        height: bioData.height || 175,
-        weight: bioData.weight || 72,
-        gender: bioData.gender || 'male',
-        foodPreferences: bioData.foodPreferences || ['none'],
-        trainingDaysPerWeek: bioData.trainingDaysPerWeek || 3,
-        equipmentAccess: bioData.equipmentAccess || 'Full Gym',
-        planDuration: '4 Weeks',
-        pushupBaseline: bioData.pushupBaseline || 12,
-        mainGoalArea
-      };
-
       const token = localStorage.getItem('gymsync_token') || '';
-      const res = await fetch('/api/ai/generate-plan', {
+      if (!token) {
+        toast.info('Please log in to apply a workout plan.');
+        return;
+      }
+
+      const goalKeyword = goalType === 'weight_loss' ? 'Weight Loss' : goalType === 'body_dev' ? 'Muscle' : 'Strength';
+
+      // Rule R1: Find matching human-authored certified program from existing catalogue
+      const res = await fetch(`/api/plans/premade?type=Workout&search=${encodeURIComponent(goalKeyword)}`);
+      const data = await res.json();
+      const list = data.items || (Array.isArray(data) ? data : []);
+
+      const bestProgram = list.find(p =>
+        (p.goal || p.category || p.title || '').toLowerCase().includes(goalKeyword.toLowerCase())
+      ) || list[0];
+
+      if (!bestProgram) {
+        toast.info('Browse all certified workout programs to select your plan.');
+        setActiveMode('programs');
+        return;
+      }
+
+      if (activeUserProgram && activeUserProgram.isActive && !activeUserProgram.isCompleted) {
+        toast.warning(`You already have an active program ("${activeUserProgram.title}"). Please finish or un-enroll from it before starting a new one.`);
+        setIsGeneratingPlan(false);
+        return;
+      }
+
+      // Apply the certified program (Rule R3: Exactly one active program per user)
+      const applyRes = await fetch(`/api/plans/premade/${bestProgram._id}/apply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ source: 'starter_plan' })
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to generate plan');
-
-      const formattedPlan = {
-        ...data,
-        title,
-        primary_goal: mainGoalArea,
-        goal: mainGoalArea,
-        planId: `PLAN_${Date.now()}`,
-        planStartDate: new Date().toISOString()
-      };
-
-      let savedPlanObj = {
-        _id: formattedPlan.planId,
-        title,
-        goal: mainGoalArea,
-        fitnessLevel: bioData.fitnessLevel || 'Beginner',
-        workout: formattedPlan,
-        calendar: formattedPlan.interactive_calendar || [],
-        createdAt: new Date().toISOString(),
-        planKind: 'Workout'
-      };
-
-      if (!isGuest && token) {
-        try {
-          const saved = await aiPlanService.savePlan({
-            title,
-            goal: mainGoalArea,
-            fitnessLevel: bioData.fitnessLevel || 'Beginner',
-            workout: formattedPlan,
-            calendar: formattedPlan.interactive_calendar || [],
-            notes: `Personalized ${title}`
-          });
-          if (saved && saved._id) {
-            savedPlanObj = saved;
-          }
-        } catch (saveErr) {
-          console.warn('Save to DB notice:', saveErr);
-        }
+      if (applyRes.ok) {
+        await fetchActiveProgram();
+        const userKey = (localStorage.getItem('gymsync_user_name') || 'Guest User').replace(/\s+/g, '_');
+        localStorage.removeItem(`gymsync_${userKey}_ai_plan`);
+        setAiPlan(null);
+        toast.success(`🎉 Activated "${bestProgram.title}" as your certified workout plan!`);
+      } else {
+        const err = await applyRes.json().catch(() => ({}));
+        toast.error(err.error || err.message || 'Could not apply program');
       }
-
-      setAiPlan(formattedPlan);
-      localStorage.setItem(`gymsync_${userKey}_ai_plan`, JSON.stringify(formattedPlan));
-      setSavedPlans(prev => {
-        const filtered = prev.filter(p => p.title !== title && p._id !== savedPlanObj._id);
-        return [savedPlanObj, ...filtered];
-      });
-
-      setSelectedPlanForView(savedPlanObj);
-      if (formattedPlan.interactive_calendar && formattedPlan.interactive_calendar.length > 0) {
-        setSelectedCalendarDay(formattedPlan.interactive_calendar[0]);
-      }
-      toast.success(`🎉 Created and activated ${title}!`);
     } catch (err) {
       console.error(err);
-      toast.error(`Unable to create plan: ${err.message}`);
+      toast.error(`Unable to activate plan: ${err.message}`);
     } finally {
       setIsGeneratingPlan(false);
     }
@@ -547,12 +581,6 @@ const AITrainer = () => {
       return data;
     })
     .then(data => {
-      if (data.structuredAction && data.structuredAction.type === 'merge_offer') {
-        setMergeOfferData(data.structuredAction);
-        setIsGeneratingPlan(false);
-        return;
-      }
-      
       if (data.structuredAction && data.structuredAction.type === 'mini_coach_interview') {
         setMiniCoachSteps(data.structuredAction.steps);
         setIsGeneratingPlan(false);
@@ -1141,7 +1169,7 @@ const AITrainer = () => {
     }
   };
 
-  const currentModeObj = WORKOUT_MODES.find(m => m.key === activeMode) || WORKOUT_MODES[0];
+  const currentModeObj = MOBILE_OPTIONS.find(m => m.key === activeMode) || MOBILE_OPTIONS[0];
 
   return (
     <div className="ai-trainer-page">
@@ -1155,15 +1183,6 @@ const AITrainer = () => {
             steps={miniCoachSteps}
             onClose={() => setMiniCoachSteps(null)}
             onSubmitAll={(answers) => { setMiniCoachSteps(null); fetchPlanWithBenchmarks(answers); }}
-          />
-        )}
-        
-        {mergeOfferData && (
-          <MergeOfferCard
-            existingPlanTitle={mergeOfferData.existingPlanTitle}
-            existingGoal={mergeOfferData.existingGoal}
-            newGoal={mergeOfferData.newGoal}
-            onDecision={(decision) => { setMergeOfferData(null); fetchPlanWithBenchmarks({ mergeDecision: decision }); }}
           />
         )}
 
@@ -1184,7 +1203,7 @@ const AITrainer = () => {
 
           {showModeDropdown && (
             <div className="trainer-select-dropdown-menu">
-              {WORKOUT_MODES.map(item => (
+              {MOBILE_OPTIONS.map(item => (
                 <button
                   key={item.key}
                   type="button"
@@ -1205,48 +1224,106 @@ const AITrainer = () => {
           )}
         </div>
 
-        {/* ── DESKTOP TAB BAR ───────────────────────────────────────────── */}
+        {/* ── DESKTOP MAIN TAB BAR (My Plan | Library | Fit logs) ─────────── */}
         <div className="trainer-tabs">
           <button
-            className={`tab-btn ${activeMode === 'ai' ? 'active' : ''}`}
+            className={`tab-btn ${mainTab === 'my_plan' ? 'active' : ''}`}
             onClick={() => {
-              setActiveMode('ai');
-              setSelectedPlanForView(null);
-              setCurrentExercise(null);
+              if (mainTab !== 'my_plan') {
+                setActiveMode('ai');
+                setSelectedPlanForView(null);
+                setCurrentExercise(null);
+              }
             }}
           >
-            <Sparkles size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> My Workouts
+            <Sparkles size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> My Plan
           </button>
           <button
-            className={`tab-btn ${activeMode === 'library' ? 'active' : ''}`}
-            onClick={() => { setActiveMode('library'); setCurrentExercise(null); }}
+            className={`tab-btn ${mainTab === 'library' ? 'active' : ''}`}
+            onClick={() => {
+              if (mainTab !== 'library') {
+                setActiveMode('food_library');
+                setCurrentExercise(null);
+              }
+            }}
           >
-            Exercise Library
+            <BookOpen size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Library
           </button>
           <button
-            className={`tab-btn ${activeMode === 'programs' ? 'active' : ''}`}
-            onClick={() => { setActiveMode('programs'); setCurrentExercise(null); }}
+            className={`tab-btn ${mainTab === 'fit_logs' ? 'active' : ''}`}
+            onClick={() => {
+              if (mainTab !== 'fit_logs') {
+                setActiveMode('programs');
+                setCurrentExercise(null);
+              }
+            }}
           >
-            <Dumbbell size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> Workout Programs
+            <Dumbbell size={16} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Fit logs
           </button>
-          <button
-            className={`tab-btn ${activeMode === 'diets' ? 'active' : ''}`}
-            onClick={() => { setActiveMode('diets'); setCurrentExercise(null); }}
-          >
-            <Utensils size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> My Diet Plan
-          </button>
-          <button
-            className={`tab-btn ${activeMode === 'learn' ? 'active' : ''}`}
-            onClick={() => { setActiveMode('learn'); setCurrentExercise(null); }}
-          >
-            <BookOpen size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> Guides &amp; Knowledge
-          </button>
-          <button
-            className={`tab-btn ${activeMode === 'assigned' ? 'active' : ''}`}
-            onClick={() => { setActiveMode('assigned'); setCurrentExercise(null); }}
-          >
-            Trainer Assigned
-          </button>
+        </div>
+
+        {/* ── SUB-TABS (2 Links for Each Main Tab) ────────────────────── */}
+        <div
+          className="trainer-sub-tabs"
+          style={{
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: '24px',
+            flexWrap: 'wrap'
+          }}
+        >
+          {SUB_TABS[mainTab]?.map(sub => {
+            const SubIcon = sub.icon;
+            const isSubActive = activeMode === sub.key;
+            return (
+              <button
+                key={sub.key}
+                type="button"
+                className="trainer-sub-tab-btn"
+                onClick={() => {
+                  setActiveMode(sub.key);
+                  if (sub.key === 'ai') setSelectedPlanForView(null);
+                  setCurrentExercise(null);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 22px',
+                  borderRadius: '30px',
+                  fontSize: '0.92rem',
+                  fontWeight: isSubActive ? 700 : 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  background: isSubActive
+                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(37, 99, 235, 0.3))'
+                    : 'rgba(255, 255, 255, 0.04)',
+                  border: isSubActive
+                    ? '1.5px solid #3b82f6'
+                    : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: isSubActive ? '#60a5fa' : 'var(--text-secondary)',
+                  boxShadow: isSubActive ? '0 2px 12px rgba(59, 130, 246, 0.3)' : 'none'
+                }}
+                onMouseEnter={e => {
+                  if (!isSubActive) {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!isSubActive) {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }
+                }}
+              >
+                <SubIcon size={16} color={isSubActive ? '#60a5fa' : 'currentColor'} />
+                <span>{sub.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* ── EXERCISE DETAIL OVERLAY ────────────────────────────────────── */}
@@ -1264,7 +1341,14 @@ const AITrainer = () => {
           />
         )}
 
-        {/* ── LIBRARY MODE ──────────────────────────────────────────────── */}
+        {/* ── FOOD LIBRARY MODE (Library -> Food Library) ────────────────── */}
+        {activeMode === 'food_library' && !currentExercise && (
+          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading food library...</div>}>
+            <FoodLibraryView />
+          </Suspense>
+        )}
+
+        {/* ── LIBRARY MODE (Library -> Exercise Library) ─────────────────── */}
         {activeMode === 'library' && !currentExercise && (
           <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading exercise library...</div>}>
             <ExerciseLibrary
@@ -1286,6 +1370,7 @@ const AITrainer = () => {
         {/* ── PROGRAMS MODE (Part 17 — Browse Instructor Programs) ──────── */}
         {activeMode === 'programs' && !currentExercise && (
           <BrowseProgramsTab
+            activeUserProgram={activeUserProgram}
             onProgramApplied={() => {
               fetchActiveProgram();
               setActiveMode('ai');
@@ -1296,7 +1381,10 @@ const AITrainer = () => {
         {/* ── DIETS MODE (MY AI DIET HUB) ─────────────────────────── */}
         {activeMode === 'diets' && !currentExercise && (
           <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Loading nutrition protocols...</div>}>
-            <MyAIDietHub aiPlan={aiPlan} />
+            <MyAIDietHub 
+              aiPlan={aiPlan} 
+              activeProgram={activeUserProgram || selectedPlanForView} 
+            />
           </Suspense>
         )}
 
@@ -1327,6 +1415,11 @@ const AITrainer = () => {
             isSavingPlan={isSavingPlan}
             isLoadingSavedPlans={isLoadingSavedPlans}
             activeUserProgram={activeUserProgram}
+            setActiveUserProgram={setActiveUserProgram}
+            allUserPrograms={allUserPrograms}
+            triggerReviewProgram={triggerReviewProgram}
+            setTriggerReviewProgram={setTriggerReviewProgram}
+            onRefreshPrograms={fetchActiveProgram}
             isRecalculating={isRecalculating}
             getDayScheduleInfo={getDayScheduleInfo}
             isExerciseCompletedInState={isExerciseCompletedInState}

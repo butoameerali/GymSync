@@ -1,12 +1,18 @@
 import PreMadePlan from '../models/PreMadePlan.js';
 import UserWorkoutProgram from '../models/UserWorkoutProgram.js';
 import UserDietPlan from '../models/UserDietPlan.js';
+import SavedAIPlan from '../models/SavedAIPlan.js';
+import WeightLossEnrollment from '../models/WeightLossEnrollment.js';
 import WorkoutProgress from '../models/WorkoutProgress.js';
 import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 import { estimateExerciseCalories } from '../services/workout/exerciseRegistry.js';
 import { paginateQuery } from '../utils/pagination.js';
 import { apiCache } from '../utils/cache.js';
 import { safeRegex, safeExactRegex } from '../utils/validation.js';
+import { programGate } from '../services/workout/programGate.js';
+import { evaluateProgramOutcome } from '../services/ai/programOutcomeEvaluator.js';
+import { expandTemplateWeeks } from '../services/weightLoss/weightLossTemplates.js';
 
 // Seed starter data with structured weeks & meals if database is fresh
 const INITIAL_PLANS = [
@@ -113,21 +119,25 @@ const INITIAL_PLANS = [
 // GET /api/plans/premade
 export const getPreMadePlans = async (req, res) => {
   try {
-    const { type, status, goal, difficulty, dietaryType, search, cursor, page, limit = 12, paginate } = req.query;
+    const { type, status, goal, difficulty, dietaryType, search, cursor, page, limit = 12, paginate, myPlans } = req.query;
     let query = {};
 
     if (type) {
-      query.type = type;
+      query.type = { $regex: new RegExp(`^${type}$`, 'i') };
     }
 
     // Role-based visibility: Normal users & unauthenticated callers only get published content
     const userRole = req.user?.role;
     const isStaff = ['FitnessInstructor', 'Admin', 'SuperAdmin'].includes(userRole);
 
-    if (status && isStaff) {
+    if (status && status !== 'all' && isStaff) {
       query.status = status;
     } else if (!isStaff) {
       query.status = 'published';
+    }
+
+    if (myPlans === 'true' && req.user?._id) {
+      query.createdById = req.user._id;
     }
 
     const andConditions = [];
@@ -187,7 +197,7 @@ export const getPreMadePlans = async (req, res) => {
     }
 
     // Lightweight projection for list cards (omits heavy nested week/exercise matrices)
-    const cardProjection = '_id title type category goal difficulty durationWeeks daysPerWeek description createdBy createdById authorRole status sportTags equipmentRequired version calories protein carbs fat dietaryType allergies createdAt updatedAt';
+    const cardProjection = '_id title type category goal difficulty durationWeeks daysPerWeek description createdBy createdById authorRole status sportTags equipmentRequired version calories protein carbs fat dietaryType allergies createdAt updatedAt equipmentTrack programLevel isExtremeProgram minBMI maxBMI minWeightKg maxWeightKg whoCanDo whoShouldNotDo medicalWarningRequired medicalWarningText missedDayPolicy cardioPrescription expectedLossMonth1';
 
     // Check if client requested pagination or provided cursor/page
     const isPaginated = paginate === 'true' || Boolean(cursor) || Boolean(page);
@@ -244,12 +254,17 @@ export const getPreMadePlanById = async (req, res) => {
   try {
     const plan = await PreMadePlan.findById(req.params.id);
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
-    res.status(200).json(plan);
+    const planObj = plan.toObject();
+    if (planObj.type === 'Workout' && planObj.weeks && planObj.weeks.length < (planObj.durationWeeks || 4)) {
+      planObj.weeks = expandTemplateWeeks(planObj.weeks, planObj.durationWeeks || 4);
+    }
+    res.status(200).json(planObj);
   } catch (error) {
     console.error('getPreMadePlanById Error:', error);
     res.status(500).json({ error: 'Failed to fetch plan', message: 'An internal error occurred while fetching the plan.' });
   }
 };
+
 
 // POST /api/plans/premade
 export const createPreMadePlan = async (req, res) => {
@@ -280,7 +295,23 @@ export const createPreMadePlan = async (req, res) => {
       details,
       tags,
       connectedDietPlanId,
-      connectedDietPlanTitle
+      connectedDietPlanTitle,
+      equipmentTrack,
+      programLevel,
+      isExtremeProgram,
+      minAge,
+      maxAge,
+      minBMI,
+      maxBMI,
+      minWeightKg,
+      maxWeightKg,
+      whoCanDo,
+      whoShouldNotDo,
+      medicalWarningRequired,
+      medicalWarningText,
+      missedDayPolicy,
+      cardioPrescription,
+      expectedLossMonth1
     } = req.body;
 
     const createdBy = req.user?.name || 'Fitness Instructor';
@@ -300,10 +331,44 @@ export const createPreMadePlan = async (req, res) => {
       durationWeeks: Number(durationWeeks) || 4,
       daysPerWeek: Number(daysPerWeek) || 4,
       targetAudience: targetAudience || 'All athletes',
+      equipmentTrack: equipmentTrack || 'Home (No Equipment)',
+      programLevel: programLevel || 'Starter',
+      isExtremeProgram: Boolean(isExtremeProgram),
+      minAge: minAge !== undefined ? Number(minAge) : 18,
+      maxAge: maxAge !== undefined ? Number(maxAge) : 65,
+      minBMI: minBMI !== undefined ? Number(minBMI) : 23,
+      maxBMI: maxBMI !== undefined ? Number(maxBMI) : 50,
+      minWeightKg: minWeightKg !== undefined ? Number(minWeightKg) : 50,
+      maxWeightKg: maxWeightKg !== undefined ? Number(maxWeightKg) : 180,
+      whoCanDo: Array.isArray(whoCanDo) ? whoCanDo : (whoCanDo ? [whoCanDo] : []),
+      whoShouldNotDo: Array.isArray(whoShouldNotDo) ? whoShouldNotDo : (whoShouldNotDo ? [whoShouldNotDo] : []),
+      medicalWarningRequired: medicalWarningRequired !== undefined ? Boolean(medicalWarningRequired) : true,
+      medicalWarningText: medicalWarningText || 'Do NOT start without doctor approval if you have heart disease, BP issues, diabetes, asthma, joint/back injury, or take regular medication.',
+      missedDayPolicy: missedDayPolicy || {
+        rule1To3Days: 'Never double up. Missed 1 to 3 days, carry on.',
+        rule4To7Days: 'Missed 4 to 7 days, repeat the week.',
+        ruleMoreThan7Days: 'Missed more than 7 days, restart week 1.'
+      },
+      cardioPrescription: cardioPrescription || {
+        hasWalking: true,
+        hasRunning: false,
+        description: 'Daily Walk + Saturday Long Walk',
+        dailyMinutes: 20,
+        saturdayMinutes: 35,
+        intervalRounds: 0,
+        effortRPE: 'RPE 5 - 6'
+      },
+      expectedLossMonth1: expectedLossMonth1 || {
+        minKg: 1.0,
+        maxKg: 3.5,
+        note: 'Planning band: 0.25% to 0.75% body weight/week, hard cap 1%/week. Depends on food, sleep, consistency and health.'
+      },
       sportTags: Array.isArray(sportTags) ? sportTags : [],
       equipmentRequired: Array.isArray(equipmentRequired) ? equipmentRequired : [],
       fitnessGoals: Array.isArray(fitnessGoals) ? fitnessGoals : [],
-      status: status || 'published',
+      status: ['Admin', 'SuperAdmin'].includes(req.user?.role)
+        ? (status || 'published')
+        : (status === 'draft' ? 'draft' : 'pending_review'),
       version: 1,
       weeks: Array.isArray(weeks) ? weeks : [],
       calories: Number(calories) || 2000,
@@ -346,6 +411,7 @@ export const updatePreMadePlan = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to edit this plan' });
     }
 
+    const previousStatus = plan.status;
     const updates = req.body;
 
     // Increment version if updating an already published plan with new weeks/meals
@@ -360,6 +426,23 @@ export const updatePreMadePlan = async (req, res) => {
     });
 
     await plan.save();
+
+    // If an administrator just approved and published an instructor program, notify the instructor
+    if (isAdmin && previousStatus === 'pending_review' && plan.status === 'published' && plan.createdById) {
+      try {
+        await Notification.create({
+          recipient: plan.createdById,
+          sender: req.user?._id,
+          type: 'general',
+          title: 'Program Approved & Published! 🎉',
+          message: `Your program "${plan.title}" has been reviewed, approved, and is now live for all GymSync trainees!`,
+          link: '/programs'
+        });
+      } catch (notifErr) {
+        console.warn('Failed to send program approval notification:', notifErr.message);
+      }
+    }
+
     apiCache.invalidatePattern('plans:*');
     res.status(200).json(plan);
   } catch (error) {
@@ -412,10 +495,60 @@ export const applyProgramToUser = async (req, res) => {
       return res.status(400).json({ error: 'Cannot apply an unpublished or draft program' });
     }
 
-    // Deactivate previous active programs for this user
+    // Enforce R3: Exactly ONE active program per user until finished or removed
+    const gate = await programGate.canJoin(userId);
+    if (!gate.canJoin) {
+      // Check if user is already enrolled in this exact program
+      if (
+        gate.activeProgram &&
+        (String(gate.activeProgram.sourceProgramId) === String(program._id) ||
+         String(gate.activeProgram.id) === String(program._id))
+      ) {
+        return res.status(200).json({
+          message: 'You are already enrolled in this program.',
+          alreadyEnrolled: true,
+          userProgram: gate.activeProgram
+        });
+      }
+
+      return res.status(409).json({
+        error: `You already have an active program ('${gate.activeProgram?.title || 'Current Program'}'). You cannot enroll in another program until it is finished or removed.`,
+        message: `You already have an active program ('${gate.activeProgram?.title || 'Current Program'}'). You cannot enroll in another program until it is finished or removed.`,
+        activeProgram: gate.activeProgram
+      });
+    }
+
+    // Prepare weeks snapshot, dynamically expanding to match durationWeeks if trainer created repeating cycles
+    let finalWeeks = Array.isArray(program.weeks) && program.weeks.length > 0 ? JSON.parse(JSON.stringify(program.weeks)) : [];
+    const targetDurationWeeks = Number(program.durationWeeks) || (finalWeeks.length > 0 ? finalWeeks.length : 4);
+
+    if (finalWeeks.length > 0 && finalWeeks.length < targetDurationWeeks) {
+      const templateWeeks = [...finalWeeks];
+      while (finalWeeks.length < targetDurationWeeks) {
+        const nextWeekIndex = finalWeeks.length;
+        const sourceWeek = templateWeeks[nextWeekIndex % templateWeeks.length];
+        const newWeekNumber = nextWeekIndex + 1;
+        const clonedWeek = {
+          ...JSON.parse(JSON.stringify(sourceWeek)),
+          weekNumber: newWeekNumber,
+          focus: sourceWeek.focus ? `${sourceWeek.focus} (Progression Week ${newWeekNumber})` : `Week ${newWeekNumber} Progression`
+        };
+        finalWeeks.push(clonedWeek);
+      }
+    }
+
+    // Deactivate previous active programs (preserves them as completed history)
     await UserWorkoutProgram.updateMany(
       { userId, isActive: true },
       { isActive: false }
+    );
+    await SavedAIPlan.updateMany(
+      { userId, isActive: true },
+      { isActive: false }
+    );
+    await WeightLossEnrollment.updateMany(
+      { userId, isActive: true },
+      { isActive: false, status: 'Replaced' }
     );
 
     // Create user-specific instance (preserves snapshot of weeks at current version)
@@ -427,10 +560,15 @@ export const applyProgramToUser = async (req, res) => {
       title: program.title,
       goal: program.goal || program.category,
       difficulty: program.difficulty,
-      durationWeeks: program.durationWeeks || 4,
+      durationWeeks: targetDurationWeeks,
       daysPerWeek: program.daysPerWeek || 4,
       instructorName: program.createdBy || 'Fitness Instructor',
-      weeks: program.weeks || [],
+      equipmentTrack: program.equipmentTrack || 'Home (No Equipment)',
+      programLevel: program.programLevel || 'Starter',
+      isExtremeProgram: program.isExtremeProgram || false,
+      missedDayPolicy: program.missedDayPolicy || undefined,
+      cardioPrescription: program.cardioPrescription || undefined,
+      weeks: finalWeeks,
       startDate: new Date(),
       isActive: true,
       progress: {
@@ -495,8 +633,31 @@ export const getUserActiveProgram = async (req, res) => {
 
     const activeProgram = await UserWorkoutProgram.findOne({
       $or: [{ userId }, { userName }],
-      isActive: true
+      isActive: true,
+      isCompleted: { $ne: true }
     }).sort({ createdAt: -1 });
+
+    if (activeProgram && activeProgram.durationWeeks > (activeProgram.weeks || []).length && (activeProgram.weeks || []).length > 0) {
+      const templateWeeks = [...activeProgram.weeks];
+      const targetDurationWeeks = activeProgram.durationWeeks;
+      while (activeProgram.weeks.length < targetDurationWeeks) {
+        const nextWeekIndex = activeProgram.weeks.length;
+        const sourceWeek = templateWeeks[nextWeekIndex % templateWeeks.length];
+        const newWeekNumber = nextWeekIndex + 1;
+        const clonedWeek = {
+          ...JSON.parse(JSON.stringify(sourceWeek)),
+          weekNumber: newWeekNumber,
+          focus: sourceWeek.focus ? `${sourceWeek.focus} (Progression Week ${newWeekNumber})` : `Week ${newWeekNumber} Progression`
+        };
+        activeProgram.weeks.push(clonedWeek);
+      }
+      const totalSessions = activeProgram.weeks.reduce((acc, w) => acc + (w.days || []).filter(d => !d.isRestDay).length, 0);
+      const doneSessions = (activeProgram.progress?.completedSessions || []).length;
+      if (doneSessions < totalSessions) {
+        activeProgram.isCompleted = false;
+      }
+      await activeProgram.save();
+    }
 
     res.status(200).json(activeProgram || null);
   } catch (error) {
@@ -520,6 +681,23 @@ export const logUserProgramProgress = async (req, res) => {
 
     if (userProgram.userId.toString() !== userId.toString() && userProgram.userName !== userName) {
       return res.status(403).json({ error: 'Not authorized to log progress on this program' });
+    }
+
+    // Expand weeks if durationWeeks > weeks.length so user can progress through all weeks
+    if (userProgram.durationWeeks > (userProgram.weeks || []).length && (userProgram.weeks || []).length > 0) {
+      const templateWeeks = [...userProgram.weeks];
+      const targetDurationWeeks = userProgram.durationWeeks;
+      while (userProgram.weeks.length < targetDurationWeeks) {
+        const nextWeekIndex = userProgram.weeks.length;
+        const sourceWeek = templateWeeks[nextWeekIndex % templateWeeks.length];
+        const newWeekNumber = nextWeekIndex + 1;
+        const clonedWeek = {
+          ...JSON.parse(JSON.stringify(sourceWeek)),
+          weekNumber: newWeekNumber,
+          focus: sourceWeek.focus ? `${sourceWeek.focus} (Progression Week ${newWeekNumber})` : `Week ${newWeekNumber} Progression`
+        };
+        userProgram.weeks.push(clonedWeek);
+      }
     }
 
     const requestedWeek = Number(weekNumber);
@@ -567,6 +745,7 @@ export const logUserProgramProgress = async (req, res) => {
         await userProgram.save();
       }
       return res.status(200).json({
+        ...userProgram.toObject(),
         message: `Session Week ${requestedWeek} Day ${requestedDay} was already completed. Exercise logs updated idempotently.`,
         alreadyCompleted: true,
         progress: userProgram.progress
@@ -575,12 +754,37 @@ export const logUserProgramProgress = async (req, res) => {
 
     // 2. Server-side Progression Validation (Anti-cheating)
     // Trainee cannot arbitrarily jump ahead into the future
-    const currentWeek = userProgram.progress.currentWeek || 1;
-    const currentDay = userProgram.progress.currentDay || 1;
+    const isSessionDone = (wNum, dNum) => {
+      return (userProgram.progress.completedSessions || []).some(
+        s => Number(s.weekNumber) === Number(wNum) && Number(s.dayNumber) === Number(dNum)
+      );
+    };
 
-    if (requestedWeek > currentWeek || (requestedWeek === currentWeek && requestedDay > currentDay)) {
+    let effectiveCurrentWeek = 1;
+    let effectiveCurrentDay = 1;
+    let foundFirstIncomplete = false;
+
+    for (const w of (userProgram.weeks || [])) {
+      const workoutDays = (w.days || []).filter(d => !d.isRestDay);
+      for (const d of workoutDays) {
+        if (!isSessionDone(w.weekNumber, d.dayNumber)) {
+          effectiveCurrentWeek = w.weekNumber;
+          effectiveCurrentDay = d.dayNumber;
+          foundFirstIncomplete = true;
+          break;
+        }
+      }
+      if (foundFirstIncomplete) break;
+    }
+
+    if (!foundFirstIncomplete && (userProgram.weeks || []).length > 0) {
+      effectiveCurrentWeek = userProgram.durationWeeks || userProgram.weeks.length;
+      effectiveCurrentDay = 999;
+    }
+
+    if (requestedWeek > effectiveCurrentWeek || (requestedWeek === effectiveCurrentWeek && requestedDay > effectiveCurrentDay)) {
       return res.status(400).json({
-        error: `Cannot skip ahead! You must complete Week ${currentWeek}, Day ${currentDay} before attempting future sessions.`
+        error: `Cannot skip ahead! You must complete Week ${effectiveCurrentWeek}, Day ${effectiveCurrentDay} before attempting future sessions.`
       });
     }
 
@@ -628,17 +832,69 @@ export const logUserProgramProgress = async (req, res) => {
       exerciseLogs: finalExerciseLogs
     });
 
-    // 4. Advance current day & week pointers
-    let nextDay = currentDay + 1;
-    let nextWeek = currentWeek;
+    // 4. Advance current day & week pointers to next uncompleted session
+    const updatedCompletedSessions = userProgram.progress.completedSessions;
+    let nextIncompleteWeek = 1;
+    let nextIncompleteDay = 1;
+    let allFinished = true;
 
-    if (nextDay > userProgram.daysPerWeek) {
-      nextDay = 1;
-      nextWeek = Math.min(userProgram.durationWeeks, currentWeek + 1);
+    for (const w of (userProgram.weeks || [])) {
+      const workoutDays = (w.days || []).filter(d => !d.isRestDay);
+      for (const d of workoutDays) {
+        const isDone = updatedCompletedSessions.some(
+          s => Number(s.weekNumber) === Number(w.weekNumber) && Number(s.dayNumber) === Number(d.dayNumber)
+        );
+        if (!isDone) {
+          nextIncompleteWeek = w.weekNumber;
+          nextIncompleteDay = d.dayNumber;
+          allFinished = false;
+          break;
+        }
+      }
+      if (!allFinished) break;
     }
 
-    userProgram.progress.currentDay = nextDay;
-    userProgram.progress.currentWeek = nextWeek;
+    if (allFinished && (userProgram.weeks || []).length >= (userProgram.durationWeeks || 1)) {
+      userProgram.isCompleted = true;
+      userProgram.isActive = false;
+      userProgram.progress.currentWeek = userProgram.weeks?.length || userProgram.durationWeeks || 1;
+      userProgram.progress.currentDay = 1;
+
+      // Also mark any connected weight loss enrollment as completed
+      await WeightLossEnrollment.updateMany(
+        { userId, userWorkoutProgramId: userProgram._id },
+        { $set: { status: 'Completed', isActive: false } }
+      ).catch(() => {});
+
+      // Trigger review notification if not already reviewed and not disabled
+      if (!userProgram.outcomeReport && !userProgram.reviewRemindersDisabled) {
+        try {
+          const existingNotif = await Notification.findOne({
+            userId,
+            type: 'program_review',
+            relatedId: String(userProgram._id),
+            isDismissed: { $ne: true }
+          });
+          if (!existingNotif) {
+            await Notification.create({
+              userId,
+              type: 'program_review',
+              title: '🎉 Program Completed: Share Your AI Review',
+              message: `Congratulations on finishing "${userProgram.title}"! Tell your AI Coach how it went to generate your official performance report.`,
+              link: `/ai-trainer?reviewProgramId=${userProgram._id}`,
+              relatedId: String(userProgram._id),
+              sender: 'GymSync AI Coach'
+            });
+          }
+        } catch (notifErr) {
+          console.warn('Could not create program_review notification:', notifErr.message);
+        }
+      }
+    } else {
+      userProgram.isCompleted = false;
+      userProgram.progress.currentWeek = nextIncompleteWeek;
+      userProgram.progress.currentDay = nextIncompleteDay;
+    }
 
     await userProgram.save();
 
@@ -686,6 +942,7 @@ export const logUserProgramProgress = async (req, res) => {
     }
 
     res.status(200).json({
+      ...userProgram.toObject(),
       message: 'Workout session completed & logged!',
       streakIncremented,
       progress: userProgram.progress
@@ -838,10 +1095,126 @@ export const deleteUserProgram = async (req, res) => {
     }
 
     await UserWorkoutProgram.findByIdAndDelete(id);
+    await WeightLossEnrollment.updateMany(
+      { $or: [{ userId }, { userName }], userWorkoutProgramId: id },
+      { $set: { isActive: false, status: 'Cancelled' } }
+    ).catch(() => {});
     res.status(200).json({ message: 'Program successfully un-enrolled and removed' });
   } catch (error) {
     console.error('deleteUserProgram Error:', error);
     res.status(500).json({ error: 'Failed to delete user program', message: 'An internal error occurred.' });
   }
 };
+
+// POST /api/plans/user-programs/:id/review — AI Outcome Evaluation & Debrief
+export const reviewUserProgramOutcome = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id;
+    const userName = req.user?.name;
+
+    if (!userId && !userName) {
+      return res.status(401).json({ error: 'User must be authenticated' });
+    }
+
+    const userProgram = await UserWorkoutProgram.findById(id);
+    if (!userProgram) {
+      return res.status(404).json({ error: 'User program not found' });
+    }
+
+    if (
+      userProgram.userId &&
+      userId &&
+      userProgram.userId.toString() !== userId.toString() &&
+      userProgram.userName !== userName
+    ) {
+      return res.status(403).json({ error: 'Not authorized to review this program' });
+    }
+
+    const outcomeReport = await evaluateProgramOutcome({
+      userProgram,
+      userFeedback: req.body || {}
+    });
+
+    userProgram.outcomeReport = outcomeReport;
+    await userProgram.save();
+
+    res.status(200).json({
+      message: 'Program outcome reviewed & evaluated successfully',
+      outcomeReport,
+      userProgram
+    });
+  } catch (error) {
+    console.error('reviewUserProgramOutcome Error:', error);
+    res.status(500).json({ error: 'Failed to evaluate program outcome' });
+  }
+};
+
+// GET /api/plans/user-programs/:id/review — Retrieve existing outcome report
+export const getUserProgramReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userProgram = await UserWorkoutProgram.findById(id).select('title goal durationWeeks outcomeReport isCompleted');
+    if (!userProgram) {
+      return res.status(404).json({ error: 'User program not found' });
+    }
+    res.status(200).json(userProgram.outcomeReport || null);
+  } catch (error) {
+    console.error('getUserProgramReview Error:', error);
+    res.status(500).json({ error: 'Failed to fetch review report' });
+  }
+};
+
+// GET /api/plans/user-programs — Retrieve all programs for user (active + completed history)
+export const getUserPrograms = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const userName = req.user?.name;
+
+    if (!userId && !userName) {
+      return res.status(401).json({ error: 'User must be authenticated' });
+    }
+
+    const programs = await UserWorkoutProgram.find({
+      $or: [{ userId }, { userName }]
+    }).sort({ createdAt: -1 });
+
+    // Enforce Rule R3: Only 1 active program at a time, plus completed history
+    const seenActive = new Set();
+    const cleanedPrograms = [];
+
+    for (const prog of (programs || [])) {
+      const totalWorkoutDays = (prog.weeks || []).reduce(
+        (acc, w) => acc + (w.days || []).filter(d => !d.isRestDay).length,
+        0
+      );
+      const completedSessionsCount = (prog.progress?.completedSessions || []).length;
+      const isFullyCompleted = Boolean(
+        prog.isCompleted ||
+        (totalWorkoutDays > 0 && completedSessionsCount >= totalWorkoutDays)
+      );
+
+      if (isFullyCompleted) {
+        // Fully completed programs belong in workout history
+        cleanedPrograms.push(prog);
+      } else if (prog.isActive) {
+        // Enforce exactly ONE active program
+        if (seenActive.size === 0) {
+          seenActive.add(prog._id.toString());
+          cleanedPrograms.push(prog);
+        } else {
+          // Extra active program found! Deactivate it in DB
+          await UserWorkoutProgram.findByIdAndUpdate(prog._id, { isActive: false }).catch(() => {});
+        }
+      }
+      // Stale / abandoned programs that are neither completed nor active are excluded
+    }
+
+    res.status(200).json(cleanedPrograms);
+  } catch (error) {
+    console.error('getUserPrograms Error:', error);
+    res.status(500).json({ error: 'Failed to fetch user programs' });
+  }
+};
+
 

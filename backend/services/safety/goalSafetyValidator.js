@@ -105,14 +105,19 @@ export const goalSafetyValidator = {
 
     const totalDeltaKg = Math.abs(tarW - curW);
     const weeklyRateKg = Number((totalDeltaKg / weeks).toFixed(2));
-    const maxSafeWeeklyKg = Number((curW * 0.01).toFixed(2)); // 1% bodyweight/week ceiling
+    const recommendedMinWeeklyKg = Number((curW * 0.0025).toFixed(2)); // 0.25% bodyweight/week
+    const recommendedMaxWeeklyKg = Number((curW * 0.0075).toFixed(2)); // 0.75% bodyweight/week
+    const maxSafeWeeklyKg = Number((curW * 0.01).toFixed(2)); // 1% bodyweight/week hard cap
 
     if (weeklyRateKg > maxSafeWeeklyKg) {
       return {
         flagged: true,
         reason: 'aggressive_weekly_rate',
         weeklyRateKg,
+        recommendedMinWeeklyKg,
+        recommendedMaxWeeklyKg,
         maxSafeWeeklyKg,
+        hardCapWeeklyKg: maxSafeWeeklyKg,
         warningMessage: `Your requested timeline requires a change of ~${weeklyRateKg} kg/week, exceeding the recommended safe ceiling of ~${maxSafeWeeklyKg} kg/week (1% of body weight). A trainer review is required for aggressive timelines.`
       };
     }
@@ -121,7 +126,10 @@ export const goalSafetyValidator = {
       flagged: false,
       reason: null,
       weeklyRateKg,
+      recommendedMinWeeklyKg,
+      recommendedMaxWeeklyKg,
       maxSafeWeeklyKg,
+      hardCapWeeklyKg: maxSafeWeeklyKg,
       warningMessage: null
     };
   },

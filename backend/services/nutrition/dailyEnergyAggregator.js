@@ -1,4 +1,6 @@
-export async function computeTodaysEnergy(userId, dateStr, { UserWorkoutProgram, ActivityLog, UserDietPlan }) {
+import FoodLogModel from '../../models/FoodLog.js';
+
+export async function computeTodaysEnergy(userId, dateStr, { UserWorkoutProgram, ActivityLog, FoodLog, UserDietPlan } = {}) {
   // 1. Sum up workout calories
   let workoutKcal = 0;
   if (UserWorkoutProgram) {
@@ -24,18 +26,31 @@ export async function computeTodaysEnergy(userId, dateStr, { UserWorkoutProgram,
     const activity = await ActivityLog.findOne({ userId, date: dateStr });
     if (activity) {
       walkingKcal = activity.estimatedWalkingCalories || 0;
-      // Subtract walking calories if they overlap with the workout.
-      // For now, if there is a workout, we halve the walking calories as an estimation of overlap
-      // unless proper timestamp overlap logic is present.
+      // Subtract walking calories if they overlap with the workout
       if (workoutKcal > 0) {
         walkingKcal = Math.max(0, walkingKcal - (workoutKcal * 0.2)); 
       }
     }
   }
 
-  // 3. Sum up eaten calories
+  // 3. Sum up eaten calories from FoodLog (Phase 4 requirement: replace old plan-based logs)
   let eatenKcal = 0;
-  if (UserDietPlan) {
+  const ActiveFoodLog = FoodLog !== undefined ? FoodLog : FoodLogModel;
+  if (ActiveFoodLog) {
+    try {
+      const foodLogs = await ActiveFoodLog.find({ userId, date: dateStr });
+      if (foodLogs && foodLogs.length > 0) {
+        for (const log of foodLogs) {
+          eatenKcal += (log.totalCaloriesEstimated || 0);
+        }
+      }
+    } catch (err) {
+      // Gracefully handle CastError for dummy test user strings
+    }
+  }
+
+  // Legacy fallback if no food logs exist and legacy UserDietPlan is explicitly passed
+  if (eatenKcal === 0 && UserDietPlan) {
     const dietPlan = await UserDietPlan.findOne({ userId, isActive: true });
     if (dietPlan && dietPlan.logs) {
       const todaysLogs = dietPlan.logs.filter(l => l.date === dateStr);

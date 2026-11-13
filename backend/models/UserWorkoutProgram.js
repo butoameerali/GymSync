@@ -46,6 +46,34 @@ const userWorkoutProgramSchema = new mongoose.Schema({
     type: String,
     default: 'Fitness Instructor'
   },
+  equipmentTrack: {
+    type: String,
+    enum: ['Home (No Equipment)', 'Gym (Equipment Required)'],
+    default: 'Home (No Equipment)'
+  },
+  programLevel: {
+    type: String,
+    enum: ['Starter', 'Steady', 'Driven'],
+    default: 'Starter'
+  },
+  isExtremeProgram: {
+    type: Boolean,
+    default: false
+  },
+  missedDayPolicy: {
+    rule1To3Days: { type: String, default: 'Never double up. Missed 1 to 3 days, carry on.' },
+    rule4To7Days: { type: String, default: 'Missed 4 to 7 days, repeat the week.' },
+    ruleMoreThan7Days: { type: String, default: 'Missed more than 7 days, restart week 1.' }
+  },
+  cardioPrescription: {
+    hasWalking: { type: Boolean, default: true },
+    hasRunning: { type: Boolean, default: false },
+    description: { type: String, default: 'Daily Walk + Saturday Long Walk' },
+    dailyMinutes: { type: Number, default: 20 },
+    saturdayMinutes: { type: Number, default: 35 },
+    intervalRounds: { type: Number, default: 0 },
+    effortRPE: { type: String, default: 'RPE 5 - 6' }
+  },
   // Snapshot of weeks/days at the time of application (prevents historical corruption if instructor edits)
   weeks: [{
     weekNumber: Number,
@@ -72,7 +100,17 @@ const userWorkoutProgramSchema = new mongoose.Schema({
         intensity: String,
         rpe: Number,
         tempo: String,
-        notes: String
+        notes: String,
+        isWarmup: { type: Boolean, default: false },
+        isCooldown: { type: Boolean, default: false },
+        isCardio: { type: Boolean, default: false },
+        easierOption: { type: String, default: '' },
+        harderOption: { type: String, default: '' },
+        keyCue: { type: String, default: '' },
+        targetMuscle: { type: String, default: '' },
+        gifUrl: { type: String, default: '' },
+        mediaUrl: { type: String, default: '' },
+        videoUrl: { type: String, default: '' }
       }],
       cooldown: [{ text: String, duration: Number }],
       notes: String
@@ -86,6 +124,19 @@ const userWorkoutProgramSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
     index: true
+  },
+  isCompleted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  reviewRemindersDisabled: {
+    type: Boolean,
+    default: false
+  },
+  reviewSnoozedUntil: {
+    type: Date,
+    default: null
   },
   missedSessions: [{
     weekNumber: Number,
@@ -112,6 +163,29 @@ const userWorkoutProgramSchema = new mongoose.Schema({
         notes: String
       }]
     }]
+  },
+  outcomeReport: {
+    reviewedAt: { type: Date, default: Date.now },
+    successScore: { type: Number, default: 0 },
+    outcomeCategory: { type: String, default: 'near_target' },
+    outcomeCategoryLabel: { type: String, default: 'Near Target' },
+    userFeedback: {
+      goalSatisfaction: { type: String },
+      metricOutcome: { type: String },
+      difficultyRating: { type: Number, default: 5 },
+      feltResults: { type: String },
+      favoriteMovements: [{ type: String }],
+      struggledMovements: [{ type: String }],
+      notes: { type: String }
+    },
+    aiAnalysis: {
+      summary: { type: String },
+      keyWins: [{ type: String }],
+      areasForImprovement: [{ type: String }],
+      planEffectiveness: { type: String },
+      trainerFeedbackNotes: { type: String },
+      nextPhaseRecommendations: [{ type: String }]
+    }
   }
 }, { timestamps: true });
 

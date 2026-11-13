@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import intentClassifier, { INTENTS, computeMissingBioFields } from './intentClassifier.js';
 import workoutDecisionEngine from '../workout/workoutDecisionEngine.js';
 import exerciseSafetyValidator from '../safety/exerciseSafetyValidator.js';
@@ -6,6 +9,21 @@ import eventAwarenessEngine, { EVENT_TYPES } from '../workout/eventAwarenessEngi
 import { generatePlanObject, parsePlanDuration } from '../../controllers/recommendationEngine.js';
 import { getAlternatives, FOOD_SUBSTITUTION_GROUPS } from '../nutrition/foodSubstitutionGroups.js';
 import nutritionCalculator from '../nutrition/nutritionCalculator.js';
+import FoodLog from '../../models/FoodLog.js';
+
+const __engineDir = path.dirname(fileURLToPath(import.meta.url));
+let cachedCoachPkFoods = null;
+function getCoachPkFoods() {
+  if (!cachedCoachPkFoods) {
+    try {
+      const p = path.resolve(__engineDir, '../../data/pkFoods.json');
+      if (fs.existsSync(p)) cachedCoachPkFoods = JSON.parse(fs.readFileSync(p, 'utf8'));
+    } catch (e) {
+      cachedCoachPkFoods = [];
+    }
+  }
+  return cachedCoachPkFoods || [];
+}
 
 /**
  * Conversational Adaptive Personal Trainer & Reasoning Engine
@@ -614,15 +632,15 @@ To program the right training volume, split, and progressive overload for you:
 
     const isTest7Specific = text.includes('100 kg') && (text.includes('want to lose') || text.includes('lose it') || text.includes('kam karna'));
 
-    const isTodaySession = text.includes('today') || text.includes('aaj');
-    const wantsFullPlan = !isDietAction && !isTest7Specific && !isTodaySession && (isAskingAboutDetails || isInIntakeFlow ||
+    const isTodaySession = (text.includes('today') || text.includes('aaj')) && !isInIntakeFlow;
+    const wantsFullPlan = !isDietAction && !isTest7Specific && (isInIntakeFlow || (!isTodaySession && (isAskingAboutDetails ||
       /(?:generate|build|create|make|give|suggest|start|want|need)\s+.*?(?:workout|exercise|excercice|routine|plan|program)/i.test(raw) ||
       /(?:workout|exercise|excercice|routine|program)\s+(?:plan|for|banana|chahiye|de|do)/i.test(raw) ||
       /\b(?:workout\s*plan|exercise\s*plan|excercice\s*plan|new\s*plan|make\s*a\s*plan|build\s*a\s*plan)\b/i.test(raw) ||
       (/\b(?:losing\s*weight|weight\s*loss|weight\s*lost|lose\s*weight|build\s*muscle|body\s*development)\b/i.test(raw)) ||
       (/(?:weight|wajan)\s*(?:kam|ghatana|loss|lose)/i.test(raw)) ||
       (intent === INTENTS.WEIGHT_MANAGEMENT) ||
-      (intent === INTENTS.GENERATE_WORKOUT));
+      (intent === INTENTS.GENERATE_WORKOUT))));
 
     if (wantsFullPlan) {
       const intakeState = extractIntakeState(raw, history, effectiveProfile);
@@ -1498,6 +1516,106 @@ Click Apply to log this instead.`;
     }
 
     // =====================================================================
+    // FOOD LOGGING & DIET TRACKING VIA PAKISTANI FOOD LIBRARY
+    // Example: "aj mena 2 anday khaye breakfast mein", "aaj chicken khaya"
+    // =====================================================================
+    if (intent === INTENTS.LOG_FOOD) {
+      const allFoods = getCoachPkFoods();
+      const slot = entities.mealSlot || 'lunch';
+      const slotLabels = {
+        breakfast: '🌅 Subah Ka Nashta (Breakfast)',
+        lunch: '☀️ Dopahar Ka Khana (Lunch)',
+        snack: '☕ Sham Ka Khana / Snacks',
+        dinner: '🌙 Raat Ka Khana (Dinner)'
+      };
+      const slotLabel = slotLabels[slot] || slot.toUpperCase();
+
+      // Find best matching food in Pakistani food database
+      let matchedFood = null;
+      for (const food of allFoods) {
+        const sName = (food.simpleName || '').toLowerCase();
+        const fName = (food.name || '').toLowerCase();
+        const aliases = (food.aliases?.romanUrdu || []).map(a => a.toLowerCase());
+        
+        if (text.includes(sName) || text.includes(fName) || aliases.some(a => text.includes(a))) {
+          matchedFood = food;
+          break;
+        }
+      }
+
+      // If no exact match, fallback to premier gym dish matching keywords
+      if (!matchedFood) {
+        if (text.includes('anda') || text.includes('egg')) matchedFood = allFoods.find(f => f.foodId === 'pk_gym_boiled_eggs_white') || allFoods.find(f => f.foodId === 'pk_home_egg');
+        else if (text.includes('chicken') || text.includes('murgh')) matchedFood = allFoods.find(f => f.foodId === 'pk_gym_boiled_chicken_breast') || allFoods.find(f => f.foodId === 'pk_home_chicken');
+        else if (text.includes('oat') || text.includes('daliya')) matchedFood = allFoods.find(f => f.foodId === 'pk_gym_oatmeal_daliya');
+        else if (text.includes('tikka')) matchedFood = allFoods.find(f => f.foodId === 'pk_gym_grilled_chicken_tikka');
+        else if (text.includes('daal') || text.includes('dal')) matchedFood = allFoods.find(f => f.foodId === 'pk_gym_moong_daal_bran_roti') || allFoods.find(f => f.foodId === 'pk_home_daal');
+        else if (text.includes('chawal') || text.includes('rice') || text.includes('biryani')) matchedFood = allFoods.find(f => f.foodId === 'pk_gym_brown_rice_chicken') || allFoods.find(f => f.foodId === 'pk_home_rice');
+        else if (text.includes('roti') || text.includes('chapati')) matchedFood = allFoods.find(f => f.foodId === 'pk_home_roti');
+        else if (text.includes('salad')) matchedFood = allFoods.find(f => f.foodId === 'pk_gym_garden_salad');
+        else if (text.includes('sattu')) matchedFood = allFoods.find(f => f.foodId === 'pk_gym_sattu_protein_shake');
+        else if (text.includes('chana') || text.includes('chaat')) matchedFood = allFoods.find(f => f.foodId === 'pk_gym_chana_lobia_chaat');
+        else if (text.includes('machli') || text.includes('fish')) matchedFood = allFoods.find(f => f.foodId === 'pk_gym_tawa_machli');
+        else matchedFood = allFoods[0];
+      }
+
+      const displayName = matchedFood.simpleName || matchedFood.name;
+      const minKcal = matchedFood.minCalories || Math.round(matchedFood.calories * 0.85);
+      const maxKcal = matchedFood.maxCalories || Math.round(matchedFood.calories * 1.15);
+      const serving = matchedFood.qtyPerPlate || `${matchedFood.typicalServing?.unit || '1 Serving'} (~${matchedFood.typicalServing?.grams || 150}g)`;
+
+      // Auto-log to user's FoodLog in MongoDB if user context has ID
+      if (userContext?.userId || userContext?._id) {
+        try {
+          const uid = userContext.userId || userContext._id;
+          const todayStr = new Date().toISOString().split('T')[0];
+          FoodLog.create({
+            userId: uid,
+            date: todayStr,
+            mealSlot: slot,
+            items: [{
+              foodId: matchedFood.foodId,
+              name: displayName,
+              category: matchedFood.category || 'other',
+              servingUnit: matchedFood.typicalServing?.unit || 'serving',
+              servingGrams: matchedFood.typicalServing?.grams || 150,
+              quantity: 1,
+              caloriesEstimated: matchedFood.calories,
+              caloriesRangeMin: minKcal,
+              caloriesRangeMax: maxKcal,
+              proteinG: matchedFood.protein || 0,
+              carbsG: matchedFood.carbs || 0,
+              fatG: matchedFood.fat || 0,
+              fiberG: matchedFood.fiber || 0,
+              whoShouldLimit: matchedFood.whoShouldLimit || []
+            }],
+            totalCaloriesEstimated: matchedFood.calories,
+            totalCaloriesRangeMin: minKcal,
+            totalCaloriesRangeMax: maxKcal,
+            totalProteinG: matchedFood.protein || 0,
+            totalCarbsG: matchedFood.carbs || 0,
+            totalFatG: matchedFood.fat || 0,
+            notes: `Logged via AI Coach Chat: "${raw}"`
+          }).catch(err => {
+            console.warn('AI Food Log background save error:', err?.message);
+          });
+        } catch (logErr) {
+          console.warn('AI Food Log save error (gracefully continued):', logErr?.message);
+        }
+      }
+
+      responseContent = `✅ **${displayName}** aap ke aaj ke **${slotLabel}** mein confirm aur record kar liya gaya hai! 🍽️💪\n\n### 📊 Nutritional Breakdown:\n- 🔥 **Calories:** ~${matchedFood.calories} kcal (${minKcal} - ${maxKcal} kcal)\n- 🍗 **Protein:** **${matchedFood.protein}g** (Muscle Repair & Growth)\n- 🌾 **Carbohydrates:** ${matchedFood.carbs}g · **Fat:** ${matchedFood.fat}g · **Fiber:** ${matchedFood.fiber || 0}g\n- 🍽️ **Serving Size:** ${serving}\n\n💡 **Fitness Coach Tip:** Fitness mein 70% kirdar diet ka hota hai. Jitna regular aap apne khane ko track karenge, utna behtar aur tezz aapka fitness goal pura hoga!`;
+
+      const suggestions = ['🍽️ View Diet Report', '🥗 Food & Recipe Library', '🏋️ Today\'s Workout'];
+      structuredAction.type = 'FOOD_LOG_RECORDED';
+      structuredAction.foodItem = matchedFood;
+      structuredAction.mealSlot = slot;
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = `Logged ${displayName} for ${slot} based on user chat input.`;
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+    }
+
+    // =====================================================================
     // PILLAR 10: FOOD SUBSTITUTION ENGINE
     // Example: "Aaj chicken nahi hai", "Beef nahi hai", "eggs nahi hain"
     // =====================================================================
@@ -1571,25 +1689,36 @@ Click Apply to log this instead.`;
     }
 
     // =====================================================================
-    // PILLAR 11: MISSED WORKOUT RESOLUTION
-    // Example: "Kal workout miss ho gaya", "session skip kar gaya"
+    // PILLAR 11: MISSED WORKOUT RESOLUTION (Chutti Handling)
+    // Example: "Kal workout miss ho gaya", "chutti ki thi", "session skip ho gaya"
     // =====================================================================
-    if (intent === INTENTS.MISSED_WORKOUT) {
-      const planTitle = userContext.activeSavedPlan?.title || 'your active plan';
-      const unhandledCount = (userContext.unhandledMissedSessions || []).length;
+    if (intent === INTENTS.MISSED_WORKOUT || text.includes('cover on rest day') || text.includes('extend program')) {
+      const planTitle = userContext.activeSavedPlan?.title || 'your workout program';
 
-      const reasonHint = text.includes('sick') || text.includes('beemar') ? 'You reported being sick.' :
-        text.includes('busy') || text.includes('kaam') ? 'You were busy with work.' :
-        text.includes('thak') || text.includes('tired') ? 'You were fatigued.' : '';
+      if (text.includes('cover on rest day') || (text.includes('cover') && !text.includes('extend'))) {
+        responseContent = `✅ **Option Selected: Cover on Rest Day**\n\nZabardast! Aapka missed session aaj ke liye active hai. Aap Workout Hub se **"Resume Workout"** par click karke direct apna routine start kar sakte hain!`;
+        const suggestions = ['🚀 Open Workout Hub', '💡 Form Tips', '🥗 Nutrition Check'];
+        structuredAction.type = 'RESUME_MISSED_WORKOUT';
+        structuredAction.planId = userContext.activeSavedPlan?._id || null;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
 
-      responseContent = `I see — you missed a workout session${planTitle ? ` from **${planTitle}**` : ''}. ${reasonHint ? `*${reasonHint}*` : ''} 💪\n\n**No worries — this happens!** Here is what we can do:\n\n### 📋 Choose Your Recovery Path:\n\n**Option A — Compress Today** 🔥\nRoll the key exercises from the missed session into today's workout (slightly longer session, higher volume).\n\n**Option B — Shift Schedule +1 Day** 📅\nPush your entire remaining calendar forward by 1 day to preserve the full program structure.\n\n**Option C — Rest Day (No Penalty)** 😴\nMark the missed session as a planned rest day. Your streak and plan integrity are protected.\n\nWhat would you like to do?`;
+      if (text.includes('extend program') || (text.includes('extend') && !text.includes('cover')) || (text.includes('no') && !text.includes('yes'))) {
+        responseContent = `📅 **Option Selected: Extend Program Duration (+1 Day)**\n\nBilkul theek! Aaj aap sakoon se rest karein. Aapka program calendar **1 din extend** ho gaya hai (jaise 30 din ka program 31 din ka ho jayega). Koi session skip nahi hoga, kal se regular routine continue hogi!`;
+        const suggestions = ['🚀 View Workout Hub', '🥗 Nutrition Check', '😴 Rest & Recovery Tips'];
+        structuredAction.type = 'EXTEND_PROGRAM_DURATION';
+        structuredAction.planId = userContext.activeSavedPlan?._id || null;
+        return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+      }
 
-      const suggestions = ['Option A: Compress Today', 'Option B: Shift Schedule +1 Day', 'Option C: Rest Day'];
+      responseContent = `Aapne workout session miss kiya tha (chutti ki thi). 💪\n\n**Kya aap aaj rest day par yeh exercise cover karna chahte hain?**\n\n1. **Yes (Cover on Rest Day)**: Aaj hi apna missed workout complete karein taake routine time par chale.\n2. **No (Extend Program Date)**: Aaj rest hi karein, aur aapke program ki target completion date **1 din aage extend** ho jayegi (jaise 30 din ka program 31 din ka ho jayega, koi workout skip nahi hoga).\n\nAap kya karna chahte hain?`;
+
+      const suggestions = ['Yes: Cover on Rest Day', 'No: Extend Program (+1 Day)'];
       structuredAction.type = 'MISSED_WORKOUT_RESOLVE';
       structuredAction.unhandledMissed = userContext.unhandledMissedSessions || [];
       structuredAction.planId = userContext.activeSavedPlan?._id || null;
       structuredAction.suggestions = suggestions;
-      structuredAction.explanation = `User missed ${unhandledCount || 'a'} session(s). Presenting 3 structured recovery options.`;
+      structuredAction.explanation = `User missed a session. Presenting Yes (cover on rest day) vs No (extend program date) options.`;
       return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }
 
@@ -1709,6 +1838,19 @@ Click Apply to log this instead.`;
       structuredAction.todayActivity = activity;
       structuredAction.suggestions = suggestions;
       structuredAction.explanation = `Plan vs Reality energy analysis — ${totalBurned} kcal burned vs ${targetCals || '?'} kcal target.`;
+      return { role: 'assistant', content: responseContent, suggestions, structuredAction };
+    }
+
+    // =====================================================================
+    // PROGRAM OUTCOME & PROGRESS DEBRIEF
+    // Example: "Review my completed program", "Mera program pura ho gaya", "Evaluate my score"
+    // =====================================================================
+    if (intent === INTENTS.PROGRESS_REVIEW || /\b(?:review|outcome|score|result evaluate|program review|debrief)\b/i.test(text)) {
+      responseContent = `🏆 **Program Outcome & Performance Debrief**\n\nZabardast achievement! Completing a full training cycle requires consistency and grit.\n\n### 📝 Let's Evaluate Your Results:\n1. **Goal Achievement**: Did you fully achieve your target (*Zabardast kaam hua*), was it close (*Theek tha, aas paas tha*), or does it need refinement (*Aas paas tha lekin theek nahi*)?\n2. **Measurable Results**: What strength gains, measurements, or physical adaptations did you notice?\n3. **Difficulty (1-10)**: How challenging was the workload?\n4. **Exercise Feedback**: Which movements felt powerful, and which caused excessive fatigue?\n\n💡 *You can answer me here in chat, or tap below to open the interactive evaluation modal and generate your official score report!*`;
+      const suggestions = ['🏆 Zabardast Kaam Hua! (100%)', '🎯 Theek tha, aas paas tha', '⚠️ Aas paas tha lekin theek nahi', '📊 Open Score Evaluator'];
+      structuredAction.type = 'PROGRAM_OUTCOME_REVIEW';
+      structuredAction.suggestions = suggestions;
+      structuredAction.explanation = 'Program outcome review initiated. User can provide debrief feedback or open evaluation modal.';
       return { role: 'assistant', content: responseContent, suggestions, structuredAction };
     }
 

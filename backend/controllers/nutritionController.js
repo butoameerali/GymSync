@@ -1,6 +1,7 @@
 import UserWorkoutProgram from '../models/UserWorkoutProgram.js';
 import UserDietPlan from '../models/UserDietPlan.js';
 import ActivityLog from '../models/ActivityLog.js';
+import FoodLog from '../models/FoodLog.js';
 import { computeTodaysEnergy } from '../services/nutrition/dailyEnergyAggregator.js';
 
 export const getPlanVsReality = async (req, res) => {
@@ -32,11 +33,14 @@ export const getPlanVsReality = async (req, res) => {
     const plannedSteps = 10000; // Default goal
 
     // 2. Reality
-    const energy = await computeTodaysEnergy(userId, date);
+    const energy = await computeTodaysEnergy(userId, date, { UserWorkoutProgram, ActivityLog, FoodLog, UserDietPlan });
+
+    const activity = await ActivityLog.findOne({ userId, date });
+    const actualSteps = activity?.steps || 0;
 
     // AI generated sentence based on delta
-    const dietDelta = energy.totalIntakeKcal - plannedDietKcal;
-    const workoutDelta = energy.totalBurnedKcal - plannedWorkoutKcal;
+    const dietDelta = energy.eatenKcal - plannedDietKcal;
+    const workoutDelta = energy.estimatedExpenditure - plannedWorkoutKcal;
 
     let insight = "You're right on track with today's targets.";
     if (dietDelta > 200 && workoutDelta < -100) {
@@ -54,9 +58,11 @@ export const getPlanVsReality = async (req, res) => {
         steps: plannedSteps
       },
       actual: {
-        dietKcal: energy.totalIntakeKcal,
-        workoutKcal: energy.totalBurnedKcal,
-        steps: energy.totalSteps
+        dietKcal: energy.eatenKcal,
+        workoutKcal: energy.estimatedExpenditure,
+        workoutOnlyKcal: energy.workoutKcal,
+        walkingKcal: energy.walkingKcal,
+        steps: actualSteps
       },
       insight
     });

@@ -260,7 +260,7 @@ export const createSuggestion = async (req, res) => {
     res.status(201).json(saved);
   } catch (error) {
     console.error('createSuggestion error:', error);
-    res.status(500).json({ message: error.message || 'Failed to create suggestion' });
+    res.status(500).json({ message: 'Failed to create suggestion' });
   }
 };
 
@@ -304,7 +304,7 @@ export const updateSuggestion = async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('updateSuggestion error:', error);
-    res.status(500).json({ message: error.message || 'Failed to update suggestion' });
+    res.status(500).json({ message: 'Failed to update suggestion' });
   }
 };
 
@@ -322,6 +322,6 @@ export const deleteSuggestion = async (req, res) => {
     res.json({ message: 'Suggestion deleted successfully' });
   } catch (error) {
     console.error('deleteSuggestion error:', error);
-    res.status(500).json({ message: error.message || 'Failed to delete suggestion' });
+    res.status(500).json({ message: 'Failed to delete suggestion' });
   }
 };

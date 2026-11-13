@@ -23,7 +23,9 @@ import {
   Flame,
   Calendar,
   Info,
-  X
+  BookOpen,
+  X,
+  Clock
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
@@ -33,6 +35,8 @@ import { SwapMealItemModal } from './SwapMealItemModal';
 import { AchievementCard } from './AchievementCard';
 import { NextGoalPrompt } from './NextGoalPrompt';
 import PlanVsRealityCard from './PlanVsRealityCard';
+import ProgramIndexView from './ProgramIndexView';
+import ProgramOutcomeReviewModal from './ProgramOutcomeReviewModal';
 import { useNavigate } from 'react-router-dom';
 import MedicalDisclaimer from '../../components/common/MedicalDisclaimer';
 
@@ -81,6 +85,11 @@ const AITrainerAIMode = ({
 
   // active instructor program
   activeUserProgram,
+  setActiveUserProgram,
+  allUserPrograms = [],
+  triggerReviewProgram = null,
+  setTriggerReviewProgram = null,
+  onRefreshPrograms = null,
 
   // recalculate loading state
   isRecalculating,
@@ -119,7 +128,16 @@ const AITrainerAIMode = ({
   const [selectedInstructorWeek, setSelectedInstructorWeek] = useState(null);
   const activeInstructorWeek = selectedInstructorWeek || activeUserProgram?.progress?.currentWeek || 1;
   const setActiveInstructorWeek = setSelectedInstructorWeek;
+  const [activeInstructorDay, setActiveInstructorDay] = useState(null);
   const [activeExerciseDetailModal, setActiveExerciseDetailModal] = useState(null);
+  const [activeReviewProgram, setActiveReviewProgram] = useState(null);
+
+  useEffect(() => {
+    if (triggerReviewProgram) {
+      setActiveReviewProgram(triggerReviewProgram);
+      if (setTriggerReviewProgram) setTriggerReviewProgram(null);
+    }
+  }, [triggerReviewProgram]);
 
   useEffect(() => {
     if (aiPlan?.interactive_calendar?.length) {
@@ -163,26 +181,59 @@ const AITrainerAIMode = ({
     return true;
   });
 
-  const instructorPlans = activeUserProgram ? [{
-    _id: activeUserProgram._id,
-    title: activeUserProgram.title,
-    goal: activeUserProgram.goal || 'Strength & Conditioning',
-    fitnessLevel: activeUserProgram.difficulty || 'All Levels',
-    durationWeeks: activeUserProgram.durationWeeks || 4,
-    daysPerWeek: activeUserProgram.daysPerWeek || 4,
-    planDuration: activeUserProgram.durationWeeks ? `${activeUserProgram.durationWeeks * 7} Days` : '4 Weeks',
-    isInstructorProgram: true,
-    instructorName: activeUserProgram.instructorName || 'Fitness Instructor',
-    programVersion: activeUserProgram.programVersion || 1,
-    progress: activeUserProgram.progress || { currentWeek: 1, currentDay: 1, completedSessions: [] },
-    weeks: activeUserProgram.weeks || [],
-    rawProgram: activeUserProgram
-  }] : [];
+  const rawInstructorList = (Array.isArray(allUserPrograms) && allUserPrograms.length > 0)
+    ? allUserPrograms
+    : (activeUserProgram ? [activeUserProgram] : []);
 
-  const allWorkoutPlans = [...instructorPlans, ...savedWorkoutPlans];
+  const instructorPlans = rawInstructorList.map(prog => {
+    const totalWorkoutDays = (prog.weeks || []).reduce((acc, w) => acc + (w.days || []).filter(d => !d.isRestDay).length, 0);
+    const completedSessionsCount = (prog.progress?.completedSessions || []).length;
+    const isFullyCompleted = Boolean(prog.isCompleted || (totalWorkoutDays > 0 && completedSessionsCount >= totalWorkoutDays));
+
+    return {
+      _id: prog._id,
+      title: prog.title,
+      goal: prog.goal || 'Strength & Conditioning',
+      fitnessLevel: prog.difficulty || 'All Levels',
+      durationWeeks: prog.durationWeeks || 4,
+      daysPerWeek: prog.daysPerWeek || 4,
+      planDuration: prog.durationWeeks ? `${prog.durationWeeks * 7} Days` : '4 Weeks',
+      isInstructorProgram: true,
+      isActive: Boolean(prog.isActive),
+      isCompleted: isFullyCompleted,
+      outcomeReport: prog.outcomeReport || null,
+      instructorName: prog.instructorName || 'Fitness Instructor',
+      programVersion: prog.programVersion || 1,
+      progress: prog.progress || { currentWeek: 1, currentDay: 1, completedSessions: [] },
+      weeks: prog.weeks || [],
+      rawProgram: prog
+    };
+  });
+
+  // Enforce single active plan rule: Exactly ONE active program allowed at a time, plus completed programs
+  const uniqueInstructorPlans = [];
+  let foundActiveProgram = false;
+  for (const p of instructorPlans) {
+    if (p.isCompleted) {
+      // Completed programs are kept for history / AI review
+      uniqueInstructorPlans.push(p);
+    } else if (p.isActive) {
+      // Exactly ONE active program can be displayed
+      if (!foundActiveProgram) {
+        foundActiveProgram = true;
+        uniqueInstructorPlans.push(p);
+      }
+    }
+    // Any incomplete program that is inactive (abandoned/stale) is excluded
+  }
+
+  // Unified single plan architecture: If user has certified programs, show ONLY certified programs!
+  const allWorkoutPlans = uniqueInstructorPlans.length > 0
+    ? uniqueInstructorPlans
+    : savedWorkoutPlans;
 
   return (
-    <div className="ai-plan-view glass-panel">
+    <div className="ai-plan-view glass-panel" style={{ padding: '20px', overflow: 'visible' }}>
 
       {/* ── BIO INCOMPLETE PROMPT ─────────────────────────────────────────── */}
       {!isBioFilled ? (
@@ -254,256 +305,317 @@ const AITrainerAIMode = ({
         </div>
       ) : !selectedPlanForView ? (
         /* ── SCREEN 1: MY AI WORKOUT PLANS HUB (Buttons & Options) ── */
-        <div className="ai-plans-hub" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-          {/* Header Banner */}
-          <div
-            style={{
-              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
-              borderRadius: '18px',
-              padding: '24px 28px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '20px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div
-                style={{
-                  width: '54px',
-                  height: '54px',
-                  borderRadius: '16px',
-                  background: 'rgba(59, 130, 246, 0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#60a5fa'
-                }}
-              >
-                <Bot size={32} />
-              </div>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '1.6rem', color: 'var(--text-primary)', fontWeight: 800 }}>
-                  My AI Workout Plans Hub
-                </h2>
-                <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
-                  Select a plan below to begin your training session, or build a new custom plan with AI Coach.
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <button
-                className="btn btn-outline"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  borderColor: activeCoachTick === 'header' ? '#10b981' : '#3b82f6',
-                  color: activeCoachTick === 'header' ? '#10b981' : '#60a5fa',
-                  background: activeCoachTick === 'header' ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
-                  padding: '10px 18px',
-                  borderRadius: '12px',
-                  fontWeight: 600,
-                  transition: 'all 0.2s ease'
-                }}
-                onClick={() => triggerOpenCoach('header')}
-              >
-                {activeCoachTick === 'header' ? (
-                  <>
-                    <CheckCircle size={16} color="#10b981" />
-                    <span>✓ Opened</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={16} />
-                    <span>Open AI Coach</span>
-                  </>
-                )}
-              </button>
-              {handleCreateNewPlan && (
-                <button
-                  className="btn btn-primary"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    border: 'none',
-                    padding: '10px 18px',
-                    borderRadius: '12px',
-                    fontWeight: 700,
-                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)'
-                  }}
-                  onClick={handleCreateNewPlan}
-                >
-                  <Plus size={16} /> New Plan
-                </button>
-              )}
-            </div>
-          </div>
-
-          <MedicalDisclaimer variant="banner" style={{ margin: '16px 0 20px 0' }} />
+        <div className="ai-plans-hub" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <MedicalDisclaimer variant="banner" style={{ margin: '0 0 10px 0' }} />
 
           {/* ── SECTION 1: YOUR WORKOUT PLANS (Buttons & Cards) ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Dumbbell size={20} color="#3b82f6" /> Your Workout Plans ({allWorkoutPlans.length})
               </h3>
+
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button
+                  className="hub-header-coach-btn"
+                  style={{
+                    borderColor: activeCoachTick === 'header' ? '#10b981' : undefined,
+                    color: activeCoachTick === 'header' ? '#10b981' : undefined,
+                    background: activeCoachTick === 'header' ? 'rgba(16, 185, 129, 0.12)' : undefined
+                  }}
+                  onClick={() => triggerOpenCoach('header')}
+                >
+                  {activeCoachTick === 'header' ? (
+                    <>
+                      <CheckCircle size={16} color="#10b981" />
+                      <span>✓ Opened</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={16} />
+                      <span>Open AI Coach</span>
+                    </>
+                  )}
+                </button>
+                {handleCreateNewPlan && (
+                  <button
+                    className="btn btn-primary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '12px',
+                      fontWeight: 700,
+                      fontSize: '0.9rem',
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)'
+                    }}
+                    onClick={handleCreateNewPlan}
+                  >
+                    <Plus size={16} /> New Plan
+                  </button>
+                )}
+              </div>
             </div>
 
-            {allWorkoutPlans.length > 0 ? (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                  gap: '18px'
-                }}
-              >
+            {(() => {
+              const hasActiveProgram = allWorkoutPlans.some(p => !p.isCompleted);
+              return allWorkoutPlans.length > 0 ? (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                    gap: '18px',
+                    alignItems: 'stretch'
+                  }}
+                >
                 {allWorkoutPlans.map((plan) => {
                   if (plan.isInstructorProgram) {
+                    const rawProg = plan.rawProgram || plan;
+                    const weeks = rawProg.weeks || [];
+                    let nextIncompleteSession = null;
+
+                    for (const wk of weeks) {
+                      for (const d of (wk.days || [])) {
+                        const isDone = (rawProg.progress?.completedSessions || []).some(
+                          s => Number(s.weekNumber) === Number(wk.weekNumber) && Number(s.dayNumber) === Number(d.dayNumber)
+                        );
+                        if (!d.isRestDay && !isDone) {
+                          nextIncompleteSession = { weekNum: wk.weekNumber, dayNum: d.dayNumber, day: d };
+                          break;
+                        }
+                      }
+                      if (nextIncompleteSession) break;
+                    }
+
+                    const totalWorkoutDays = (plan.weeks || []).reduce((acc, w) => acc + (w.days || []).filter(d => !d.isRestDay).length, 0);
+                    const completedSessionsCount = (plan.progress?.completedSessions || []).length;
+                    const isFullyCompleted = Boolean(plan.isCompleted || (totalWorkoutDays > 0 && completedSessionsCount >= totalWorkoutDays));
+
                     return (
                       <div
                         key={plan._id || 'instructor_program'}
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%)',
-                          border: '1px solid rgba(16, 185, 129, 0.35)',
-                          borderRadius: '16px',
-                          padding: '22px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          gap: '16px',
-                          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
-                          transition: 'transform 0.2s ease, border-color 0.2s ease',
-                        }}
+                        className={`hub-plan-card ${isFullyCompleted ? 'completed-program' : 'active-program'}`}
+                        onClick={() => setSelectedPlanForView(plan)}
+                        style={{ cursor: 'pointer' }}
                       >
                         <div>
                           {/* Top Badge & Duration */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                background: 'rgba(16, 185, 129, 0.2)',
-                                color: '#10b981',
-                                padding: '4px 12px',
-                                borderRadius: '20px',
-                                fontSize: '0.8rem',
-                                fontWeight: 700
-                              }}
-                            >
-                              🏋️ Instructor Program (v{plan.programVersion || 1})
+                            <span className={`hub-plan-badge ${isFullyCompleted ? 'completed' : 'instructor'}`}>
+                              {isFullyCompleted ? (
+                                <>
+                                  <CheckCircle size={14} /> Completed Program (v{plan.programVersion || 1})
+                                </>
+                              ) : (
+                                <>
+                                  🏋️ Instructor Program (v{plan.programVersion || 1})
+                                </>
+                              )}
                             </span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {plan.durationWeeks} Weeks • {plan.daysPerWeek || 4} Days/Wk
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span className="hub-plan-duration-tag">
+                                {plan.durationWeeks} Weeks • {plan.daysPerWeek || 4} Days/Wk
+                              </span>
+                              {!isFullyCompleted && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (handleDeleteUserProgram) {
+                                      handleDeleteUserProgram(plan._id, e);
+                                    }
+                                  }}
+                                  title="Remove / Leave program"
+                                  aria-label="Remove Program"
+                                  className="hub-btn-unenroll"
+                                  style={{ flex: 'none', padding: '5px 8px', borderRadius: '8px' }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           {/* Title */}
-                          <h4 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                          <h4
+                            className="hub-plan-title"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPlanForView(plan);
+                            }}
+                            title="Click to view full syllabus index"
+                          >
                             {plan.title}
                           </h4>
 
                           {/* Details */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                          <div className="hub-plan-details">
                             <div><strong>Goal:</strong> {plan.goal}</div>
                             <div><strong>Level:</strong> {plan.fitnessLevel}</div>
                             <div><strong>Instructor:</strong> {plan.instructorName}</div>
-                            <div style={{ color: '#10b981', fontWeight: 600, fontSize: '0.82rem', marginTop: '4px' }}>
-                              Schedule: Week {plan.progress?.currentWeek || 1} • Day {plan.progress?.currentDay || 1}
-                            </div>
+                            {isFullyCompleted ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                                <div className="hub-plan-finished-status">
+                                  <CheckCircle size={15} /> All {plan.durationWeeks || (plan.weeks || []).length} Weeks Finished ({completedSessionsCount} sessions completed)
+                                </div>
+                                {plan.outcomeReport?.successScore != null && (
+                                  <div className="hub-plan-verdict">
+                                    <Award size={14} /> AI Verdict: {plan.outcomeReport.successScore}% • {plan.outcomeReport.outcomeCategoryLabel || 'Review Complete'}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+                                <div className="hub-plan-schedule" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <Clock size={14} /> Schedule: Week {nextIncompleteSession?.weekNum || plan.progress?.currentWeek || 1} • Day {nextIncompleteSession?.dayNum || plan.progress?.currentDay || 1}
+                                </div>
+                                {nextIncompleteSession && (
+                                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                    Next up: <span style={{ fontWeight: 600, color: 'var(--primary-accent)' }}>{nextIncompleteSession.day.focus || nextIncompleteSession.day.title || 'Training Routine'}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
 
                         {/* Actions */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <button
-                            className="btn btn-primary"
-                            style={{
-                              width: '100%',
-                              padding: '12px 18px',
-                              borderRadius: '12px',
-                              fontWeight: 700,
-                              fontSize: '0.95rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '8px',
-                              background: 'linear-gradient(135deg, #10b981, #059669)',
-                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
-                              border: 'none'
-                            }}
-                            onClick={() => {
-                              setSelectedPlanForView(plan);
-                            }}
-                          >
-                            <Play size={16} /> Open &amp; Start Routine
-                          </button>
+                          {isFullyCompleted ? (
+                            <>
+                              <button
+                                className="btn btn-primary"
+                                style={{
+                                  width: '100%',
+                                  padding: '12px 18px',
+                                  borderRadius: '12px',
+                                  fontWeight: 700,
+                                  fontSize: '0.95rem',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  background: plan.outcomeReport?.reviewedAt
+                                    ? 'linear-gradient(135deg, #6366f1, #4f46e5)'
+                                    : 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+                                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
+                                  border: 'none',
+                                  color: '#ffffff',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveReviewProgram(plan);
+                                }}
+                              >
+                                {plan.outcomeReport?.reviewedAt ? (
+                                  <><Award size={16} /> View AI Outcome Report ({plan.outcomeReport.successScore}%)</>
+                                ) : (
+                                  <><Sparkles size={16} /> ✨ Review Results with AI &amp; Get Score</>
+                                )}
+                              </button>
 
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              className="btn btn-outline"
-                              style={{
-                                flex: 1,
-                                padding: '8px 12px',
-                                borderRadius: '10px',
-                                fontSize: '0.82rem',
-                                color: activeCoachTick === `program_${plan._id}` ? '#10b981' : '#34d399',
-                                borderColor: activeCoachTick === `program_${plan._id}` ? '#10b981' : 'rgba(16, 185, 129, 0.3)',
-                                background: activeCoachTick === `program_${plan._id}` ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '5px',
-                                transition: 'all 0.2s ease',
-                                whiteSpace: 'nowrap'
-                              }}
-                              onClick={() => triggerOpenCoach(`program_${plan._id}`, `Explain my ${plan.title} workout program and give me tips for today`)}
-                              title="Ask AI Coach about this program"
-                            >
-                              {activeCoachTick === `program_${plan._id}` ? (
-                                <>
-                                  <CheckCircle size={13} color="#10b981" />
-                                  <span>✓ Opened</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles size={13} />
-                                  <span>Ask Coach</span>
-                                </>
-                              )}
-                            </button>
+                              <button
+                                className="hub-btn-syllabus"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedPlanForView(plan);
+                                }}
+                              >
+                                <BookOpen size={15} /> View Completed Syllabus
+                              </button>
 
-                            <button
-                              className="btn btn-outline"
-                              style={{
-                                flex: 1,
-                                padding: '8px 12px',
-                                borderRadius: '10px',
-                                fontSize: '0.82rem',
-                                color: '#f87171',
-                                borderColor: 'rgba(239, 68, 68, 0.3)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '5px',
-                                whiteSpace: 'nowrap'
-                              }}
-                              onClick={(e) => {
-                                if (handleDeleteUserProgram) {
-                                  handleDeleteUserProgram(plan._id, e);
+                              <button
+                                className="hub-btn-coach"
+                                style={{ width: '100%' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  triggerOpenCoach(`program_${plan._id}`, `I have completed my ${plan.title} program. Let's do a post-program review and evaluate my results!`);
+                                }}
+                              >
+                                <Sparkles size={14} /> Review in Chat
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                className="btn btn-primary"
+                                style={{
+                                  width: '100%',
+                                  padding: '12px 18px',
+                                  borderRadius: '12px',
+                                  fontWeight: 700,
+                                  fontSize: '0.96rem',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
+                                  border: 'none',
+                                  color: '#ffffff',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (nextIncompleteSession) {
+                                    setSelectedPlanForView(plan);
+                                    setActiveInstructorWeek(nextIncompleteSession.weekNum);
+                                    setActiveWorkoutDay(nextIncompleteSession.dayNum);
+                                    setActiveInstructorDay(nextIncompleteSession.day);
+                                    setMissionRunnerInitialIndex(0);
+                                    setShowMissionRunner(true);
+                                  } else {
+                                    setSelectedPlanForView(plan);
+                                  }
+                                }}
+                              >
+                                <Play size={16} /> {completedSessionsCount > 0
+                                  ? `Resume Workout (Week ${nextIncompleteSession?.weekNum || 1} • Day ${nextIncompleteSession?.dayNum || 1})`
+                                  : `Start Workout (Week ${nextIncompleteSession?.weekNum || 1} • Day ${nextIncompleteSession?.dayNum || 1})`
                                 }
-                              }}
-                              title="Un-enroll from this program"
-                            >
-                              <Trash2 size={13} /> Un-enroll
-                            </button>
-                          </div>
+                              </button>
+
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  className="hub-btn-coach"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    triggerOpenCoach(`program_${plan._id}`, `Explain my ${plan.title} workout program and give me tips for today`);
+                                  }}
+                                  title="Ask AI Coach about this program"
+                                >
+                                  {activeCoachTick === `program_${plan._id}` ? (
+                                    <>
+                                      <CheckCircle size={14} color="#10b981" />
+                                      <span>✓ Opened</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles size={14} />
+                                      <span>Ask Coach</span>
+                                    </>
+                                  )}
+                                </button>
+
+                                <button
+                                  className="hub-btn-unenroll"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (handleDeleteUserProgram) {
+                                      handleDeleteUserProgram(plan._id, e);
+                                    }
+                                  }}
+                                  title="Leave this program"
+                                >
+                                  <Trash2 size={14} /> Un-enroll
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
@@ -518,53 +630,30 @@ const AITrainerAIMode = ({
                   return (
                     <div
                       key={plan._id || planTitle}
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%)',
-                        border: '1px solid rgba(59, 130, 246, 0.35)',
-                        borderRadius: '16px',
-                        padding: '22px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        gap: '16px',
-                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
-                        transition: 'transform 0.2s ease, border-color 0.2s ease',
-                      }}
+                      className="hub-plan-card ai-program"
                     >
                       <div>
                         {/* Top Badge & Duration */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              background: 'rgba(59, 130, 246, 0.2)',
-                              color: '#60a5fa',
-                              padding: '4px 12px',
-                              borderRadius: '20px',
-                              fontSize: '0.8rem',
-                              fontWeight: 700
-                            }}
-                          >
+                          <span className="hub-plan-badge ai">
                             🤖 AI Workout Plan
                           </span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          <span className="hub-plan-duration-tag">
                             {duration ? `${duration} Days` : 'Custom Routine'}
                           </span>
                         </div>
 
                         {/* Title */}
-                        <h4 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                        <h4 className="hub-plan-title">
                           {planTitle}
                         </h4>
 
                         {/* Details */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                        <div className="hub-plan-details">
                           <div><strong>Goal:</strong> {plan.goal || (isWeightLoss ? 'Lose Weight' : isBodyDev ? 'Muscle Building' : 'General Fitness')}</div>
                           <div><strong>Level:</strong> {plan.fitnessLevel || 'All Levels'}</div>
                           <div><strong>Trainer:</strong> AI Personal Coach</div>
-                          <div style={{ color: '#60a5fa', fontWeight: 600, fontSize: '0.82rem', marginTop: '4px' }}>
+                          <div className="hub-plan-schedule">
                             Schedule: {duration ? `${duration} Days Cycle` : 'Adaptive Plan'}
                           </div>
                         </div>
@@ -587,7 +676,9 @@ const AITrainerAIMode = ({
                             gap: '8px',
                             background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
                             boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35)',
-                            border: 'none'
+                            border: 'none',
+                            color: '#ffffff',
+                            cursor: 'pointer'
                           }}
                           onClick={() => {
                             handleActivateSavedPlan(plan);
@@ -600,66 +691,91 @@ const AITrainerAIMode = ({
                         {/* Secondary Button Row */}
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
-                            className="btn btn-outline"
-                            style={{
-                              flex: 1,
-                              padding: '8px 12px',
-                              borderRadius: '10px',
-                              fontSize: '0.82rem',
-                              color: activeCoachTick === `plan_${plan._id}` ? '#10b981' : '#60a5fa',
-                              borderColor: activeCoachTick === `plan_${plan._id}` ? '#10b981' : 'rgba(59, 130, 246, 0.3)',
-                              background: activeCoachTick === `plan_${plan._id}` ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '5px',
-                              transition: 'all 0.2s ease',
-                              whiteSpace: 'nowrap'
-                            }}
+                            className="hub-btn-ai-edit"
                             onClick={() => triggerOpenCoach(`plan_${plan._id}`, `/${slug} `)}
                             title={`Edit this plan with AI Coach using /${slug}`}
                           >
                             {activeCoachTick === `plan_${plan._id}` ? (
                               <>
-                                <CheckCircle size={13} color="#10b981" />
+                                <CheckCircle size={14} color="#10b981" />
                                 <span>✓ Opened</span>
                               </>
                             ) : (
                               <>
-                                <Sparkles size={13} />
+                                <Sparkles size={14} />
                                 <span>Edit with AI</span>
                               </>
                             )}
                           </button>
 
                           <button
-                            className="btn btn-outline"
-                            style={{
-                              flex: 1,
-                              padding: '8px 12px',
-                              borderRadius: '10px',
-                              fontSize: '0.82rem',
-                              color: '#f87171',
-                              borderColor: 'rgba(239, 68, 68, 0.3)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '5px',
-                              whiteSpace: 'nowrap'
-                            }}
+                            className="hub-btn-unenroll"
                             onClick={(e) => {
                               handleDeleteSavedPlan(plan._id, e);
                               setSelectedPlanForView(null);
                             }}
                             title="Delete this plan"
                           >
-                            <Trash2 size={13} /> Delete Plan
+                            <Trash2 size={14} /> Delete Plan
                           </button>
                         </div>
                       </div>
                     </div>
                   );
                 })}
+
+                {/* Option to start next program if no active program is currently running */}
+                {!hasActiveProgram && (
+                  <div
+                    style={{
+                      border: '2px dashed rgba(59, 130, 246, 0.4)',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      gap: '14px',
+                      background: 'rgba(59, 130, 246, 0.04)',
+                      minHeight: '260px'
+                    }}
+                  >
+                    <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+                      <Plus size={26} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                        Start Your Next Program
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', maxWidth: '300px', lineHeight: 1.5 }}>
+                        Aapka pichla program complete ho chuka hai! Certified trainer programs browse karein aur apna agla fitness cycle shuru karein.
+                      </p>
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      style={{
+                        padding: '11px 22px',
+                        borderRadius: '12px',
+                        fontWeight: 700,
+                        fontSize: '0.92rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                        boxShadow: '0 4px 14px rgba(59, 130, 246, 0.3)',
+                        border: 'none',
+                        color: '#fff',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        if (onBrowsePrograms) onBrowsePrograms();
+                      }}
+                    >
+                      <Dumbbell size={16} /> Explore Trainer Programs
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               /* No saved plans yet - render starter buttons */
@@ -802,8 +918,9 @@ const AITrainerAIMode = ({
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
+        </div>
 
           {/* ── SECTION 2: CHOOSE HOW YOU WANT TO TRAIN (Options A & B) ── */}
           {allWorkoutPlans.length === 0 && (
@@ -855,7 +972,7 @@ const AITrainerAIMode = ({
                       Build &amp; Adjust with AI Coach
                     </h3>
                     <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-                      Chat directly with your AI coach. Ask to design a plan for any goal (Weight Loss, Muscle Building, Athletic conditioning), or link existing plans with slash commands like <code>/weightloss</code> to swap exercises or increase sets.
+                      Chat directly with your AI coach. Ask questions about nutrition, recovery, form technique guidance, or consult on your overall fitness journey.
                     </p>
                   </div>
 
@@ -955,6 +1072,32 @@ const AITrainerAIMode = ({
             </div>
           )}
         </div>
+      ) : selectedPlanForView?.isInstructorProgram ? (
+        /* ── INSTRUCTOR PROGRAM COURSERA-STYLE INDEX VIEW ── */
+        <div className="ai-structured-plan">
+          <ProgramIndexView
+            program={selectedPlanForView}
+            onStartDay={(weekNum, dayNum, exercises, dayObj) => {
+              setActiveInstructorWeek(weekNum);
+              setActiveWorkoutDay(dayNum);
+              setActiveInstructorDay(dayObj);
+              setMissionRunnerInitialIndex(0);
+              setShowMissionRunner(true);
+            }}
+            onCompleteDay={(programId, weekNum, dayNum) => {
+              if (handleLogProgramSession) {
+                handleLogProgramSession(programId, weekNum, dayNum);
+              }
+            }}
+            onUnenroll={(programId) => {
+              if (handleDeleteUserProgram) {
+                handleDeleteUserProgram(programId);
+              }
+            }}
+            onOpenReview={(prog) => setActiveReviewProgram(prog)}
+            onBack={() => setSelectedPlanForView(null)}
+          />
+        </div>
       ) : (
         /* ── SCREEN 2: ACTIVE PLAN ROUTINE & CALENDAR VIEW ── */
         <div className="ai-structured-plan">
@@ -991,7 +1134,7 @@ const AITrainerAIMode = ({
                 }}
                 onClick={() => setSelectedPlanForView(null)}
               >
-                <ArrowLeft size={16} /> ← Back to All Plans
+                <ArrowLeft size={16} /> Back to All Plans
               </button>
 
               {/* Sibling Plan Buttons if user has multiple plans */}
@@ -1018,9 +1161,9 @@ const AITrainerAIMode = ({
                           borderRadius: '8px',
                           fontSize: '0.82rem',
                           fontWeight: isCurrent ? 700 : 500,
-                          background: isCurrent ? (p.isInstructorProgram ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #3b82f6, #2563eb)') : 'rgba(255, 255, 255, 0.06)',
+                          background: isCurrent ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255, 255, 255, 0.06)',
                           color: isCurrent ? '#ffffff' : 'var(--text-secondary)',
-                          border: isCurrent ? (p.isInstructorProgram ? '1px solid #10b981' : '1px solid #60a5fa') : '1px solid rgba(255, 255, 255, 0.1)',
+                          border: isCurrent ? '1px solid #60a5fa' : '1px solid rgba(255, 255, 255, 0.1)',
                           cursor: 'pointer'
                         }}
                       >
@@ -1034,469 +1177,70 @@ const AITrainerAIMode = ({
 
             {/* Right: Quick Actions */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {selectedPlanForView?.isInstructorProgram ? (
-                <button
-                  className="btn btn-sm"
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    color: '#ef4444',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '7px 12px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem'
-                  }}
-                  onClick={(e) => {
-                    if (handleDeleteUserProgram) {
-                      handleDeleteUserProgram(selectedPlanForView._id, e);
-                    }
-                  }}
-                  title="Un-enroll from this program"
-                >
-                  <Trash2 size={14} /> Un-enroll Program
-                </button>
-              ) : (
-                <>
-                  <button
-                    className="btn btn-sm"
-                    style={{
-                      background: activeCoachTick === 'detail_edit' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                      color: activeCoachTick === 'detail_edit' ? '#10b981' : '#60a5fa',
-                      border: activeCoachTick === 'detail_edit' ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(59, 130, 246, 0.4)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '7px 12px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onClick={() => {
-                      const planTitle = selectedPlanForView?.title || aiPlan?.title || 'Workout Plan';
-                      const slug = planTitle.toLowerCase().replace(/lost/g, 'loss').replace(/[^a-z0-9]/g, '');
-                      triggerOpenCoach('detail_edit', `/${slug} `);
-                    }}
-                    title="Edit with AI Coach"
-                  >
-                    {activeCoachTick === 'detail_edit' ? (
-                      <>
-                        <CheckCircle size={14} color="#10b981" />
-                        <span>✓ Opened</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={14} />
-                        <span>Edit with AI</span>
-                      </>
-                    )}
-                  </button>
+              <button
+                className="btn btn-sm"
+                style={{
+                  background: activeCoachTick === 'detail_edit' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                  color: activeCoachTick === 'detail_edit' ? '#10b981' : '#60a5fa',
+                  border: activeCoachTick === 'detail_edit' ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(59, 130, 246, 0.4)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '7px 12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => {
+                  const planTitle = selectedPlanForView?.title || aiPlan?.title || 'Workout Plan';
+                  const slug = planTitle.toLowerCase().replace(/lost/g, 'loss').replace(/[^a-z0-9]/g, '');
+                  triggerOpenCoach('detail_edit', `/${slug} `);
+                }}
+                title="Edit with AI Coach"
+              >
+                {activeCoachTick === 'detail_edit' ? (
+                  <>
+                    <CheckCircle size={14} color="#10b981" />
+                    <span>✓ Opened</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    <span>Edit with AI</span>
+                  </>
+                )}
+              </button>
 
-                  <button
-                    className="btn btn-sm"
-                    style={{
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      color: '#ef4444',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '7px 12px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem'
-                    }}
-                    onClick={(e) => {
-                      const planId = selectedPlanForView?._id || aiPlan?.planId || aiPlan?._id;
-                      handleDeleteSavedPlan(planId, e);
-                      setSelectedPlanForView(null);
-                    }}
-                    title="Delete this plan"
-                  >
-                    <Trash2 size={14} /> Delete Plan
-                  </button>
-                </>
-              )}
+              <button
+                className="btn btn-sm"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#ef4444',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '7px 12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+                onClick={(e) => {
+                  const planId = selectedPlanForView?._id || aiPlan?.planId || aiPlan?._id;
+                  handleDeleteSavedPlan(planId, e);
+                  setSelectedPlanForView(null);
+                }}
+                title="Delete this plan"
+              >
+                <Trash2 size={14} /> Delete Plan
+              </button>
             </div>
           </div>
 
-          {selectedPlanForView?.isInstructorProgram ? (
-            /* ── INSTRUCTOR PROGRAM DETAILED VIEW ── */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              {/* Header Info */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '15px',
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  borderRadius: '16px',
-                  padding: '20px 24px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <div
-                    style={{
-                      width: '52px',
-                      height: '52px',
-                      borderRadius: '14px',
-                      background: 'rgba(16, 185, 129, 0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#10b981'
-                    }}
-                  >
-                    <Dumbbell size={28} />
-                  </div>
-                  <div>
-                    <span
-                      style={{
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        color: '#10b981',
-                        padding: '3px 10px',
-                        borderRadius: '12px',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        display: 'inline-block',
-                        marginBottom: '4px',
-                      }}
-                    >
-                      INSTRUCTOR PROGRAM (v{selectedPlanForView.programVersion || 1})
-                    </span>
-                    <h2 style={{ margin: '0 0 4px 0', fontSize: '1.45rem', color: 'var(--text-primary)' }}>
-                      {selectedPlanForView.title}
-                    </h2>
-                    <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
-                      Instructor: <strong>{selectedPlanForView.instructorName}</strong> • Goal: <strong>{selectedPlanForView.goal}</strong> • Difficulty: <strong>{selectedPlanForView.fitnessLevel}</strong> • {selectedPlanForView.durationWeeks} Weeks
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    Current Schedule
-                  </div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#10b981' }}>
-                    Week {selectedPlanForView.progress?.currentWeek || 1} • Day {selectedPlanForView.progress?.currentDay || 1}
-                  </div>
-                </div>
-              </div>
-
-              {/* Scheduled Routine Session */}
-              {(() => {
-                const prog = selectedPlanForView.rawProgram || activeUserProgram || selectedPlanForView;
-                const cWkNum = activeInstructorWeek || prog.progress?.currentWeek || 1;
-                const cDayNum = prog.progress?.currentDay || 1;
-                const currentWk = prog.weeks?.find(w => w.weekNumber === cWkNum) || prog.weeks?.[0];
-                const currentDayObj = currentWk?.days?.find(d => d.dayNumber === cDayNum) || currentWk?.days?.[0];
-                if (!currentDayObj) return null;
-
-                return (
-                  <div
-                    style={{
-                      background: 'var(--card-bg-light)',
-                      borderRadius: '16px',
-                      padding: '20px',
-                      border: '1px solid var(--card-border)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '16px',
-                        flexWrap: 'wrap',
-                        gap: '12px',
-                      }}
-                    >
-                      <div>
-                        <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>
-                          Week {currentWk?.weekNumber || 1} • Day {currentDayObj.dayNumber || 1}
-                        </span>
-                        <h3 style={{ margin: '2px 0 0 0', color: 'var(--text-primary)', fontSize: '1.2rem' }}>
-                          Scheduled Routine: {currentDayObj.focus || 'Core Workout'}
-                        </h3>
-                        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                          {(currentDayObj.exercises || []).length} structured exercises
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                          className="btn btn-primary"
-                          style={{
-                            background: 'linear-gradient(135deg, #10b981, #059669)',
-                            borderColor: '#10b981',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            fontWeight: 700,
-                            padding: '10px 18px',
-                            borderRadius: '10px'
-                          }}
-                          onClick={() => setShowMissionRunner(true)}
-                        >
-                          <Play size={16} /> Start Mission
-                        </button>
-                        {handleLogProgramSession && (
-                          <button
-                            className="btn btn-outline"
-                            style={{
-                              borderColor: 'rgba(16, 185, 129, 0.4)',
-                              color: '#10b981',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '10px 16px',
-                              borderRadius: '10px'
-                            }}
-                            onClick={() => {
-                              handleLogProgramSession(
-                                prog._id,
-                                currentWk.weekNumber || 1,
-                                currentDayObj.dayNumber || 1
-                              );
-                            }}
-                          >
-                            <CheckCircle size={16} /> Mark Complete
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Warmup notice if present */}
-                    {currentDayObj.warmup && currentDayObj.warmup.length > 0 && (
-                      <div
-                        style={{
-                          background: 'rgba(59, 130, 246, 0.08)',
-                          border: '1px solid rgba(59, 130, 246, 0.2)',
-                          borderRadius: '10px',
-                          padding: '10px 14px',
-                          marginBottom: '16px',
-                          fontSize: '0.85rem',
-                          color: '#93c5fd'
-                        }}
-                      >
-                        <strong>Warm-up:</strong> {currentDayObj.warmup.map(w => `${w.text || w} (${w.duration || 5} min)`).join(', ')}
-                      </div>
-                    )}
-
-                    {/* Exercises Grid */}
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                        gap: '12px',
-                      }}
-                    >
-                      {(currentDayObj.exercises || []).map((ex, idx) => (
-                        <div
-                          key={idx}
-                          onClick={() => {
-                            if (ex.exerciseId && typeof ex.exerciseId === 'object') {
-                              startExercise(ex.exerciseId);
-                            } else if (ex.name) {
-                              startExercise({ name: ex.name, sets: ex.sets, reps: ex.reps });
-                            }
-                          }}
-                          style={{
-                            background: 'rgba(255,255,255,0.04)',
-                            border: '1px solid var(--card-border)',
-                            borderRadius: '10px',
-                            padding: '12px 14px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            transition: 'background 0.2s ease, border-color 0.2s ease'
-                          }}
-                        >
-                          <div>
-                            <div
-                              style={{
-                                fontWeight: 600,
-                                color: 'var(--text-primary)',
-                                fontSize: '0.92rem',
-                              }}
-                            >
-                              {ex.exerciseId?.name || ex.name || `Exercise ${idx + 1}`}
-                            </div>
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
-                              {ex.sets} sets × {ex.reps} reps {ex.rpe ? `• RPE ${ex.rpe}` : ''}
-                            </div>
-                            {ex.notes && (
-                              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px', fontStyle: 'italic' }}>
-                                {ex.notes}
-                              </div>
-                            )}
-                          </div>
-                          <Play size={15} color="#10b981" />
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Cooldown notice if present */}
-                    {currentDayObj.cooldown && currentDayObj.cooldown.length > 0 && (
-                      <div
-                        style={{
-                          background: 'rgba(16, 185, 129, 0.08)',
-                          border: '1px solid rgba(16, 185, 129, 0.2)',
-                          borderRadius: '10px',
-                          padding: '10px 14px',
-                          marginTop: '16px',
-                          fontSize: '0.85rem',
-                          color: '#a7f3d0'
-                        }}
-                      >
-                        <strong>Cool-down:</strong> {currentDayObj.cooldown.map(c => `${c.text || c} (${c.duration || 5} min)`).join(', ')}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Week Syllabus Explorer */}
-              {(() => {
-                const prog = selectedPlanForView.rawProgram || activeUserProgram || selectedPlanForView;
-                if (!prog.weeks || prog.weeks.length === 0) return null;
-
-                return (
-                  <div
-                    style={{
-                      background: 'var(--card-bg)',
-                      border: '1px solid var(--card-border)',
-                      borderRadius: '16px',
-                      padding: '20px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                      <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Calendar size={18} color="#10b981" /> Program Schedule &amp; Weeks
-                      </h4>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {prog.weeks.map((w, idx) => {
-                          const wNum = w.weekNumber || idx + 1;
-                          const isSel = (activeInstructorWeek || prog.progress?.currentWeek || 1) === wNum;
-                          return (
-                            <button
-                              key={wNum}
-                              onClick={() => setActiveInstructorWeek(wNum)}
-                              style={{
-                                padding: '5px 12px',
-                                borderRadius: '8px',
-                                fontSize: '0.8rem',
-                                fontWeight: isSel ? 700 : 500,
-                                background: isSel ? 'rgba(16, 185, 129, 0.2)' : 'var(--card-bg-light)',
-                                color: isSel ? '#10b981' : 'var(--text-secondary)',
-                                border: isSel ? '1px solid #10b981' : '1px solid var(--card-border)',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Week {wNum}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Days in selected week */}
-                    {(() => {
-                      const selWk = prog.weeks.find(w => w.weekNumber === (activeInstructorWeek || prog.progress?.currentWeek || 1)) || prog.weeks[0];
-                      if (!selWk) return null;
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                            <strong>Week {selWk.weekNumber} Focus:</strong> {selWk.focus || 'Strength & Conditioning Progression'}
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
-                            {(selWk.days || []).map((day) => {
-                              const isCompleted = (prog.progress?.completedSessions || []).some(
-                                s => s.weekNumber === selWk.weekNumber && s.dayNumber === day.dayNumber
-                              );
-                              return (
-                                <div
-                                  key={day.dayNumber}
-                                  style={{
-                                    background: isCompleted ? 'rgba(16, 185, 129, 0.06)' : 'var(--card-bg-light)',
-                                    border: isCompleted ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--card-border)',
-                                    borderRadius: '12px',
-                                    padding: '14px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'space-between',
-                                    gap: '10px'
-                                  }}
-                                >
-                                  <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        Day {day.dayNumber}
-                                      </span>
-                                      <span
-                                        style={{
-                                          fontSize: '0.72rem',
-                                          padding: '2px 8px',
-                                          borderRadius: '10px',
-                                          fontWeight: 600,
-                                          background: isCompleted ? 'rgba(16, 185, 129, 0.2)' : day.isRestDay ? 'rgba(148, 163, 184, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                                          color: isCompleted ? '#10b981' : day.isRestDay ? '#94a3b8' : '#60a5fa'
-                                        }}
-                                      >
-                                        {isCompleted ? '✓ Completed' : day.isRestDay ? 'Rest Day' : 'Workout'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                                      {day.focus || day.title || 'Workout Session'}
-                                    </div>
-                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                                      {(day.exercises || []).length} Exercises
-                                    </div>
-                                  </div>
-
-                                  {!day.isRestDay && (
-                                    <button
-                                      className="btn btn-sm btn-outline"
-                                      style={{
-                                        borderColor: isCompleted ? 'rgba(16, 185, 129, 0.3)' : 'rgba(59, 130, 246, 0.3)',
-                                        color: isCompleted ? '#10b981' : '#60a5fa',
-                                        fontSize: '0.8rem',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '5px'
-                                      }}
-                                      onClick={() => {
-                                        if (handleLogProgramSession) {
-                                          handleLogProgramSession(prog._id, selWk.weekNumber, day.dayNumber);
-                                        }
-                                      }}
-                                    >
-                                      {isCompleted ? <CheckCircle size={13} /> : <Play size={13} />}
-                                      {isCompleted ? 'Completed' : 'Complete Day'}
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                );
-              })()}
-            </div>
-          ) : (
-            <>
-              {/* Plan Header Info */}
-              <div
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+            {/* Plan Header Info */}
+            <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -2787,8 +2531,7 @@ const AITrainerAIMode = ({
                   </div>
                 );
               })()}
-            </>
-          )}
+          </div>
         </div>
       )}
 
@@ -2961,20 +2704,44 @@ const AITrainerAIMode = ({
       {showMissionRunner && (
         <MissionRunner
           dayTitle={
-            (selectedPlanForView?.isInstructorProgram || activeUserProgram)
+            activeInstructorDay
+              ? `Week ${activeInstructorWeek || 1} • Day ${activeInstructorDay.dayNumber}: ${activeInstructorDay.focus || activeInstructorDay.title || 'Training Routine'}`
+              : (selectedPlanForView?.isInstructorProgram || activeUserProgram)
               ? `Week ${(selectedPlanForView?.rawProgram || activeUserProgram).progress?.currentWeek || 1} • Day ${(selectedPlanForView?.rawProgram || activeUserProgram).progress?.currentDay || 1} Routine`
               : selectedCalendarDay
               ? `Day ${selectedCalendarDay.dayNumber}: ${selectedCalendarDay.focus || 'Training Session'}`
               : "Today's Mission"
           }
           exercises={(() => {
+            if (activeInstructorDay && Array.isArray(activeInstructorDay.exercises) && activeInstructorDay.exercises.length > 0) {
+              return activeInstructorDay.exercises.map(ex => ({
+                ...ex,
+                gifUrl: ex.gifUrl || ex.mediaUrl || ex.videoUrl || '',
+                mediaUrl: ex.mediaUrl || ex.gifUrl || ex.videoUrl || '',
+                targetMuscle: ex.targetMuscle || ex.muscle || ex.category || 'Target Muscle'
+              }));
+            }
             const prog = selectedPlanForView?.rawProgram || (selectedPlanForView?.isInstructorProgram ? selectedPlanForView : activeUserProgram);
-            if (prog && prog.weeks) {
+            if (prog && Array.isArray(prog.weeks) && prog.weeks.length > 0) {
               const cWk = activeInstructorWeek || prog.progress?.currentWeek || 1;
-              const cDay = prog.progress?.currentDay || 1;
+              const cDay = activeWorkoutDay || prog.progress?.currentDay || 1;
               const wkObj = prog.weeks.find(w => w.weekNumber === cWk) || prog.weeks[0];
-              const dayObj = wkObj?.days?.find(d => d.dayNumber === cDay) || wkObj?.days?.[0];
-              return dayObj?.exercises || [];
+              
+              // Find requested day or the closest training day that has exercises
+              let dayObj = wkObj?.days?.find(d => d.dayNumber === cDay);
+              if (!dayObj || !Array.isArray(dayObj.exercises) || dayObj.exercises.length === 0) {
+                dayObj = wkObj?.days?.find(d => Array.isArray(d.exercises) && d.exercises.length > 0) || wkObj?.days?.[0];
+              }
+
+              const pExercises = dayObj?.exercises || [];
+              if (pExercises.length > 0) {
+                return pExercises.map(ex => ({
+                  ...ex,
+                  gifUrl: ex.gifUrl || ex.mediaUrl || ex.videoUrl || '',
+                  mediaUrl: ex.mediaUrl || ex.gifUrl || ex.videoUrl || '',
+                  targetMuscle: ex.targetMuscle || ex.muscle || ex.category || 'Target Muscle'
+                }));
+              }
             }
             const curDay = selectedCalendarDay ||
               (aiPlan?.interactive_calendar || []).find(d => getDayScheduleInfo(d).isToday) ||
@@ -3025,24 +2792,29 @@ const AITrainerAIMode = ({
               toggleExerciseCompletion(curDay.dayNumber, exIdx, exName, true);
             }
           }}
-          onCancel={() => setShowMissionRunner(false)}
+          onCancel={() => {
+            setShowMissionRunner(false);
+            setActiveInstructorDay(null);
+          }}
           onComplete={() => {
             setShowMissionRunner(false);
-            const curDay = selectedCalendarDay ||
-              (aiPlan?.interactive_calendar || []).find(d => getDayScheduleInfo(d).isToday) ||
-              (aiPlan?.interactive_calendar || [])[0];
-            if (curDay && completeDayManually) {
-              completeDayManually(curDay.dayNumber);
-            }
             const prog = selectedPlanForView?.rawProgram || (selectedPlanForView?.isInstructorProgram ? selectedPlanForView : activeUserProgram);
             if (prog && handleLogProgramSession) {
               handleLogProgramSession(
                 prog._id,
                 activeInstructorWeek || prog.progress?.currentWeek || 1,
-                prog.progress?.currentDay || 1
+                activeInstructorDay?.dayNumber || activeWorkoutDay || prog.progress?.currentDay || 1
               );
-            } else if (completeActiveWorkout) {
-              completeActiveWorkout();
+              setActiveInstructorDay(null);
+            } else {
+              const curDay = selectedCalendarDay ||
+                (aiPlan?.interactive_calendar || []).find(d => getDayScheduleInfo(d).isToday) ||
+                (aiPlan?.interactive_calendar || [])[0];
+              if (curDay && completeDayManually) {
+                completeDayManually(curDay.dayNumber);
+              } else if (completeActiveWorkout) {
+                completeActiveWorkout();
+              }
             }
           }}
         />
@@ -3278,6 +3050,42 @@ const AITrainerAIMode = ({
           </div>
         </div>,
         document.body
+      )}
+
+      {/* ── POST-PROGRAM OUTCOME & REVIEW MODAL ── */}
+      {activeReviewProgram && (
+        <ProgramOutcomeReviewModal
+          program={activeReviewProgram}
+          onClose={() => setActiveReviewProgram(null)}
+          onReviewSaved={(updated) => {
+            const report = updated.outcomeReport || (updated.userProgram && updated.userProgram.outcomeReport);
+            if (setActiveUserProgram) {
+              setActiveUserProgram(prev => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  outcomeReport: report
+                };
+              });
+            }
+            setActiveReviewProgram(prev => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                outcomeReport: report
+              };
+            });
+            if (selectedPlanForView && selectedPlanForView._id === activeReviewProgram._id) {
+              setSelectedPlanForView(prev => {
+                if (!prev) return null;
+                return {
+                  ...prev,
+                  outcomeReport: report
+                };
+              });
+            }
+          }}
+        />
       )}
     </div>
   );

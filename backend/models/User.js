@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { isBioComplete } from '../services/user/bioValidator.js';
 
 const userSchema = new mongoose.Schema({
   // Account username must be unique across the platform.
@@ -80,25 +81,39 @@ const userSchema = new mongoose.Schema({
     homeEquipmentAccess: { type: String, default: '' },
     gymTrainerOptIn: { type: Boolean, default: false },
     pushupBaseline: { type: Number, default: 10 },
-    gender: { type: String, default: '' },
-    dob: { type: String, default: '' },
+    gender: { type: String, default: null },
+    dob: { type: String, default: null },
     units: { type: String, enum: ['metric', 'imperial'], default: 'metric' },
-    height: { type: Number, default: 170 },
-    weight: { type: Number, default: 70 },
+    height: { type: Number, default: null },
+    weight: { type: Number, default: null },
     targetMuscles: [{ type: String }],
     sport: { type: String, default: '' },
     fitnessLevel: { type: String, default: 'Beginner' },
     sessionDurationMins: { type: Number, default: 45 },
-    foodPreferences: { type: String, default: '' }
+    foodPreferences: { type: String, default: '' },
+    bioUnverified: { type: Boolean, default: false }
   },
   isOnboardingCompleted: { type: Boolean, default: false },
   disclaimerAcceptedAt: { type: Date, default: null },
-  disclaimerVersion: { type: String, default: null }
+  disclaimerVersion: { type: String, default: null },
+  notificationPreferences: {
+    muted: { type: Boolean, default: false },
+    quietHoursStart: { type: String, default: '22:00' },
+    quietHoursEnd: { type: String, default: '07:00' },
+    workoutReminderTime: { type: String, default: '09:00' },
+    workoutRemindersEnabled: { type: Boolean, default: true },
+    mealRemindersEnabled: { type: Boolean, default: true },
+    progressRemindersEnabled: { type: Boolean, default: true }
+  }
 }, {
   timestamps: true
 });
 
 userSchema.index({ name: 1 }, { unique: true, collation: { locale: 'en', strength: 2 } });
+
+userSchema.methods.isBioComplete = function () {
+  return isBioComplete(this);
+};
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);

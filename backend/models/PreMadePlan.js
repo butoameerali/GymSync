@@ -48,17 +48,84 @@ const preMadePlanSchema = new mongoose.Schema({
     type: String,
     default: 'All athletes'
   },
+  // Weight Loss & Training Track Specs
+  equipmentTrack: {
+    type: String,
+    enum: ['Home (No Equipment)', 'Gym (Equipment Required)'],
+    default: 'Home (No Equipment)',
+    index: true
+  },
+  programLevel: {
+    type: String,
+    enum: ['Starter', 'Steady', 'Driven'],
+    default: 'Starter',
+    index: true
+  },
+  isExtremeProgram: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
   minAge: {
     type: Number,
-    default: 16
+    default: 18
   },
   maxAge: {
     type: Number,
     default: 65
   },
+  minBMI: {
+    type: Number,
+    default: 23
+  },
+  maxBMI: {
+    type: Number,
+    default: 50
+  },
+  minWeightKg: {
+    type: Number,
+    default: 50
+  },
+  maxWeightKg: {
+    type: Number,
+    default: 180
+  },
+  whoCanDo: [{
+    type: String
+  }],
+  whoShouldNotDo: [{
+    type: String
+  }],
+  medicalWarningRequired: {
+    type: Boolean,
+    default: true
+  },
+  medicalWarningText: {
+    type: String,
+    default: 'Do NOT start without doctor approval if you have heart disease, BP issues, diabetes, asthma, joint/back injury, or take regular medication.'
+  },
+  missedDayPolicy: {
+    rule1To3Days: { type: String, default: 'Never double up. Missed 1 to 3 days, carry on.' },
+    rule4To7Days: { type: String, default: 'Missed 4 to 7 days, repeat the week.' },
+    ruleMoreThan7Days: { type: String, default: 'Missed more than 7 days, restart week 1.' }
+  },
+  cardioPrescription: {
+    hasWalking: { type: Boolean, default: true },
+    hasRunning: { type: Boolean, default: false },
+    description: { type: String, default: 'Daily Walk + Saturday Long Walk' },
+    dailyMinutes: { type: Number, default: 20 },
+    saturdayMinutes: { type: Number, default: 35 },
+    intervalRounds: { type: Number, default: 0 },
+    effortRPE: { type: String, default: 'RPE 5 - 6' }
+  },
+  expectedLossMonth1: {
+    minKg: { type: Number, default: 1.0 },
+    maxKg: { type: Number, default: 3.5 },
+    note: { type: String, default: 'Planning band: 0.25% to 0.75% body weight/week, hard cap 1%/week. Depends on food, sleep, consistency and health.' }
+  },
   ageRange: {
     type: String,
-    default: '16 - 60 years'
+    default: '18 - 65 years'
   },
   ageGuidelines: {
     type: String,
@@ -77,7 +144,7 @@ const preMadePlanSchema = new mongoose.Schema({
   // Program & Diet Lifecycle & Versioning
   status: {
     type: String,
-    enum: ['draft', 'published', 'archived'],
+    enum: ['draft', 'pending_review', 'published', 'rejected', 'archived'],
     default: 'published',
     index: true
   },
@@ -127,6 +194,13 @@ const preMadePlanSchema = new mongoose.Schema({
         rpe: { type: Number, default: 7 },
         tempo: { type: String, default: '2-0-2' },
         notes: { type: String, default: '' },
+        isWarmup: { type: Boolean, default: false },
+        isCooldown: { type: Boolean, default: false },
+        isCardio: { type: Boolean, default: false },
+        easierOption: { type: String, default: '' },
+        harderOption: { type: String, default: '' },
+        keyCue: { type: String, default: '' },
+        targetMuscle: { type: String, default: '' },
         gifUrl: { type: String, default: '' },
         mediaUrl: { type: String, default: '' },
         videoUrl: { type: String, default: '' }

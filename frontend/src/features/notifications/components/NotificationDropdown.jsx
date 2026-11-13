@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CheckCheck, Trash2, Bell, Heart, MessageSquare, UserPlus, UserCheck, ShieldAlert, ExternalLink } from 'lucide-react';
+import { CheckCheck, Trash2, Bell, Heart, MessageSquare, UserPlus, UserCheck, ShieldAlert, ExternalLink, Dumbbell, Utensils, TrendingDown, Award, Clock, BellOff } from 'lucide-react';
 import { notificationService } from '../services/notificationService';
+import webPushClient from '../services/webPushClient';
 import './NotificationDropdown.css';
 
 const getNotificationIcon = (type) => {
   switch (type) {
+    case 'program_review': return <Award className="notif-type-icon review" size={16} color="#ec4899" />;
+    case 'workout_reminder': return <Dumbbell className="notif-type-icon workout" size={16} color="#059669" />;
+    case 'meal_reminder': return <Utensils className="notif-type-icon meal" size={16} color="#d97706" />;
+    case 'progress_reminder': return <TrendingDown className="notif-type-icon progress" size={16} color="#2563eb" />;
     case 'like': return <Heart className="notif-type-icon like" size={16} />;
     case 'comment':
     case 'reply': return <MessageSquare className="notif-type-icon comment" size={16} />;
@@ -31,6 +36,19 @@ const formatTimeAgo = (dateString) => {
 
 const NotificationDropdown = ({ notifications, setNotifications, userName, onClose, unreadCount, setUnreadCount }) => {
   const navigate = useNavigate();
+  const [pushStatus, setPushStatus] = useState(null);
+
+  useEffect(() => {
+    webPushClient.getSubscriptionStatus().then(setPushStatus).catch(() => {});
+  }, []);
+
+  const handleEnablePush = async (e) => {
+    e.stopPropagation();
+    const res = await webPushClient.requestPermissionAndSubscribe();
+    if (res.success) {
+      setPushStatus({ supported: true, subscribed: true, permission: 'granted' });
+    }
+  };
 
   const handleMarkAllRead = async () => {
     try {
@@ -76,6 +94,34 @@ const NotificationDropdown = ({ notifications, setNotifications, userName, onClo
     }
   };
 
+  const handleSnooze = async (e, notifId) => {
+    e.stopPropagation();
+    try {
+      await notificationService.snoozeNotification(notifId, 24);
+      setNotifications(prev => prev.filter(n => n._id !== notifId));
+      if (setUnreadCount && unreadCount > 0) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+      window.dispatchEvent(new CustomEvent('gymsync_notifications_read', { detail: { delta: -1 } }));
+    } catch (err) {
+      console.error('Error snoozing notification:', err);
+    }
+  };
+
+  const handleStop = async (e, notifId) => {
+    e.stopPropagation();
+    try {
+      await notificationService.stopNotification(notifId);
+      setNotifications(prev => prev.filter(n => n._id !== notifId));
+      if (setUnreadCount && unreadCount > 0) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+      window.dispatchEvent(new CustomEvent('gymsync_notifications_read', { detail: { delta: -1 } }));
+    } catch (err) {
+      console.error('Error stopping notification reminders:', err);
+    }
+  };
+
   const recentNotifications = notifications.slice(0, 6);
 
   return (
@@ -96,6 +142,20 @@ const NotificationDropdown = ({ notifications, setNotifications, userName, onClo
           </button>
         )}
       </div>
+
+      {pushStatus?.supported && pushStatus?.permission === 'default' && (
+        <div style={{ padding: '8px 14px', backgroundColor: 'rgba(5, 150, 105, 0.08)', borderBottom: '1px solid #10b981', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.78rem', color: '#065f46', fontWeight: 500 }}>
+            🔔 Enable workout &amp; meal reminders
+          </span>
+          <button
+            onClick={handleEnablePush}
+            style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '4px', backgroundColor: '#059669', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Enable
+          </button>
+        </div>
+      )}
 
       <div className="notif-dropdown-list">
         {recentNotifications.length === 0 ? (
@@ -119,6 +179,58 @@ const NotificationDropdown = ({ notifications, setNotifications, userName, onClo
 
               <div className="notif-item-body">
                 <p className="notif-message-text">{notif.message}</p>
+                {notif.type === 'program_review' && (
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }} onClick={e => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => handleNotificationClick(notif)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+                        color: '#fff',
+                        border: 'none',
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Review
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleSnooze(e, notif._id)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        color: '#94a3b8',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        fontSize: '0.72rem',
+                        cursor: 'pointer'
+                      }}
+                      title="Snooze for 24 hours"
+                    >
+                      Snooze
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleStop(e, notif._id)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        color: '#f87171',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        fontSize: '0.72rem',
+                        cursor: 'pointer'
+                      }}
+                      title="Stop reminders"
+                    >
+                      Stop
+                    </button>
+                  </div>
+                )}
                 <span className="notif-time-stamp">{formatTimeAgo(notif.createdAt)}</span>
               </div>
 

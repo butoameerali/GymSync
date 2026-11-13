@@ -6,6 +6,8 @@ import planMergeEngine from '../services/ai/planMergeEngine.js';
 import SavedAIPlan from '../models/SavedAIPlan.js';
 import GoalGroup from '../models/GoalGroup.js';
 import User from '../models/User.js';
+import { programGate } from '../services/workout/programGate.js';
+import { findMatchingPrograms } from '../services/workout/programMatcher.js';
 
 /**
  * AI Plan Generation Controller
@@ -65,83 +67,29 @@ export const generatePlan = async (req, res) => {
       });
     }
 
-    // 2. Multi-Goal Merge Handling & Persistence (Issues 1, 2, 3, 4)
-    if (req.user && !bio.mergeDecision) {
-      const existingPlan = await planMergeEngine.detectExistingActivePlan(req.user._id, SavedAIPlan);
-      
-      if (existingPlan && existingPlan.goal !== bio.mainGoalArea) {
-        return res.status(200).json({
-          structuredAction: {
-            type: 'merge_offer',
-            existingPlanTitle: existingPlan.title,
-            existingGoal: existingPlan.goal,
-            newGoal: bio.mainGoalArea,
-            options: ['Merge Plans', 'Keep Separate', 'Cancel Old Plan']
-          }
+    // 2. Program Gate Check (R3: One active program per user)
+    if (req.user) {
+      const gate = await programGate.canJoin(req.user._id);
+      if (!gate.canJoin) {
+        return res.status(409).json({
+          error: gate.message,
+          message: gate.message,
+          activeProgram: gate.activeProgram
         });
       }
     }
     
-    let effectiveGoal = bio.mainGoalArea || 'General Fitness';
-    if (req.user && bio.mergeDecision === 'Merge Plans') {
-      const existingPlan = await planMergeEngine.detectExistingActivePlan(req.user._id, SavedAIPlan);
-      if (existingPlan) {
-        const mergeRes = await planMergeEngine.mergePlans({
-          existingPlan,
-          newGoalRequest: bio,
-          userId: req.user._id,
-          userProfile: bio
-        });
-
-        existingPlan.isActive = false;
-        await existingPlan.save();
-
-        // Authoritatively persist the coordinated merged plan
-        const newMergedPlanDoc = await SavedAIPlan.create({
-          userId: req.user._id,
-          userName: req.user.name || '',
-          title: mergeRes.mergedPlan.title,
-          goal: mergeRes.mergedPlan.goal,
-          fitnessLevel: bio.fitnessLevel || existingPlan.fitnessLevel || 'Intermediate',
-          workout: { interactive_calendar: mergeRes.mergedPlan.interactive_calendar },
-          calendar: mergeRes.mergedPlan.interactive_calendar,
-          diet: null,
-          isActive: true,
-          goalGroupId: mergeRes.mergedPlan.goalGroupId,
-          notes: mergeRes.summary
-        });
-
-        // Link in GoalGroup.linkedPlanIds
-        if (mergeRes.mergedPlan.goalGroupId) {
-          await GoalGroup.findByIdAndUpdate(mergeRes.mergedPlan.goalGroupId, {
-            $addToSet: { linkedPlanIds: newMergedPlanDoc._id }
-          });
-        }
-
-        return res.status(200).json({
-          ...newMergedPlanDoc.toObject(),
-          interactive_calendar: newMergedPlanDoc.calendar,
-          nutrition: null,
-          energyBurn: mergeRes.mergedPlan.energyBurn,
-          coordinationRules: mergeRes.mergedPlan.coordinationRules,
-          summary: mergeRes.summary,
-          isMergedPlan: true
-        });
-      }
-    } else if (req.user && bio.mergeDecision === 'Cancel Old Plan') {
-      const existingPlan = await planMergeEngine.detectExistingActivePlan(req.user._id, SavedAIPlan);
-      if (existingPlan) {
-         existingPlan.isActive = false;
-         await existingPlan.save();
-      }
-    }
-
-    const finalPlan = generatePlanObject(bio, { effectiveGoal });
-    return res.status(200).json(finalPlan);
+    const matchResults = await findMatchingPrograms(bio, bio.query || bio.mainGoalArea || '');
+    return res.status(200).json({
+      programs: matchResults.matchingPrograms,
+      exercises: matchResults.matchingExercises,
+      sourceAttribution: matchResults.sourceAttribution,
+      message: 'Matching human-authored programs found. Select a program to enroll.'
+    });
 
   } catch (error) {
-    console.error('Generate Plan Error:', error);
-    res.status(500).json({ error: 'Failed to generate reasoned plan.', message: 'An internal error occurred while generating the plan.' });
+    console.error('findMatchingPrograms Error:', error);
+    res.status(500).json({ error: 'Failed to find matching programs.', message: 'An internal error occurred while finding programs.' });
   }
 };
 

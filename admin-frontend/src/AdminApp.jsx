@@ -13,6 +13,10 @@ import PaymentsPage from './pages/Payments/PaymentsPage';
 import BroadcastPage from './pages/Broadcast/BroadcastPage';
 import InstructorTasksPage from './pages/InstructorTasks/InstructorTasksPage';
 import AuditLogsPage from './pages/Audit/AuditLogsPage';
+import WorkoutProgramsPage from './pages/Programs/WorkoutProgramsPage';
+import ExerciseLibraryPage from './pages/ExerciseLibrary/ExerciseLibraryPage';
+import DietLibraryPage from './pages/DietLibrary/DietLibraryPage';
+import SecurityPage from './pages/Security/SecurityPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './styles/admin.css';
@@ -130,6 +134,46 @@ const AdminApp = () => {
             <ProtectedAdminRoute allowedRoles={['SuperAdmin', 'Admin']}>
               <AdminLayout>
                 <BroadcastPage />
+              </AdminLayout>
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/programs"
+          element={
+            <ProtectedAdminRoute allowedRoles={['SuperAdmin', 'Admin', 'FitnessInstructor']}>
+              <AdminLayout>
+                <WorkoutProgramsPage />
+              </AdminLayout>
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/exercise-library"
+          element={
+            <ProtectedAdminRoute allowedRoles={['SuperAdmin', 'Admin', 'FitnessInstructor']}>
+              <AdminLayout>
+                <ExerciseLibraryPage />
+              </AdminLayout>
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/diet-library"
+          element={
+            <ProtectedAdminRoute allowedRoles={['SuperAdmin', 'Admin', 'FitnessInstructor']}>
+              <AdminLayout>
+                <DietLibraryPage />
+              </AdminLayout>
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/security"
+          element={
+            <ProtectedAdminRoute>
+              <AdminLayout>
+                <SecurityPage />
               </AdminLayout>
             </ProtectedAdminRoute>
           }

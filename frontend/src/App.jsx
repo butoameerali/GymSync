@@ -17,6 +17,8 @@ import './App.css';
 // Lazy-loaded pages for optimal performance & code splitting
 const AuthPortal = lazy(() => import('./pages/Auth/AuthPortal'));
 const AITrainer = lazy(() => import('./pages/AITrainer/AITrainer'));
+const WeightLossPage = lazy(() => import('./features/weightLoss/WeightLossPage'));
+const FoodLogPage = lazy(() => import('./features/foodLogging/FoodLogPage'));
 const RunningTracker = lazy(() => import('./pages/Running/RunningTracker'));
 const ExploreGyms = lazy(() => import('./pages/Explore/ExploreGyms'));
 const GymDetails = lazy(() => import('./pages/Explore/GymDetails'));
@@ -105,6 +107,8 @@ function App() {
         
         {/* Trainee Workout Routes strictly guarded to Trainees only */}
         <Route path="/ai-trainer" element={<ProtectedRoute allowedRoles={['User']}><AITrainer /></ProtectedRoute>} />
+        <Route path="/weight-loss" element={<ProtectedRoute allowedRoles={['User']}><WeightLossPage /></ProtectedRoute>} />
+        <Route path="/food-log" element={<ProtectedRoute allowedRoles={['User']}><FoodLogPage /></ProtectedRoute>} />
         <Route path="/running" element={<ProtectedRoute allowedRoles={['User']}><RunningTracker /></ProtectedRoute>} />
         
         {/* Public Gym Discovery & Store: accessible to all users and owners for public profile inspection */}

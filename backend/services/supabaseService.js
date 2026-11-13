@@ -596,16 +596,22 @@ export const fetchAllExercises = async ({ search, category, equipment, status, i
   const andConditions = [];
 
   if (search && search.trim()) {
-    const sRegex = safeRegex(search.trim());
-    if (sRegex) {
-      andConditions.push({
-        $or: [
-          { name: sRegex },
-          { targetMuscles: sRegex },
-          { description: sRegex }
-        ]
-      });
+    const cleanSearch = search.trim();
+    const sRegex = safeRegex(cleanSearch);
+    const words = cleanSearch.split(/\s+/).filter(w => w.length > 2);
+    const tokenRegexes = words.map(w => safeRegex(w.replace(/(es|s)$/i, ''))).filter(Boolean);
+
+    const searchOr = [
+      { name: sRegex },
+      { targetMuscles: sRegex },
+      { description: sRegex }
+    ];
+
+    if (tokenRegexes.length > 1) {
+      searchOr.push({ $and: tokenRegexes.map(r => ({ name: r })) });
     }
+
+    andConditions.push({ $or: searchOr });
   }
 
   if (category && category !== 'All' && category !== 'Favorites') {

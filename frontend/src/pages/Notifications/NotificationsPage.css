@@ -94,6 +94,27 @@
   border-color: rgba(99, 102, 241, 0.4);
 }
 
+.btn-page-delete-all {
+  background: var(--card-bg-light);
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-page-delete-all:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
 .notifications-groups-wrapper {
   display: flex;
   flex-direction: column;

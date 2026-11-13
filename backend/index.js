@@ -46,6 +46,13 @@ import dietRoutes from './routes/dietRoutes.js';
 import completionReportRoutes from './routes/completionReportRoutes.js';
 import wellbeingRoutes from './routes/wellbeingRoutes.js';
 import gymVerificationRoutes from './routes/gymVerificationRoutes.js';
+import weightLossRoutes from './routes/weightLossRoutes.js';
+import cronRoutes from './routes/cronRoutes.js';
+import foodRoutes from './routes/foodRoutes.js';
+import foodLogRoutes from './routes/foodLogRoutes.js';
+import cron from 'node-cron';
+import { reminderScheduler } from './services/notifications/reminderScheduler.js';
+import { seedWeightLossTemplatesIfMissing } from './services/weightLoss/weightLossTemplates.js';
 
 const app = express();
 
@@ -133,6 +140,10 @@ app.use('/api/diet', dietRoutes);
 app.use('/api/plans', completionReportRoutes);
 app.use('/api/wellbeing', wellbeingRoutes);
 app.use('/api/gym-verification', gymVerificationRoutes);
+app.use('/api/weight-loss', weightLossRoutes);
+app.use('/api/cron', cronRoutes);
+app.use('/api/foods', foodRoutes);
+app.use('/api/food-log', foodLogRoutes);
 
 app.get('/', (req, res) => {
   res.send('GymSync API is running...');
@@ -160,6 +171,15 @@ if (process.env.NODE_ENV !== 'test' && !process.env.FUNCTION_TARGET && !process.
     console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
     try {
       await connectDB();
+      await seedWeightLossTemplatesIfMissing().catch(e => console.warn('WeightLoss template seed notice:', e.message));
+      // Schedule background reminders every 30 minutes (Rule R6: independent of AI)
+      cron.schedule('*/30 * * * *', async () => {
+        try {
+          await reminderScheduler.runAllReminders();
+        } catch (cronErr) {
+          console.warn('⚠️ Scheduled reminder check warning:', cronErr.message);
+        }
+      });
     } catch (err) {
       console.error('[Database Startup Connection Warning]:', err.message);
     }

@@ -1,4 +1,4 @@
-import { get, patch, del } from '../../../services/api';
+import { get, post, put, patch, del } from '../../../services/api';
 
 export const notificationService = {
   getNotifications: async (userName, page = 1, limit = 20, isRead = '') => {
@@ -27,5 +27,43 @@ export const notificationService = {
 
   deleteNotification: async (notificationId) => {
     return await del(`/notifications/item/${notificationId}`);
+  },
+
+  deleteAllNotifications: async (userName) => {
+    try {
+      return await del('/notifications/clear-all');
+    } catch {
+      if (userName) {
+        return await del(`/notifications/${encodeURIComponent(userName)}/all`);
+      }
+    }
+  },
+
+  getPreferences: async () => {
+    return await get('/notifications/preferences');
+  },
+
+  updatePreferences: async (preferences) => {
+    return await put('/notifications/preferences', preferences);
+  },
+
+  getVapidPublicKey: async () => {
+    return await get('/notifications/vapid-public-key');
+  },
+
+  subscribePush: async (subscription) => {
+    return await post('/notifications/subscribe', subscription);
+  },
+
+  unsubscribePush: async (endpoint) => {
+    return await del('/notifications/unsubscribe', { body: JSON.stringify({ endpoint }) });
+  },
+
+  snoozeNotification: async (notificationId, hours = 24) => {
+    return await post(`/notifications/item/${notificationId}/snooze`, { hours });
+  },
+
+  stopNotification: async (notificationId) => {
+    return await post(`/notifications/item/${notificationId}/stop`, {});
   }
 };

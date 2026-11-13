@@ -235,31 +235,23 @@ export async function routeSlashCommand(rawMessage, ctx = {}) {
       if (matchedPlan) {
         const totalDays = matchedPlan.calendar?.length || matchedPlan.workout?.interactive_calendar?.length || 28;
 
-        // If user gave instructions directly (e.g. "/weightlost swap squats for leg press" or "/weightlost 3 sets 12 reps")
+        // If user gave instructions to modify/swap exercises
         if (instructionPart.length > 0) {
-          const editResult = applyPlanEdits(matchedPlan, instructionPart);
-          matchedPlan.markModified('calendar');
-          matchedPlan.markModified('workout');
-          await matchedPlan.save();
-
           return {
             role: 'assistant',
-            content: `✅ **Updated Plan: ${matchedPlan.title}**\n\n${editResult.summary}\n\nYour changes have been saved to the database. Your **Workout Hub** calendar is now updated!`,
+            content: `🛡️ **Safety Guard: Certified Trainer Program Protection**\n\nIn GymSync, workout programs and exercises are designed strictly by certified Fitness Instructors for your safety and proper biomechanical progression.\n\nTo prevent injury and maintain training integrity, AI is not permitted to alter, swap, or manipulate instructor exercises. Please follow the prescribed movements or consult your human fitness instructor directly!`,
             structuredAction: {
-              type: 'PLAN_UPDATED',
-              planId: matchedPlan._id,
-              planTitle: matchedPlan.title,
-              plan: matchedPlan
+              type: 'SAFETY_ADVISORY'
             },
-            sourceAttribution: { sourceType: 'ai_plan_update' }
+            sourceAttribution: { sourceType: 'trainer_program_guard' }
           };
         }
 
-        // If user just typed "/<planname>", link it and offer edit options
-        const planSuggestions = ['🔄 Swap an Exercise', '⚡ Change to 3 sets of 12', '🚀 Open in AI Trainer', '🔄 Create Another Plan'];
+        // If user just typed "/<planname>", link it for reference without exercise modification
+        const planSuggestions = ['🚀 Open in Workout Hub', '💬 Exercise Technique Tips', '🥗 Matching Diet Plan'];
         return {
           role: 'assistant',
-          content: `🎯 **Linked to your plan: ${matchedPlan.title}**\n\nI've pulled up your **${matchedPlan.title}** routine!\n- **Goal**: ${matchedPlan.goal || 'General Fitness'}\n- **Level**: ${matchedPlan.fitnessLevel || 'All Levels'}\n- **Schedule**: ${totalDays} Days\n\nHow would you like to edit this plan?\n• **Swap an exercise**: e.g., \`swap Squat for Leg Press\`\n• **Adjust sets & reps**: e.g., \`change to 3 sets of 12 reps\`\n• **Change frequency**: e.g., \`make it 4 days a week\`\n\nReply with what you'd like to change or choose an option below!`,
+          content: `🎯 **Linked to your plan: ${matchedPlan.title}**\n\nI've pulled up your **${matchedPlan.title}** routine!\n- **Goal**: ${matchedPlan.goal || 'General Fitness'}\n- **Level**: ${matchedPlan.fitnessLevel || 'All Levels'}\n- **Schedule**: ${totalDays} Days\n\n*(Note: Exercises in this program are authored by certified Fitness Instructors and cannot be altered by AI.)*`,
           suggestions: planSuggestions,
           structuredAction: {
             type: 'LINK_PLAN',

@@ -11,7 +11,10 @@ import {
   applyDietToUser,
   getUserActiveDiet,
   logUserDietMeal,
-  deleteUserProgram
+  deleteUserProgram,
+  reviewUserProgramOutcome,
+  getUserProgramReview,
+  getUserPrograms
 } from '../controllers/preMadePlanController.js';
 import { protect, authorizeRoles, optionalProtect } from '../middleware/authMiddleware.js';
 import { findRelevantPrograms, rankProgramCandidates } from '../services/fitnessContentService.js';
@@ -31,15 +34,18 @@ router.get('/programs/search', optionalProtect, async (req, res) => {
 });
 
 // User program & diet execution & tracking routes (placed before parameterized /:id routes)
+router.get('/user-programs', protect, getUserPrograms);
 router.get('/user-programs/active', protect, getUserActiveProgram);
 router.post('/user-programs/:id/progress', protect, logUserProgramProgress);
+router.post('/user-programs/:id/review', protect, reviewUserProgramOutcome);
+router.get('/user-programs/:id/review', protect, getUserProgramReview);
 router.delete('/user-programs/:id', protect, deleteUserProgram);
 router.get('/user-diets/active', protect, getUserActiveDiet);
 router.post('/user-diets/:id/meal-log', protect, logUserDietMeal);
 
-// Public / Trainee discovery
-router.get('/premade', getPreMadePlans);
-router.get('/premade/:id', getPreMadePlanById);
+// Public / Trainee discovery (with optional authentication for staff drafts/reviews)
+router.get('/premade', optionalProtect, getPreMadePlans);
+router.get('/premade/:id', optionalProtect, getPreMadePlanById);
 
 // Apply instructor programs and diet templates to user routine
 router.post('/premade/:id/apply', protect, applyProgramToUser);

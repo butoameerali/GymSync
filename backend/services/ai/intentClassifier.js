@@ -38,7 +38,10 @@ export const INTENTS = {
   // PILLAR 15: Goal lifecycle (completion, next goal)
   GOAL_LIFECYCLE: 'goal_lifecycle',
   // PILLAR 20: Multi-goal add / merge request
-  MULTI_GOAL_ADD: 'multi_goal_add'
+  MULTI_GOAL_ADD: 'multi_goal_add',
+  WORKOUT_BUDDY: 'workout_buddy',
+  // Food logging & meal tracking from library
+  LOG_FOOD: 'log_food'
 };
 
 export function computeMissingBioFields(bio) {
@@ -240,6 +243,13 @@ export const intentClassifier = {
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }
 
+    // Workout buddy search (Rule 5.2)
+    const isWorkoutBuddyQuery = /\b(?:workout\s*buddy|gym\s*buddy|training\s*partner|find\s*(?:me\s*)?(?:a\s*)?(?:buddy|partner)|need\s*(?:a\s*)?(?:gym\s*)?partner|spotter|kasrat\s*partner|partner\s*chahiye)\b/i.test(text);
+    if (isWorkoutBuddyQuery) {
+      intent = INTENTS.WORKOUT_BUDDY;
+      return { intent, entities, clarificationNeeded: false, missingContext: null };
+    }
+
     // Check for Vague Training announcement (e.g. "Kal meri training hai", "I have training tomorrow")
     const isVagueTraining = (
       text === 'kal meri training hai' || text === 'kal meri training hai.' ||
@@ -371,6 +381,34 @@ export const intentClassifier = {
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }
 
+    // Food Logging Intent: "aj mena ... khaya", "aaj maine ... khaya", "2 anday khaye nashte me", "khana log karo"
+    const isLogFood = (
+      /\b(?:aj|aaj)\s+(?:mena|maine|mene|humne)\b/i.test(text) ||
+      /\b(?:khaya|khayi|khaye|khaaya|kha li|kha liya|khaya tha|khai thi)\b/i.test(text) ||
+      /\b(?:log\s+(?:food|meal|khana)|food\s+log|diet\s+log|meal\s+log)\b/i.test(text)
+    ) && (
+      /\b(?:breakfast|nashta|nashtay|lunch|dopahar|dinner|raat|sham|shaam|snack|khana|anda|anday|chicken|oats|daal|biryani|roti|chawal|tikka|salad|machli|fish|paneer|sattu|soup|kabab|chaat)\b/i.test(text)
+    );
+
+    if (isLogFood) {
+      intent = INTENTS.LOG_FOOD;
+      let slot = 'lunch';
+      if (/breakfast|nashta|nashtay|subah/i.test(text)) slot = 'breakfast';
+      else if (/dinner|raat/i.test(text)) slot = 'dinner';
+      else if (/sham|shaam|snack|chai|tea|pre\s*workout|post\s*workout/i.test(text)) slot = 'snack';
+      else if (/lunch|dopahar|dopehr/i.test(text)) slot = 'lunch';
+      else {
+        const hr = new Date().getHours();
+        if (hr < 11) slot = 'breakfast';
+        else if (hr < 16) slot = 'lunch';
+        else if (hr < 19) slot = 'snack';
+        else slot = 'dinner';
+      }
+      entities.mealSlot = slot;
+      entities.loggedText = raw;
+      return { intent, entities, clarificationNeeded: false, missingContext: null };
+    }
+
     // PILLAR 10: Food Substitution — "aaj chicken nahi hai", "beef nahi hai", "swap chicken with tofu", "replace with eggs", "✅ Tofu"
     const foodSubWords = ['chicken', 'beef', 'fish', 'egg', 'eggs', 'daal', 'dal', 'paneer', 'tofu', 'rice', 'roti', 'oats', 'meat', 'protein', 'mutton', 'salmon', 'yogurt'];
     const notAvailableSignals = ['nahi hai', 'nahi hain', 'nahi', 'not available', 'don\'t have', "don't have", 'available nahi', 'khatam', 'available nhi', 'nhi hai'];
@@ -396,8 +434,8 @@ export const intentClassifier = {
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }
 
-    // PILLAR 11: Missed Workout — "kal workout miss ho gaya", "session miss kar gaya", "workout miss ho gaya"
-    const missedSignals = ['miss ho gaya', 'miss kar gaya', 'miss ho gyi', 'miss hogaya', 'nahi kiya', 'workout miss', 'session miss', 'skip kar gaya', 'skip kar dia', 'skip ho gaya', 'missed workout', 'missed session', 'missed it', 'could not workout', "couldn't workout", 'workout nahi ho saka'];
+    // PILLAR 11: Missed Workout — "kal workout miss ho gaya", "chutti ki thi", "workout miss ho gaya"
+    const missedSignals = ['miss ho gaya', 'miss kar gaya', 'miss ho gyi', 'miss hogaya', 'nahi kiya', 'workout miss', 'session miss', 'skip kar gaya', 'skip kar dia', 'skip ho gaya', 'missed workout', 'missed session', 'missed it', 'could not workout', "couldn't workout", 'workout nahi ho saka', 'chutti', 'chutti ki thi', 'chutti thi', 'chutti ho gayi', 'chutti ho gyi'];
     if (missedSignals.some(s => text.includes(s)) || (text.includes('miss') && (text.includes('workout') || text.includes('session') || text.includes('exercise')))) {
       intent = INTENTS.MISSED_WORKOUT;
       return { intent, entities, clarificationNeeded: false, missingContext: null };
@@ -473,8 +511,8 @@ export const intentClassifier = {
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }
 
-    // Progress review
-    if (text.includes('progress') || text.includes('streak') || text.includes('how am i doing')) {
+    // Progress & Program Outcome review
+    if (text.includes('progress') || text.includes('streak') || text.includes('how am i doing') || text.includes('review') || text.includes('outcome') || text.includes('score') || text.includes('debrief') || text.includes('program complete') || text.includes('plan complete') || text.includes('khatam ho gaya') || text.includes('pura ho gaya')) {
       intent = INTENTS.PROGRESS_REVIEW;
       return { intent, entities, clarificationNeeded: false, missingContext: null };
     }

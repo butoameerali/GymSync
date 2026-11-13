@@ -13,7 +13,11 @@ import {
   Megaphone,
   CheckSquare,
   FileText,
-  LogOut
+  LogOut,
+  Dumbbell,
+  Utensils,
+  Activity,
+  ShieldCheck
 } from 'lucide-react';
 
 const AdminLayout = ({ children }) => {
@@ -152,6 +156,36 @@ const AdminLayout = ({ children }) => {
 
           {(isAdmin || isInstructor) && (
             <NavLink
+              to="/programs"
+              className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Dumbbell size={18} />
+              <span>Workout Programs</span>
+            </NavLink>
+          )}
+
+          {(isAdmin || isInstructor) && (
+            <NavLink
+              to="/exercise-library"
+              className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Activity size={18} />
+              <span>Exercise Library</span>
+            </NavLink>
+          )}
+
+          {(isAdmin || isInstructor) && (
+            <NavLink
+              to="/diet-library"
+              className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Utensils size={18} />
+              <span>Diet Library</span>
+            </NavLink>
+          )}
+
+          {(isAdmin || isInstructor) && (
+            <NavLink
               to="/instructor-tasks"
               className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
             >
@@ -159,6 +193,15 @@ const AdminLayout = ({ children }) => {
               <span>Instructor Tasks</span>
             </NavLink>
           )}
+
+          {/* Security & 2-Step Verification for all staff */}
+          <NavLink
+            to="/security"
+            className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
+          >
+            <ShieldCheck size={18} />
+            <span>Security &amp; 2-Step</span>
+          </NavLink>
 
           {isSuperAdmin && (
             <NavLink
@@ -181,7 +224,29 @@ const AdminLayout = ({ children }) => {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Quick 2-Step Verification Link */}
+            <NavLink
+              to="/security"
+              style={{
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: '6px',
+                background: 'rgba(59, 130, 246, 0.1)',
+                color: '#60a5fa',
+                border: '1px solid rgba(59, 130, 246, 0.3)'
+              }}
+              title="Configure 2-Step Verification & Passwords"
+            >
+              <ShieldCheck size={14} />
+              <span>2-Step Security</span>
+            </NavLink>
+
             <span style={{
               fontSize: '0.78rem',
               fontWeight: 600,

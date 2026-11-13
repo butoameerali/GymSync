@@ -6,6 +6,7 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { toast } from 'react-toastify';
 import { ArrowLeft, Settings, Shield } from 'lucide-react';
+import NotificationSettingsCard from '../../features/notifications/components/NotificationSettingsCard';
 import '../Profile/Profile.css';
 
 const SettingsPage = () => {
@@ -297,6 +298,9 @@ const SettingsPage = () => {
         onProfileUpdate={(updatedUser) => setUserData(updatedUser)}
         toast={toast}
       />
+
+      {/* Reminder & Push Notification Preferences */}
+      <NotificationSettingsCard />
 
       {/* Email Verification & 2MFA Modal */}
       <ProfileVerifyEmailModal

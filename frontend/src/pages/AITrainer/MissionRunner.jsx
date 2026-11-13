@@ -3,12 +3,185 @@ import { createPortal } from 'react-dom';
 import { 
   Target, Zap, Activity, CheckCircle, CameraOff, Play, 
   RotateCcw, Plus, SkipForward, ArrowRight, Video, Sparkles, 
-  ChevronRight, Dumbbell, Clock, ThumbsUp, Flame, Award, X
+  ChevronRight, Dumbbell, Clock, ThumbsUp, Flame, Award, X, RefreshCw
 } from 'lucide-react';
 import './MissionRunner.css';
 import AIDetectorContainer from '../../ai-detectors/AIDetectorContainer';
 
 const exerciseMediaCache = new Map();
+
+const parseSafeReps = (val, fallback = 10) => {
+  if (typeof val === 'number' && Number.isFinite(val) && val > 0) return Math.round(val);
+  if (typeof val === 'string') {
+    const match = val.match(/\d+/);
+    if (match) {
+      const parsed = parseInt(match[0], 10);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return fallback;
+};
+
+const parseSafeSets = (val, fallback = 3) => {
+  if (typeof val === 'number' && Number.isFinite(val) && val > 0) return Math.round(val);
+  if (typeof val === 'string') {
+    const match = val.match(/\d+/);
+    if (match) {
+      const parsed = parseInt(match[0], 10);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return fallback;
+};
+
+const COMMON_ALTERNATIVES = {
+  calves: [
+    { name: 'Standing Bodyweight Calf Raise', equipmentRequired: 'Bodyweight', targetMuscle: 'Calves', instructions: 'Rise onto the balls of both feet, hold for 1s, and lower slowly.' },
+    { name: 'One Leg Floor Calf Raise', equipmentRequired: 'Bodyweight', targetMuscle: 'Calves', instructions: 'Balance on one leg and lift onto your toes to target the calf.' },
+    { name: 'Standing Calves Calf Stretch', equipmentRequired: 'Bodyweight', targetMuscle: 'Calves', instructions: 'Extend one leg back with heel down to stretch and mobilize calves.' }
+  ],
+  chest: [
+    { name: 'Push-ups', equipmentRequired: 'Bodyweight', targetMuscle: 'Chest', instructions: 'Keep body in straight plank, lower chest to floor, and press up.' },
+    { name: 'Incline Push-ups (Hands Elevated)', equipmentRequired: 'Bodyweight', targetMuscle: 'Chest', instructions: 'Place hands on bench or sturdy table to adjust chest resistance.' },
+    { name: 'Dumbbell Floor Press', equipmentRequired: 'Dumbbells', targetMuscle: 'Chest', instructions: 'Lie flat on floor and press dumbbells upward with elbows controlled.' }
+  ],
+  quads: [
+    { name: 'Bodyweight Squats', equipmentRequired: 'Bodyweight', targetMuscle: 'Quads', instructions: 'Feet shoulder-width apart, sit hips down and back to 90 degrees.' },
+    { name: 'Walking Lunges', equipmentRequired: 'Bodyweight', targetMuscle: 'Quads', instructions: 'Step forward and bend knees to 90 degrees, alternating legs.' },
+    { name: 'Wall Sit Hold', equipmentRequired: 'Bodyweight', targetMuscle: 'Quads', instructions: 'Back flat against wall with knees at 90 degrees, holding position.' }
+  ],
+  back: [
+    { name: 'Doorframe Bodyweight Row', equipmentRequired: 'Bodyweight', targetMuscle: 'Back', instructions: 'Hold sturdy doorframe, lean back, and pull chest toward the frame.' },
+    { name: 'Superman Hold', equipmentRequired: 'Bodyweight', targetMuscle: 'Back', instructions: 'Lie prone and lift arms and legs simultaneously to engage posterior chain.' },
+    { name: 'Dumbbell Bent Over Row', equipmentRequired: 'Dumbbells', targetMuscle: 'Back', instructions: 'Hinge at hips with flat back, pull dumbbells toward hip crease.' }
+  ],
+  shoulders: [
+    { name: 'Pike Push-ups', equipmentRequired: 'Bodyweight', targetMuscle: 'Shoulders', instructions: 'Hips high in pike position, lower head toward hands to press.' },
+    { name: 'Lateral Arm Raises (Water Bottles / DBs)', equipmentRequired: 'Dumbbells', targetMuscle: 'Shoulders', instructions: 'Raise arms out to sides until parallel with floor.' },
+    { name: 'Arm Circles & Overhead Reach', equipmentRequired: 'Bodyweight', targetMuscle: 'Shoulders', instructions: 'Controlled rotations to mobilize rotator cuffs and deltoids.' }
+  ],
+  core: [
+    { name: 'Plank Hold', equipmentRequired: 'Bodyweight', targetMuscle: 'Core', instructions: 'Forearms and toes on ground, glutes squeezed and spine neutral.' },
+    { name: 'Bicycle Crunches', equipmentRequired: 'Bodyweight', targetMuscle: 'Core', instructions: 'Alternate bringing opposite elbow to knee with shoulder blades off floor.' },
+    { name: 'Mountain Climbers', equipmentRequired: 'Bodyweight', targetMuscle: 'Core', instructions: 'In push-up plank position, drive knees rhythmically toward chest.' }
+  ],
+  arms: [
+    { name: 'Chair / Bench Tricep Dips', equipmentRequired: 'Bodyweight', targetMuscle: 'Triceps', instructions: 'Hands on sturdy chair edge, lower hips down and press through palms.' },
+    { name: 'Diamond Push-ups', equipmentRequired: 'Bodyweight', targetMuscle: 'Triceps', instructions: 'Hands together in diamond shape under chest, press up.' },
+    { name: 'Towel / Resistance Bicep Curls', equipmentRequired: 'Bodyweight', targetMuscle: 'Biceps', instructions: 'Use towel loop under foot for isometric tension curl.' }
+  ]
+};
+
+export const GUARANTEED_MUSCLE_MEDIA = {
+  walk: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3666-rjiM4L3.gif',
+  cardio: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3666-rjiM4L3.gif',
+  run: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0685-oLrKqDH.gif',
+  calf: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/1398-qOKcgVP.gif',
+  calves: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/1398-qOKcgVP.gif',
+  chest: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0975-ufaxB52.gif',
+  push: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0975-ufaxB52.gif',
+  quad: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3119-75Bgtjy.gif',
+  leg: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3119-75Bgtjy.gif',
+  squat: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3119-75Bgtjy.gif',
+  glute: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3561-GibBPPg.gif',
+  back: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0200-dU605di.gif',
+  pull: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0200-dU605di.gif',
+  lat: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/2330-LEprlgG.gif',
+  shoulder: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0405-z3qT6n6.gif',
+  arm: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0285-L39XkXv.gif',
+  bicep: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0285-L39XkXv.gif',
+  tricep: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0129-RrLske5.gif',
+  core: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0464-CosupLu.gif',
+  ab: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0276-iny3m5y.gif',
+  default: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3666-rjiM4L3.gif'
+};
+
+export const DEFAULT_FALLBACK_EXERCISES = [
+  {
+    name: 'Brisk Walking',
+    sets: 1,
+    reps: '20 mins',
+    targetMuscle: 'Cardiovascular System',
+    instructions: 'Walk with an upright, purposeful posture, swinging arms gently at a steady brisk pace.',
+    gifUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3666-rjiM4L3.gif',
+    mediaUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3666-rjiM4L3.gif'
+  },
+  {
+    name: 'Bodyweight Squats',
+    sets: 3,
+    reps: 12,
+    targetMuscle: 'Quads & Glutes',
+    instructions: 'Hinge hips back and bend knees down to parallel, keeping chest upright.',
+    gifUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3119-75Bgtjy.gif',
+    mediaUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/3119-75Bgtjy.gif'
+  },
+  {
+    name: 'Push-ups',
+    sets: 3,
+    reps: 10,
+    targetMuscle: 'Chest & Arms',
+    instructions: 'Lower chest towards floor keeping elbows at 45 degrees, press firmly back up.',
+    gifUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0975-ufaxB52.gif',
+    mediaUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0975-ufaxB52.gif'
+  }
+];
+
+export const getGuaranteedMedia = (ex) => {
+  if (!ex) return GUARANTEED_MUSCLE_MEDIA.default;
+  const direct = ex.gifUrl || ex.mediaUrl || ex.videoUrl;
+  if (direct && typeof direct === 'string' && direct.trim() !== '') {
+    return direct.includes('0043-s6bYM8w') ? direct.replace('0043-s6bYM8w', '0043-qXTaZnJ') : direct;
+  }
+  const text = `${ex.name || ''} ${ex.exerciseName || ''} ${ex.title || ''} ${ex.targetMuscle || ''} ${ex.category || ''} ${ex.instructions || ''}`.toLowerCase();
+  
+  // High-precision movement matches
+  if (text.includes('walk') || text.includes('stroll') || text.includes('treadmill')) {
+    return GUARANTEED_MUSCLE_MEDIA.walk;
+  }
+  if (text.includes('run') || text.includes('jog')) {
+    return GUARANTEED_MUSCLE_MEDIA.run;
+  }
+  if (text.includes('calf') || text.includes('calves')) {
+    return GUARANTEED_MUSCLE_MEDIA.calf;
+  }
+  if (text.includes('knee hug') || text.includes('hug keen') || text.includes('knee to chest')) {
+    return 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/1418-znP9SIh.gif';
+  }
+  if (text.includes('step-up') || text.includes('step up')) {
+    return 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0431-aXtJhlg.gif';
+  }
+  if (text.includes('squat')) {
+    return GUARANTEED_MUSCLE_MEDIA.squat;
+  }
+  if (text.includes('push-up') || text.includes('pushup') || text.includes('chest') || text.includes('press')) {
+    return GUARANTEED_MUSCLE_MEDIA.chest;
+  }
+  if (text.includes('deadlift') || text.includes('hamstring')) {
+    return 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/1459-rR0LJzx.gif';
+  }
+  if (text.includes('bridge') || text.includes('glute')) {
+    return GUARANTEED_MUSCLE_MEDIA.glute;
+  }
+  if (text.includes('row') || text.includes('back') || text.includes('pull') || text.includes('lat')) {
+    return GUARANTEED_MUSCLE_MEDIA.back;
+  }
+  if (text.includes('shoulder') || text.includes('overhead') || text.includes('delt')) {
+    return GUARANTEED_MUSCLE_MEDIA.shoulder;
+  }
+  if (text.includes('arm') || text.includes('bicep') || text.includes('tricep') || text.includes('curl')) {
+    return GUARANTEED_MUSCLE_MEDIA.arm;
+  }
+  if (text.includes('plank') || text.includes('core') || text.includes('ab') || text.includes('crunch')) {
+    return GUARANTEED_MUSCLE_MEDIA.core;
+  }
+
+  for (const [key, url] of Object.entries(GUARANTEED_MUSCLE_MEDIA)) {
+    if (key !== 'default' && text.includes(key)) {
+      return url;
+    }
+  }
+  return GUARANTEED_MUSCLE_MEDIA.default;
+};
 
 export const MissionRunner = ({ 
   dayTitle, 
@@ -77,15 +250,93 @@ export const MissionRunner = ({
   const [reportDesc, setReportDesc] = useState('');
   const [reportMsg, setReportMsg] = useState('');
 
-  // Fallback if no exercises passed
-  const safeExercises = Array.isArray(exercises) && exercises.length > 0 
-    ? exercises 
-    : [{ name: 'Full Body Movement', sets: 3, reps: 10, targetMuscle: 'Full Body' }];
+  // Mutable workout exercises state (supports real-time equipment swap)
+  const [workoutExercises, setWorkoutExercises] = useState(() => (
+    Array.isArray(exercises) && exercises.length > 0 
+      ? exercises 
+      : DEFAULT_FALLBACK_EXERCISES
+  ));
 
-  const currentEx = safeExercises[currentExIndex] || safeExercises[0];
-  const totalExercises = safeExercises.length;
-  const totalSetsForCurrent = Number(currentEx.sets || currentEx.defaultSets || 3);
-  const targetRepsForCurrent = Number(currentEx.reps || currentEx.defaultReps || 10);
+  useEffect(() => {
+    if (Array.isArray(exercises) && exercises.length > 0) {
+      setWorkoutExercises(exercises);
+    }
+  }, [exercises]);
+
+  const currentEx = workoutExercises[currentExIndex] || workoutExercises[0];
+  const totalExercises = workoutExercises.length;
+  const totalSetsForCurrent = parseSafeSets(currentEx.sets || currentEx.defaultSets, 3);
+  const targetRepsForCurrent = parseSafeReps(currentEx.reps || currentEx.defaultReps, 10);
+
+  // Alternative equipment swap state
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [availableAlternatives, setAvailableAlternatives] = useState([]);
+  const [loadingAlternatives, setLoadingAlternatives] = useState(false);
+
+  const handleOpenSwapModal = async () => {
+    setShowSwapModal(true);
+    setLoadingAlternatives(true);
+
+    const targetMuscle = String(currentEx.targetMuscle || currentEx.category || currentEx.name || 'Full Body').toLowerCase();
+    
+    // 1. Pick instant high-quality fallback alternatives
+    let defaultList = COMMON_ALTERNATIVES.calves;
+    if (targetMuscle.includes('chest') || targetMuscle.includes('push')) defaultList = COMMON_ALTERNATIVES.chest;
+    else if (targetMuscle.includes('quad') || targetMuscle.includes('leg') || targetMuscle.includes('squat')) defaultList = COMMON_ALTERNATIVES.quads;
+    else if (targetMuscle.includes('back') || targetMuscle.includes('pull') || targetMuscle.includes('lat')) defaultList = COMMON_ALTERNATIVES.back;
+    else if (targetMuscle.includes('shoulder') || targetMuscle.includes('delt')) defaultList = COMMON_ALTERNATIVES.shoulders;
+    else if (targetMuscle.includes('core') || targetMuscle.includes('ab')) defaultList = COMMON_ALTERNATIVES.core;
+    else if (targetMuscle.includes('arm') || targetMuscle.includes('bicep') || targetMuscle.includes('tricep')) defaultList = COMMON_ALTERNATIVES.arms;
+
+    setAvailableAlternatives(defaultList);
+
+    // 2. Query exercise database for additional equipment-free options
+    try {
+      const searchKey = targetMuscle.replace(/[^a-z]/g, ' ').trim().split(/\s+/)[0] || '';
+      const res = await fetch(`/api/exercises?search=${encodeURIComponent(searchKey)}&limit=10`);
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.items || []);
+        if (list.length > 0) {
+          const apiFiltered = list
+            .filter(e => e.name.toLowerCase() !== (currentEx.name || '').toLowerCase())
+            .map(e => ({
+              name: e.name,
+              equipmentRequired: e.equipmentRequired || 'Bodyweight / Free',
+              targetMuscle: e.targetMuscles?.[0] || e.category || 'Target Muscle',
+              instructions: e.instructions || 'Perform with controlled form and full range of motion.',
+              gifUrl: e.gifUrl || e.mediaUrl || '',
+              mediaUrl: e.mediaUrl || e.gifUrl || ''
+            }));
+          if (apiFiltered.length > 0) {
+            setAvailableAlternatives([...defaultList.slice(0, 2), ...apiFiltered.slice(0, 4)]);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to query dynamic alternatives:', e);
+    } finally {
+      setLoadingAlternatives(false);
+    }
+  };
+
+  const handleSelectSwap = (alt) => {
+    const updated = [...workoutExercises];
+    updated[currentExIndex] = {
+      ...currentEx,
+      name: alt.name,
+      equipmentRequired: alt.equipmentRequired,
+      targetMuscle: alt.targetMuscle || currentEx.targetMuscle,
+      instructions: alt.instructions || currentEx.instructions,
+      gifUrl: alt.gifUrl || '',
+      mediaUrl: alt.mediaUrl || '',
+      isSwapped: true
+    };
+    setWorkoutExercises(updated);
+    setCurrentSet(1);
+    setResolvedMedia(alt.gifUrl || alt.mediaUrl || '');
+    setShowSwapModal(false);
+  };
 
   // Helper: check if the current exercise has AI computer vision support
   const checkExerciseSupportsAI = (ex) => {
@@ -108,14 +359,14 @@ export const MissionRunner = ({
 
   // Calculate Initial Estimates
   useEffect(() => {
-    const totalSetsAll = safeExercises.reduce((acc, ex) => acc + (Number(ex.sets || ex.defaultSets) || 3), 0);
+    const totalSetsAll = workoutExercises.reduce((acc, ex) => acc + parseSafeSets(ex.sets || ex.defaultSets, 3), 0);
     setEarnedXP(totalSetsAll * 25 + 50); // Base 50 XP + 25 per set
     setBurnedKcal(Math.round(totalSetsAll * 12.5)); // ~12.5 kcal per completed set
-  }, [exercises]);
+  }, [workoutExercises]);
 
   // Sync target reps when exercise changes
   useEffect(() => {
-    setRepsDone(targetRepsForCurrent);
+    setRepsDone(parseSafeReps(targetRepsForCurrent, 10));
     // If exercise doesn't have AI support, default directly to manual game mode
     if (!isCurrentExAiSupported) {
       setAiModeChoice('without_ai');
@@ -126,7 +377,7 @@ export const MissionRunner = ({
 
   // Dynamic media resolution for exercises where gifUrl/mediaUrl is not embedded directly in the routine
   const [resolvedMedia, setResolvedMedia] = useState(
-    currentEx.gifUrl || currentEx.mediaUrl || currentEx.videoUrl || ''
+    () => currentEx.gifUrl || currentEx.mediaUrl || currentEx.videoUrl || getGuaranteedMedia(currentEx)
   );
 
   useEffect(() => {
@@ -138,7 +389,7 @@ export const MissionRunner = ({
 
     const exName = (currentEx.name || currentEx.exerciseName || currentEx.title || '').trim();
     if (!exName) {
-      setResolvedMedia('');
+      setResolvedMedia(getGuaranteedMedia(currentEx));
       return;
     }
 
@@ -200,11 +451,11 @@ export const MissionRunner = ({
           exerciseMediaCache.set(cacheKey, media);
           setResolvedMedia(media);
         } else {
-          setResolvedMedia('');
+          setResolvedMedia(getGuaranteedMedia(currentEx));
         }
       })
       .catch(() => {
-        if (isMounted) setResolvedMedia('');
+        if (isMounted) setResolvedMedia(getGuaranteedMedia(currentEx));
       });
 
     return () => { isMounted = false; };
@@ -364,7 +615,7 @@ export const MissionRunner = ({
             <div className="mission-detail-item">
               <span className="mission-detail-label">Target Volume</span>
               <span className="mission-detail-value">
-                {safeExercises.reduce((acc, ex) => acc + (Number(ex.sets || ex.defaultSets) || 3), 0)} Total Sets
+                {workoutExercises.reduce((acc, ex) => acc + parseSafeSets(ex.sets || ex.defaultSets, 3), 0)} Total Sets
               </span>
             </div>
             <div className="mission-detail-item">
@@ -384,7 +635,7 @@ export const MissionRunner = ({
           {/* Exercise Preview List */}
           <div className="mission-exercise-preview-list">
             <p className="mission-preview-heading">SESSION MOVEMENTS ({totalExercises})</p>
-            {safeExercises.map((ex, idx) => {
+            {workoutExercises.map((ex, idx) => {
               const hasAi = checkExerciseSupportsAI(ex);
               const isAlreadyDone = completedExerciseIndices.includes(idx);
               const isCurrent = idx === currentExIndex;
@@ -468,8 +719,9 @@ export const MissionRunner = ({
               className="mission-exit-btn"
               onClick={() => setShowExitConfirm(true)}
               title="Exit Workout"
+              aria-label="Exit Workout"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           </div>
 
@@ -507,7 +759,15 @@ export const MissionRunner = ({
             <div className="mission-active-tags">
               {currentEx.isWarmup ? (
                 <span className="mission-tag-badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)' }}>
-                  <Flame size={14} /> Dynamic Warm-Up
+                  <Flame size={14} /> Dynamic Warm-Up (#1)
+                </span>
+              ) : currentEx.isCardio ? (
+                <span className="mission-tag-badge" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
+                  <Activity size={14} /> Cardio & Endurance
+                </span>
+              ) : currentEx.isCooldown ? (
+                <span className="mission-tag-badge" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.3)' }}>
+                  <Award size={14} /> Cool-Down & Stretch
                 </span>
               ) : (
                 <span className="mission-tag-badge">
@@ -523,6 +783,39 @@ export const MissionRunner = ({
                 </span>
               )}
             </div>
+
+            {/* Form Cue & Movement Alternatives from Section 6 & 8 */}
+            {(currentEx.keyCue || currentEx.easierOption || currentEx.harderOption) && (
+              <div style={{
+                marginTop: '10px',
+                padding: '10px 14px',
+                borderRadius: '10px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                fontSize: '0.82rem'
+              }}>
+                {currentEx.keyCue && (
+                  <div style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <strong>💡 Form Cue:</strong> {currentEx.keyCue}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', color: 'var(--text-secondary)' }}>
+                  {currentEx.easierOption && (
+                    <div>
+                      <span style={{ color: '#10b981', fontWeight: 600 }}>Easier:</span> {currentEx.easierOption}
+                    </div>
+                  )}
+                  {currentEx.harderOption && (
+                    <div>
+                      <span style={{ color: '#f59e0b', fontWeight: 600 }}>Harder:</span> {currentEx.harderOption}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── SCENARIO A: AI Choice Mode for AI-Supported Exercises ── */}
@@ -598,32 +891,49 @@ export const MissionRunner = ({
               
               {/* Exercise Demo Animation / Illustration Placeholder */}
               {(() => {
-                const rawMedia = currentEx.gifUrl || currentEx.mediaUrl || currentEx.videoUrl || resolvedMedia;
+                const guaranteed = getGuaranteedMedia(currentEx);
+                const rawMedia = currentEx.gifUrl || currentEx.mediaUrl || currentEx.videoUrl || resolvedMedia || guaranteed;
                 // Auto-fix any legacy cached broken hash for Barbell Squat
-                const exerciseMedia = (typeof rawMedia === 'string' && rawMedia.includes('0043-s6bYM8w'))
+                let exerciseMedia = (typeof rawMedia === 'string' && rawMedia.includes('0043-s6bYM8w'))
                   ? rawMedia.replace('0043-s6bYM8w', '0043-qXTaZnJ')
                   : rawMedia;
+
+                if (!exerciseMedia || (mediaLoadError && exerciseMedia !== guaranteed)) {
+                  exerciseMedia = guaranteed;
+                }
+
                 const isVideo = typeof exerciseMedia === 'string' && (exerciseMedia.endsWith('.mp4') || exerciseMedia.endsWith('.webm'));
-                const showMedia = Boolean(exerciseMedia && !mediaLoadError);
+                const showMedia = Boolean(exerciseMedia);
 
                 return (
                   <div className={`mission-manual-visual-card ${showMedia ? 'has-gif' : 'no-gif'}`}>
                     {showMedia ? (
                       isVideo ? (
                         <video
+                          key={exerciseMedia}
                           src={exerciseMedia}
                           autoPlay
                           loop
                           muted
                           playsInline
-                          onError={() => setMediaLoadError(true)}
+                          onError={() => {
+                            setResolvedMedia(guaranteed);
+                            setMediaLoadError(true);
+                          }}
                           className="mission-exercise-gif"
                         />
                       ) : (
                         <img 
+                          key={exerciseMedia}
                           src={exerciseMedia} 
                           alt={currentEx.name} 
-                          onError={() => setMediaLoadError(true)}
+                          onError={(e) => {
+                            if (e.currentTarget.src !== guaranteed) {
+                              e.currentTarget.src = guaranteed;
+                            } else {
+                              setMediaLoadError(true);
+                            }
+                          }}
                           className="mission-exercise-gif"
                         />
                       )
@@ -644,20 +954,20 @@ export const MissionRunner = ({
                 <div className="mission-reps-counter-wrap">
                   <button 
                     className="mission-counter-btn"
-                    onClick={() => setRepsDone(Math.max(1, repsDone - 1))}
+                    onClick={() => setRepsDone(prev => Math.max(1, (Number.isFinite(prev) ? prev : 10) - 1))}
                     title="Decrease Reps"
                   >
                     -
                   </button>
 
                   <div className="mission-reps-number-block">
-                    <span className="mission-reps-number">{repsDone}</span>
+                    <span className="mission-reps-number">{Number.isFinite(repsDone) ? repsDone : 10}</span>
                     <span className="mission-reps-label">REPS COMPLETED</span>
                   </div>
 
                   <button 
                     className="mission-counter-btn"
-                    onClick={() => setRepsDone(repsDone + 1)}
+                    onClick={() => setRepsDone(prev => (Number.isFinite(prev) ? prev : 10) + 1)}
                     title="Increase Reps"
                   >
                     +
@@ -665,7 +975,11 @@ export const MissionRunner = ({
                 </div>
 
                 <span className="mission-target-hint">
-                  Target for this set: <strong>{currentEx.isWarmup ? (currentEx.reps || currentEx.duration || '60 sec') : `${targetRepsForCurrent} reps`}</strong>
+                  Target for this set: <strong>
+                    {currentEx.isWarmup 
+                      ? (typeof currentEx.duration === 'string' && currentEx.duration.includes('sec') ? currentEx.duration : `${targetRepsForCurrent} reps`) 
+                      : `${targetRepsForCurrent} reps`}
+                  </strong>
                 </span>
               </div>
 
@@ -673,12 +987,13 @@ export const MissionRunner = ({
               <div className="mission-action-bar">
                 <button 
                   className="mission-btn mission-btn-start mission-btn-log"
-                  onClick={() => handleCompleteSet('manual', repsDone)}
+                  onClick={() => handleCompleteSet('manual', Number.isFinite(repsDone) ? repsDone : targetRepsForCurrent)}
                 >
                   <CheckCircle size={22} /> {currentEx.isWarmup ? `COMPLETE WARM-UP SET ${currentSet}` : `COMPLETE SET ${currentSet}`}
                 </button>
 
                 <div className="mission-sub-actions">
+
                   <button 
                     className="mission-text-action-btn"
                     onClick={handleSkipCurrentExercise}
@@ -700,6 +1015,140 @@ export const MissionRunner = ({
             </div>
           )}
 
+          {/* ── ALTERNATIVE MOVEMENT / EQUIPMENT SWAP MODAL ── */}
+          {showSwapModal && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.8)',
+              backdropFilter: 'blur(6px)',
+              zIndex: 100000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px'
+            }}>
+              <div style={{
+                background: 'var(--card-bg, #1e293b)',
+                border: '1px solid var(--card-border, #334155)',
+                borderRadius: '20px',
+                width: '100%',
+                maxWidth: '520px',
+                maxHeight: '85vh',
+                overflowY: 'auto',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                color: '#f8fafc'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase' }}>
+                      Equipment Alternative
+                    </span>
+                    <h3 style={{ margin: '4px 0 0', fontSize: '1.15rem', fontWeight: 800 }}>
+                      Swap {currentEx.name}
+                    </h3>
+                  </div>
+                  <button 
+                    onClick={() => setShowSwapModal(false)}
+                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                  Don't have this equipment in your gym or training at home? Swap to a bodyweight or dumbbell alternative targeting the same muscle group:
+                </p>
+
+                {loadingAlternatives ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+                    Finding alternatives...
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {availableAlternatives.map((alt, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: '14px',
+                          borderRadius: '12px',
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '12px'
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#ffffff' }}>
+                              {alt.name}
+                            </span>
+                            <span style={{
+                              fontSize: '0.7rem',
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              color: '#10b981',
+                              fontWeight: 600
+                            }}>
+                              {alt.equipmentRequired}
+                            </span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                            {alt.instructions}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSwap(alt)}
+                          style={{
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            background: '#3b82f6',
+                            color: '#ffffff',
+                            border: 'none',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          Swap
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowSwapModal(false)}
+                  style={{
+                    marginTop: '8px',
+                    padding: '10px',
+                    borderRadius: '10px',
+                    background: 'transparent',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#94a3b8',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Keep Current Movement
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     );
@@ -708,11 +1157,37 @@ export const MissionRunner = ({
   // ── 3. REST COUNTDOWN PHASE ───────────────────────────────────────────
   if (phase === 'rest') {
     const hasMoreSetsForCurrent = currentSet < totalSetsForCurrent;
-    const nextExerciseObj = safeExercises[currentExIndex + 1];
+    const nextExerciseObj = workoutExercises[currentExIndex + 1];
 
     return renderOverlay(
       <div className="mission-runner-overlay">
         <div className="mission-runner-content mission-rest-card">
+          <button 
+            className="mission-close-btn"
+            onClick={() => setShowExitConfirm(true)}
+            title="Exit Workout"
+            aria-label="Exit Workout"
+          >
+            <X size={20} />
+          </button>
+
+          {/* Exit Confirmation Modal */}
+          {showExitConfirm && (
+            <div className="mission-exit-confirm-overlay">
+              <div className="mission-exit-confirm-card">
+                <h3>Leave Workout?</h3>
+                <p>Your session is in progress. Are you sure you want to stop now?</p>
+                <div className="mission-confirm-actions">
+                  <button className="btn btn-secondary" onClick={() => setShowExitConfirm(false)}>
+                    Keep Training
+                  </button>
+                  <button className="btn btn-danger" onClick={onCancel}>
+                    Exit Workout
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="mission-badge" style={{ color: '#3b82f6' }}>
             <Activity size={16} /> RECOVERY PERIOD
@@ -768,6 +1243,14 @@ export const MissionRunner = ({
     return renderOverlay(
       <div className="mission-runner-overlay">
         <div className="mission-runner-content mission-celebration">
+          <button 
+            className="mission-close-btn"
+            onClick={onCancel}
+            title="Close"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
           
           <div className="mission-celebration-trophy">
             <CheckCircle size={72} color="#10b981" />

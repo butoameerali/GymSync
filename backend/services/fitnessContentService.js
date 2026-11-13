@@ -1,6 +1,7 @@
 import PreMadePlan from '../models/PreMadePlan.js';
 import Article from '../models/Article.js';
 import Exercise from '../models/Exercise.js';
+import { expandTemplateWeeks } from './weightLoss/weightLossTemplates.js';
 
 /**
  * fitnessContentService
@@ -110,9 +111,25 @@ export const findRelevantPrograms = async ({
       ageRange: p.ageRange || '16 - 60 years',
       ageGuidelines: p.ageGuidelines || '',
       description: p.description,
-      weeks: p.weeks || [],
+      weeks: (p.weeks && p.weeks.length < (p.durationWeeks || 4))
+        ? expandTemplateWeeks(p.weeks, p.durationWeeks || 4)
+        : (p.weeks || []),
       sportTags: p.sportTags || [],
       equipmentRequired: p.equipmentRequired || [],
+      equipmentTrack: p.equipmentTrack || 'Home (No Equipment)',
+      programLevel: p.programLevel || 'Starter',
+      isExtremeProgram: Boolean(p.isExtremeProgram),
+      minBMI: p.minBMI !== undefined ? p.minBMI : 23,
+      maxBMI: p.maxBMI !== undefined ? p.maxBMI : 50,
+      minWeightKg: p.minWeightKg !== undefined ? p.minWeightKg : 50,
+      maxWeightKg: p.maxWeightKg !== undefined ? p.maxWeightKg : 180,
+      whoCanDo: p.whoCanDo || [],
+      whoShouldNotDo: p.whoShouldNotDo || [],
+      medicalWarningRequired: p.medicalWarningRequired !== undefined ? p.medicalWarningRequired : true,
+      medicalWarningText: p.medicalWarningText || '',
+      missedDayPolicy: p.missedDayPolicy || null,
+      cardioPrescription: p.cardioPrescription || null,
+      expectedLossMonth1: p.expectedLossMonth1 || null,
       version: p.version || 1
     }));
 
@@ -473,11 +490,19 @@ export const findRelevantExercises = async ({
   }
 };
 
+import workoutBuddyFinder from './ai/workoutBuddyFinder.js';
+
+export const findRelevantPublicPosts = workoutBuddyFinder.findRelevantPublicPosts;
+export const findWorkoutBuddies = workoutBuddyFinder.findWorkoutBuddies;
+
 export const fitnessContentService = {
   findRelevantPrograms,
   findRelevantDietTemplates,
   findRelevantArticles,
-  findRelevantExercises
+  findRelevantExercises,
+  findRelevantPublicPosts,
+  findWorkoutBuddies
 };
 
 export default fitnessContentService;
+

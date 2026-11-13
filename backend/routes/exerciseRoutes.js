@@ -26,7 +26,7 @@ router.post('/upload-media', protect, authorizeRoles('Admin', 'SuperAdmin', 'Fit
 router.post('/', protect, authorizeRoles('Admin', 'SuperAdmin', 'FitnessInstructor'), createExercise);
 router.put('/:id', protect, authorizeRoles('Admin', 'SuperAdmin', 'FitnessInstructor'), updateExercise);
 router.put('/:id/archive', protect, authorizeRoles('Admin', 'SuperAdmin', 'FitnessInstructor'), archiveExercise);
-router.delete('/:id', protect, authorizeRoles('Admin', 'SuperAdmin'), deleteExercise);
+router.delete('/:id', protect, authorizeRoles('Admin', 'SuperAdmin', 'FitnessInstructor'), deleteExercise);
 
 export default router;
 

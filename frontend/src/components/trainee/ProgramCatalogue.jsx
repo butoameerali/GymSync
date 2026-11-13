@@ -242,7 +242,13 @@ const ProgramCatalogue = ({ onProgramApplied, onApplied }) => {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to apply program');
+      if (!res.ok) throw new Error(data.message || data.error || 'Failed to apply program');
+
+      if (data.alreadyEnrolled) {
+        toast.info(data.message || `You are already enrolled in "${program.title}".`);
+        if (setPreviewProgram) setPreviewProgram(null);
+        return;
+      }
 
       toast.success(data.message || `Applied "${program.title}" to your routine!`);
 

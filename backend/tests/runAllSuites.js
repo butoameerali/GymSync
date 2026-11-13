@@ -17,7 +17,14 @@ const suites = [
   { name: 'AI Decision Engine Unit Suite', file: 'aiTrainerDecisionEngine.test.js' },
   { name: 'Conversational Coach Adaptive Suite', file: 'conversationalCoachAdaptive.test.js' },
   { name: 'Phase 1 Health Bio & Calorie Persistence Suite', file: 'testPhase1HealthAndCalories.js' },
-  { name: 'Phase 2 Goal Engine, Safety & Trainer Review Suite', file: 'testPhase2GoalAndSafety.js' }
+  { name: 'Phase 2 Goal Engine, Safety & Trainer Review Suite', file: 'testPhase2GoalAndSafety.js' },
+  { name: 'Phase 0 QA Defects & Architectural Gates Suite', file: 'testPhase0Defects.js' },
+  { name: 'Phase 1 R1 & R2 Product Policy Suite', file: 'testPhase1R1R2Policy.js' },
+  { name: 'Phase 2 Weight Loss Program & Safety Engine Suite', file: 'testPhase2WeightLoss.js' },
+  { name: 'Phase 3 Notifications, Web Push & Reminder Scheduler Suite', file: 'testPhase3Notifications.js' },
+  { name: 'Phase 4 Food Logging & Pakistani Food Database Suite', file: 'testPhase4FoodLogging.js' },
+  { name: 'Phase 5 AI Coach Behavior & Integrity Suite', file: 'testPhase5AICoach.js' },
+  { name: 'Phase 6 Master Regression QA Suite', file: 'testPhase6RegressionQA.js' }
 ];
 
 console.log('===============================================================');

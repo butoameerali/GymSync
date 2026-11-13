@@ -27,7 +27,7 @@ export const apiJson = async (url, options = {}) => {
   const res = await apiFetch(url, options);
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    const err = new Error(errorData.message || `HTTP error ${res.status}`);
+    const err = new Error(errorData.message || errorData.error || `Request failed (${res.status})`);
     err.status = res.status;
     err.data = errorData;
     throw err;
